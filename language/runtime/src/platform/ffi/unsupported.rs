@@ -42,7 +42,7 @@ pub(crate) unsafe fn destack_ffi_call(
     }
     let _ = (out, symbol, abi, flags, arguments, resultsize);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.call.call")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.call.invoke")).boxed())
 }
 
 /// Close a dynamic library.

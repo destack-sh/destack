@@ -35,8 +35,8 @@ fn string_ref_from_vm(
 /// Key lifetime is explicit and must be released with delete.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses pthread TLS keys on Unix, TlsAlloc on Windows, and wasi TLS support where available.
+/// Unix and Windows.
+/// Uses pthread TLS keys on Unix and TlsAlloc on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -59,8 +59,8 @@ pub(crate) fn destack_thread_local_create(
 /// Existing per-thread values become invalid after deletion.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses pthread TLS key deletion on Unix, TlsFree on Windows, and wasi TLS support where available.
+/// Unix and Windows.
+/// Uses pthread TLS key deletion on Unix and TlsFree on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -84,8 +84,8 @@ pub(crate) fn destack_thread_local_delete(
 /// Value interpretation is caller-defined and ABI-dependent.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses pthread TLS storage on Unix, TlsGetValue on Windows, and wasi TLS support where available.
+/// Unix and Windows.
+/// Uses pthread TLS storage on Unix and TlsGetValue on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -109,8 +109,8 @@ pub(crate) fn destack_thread_local_get(
 /// Value interpretation is caller-defined and ABI-dependent.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses pthread TLS storage on Unix, TlsSetValue on Windows, and wasi TLS support where available.
+/// Unix and Windows.
+/// Uses pthread TLS storage on Unix and TlsSetValue on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -237,7 +237,7 @@ pub(crate) fn destack_thread_set_priority(
 /// Detached thread lifecycle and cleanup are host-managed.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
+/// Unix and Windows.
 /// Uses pthread_detach on Unix and handle-release semantics on Windows.
 ///
 /// # Errors
@@ -262,8 +262,8 @@ pub(crate) fn destack_thread_detach(
 /// Join behavior follows host thread lifecycle rules.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses pthread_join on Unix, WaitForSingleObject plus exit code on Windows, and wasi equivalents where available.
+/// Unix and Windows.
+/// Uses pthread_join on Unix and WaitForSingleObject plus exit code on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -287,8 +287,8 @@ pub(crate) fn destack_thread_join(
 /// Entry dispatch and argument passing are runtime ABI contracts.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses pthread_create on Unix, CreateThread on Windows, and wasi thread support when available.
+/// Unix and Windows.
+/// Uses pthread_create on Unix and CreateThread on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -450,7 +450,7 @@ pub(crate) fn destack_thread_barrier_wait(
 /// Condition variable association with mutexes is validated on wait calls.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
+/// Unix and Windows.
 /// Uses pthread condition variables on Unix and condition variable APIs on Windows.
 ///
 /// # Errors
@@ -475,7 +475,7 @@ pub(crate) fn destack_thread_cond_var_create(
 /// Wake ordering and runnable scheduling follow host synchronization semantics.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
+/// Unix and Windows.
 /// Uses host condition-variable broadcast primitives.
 ///
 /// # Errors
@@ -500,7 +500,7 @@ pub(crate) fn destack_thread_cond_var_notify_all(
 /// Waiter selection order follows host synchronization semantics.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
+/// Unix and Windows.
 /// Uses host condition-variable notify primitives.
 ///
 /// # Errors
@@ -525,7 +525,7 @@ pub(crate) fn destack_thread_cond_var_notify_one(
 /// Mutex is reacquired before returning from wait according to host semantics.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
+/// Unix and Windows.
 /// Uses host condition-variable wait primitives.
 ///
 /// # Errors
@@ -552,8 +552,8 @@ pub(crate) fn destack_thread_cond_var_wait(
 /// Mutex ownership and recursion behavior follow host primitive configuration.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses pthread mutexes on Unix, SRW or critical section primitives on Windows, and wasi mutex support where available.
+/// Unix and Windows.
+/// Uses pthread mutexes on Unix and SRW or critical section primitives on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -577,7 +577,7 @@ pub(crate) fn destack_thread_mutex_create(
 /// Wait ordering and fairness follow host synchronization semantics.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
+/// Unix and Windows.
 /// Uses host mutex wait primitives.
 ///
 /// # Errors
@@ -603,7 +603,7 @@ pub(crate) fn destack_thread_mutex_lock(
 /// Wakeup behavior for waiters follows host synchronization semantics.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
+/// Unix and Windows.
 /// Uses host mutex unlock primitives.
 ///
 /// # Errors
@@ -628,7 +628,7 @@ pub(crate) fn destack_thread_mutex_unlock(
 /// Reader and writer preference is host-primitive defined.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
+/// Unix and Windows.
 /// Uses pthread rwlock on Unix and SRW lock abstractions on Windows.
 ///
 /// # Errors
@@ -653,7 +653,7 @@ pub(crate) fn destack_thread_rwlock_create(
 /// Read acquisition ordering follows host synchronization semantics.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
+/// Unix and Windows.
 /// Uses host rwlock read-lock primitives.
 ///
 /// # Errors
@@ -679,7 +679,7 @@ pub(crate) fn destack_thread_rwlock_read_lock(
 /// Wakeup behavior for waiters follows host synchronization semantics.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
+/// Unix and Windows.
 /// Uses host rwlock unlock primitives.
 ///
 /// # Errors
@@ -704,7 +704,7 @@ pub(crate) fn destack_thread_rwlock_unlock(
 /// Write acquisition ordering follows host synchronization semantics.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
+/// Unix and Windows.
 /// Uses host rwlock write-lock primitives.
 ///
 /// # Errors
@@ -730,7 +730,7 @@ pub(crate) fn destack_thread_rwlock_write_lock(
 /// Semaphore bounds and fairness follow host primitive semantics.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
+/// Unix and Windows.
 /// Uses semaphores or equivalent host synchronization primitives.
 ///
 /// # Errors
@@ -759,7 +759,7 @@ pub(crate) fn destack_thread_semaphore_create(
 /// Wake behavior follows host semaphore primitives.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
+/// Unix and Windows.
 /// Uses host semaphore post primitives.
 ///
 /// # Errors
@@ -785,7 +785,7 @@ pub(crate) fn destack_thread_semaphore_post(
 /// Wake ordering follows host scheduler behavior.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
+/// Unix and Windows.
 /// Uses host semaphore wait primitives.
 ///
 /// # Errors

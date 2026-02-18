@@ -32,7 +32,7 @@ pub(crate) fn destack_memory_advise(
 ) -> RuntimeResult<()> {
     let _ = (address, length, advice);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.advise.advise is not available in the VM yet",
+        "destack.memory.advise.adviseRange is not available in the VM yet",
     ))
     .boxed())
 }
@@ -123,7 +123,7 @@ pub(crate) fn destack_memory_lock(
 ) -> RuntimeResult<()> {
     let _ = (address, length);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.lock.lock is not available in the VM yet",
+        "destack.memory.lock.lockRange is not available in the VM yet",
     ))
     .boxed())
 }
@@ -398,7 +398,7 @@ pub(crate) fn destack_memory_protect(
 ) -> RuntimeResult<()> {
     let _ = (address, length, protection);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.protect.protect is not available in the VM yet",
+        "destack.memory.protect.protectRange is not available in the VM yet",
     ))
     .boxed())
 }

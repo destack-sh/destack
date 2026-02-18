@@ -40,7 +40,7 @@ pub(crate) unsafe fn destack_process_args(
 ) -> RuntimeResult<()> {
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.args.args")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.process.args.list")).boxed())
 }
 
 /// Change the current working directory.
@@ -92,7 +92,7 @@ pub(crate) unsafe fn destack_process_cwd(
 ) -> RuntimeResult<()> {
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.cwd.cwd")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.process.cwd.get")).boxed())
 }
 
 /// Delete an environment variable by UTF-8 name.
@@ -283,7 +283,7 @@ pub(crate) unsafe fn destack_process_exec(
 ) -> RuntimeResult<()> {
     let _ = (command, arguments, environment);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.exec.exec")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.process.exec.path")).boxed())
 }
 
 /// Replace the current process image using a directory-relative path.
@@ -313,7 +313,7 @@ pub(crate) unsafe fn destack_process_execat(
 ) -> RuntimeResult<()> {
     let _ = (directory, path, arguments, environment, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.exec.execat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.process.exec.pathat")).boxed())
 }
 
 /// Replace the current process image using an executable file handle.
@@ -350,8 +350,8 @@ pub(crate) unsafe fn destack_process_fexec(
 /// Exit code interpretation is host-defined and propagated to the parent process.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses _exit(2) or exit(3) on Unix, ExitProcess on Windows, and proc_exit on Wasi.
+/// Unix and Windows.
+/// Uses _exit(2) or exit(3) on Unix and ExitProcess on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -367,7 +367,10 @@ pub(crate) unsafe fn destack_process_exit(
 ) -> RuntimeResult<()> {
     let _ = code;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.exit.exit")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.exit.terminate",
+    ))
+    .boxed())
 }
 
 /// Close one process descriptor.
@@ -2157,7 +2160,7 @@ pub(crate) unsafe fn destack_process_spawn(
 ) -> RuntimeResult<()> {
     let _ = (out, command, arguments, environment, options);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.spawn.spawn")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.process.spawn.start")).boxed())
 }
 
 /// Spawn a child process with explicit stdio and descriptor actions.
@@ -2227,7 +2230,7 @@ pub(crate) unsafe fn destack_process_umask(
 ) -> RuntimeResult<()> {
     let _ = (out, mask);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.umask.umask")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.process.umask.set")).boxed())
 }
 
 /// Wait for a process identifier.
@@ -2310,5 +2313,5 @@ pub(crate) unsafe fn destack_process_wait(
 ) -> RuntimeResult<()> {
     let _ = (out, handle, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.wait.wait")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.process.wait.handle")).boxed())
 }

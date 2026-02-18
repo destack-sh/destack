@@ -31,8 +31,8 @@ fn test_fs_access_and_chmod() {
 
         // check access with write permissions
         let file = context.path_bytes(&file_path);
-        context.destack_fs_access(file.clone(), AccessMode(0o222))?;
-        context.destack_fs_chmod(file.clone(), FileMode(0o444))?;
+        context.destack_fs_access(file, AccessMode(0o222))?;
+        context.destack_fs_chmod(file, FileMode(0o444))?;
 
         if should_check_access_failure {
             if is_privileged_test_mode() {
@@ -83,7 +83,7 @@ fn test_fs_chown_and_times() {
         if can_chown {
             let uid = unsafe { libc::getuid() };
             let gid = unsafe { libc::getgid() };
-            context.destack_fs_chown(file.clone(), uid, gid)?;
+            context.destack_fs_chown(file, uid, gid)?;
             context.destack_fs_fchown(handle, uid, gid)?;
         } else if is_privileged_test_mode() {
             panic!(
@@ -91,8 +91,8 @@ fn test_fs_chown_and_times() {
             );
         }
 
-        context.destack_fs_utimes(file.clone(), 1_000_000, 2_000_000)?;
-        context.destack_fs_lutimes(file.clone(), 3_000_000, 4_000_000)?;
+        context.destack_fs_utimes(file, 1_000_000, 2_000_000)?;
+        context.destack_fs_lutimes(file, 3_000_000, 4_000_000)?;
         context.destack_fs_futimes(handle, 5_000_000, 6_000_000)?;
         context.destack_fs_fchmod(handle, FileMode(0o600))?;
 

@@ -430,7 +430,7 @@ pub const SECURITY_CAPABILITY_HAS: BindingDescriptor = BindingDescriptor::determ
     BindingScope::Runtime,
     BindingBlocking::Never,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.capability.list.
 pub const SECURITY_CAPABILITY_LIST: BindingDescriptor =
@@ -453,7 +453,6 @@ pub const SECURITY_CAPABILITY_LIST: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -490,7 +489,6 @@ pub const SECURITY_ENFORCE_SANDBOX_SEAL: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -502,7 +500,7 @@ pub const SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES: BindingDescriptor = Binding
     BindingScope::Runtime,
     BindingBlocking::Never,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.policy.get.
 pub const SECURITY_POLICY_GET: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -512,7 +510,7 @@ pub const SECURITY_POLICY_GET: BindingDescriptor = BindingDescriptor::determinis
     BindingScope::Runtime,
     BindingBlocking::Never,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.policy.getRules.
 pub const SECURITY_POLICY_GET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -522,7 +520,7 @@ pub const SECURITY_POLICY_GET_RULES: BindingDescriptor = BindingDescriptor::dete
     BindingScope::Runtime,
     BindingBlocking::Never,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.policy.set.
 pub const SECURITY_POLICY_SET: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -532,7 +530,7 @@ pub const SECURITY_POLICY_SET: BindingDescriptor = BindingDescriptor::determinis
     BindingScope::Runtime,
     BindingBlocking::Never,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.policy.setRules.
 pub const SECURITY_POLICY_SET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -542,7 +540,7 @@ pub const SECURITY_POLICY_SET_RULES: BindingDescriptor = BindingDescriptor::dete
     BindingScope::Runtime,
     BindingBlocking::Never,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.sandbox.enter.
 pub const SECURITY_SANDBOX_ENTER: BindingDescriptor =
@@ -567,7 +565,6 @@ pub const SECURITY_SANDBOX_ENTER: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -594,7 +591,6 @@ pub const SECURITY_SANDBOX_EXIT: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 

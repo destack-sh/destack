@@ -1,10 +1,14 @@
 use super::*;
+#[cfg(windows)]
+use crate::platform::net::SocketFamily;
 
 #[path = "harness.generated.rs"]
 mod generated;
 
 #[allow(unused_imports)]
 pub(crate) use generated::*;
+
+type ByteSlicesValue = HarnessValue<NativeSlice<NativeSlice<u8>>, VmSlice<VmSlice<u8>>>;
 
 impl<'call> TlsHarnessContext<'call> {
     /// Return one VM context for this harness call.
@@ -137,12 +141,12 @@ impl<'call> TlsHarnessContext<'call> {
     pub(crate) fn bytes_slices_value(
         &mut self,
         values: &[&[u8]],
-    ) -> RuntimeResult<HarnessValue<NativeSlice<NativeSlice<u8>>, VmSlice<VmSlice<u8>>>> {
+    ) -> RuntimeResult<ByteSlicesValue> {
         match self.vm_context_mut() {
             Some(context) => {
                 let mut protocols = Vec::with_capacity(values.len());
                 for value in values {
-                    protocols.push(VmSlice::from_values(context, *value)?);
+                    protocols.push(VmSlice::from_values(context, value)?);
                 }
                 let values = vm_slice_of_slices(context, &protocols);
                 Ok(self.harness_value_vm(values))
@@ -194,7 +198,7 @@ impl<'call> TlsHarnessContext<'call> {
     ) -> RuntimeResult<(resource::SocketHandle, resource::SocketHandle)> {
         #[cfg(unix)]
         {
-            return match self.vm_context_mut() {
+            match self.vm_context_mut() {
                 Some(context) => {
                     let pair = net_vm::destack_net_uds_socket_pair(
                         self.call_context,
@@ -217,12 +221,12 @@ impl<'call> TlsHarnessContext<'call> {
                     }
                     Ok((pair.first, pair.second))
                 }
-            };
+            }
         }
 
         #[cfg(windows)]
         {
-            return match self.vm_context_mut() {
+            match self.vm_context_mut() {
                 Some(context) => {
                     let pair = net_vm::destack_net_socket_pair(
                         self.call_context,
@@ -249,7 +253,7 @@ impl<'call> TlsHarnessContext<'call> {
                     }
                     Ok((pair.first, pair.second))
                 }
-            };
+            }
         }
 
         #[cfg(not(any(unix, windows)))]
@@ -314,7 +318,7 @@ fn stream_socket_type() -> SocketType {
 
 #[cfg(windows)]
 fn stream_socket_family() -> crate::platform::net::SocketFamily {
-    crate::platform::net::SocketFamily::IPv4
+    SocketFamily::IPv4
 }
 
 #[cfg(windows)]

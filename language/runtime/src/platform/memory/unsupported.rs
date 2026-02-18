@@ -35,7 +35,10 @@ pub(crate) unsafe fn destack_memory_advise(
 ) -> RuntimeResult<()> {
     let _ = (address, length, advice);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.advise.advise")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.advise.adviseRange",
+    ))
+    .boxed())
 }
 
 /// Discard memory contents.
@@ -123,7 +126,10 @@ pub(crate) unsafe fn destack_memory_lock(
 ) -> RuntimeResult<()> {
     let _ = (address, length);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.lock.lock")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.lock.lockRange",
+    ))
+    .boxed())
 }
 
 /// Unlock one memory range.
@@ -382,7 +388,7 @@ pub(crate) unsafe fn destack_memory_protect(
     let _ = (address, length, protection);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.protect.protect",
+        "destack.memory.protect.protectRange",
     ))
     .boxed())
 }

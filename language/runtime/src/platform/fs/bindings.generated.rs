@@ -2557,6 +2557,73 @@ fn encode_destack_fs_mmap_madvise_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.fs.mmap.mmapAnonymous.
+#[inline]
+fn decode_destack_fs_mmap_mmap_anonymous_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(FileSize, MmapProt, MmapFlags)> {
+    let length_value = arg_value(args, 0, "length", "FileSize")?;
+    let length_inner = decode_uint64(length_value, "length_inner", "FileSize")?;
+    let length = FileSize(length_inner);
+    let prot_value = arg_value(args, 1, "prot", "MmapProt")?;
+    let prot_inner = decode_uint32(prot_value, "prot_inner", "MmapProt")?;
+    let prot = MmapProt(prot_inner);
+    let flags_value = arg_value(args, 2, "flags", "MmapFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "MmapFlags")?;
+    let flags = MmapFlags(flags_inner);
+    Ok((length, prot, flags))
+}
+
+/// Encode the result for destack.fs.mmap.mmapAnonymous.
+#[inline]
+fn encode_destack_fs_mmap_mmap_anonymous_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.fs.mmap.mmapFile.
+#[inline]
+fn decode_destack_fs_mmap_mmap_file_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::FileHandle,
+    FileOffset,
+    FileSize,
+    MmapProt,
+    MmapFlags,
+)> {
+    let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::FileHandle(handle_inner);
+    let offset_value = arg_value(args, 1, "offset", "FileOffset")?;
+    let offset_inner = decode_int64(offset_value, "offset_inner", "FileOffset")?;
+    let offset = FileOffset(offset_inner);
+    let length_value = arg_value(args, 2, "length", "FileSize")?;
+    let length_inner = decode_uint64(length_value, "length_inner", "FileSize")?;
+    let length = FileSize(length_inner);
+    let prot_value = arg_value(args, 3, "prot", "MmapProt")?;
+    let prot_inner = decode_uint32(prot_value, "prot_inner", "MmapProt")?;
+    let prot = MmapProt(prot_inner);
+    let flags_value = arg_value(args, 4, "flags", "MmapFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "MmapFlags")?;
+    let flags = MmapFlags(flags_inner);
+    Ok((handle, offset, length, prot, flags))
+}
+
+/// Encode the result for destack.fs.mmap.mmapFile.
+#[inline]
+fn encode_destack_fs_mmap_mmap_file_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
 /// Decode arguments for destack.fs.mmap.mprotect.
 #[inline]
 fn decode_destack_fs_mmap_mprotect_args(
@@ -2621,73 +2688,6 @@ fn encode_destack_fs_mmap_munmap_result(
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.fs.mmapAnonymous.
-#[inline]
-fn decode_destack_fs_mmap_anonymous_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(FileSize, MmapProt, MmapFlags)> {
-    let length_value = arg_value(args, 0, "length", "FileSize")?;
-    let length_inner = decode_uint64(length_value, "length_inner", "FileSize")?;
-    let length = FileSize(length_inner);
-    let prot_value = arg_value(args, 1, "prot", "MmapProt")?;
-    let prot_inner = decode_uint32(prot_value, "prot_inner", "MmapProt")?;
-    let prot = MmapProt(prot_inner);
-    let flags_value = arg_value(args, 2, "flags", "MmapFlags")?;
-    let flags_inner = decode_uint32(flags_value, "flags_inner", "MmapFlags")?;
-    let flags = MmapFlags(flags_inner);
-    Ok((length, prot, flags))
-}
-
-/// Encode the result for destack.fs.mmapAnonymous.
-#[inline]
-fn encode_destack_fs_mmap_anonymous_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<VmSlice<u8>>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
-}
-
-/// Decode arguments for destack.fs.mmapFile.
-#[inline]
-fn decode_destack_fs_mmap_file_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(
-    resource::FileHandle,
-    FileOffset,
-    FileSize,
-    MmapProt,
-    MmapFlags,
-)> {
-    let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::FileHandle(handle_inner);
-    let offset_value = arg_value(args, 1, "offset", "FileOffset")?;
-    let offset_inner = decode_int64(offset_value, "offset_inner", "FileOffset")?;
-    let offset = FileOffset(offset_inner);
-    let length_value = arg_value(args, 2, "length", "FileSize")?;
-    let length_inner = decode_uint64(length_value, "length_inner", "FileSize")?;
-    let length = FileSize(length_inner);
-    let prot_value = arg_value(args, 3, "prot", "MmapProt")?;
-    let prot_inner = decode_uint32(prot_value, "prot_inner", "MmapProt")?;
-    let prot = MmapProt(prot_inner);
-    let flags_value = arg_value(args, 4, "flags", "MmapFlags")?;
-    let flags_inner = decode_uint32(flags_value, "flags_inner", "MmapFlags")?;
-    let flags = MmapFlags(flags_inner);
-    Ok((handle, offset, length, prot, flags))
-}
-
-/// Encode the result for destack.fs.mmapFile.
-#[inline]
-fn encode_destack_fs_mmap_file_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<VmSlice<u8>>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.path.copyfile.
@@ -4291,9 +4291,9 @@ fn encode_destack_fs_stat_lstat_result(
     })
 }
 
-/// Decode arguments for destack.fs.stat.stat.
+/// Decode arguments for destack.fs.stat.path.
 #[inline]
-fn decode_destack_fs_stat_stat_args(
+fn decode_destack_fs_stat_path_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
@@ -4339,9 +4339,9 @@ fn decode_destack_fs_stat_stat_args(
     Ok((path,))
 }
 
-/// Encode the result for destack.fs.stat.stat.
+/// Encode the result for destack.fs.stat.path.
 #[inline]
-fn encode_destack_fs_stat_stat_result(
+fn encode_destack_fs_stat_path_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<StatVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -4367,9 +4367,9 @@ fn encode_destack_fs_stat_stat_result(
     })
 }
 
-/// Decode arguments for destack.fs.stat.statat.
+/// Decode arguments for destack.fs.stat.pathat.
 #[inline]
-fn decode_destack_fs_stat_statat_args(
+fn decode_destack_fs_stat_pathat_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm, AtFlags)> {
@@ -4422,9 +4422,9 @@ fn decode_destack_fs_stat_statat_args(
     Ok((dir, path, flags))
 }
 
-/// Encode the result for destack.fs.stat.statat.
+/// Encode the result for destack.fs.stat.pathat.
 #[inline]
-fn encode_destack_fs_stat_statat_result(
+fn encode_destack_fs_stat_pathat_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<StatVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -4450,9 +4450,9 @@ fn encode_destack_fs_stat_statat_result(
     })
 }
 
-/// Decode arguments for destack.fs.stat.statfs.
+/// Decode arguments for destack.fs.stat.pathfs.
 #[inline]
-fn decode_destack_fs_stat_statfs_args(
+fn decode_destack_fs_stat_pathfs_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
@@ -4498,9 +4498,9 @@ fn decode_destack_fs_stat_statfs_args(
     Ok((path,))
 }
 
-/// Encode the result for destack.fs.stat.statfs.
+/// Encode the result for destack.fs.stat.pathfs.
 #[inline]
-fn encode_destack_fs_stat_statfs_result(
+fn encode_destack_fs_stat_pathfs_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<StatFsVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -4522,9 +4522,9 @@ fn encode_destack_fs_stat_statfs_result(
     })
 }
 
-/// Decode arguments for destack.fs.stat.statx.
+/// Decode arguments for destack.fs.stat.pathx.
 #[inline]
-fn decode_destack_fs_stat_statx_args(
+fn decode_destack_fs_stat_pathx_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm, StatxFlags, StatxMask)> {
@@ -4580,9 +4580,9 @@ fn decode_destack_fs_stat_statx_args(
     Ok((dir, path, flags, mask))
 }
 
-/// Encode the result for destack.fs.stat.statx.
+/// Encode the result for destack.fs.stat.pathx.
 #[inline]
-fn encode_destack_fs_stat_statx_result(
+fn encode_destack_fs_stat_pathx_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<StatxVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -4613,9 +4613,9 @@ fn encode_destack_fs_stat_statx_result(
     })
 }
 
-/// Decode arguments for destack.fs.watch.
+/// Decode arguments for destack.fs.watch.open.
 #[inline]
-fn decode_destack_fs_watch_args(
+fn decode_destack_fs_watch_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, WatchOptionsVm)> {
@@ -4691,18 +4691,18 @@ fn decode_destack_fs_watch_args(
     Ok((path, options))
 }
 
-/// Encode the result for destack.fs.watch.
+/// Encode the result for destack.fs.watch.open.
 #[inline]
-fn encode_destack_fs_watch_result(
+fn encode_destack_fs_watch_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::WatchHandle>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.fs.watchClose.
+/// Decode arguments for destack.fs.watch.openClose.
 #[inline]
-fn decode_destack_fs_watch_close_args(
+fn decode_destack_fs_watch_open_close_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WatchHandle,)> {
@@ -4713,18 +4713,18 @@ fn decode_destack_fs_watch_close_args(
     Ok((handle,))
 }
 
-/// Encode the result for destack.fs.watchClose.
+/// Encode the result for destack.fs.watch.openClose.
 #[inline]
-fn encode_destack_fs_watch_close_result(
+fn encode_destack_fs_watch_open_close_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.watchRead.
+/// Decode arguments for destack.fs.watch.openRead.
 #[inline]
-fn decode_destack_fs_watch_read_args(
+fn decode_destack_fs_watch_open_read_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WatchHandle,)> {
@@ -4735,9 +4735,9 @@ fn decode_destack_fs_watch_read_args(
     Ok((handle,))
 }
 
-/// Encode the result for destack.fs.watchRead.
+/// Encode the result for destack.fs.watch.openRead.
 #[inline]
-fn encode_destack_fs_watch_read_result(
+fn encode_destack_fs_watch_open_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<WatchBatchVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -4748,9 +4748,9 @@ fn encode_destack_fs_watch_read_result(
     })
 }
 
-/// Decode arguments for destack.fs.watchat.
+/// Decode arguments for destack.fs.watch.openat.
 #[inline]
-fn decode_destack_fs_watchat_args(
+fn decode_destack_fs_watch_openat_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle, OsPathVm, WatchOptionsVm)> {
@@ -4831,9 +4831,9 @@ fn decode_destack_fs_watchat_args(
     Ok((directory, path, options))
 }
 
-/// Encode the result for destack.fs.watchat.
+/// Encode the result for destack.fs.watch.openat.
 #[inline]
-fn encode_destack_fs_watchat_result(
+fn encode_destack_fs_watch_openat_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::WatchHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -6442,6 +6442,20 @@ struct FsMmapMadviseReplay {
     pub result: Result<(), PlatformError>,
 }
 
+/// Replay payload for destack.fs.mmap.mmapAnonymous.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct FsMmapMmapAnonymousReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<u8>, PlatformError>,
+}
+
+/// Replay payload for destack.fs.mmap.mmapFile.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct FsMmapMmapFileReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<u8>, PlatformError>,
+}
+
 /// Replay payload for destack.fs.mmap.mprotect.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsMmapMprotectReplay {
@@ -6461,20 +6475,6 @@ struct FsMmapMsyncReplay {
 struct FsMmapMunmapReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
-}
-
-/// Replay payload for destack.fs.mmapAnonymous.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FsMmapAnonymousReplay {
-    /// Replay result payload.
-    pub result: Result<Vec<u8>, PlatformError>,
-}
-
-/// Replay payload for destack.fs.mmapFile.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FsMmapFileReplay {
-    /// Replay result payload.
-    pub result: Result<Vec<u8>, PlatformError>,
 }
 
 /// Replay payload for destack.fs.path.copyfile.
@@ -6617,58 +6617,58 @@ struct FsStatLstatReplay {
     pub result: Result<Stat, PlatformError>,
 }
 
-/// Replay payload for destack.fs.stat.stat.
+/// Replay payload for destack.fs.stat.path.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FsStatStatReplay {
+struct FsStatPathReplay {
     /// Replay result payload.
     pub result: Result<Stat, PlatformError>,
 }
 
-/// Replay payload for destack.fs.stat.statat.
+/// Replay payload for destack.fs.stat.pathat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FsStatStatatReplay {
+struct FsStatPathatReplay {
     /// Replay result payload.
     pub result: Result<Stat, PlatformError>,
 }
 
-/// Replay payload for destack.fs.stat.statfs.
+/// Replay payload for destack.fs.stat.pathfs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FsStatStatfsReplay {
+struct FsStatPathfsReplay {
     /// Replay result payload.
     pub result: Result<StatFs, PlatformError>,
 }
 
-/// Replay payload for destack.fs.stat.statx.
+/// Replay payload for destack.fs.stat.pathx.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FsStatStatxReplay {
+struct FsStatPathxReplay {
     /// Replay result payload.
     pub result: Result<Statx, PlatformError>,
 }
 
-/// Replay payload for destack.fs.watch.
+/// Replay payload for destack.fs.watch.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FsWatchReplay {
+struct FsWatchOpenReplay {
     /// Replay result payload.
     pub result: Result<resource::WatchHandle, PlatformError>,
 }
 
-/// Replay payload for destack.fs.watchClose.
+/// Replay payload for destack.fs.watch.openClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FsWatchCloseReplay {
+struct FsWatchOpenCloseReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.watchRead.
+/// Replay payload for destack.fs.watch.openRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FsWatchReadReplay {
+struct FsWatchOpenReadReplay {
     /// Replay result payload.
     pub result: Result<WatchBatchReplayRecord, PlatformError>,
 }
 
-/// Replay payload for destack.fs.watchat.
+/// Replay payload for destack.fs.watch.openat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct FsWatchatReplay {
+struct FsWatchOpenatReplay {
     /// Replay result payload.
     pub result: Result<resource::WatchHandle, PlatformError>,
 }
@@ -7851,6 +7851,30 @@ pub const FS_MMAP_MADVISE: BindingDescriptor = BindingDescriptor::external_with_
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.fs.mmap.mmapAnonymous.
+pub const FS_MMAP_MMAP_ANONYMOUS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.mmap.mmapAnonymous",
+    "export function mmapAnonymous(length: FileSize, prot: MmapProt, flags: MmapFlags): Result<Slice<uint8>, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.mmap"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.fs.mmap.mmapFile.
+pub const FS_MMAP_MMAP_FILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.mmap.mmapFile",
+    "export function mmapFile(handle: FileHandle, offset: FileOffset, length: FileSize, prot: MmapProt, flags: MmapFlags): Result<Slice<uint8>, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.mmap"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.fs.mmap.mprotect.
 pub const FS_MMAP_MPROTECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.mmap.mprotect",
@@ -7900,30 +7924,6 @@ pub const FS_MMAP_MUNMAP: BindingDescriptor =
         "solaris",
         "windows",
     ]);
-
-/// Binding descriptor for destack.fs.mmapAnonymous.
-pub const FS_MMAP_ANONYMOUS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.mmapAnonymous",
-    "export function mmapAnonymous(length: FileSize, prot: MmapProt, flags: MmapFlags): Result<Slice<uint8>, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.mmap"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.fs.mmapFile.
-pub const FS_MMAP_FILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.mmapFile",
-    "export function mmapFile(handle: FileHandle, offset: FileOffset, length: FileSize, prot: MmapProt, flags: MmapFlags): Result<Slice<uint8>, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.mmap"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.copyfile.
 pub const FS_PATH_COPYFILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8289,9 +8289,9 @@ pub const FS_STAT_LSTAT: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.fs.stat.stat.
-pub const FS_STAT_STAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.stat.stat",
+/// Binding descriptor for destack.fs.stat.path.
+pub const FS_STAT_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.stat.path",
     "export function stat(path: OsPath): Result<Stat, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -8314,9 +8314,9 @@ pub const FS_STAT_STAT: BindingDescriptor = BindingDescriptor::external_with_req
     "windows",
 ]);
 
-/// Binding descriptor for destack.fs.stat.statat.
-pub const FS_STAT_STATAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.stat.statat",
+/// Binding descriptor for destack.fs.stat.pathat.
+pub const FS_STAT_PATHAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.stat.pathat",
     "export function statat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<Stat, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -8326,10 +8326,10 @@ pub const FS_STAT_STATAT: BindingDescriptor = BindingDescriptor::external_with_r
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.fs.stat.statfs.
-pub const FS_STAT_STATFS: BindingDescriptor =
+/// Binding descriptor for destack.fs.stat.pathfs.
+pub const FS_STAT_PATHFS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.stat.statfs",
+        "destack.fs.stat.pathfs",
         "export function statfs(path: OsPath): Result<StatFs, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -8352,9 +8352,9 @@ pub const FS_STAT_STATFS: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.fs.stat.statx.
-pub const FS_STAT_STATX: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.stat.statx",
+/// Binding descriptor for destack.fs.stat.pathx.
+pub const FS_STAT_PATHX: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.stat.pathx",
     "export function statx(dir: DirectoryHandle, path: OsPath, flags: StatxFlags, mask: StatxMask): Result<Statx, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -8364,9 +8364,9 @@ pub const FS_STAT_STATX: BindingDescriptor = BindingDescriptor::external_with_re
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.fs.watch.
-pub const FS_WATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.watch",
+/// Binding descriptor for destack.fs.watch.open.
+pub const FS_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.watch.open",
     "export function watch(path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -8376,10 +8376,10 @@ pub const FS_WATCH: BindingDescriptor = BindingDescriptor::external_with_require
 )
     .with_host_platforms(&["dragonfly", "freebsd", "linux", "macos", "netbsd", "openbsd", "windows"]);
 
-/// Binding descriptor for destack.fs.watchClose.
-pub const FS_WATCH_CLOSE: BindingDescriptor =
+/// Binding descriptor for destack.fs.watch.openClose.
+pub const FS_WATCH_OPEN_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.watchClose",
+        "destack.fs.watch.openClose",
         "export function watchClose(handle: WatchHandle): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -8397,10 +8397,10 @@ pub const FS_WATCH_CLOSE: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.fs.watchRead.
-pub const FS_WATCH_READ: BindingDescriptor =
+/// Binding descriptor for destack.fs.watch.openRead.
+pub const FS_WATCH_OPEN_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.watchRead",
+        "destack.fs.watch.openRead",
         "export function watchRead(handle: WatchHandle): Result<WatchBatch, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -8418,9 +8418,9 @@ pub const FS_WATCH_READ: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.fs.watchat.
-pub const FS_WATCHAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.watchat",
+/// Binding descriptor for destack.fs.watch.openat.
+pub const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.watch.openat",
     "export function watchat(directory: DirectoryHandle, path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -8919,11 +8919,11 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     FS_FILE_WRITE,
     FS_FILE_WRITEV,
     FS_MMAP_MADVISE,
+    FS_MMAP_MMAP_ANONYMOUS,
+    FS_MMAP_MMAP_FILE,
     FS_MMAP_MPROTECT,
     FS_MMAP_MSYNC,
     FS_MMAP_MUNMAP,
-    FS_MMAP_ANONYMOUS,
-    FS_MMAP_FILE,
     FS_PATH_COPYFILE,
     FS_PATH_LINK,
     FS_PATH_LINKAT,
@@ -8944,14 +8944,14 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     FS_STAT_FSTAT,
     FS_STAT_FSTATFS,
     FS_STAT_LSTAT,
-    FS_STAT_STAT,
-    FS_STAT_STATAT,
-    FS_STAT_STATFS,
-    FS_STAT_STATX,
-    FS_WATCH,
-    FS_WATCH_CLOSE,
-    FS_WATCH_READ,
-    FS_WATCHAT,
+    FS_STAT_PATH,
+    FS_STAT_PATHAT,
+    FS_STAT_PATHFS,
+    FS_STAT_PATHX,
+    FS_WATCH_OPEN,
+    FS_WATCH_OPEN_CLOSE,
+    FS_WATCH_OPEN_READ,
+    FS_WATCH_OPENAT,
     FS_XATTR_FGETXATTR,
     FS_XATTR_FGETXATTR_BYTES,
     FS_XATTR_FLISTXATTR,
@@ -9278,6 +9278,16 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_fs_mmap_madvise as *const (),
         ),
         NativeBinding::new(
+            FS_MMAP_MMAP_ANONYMOUS,
+            "destack.fs.mmap.mmapAnonymous",
+            destack_fs_mmap_mmap_anonymous as *const (),
+        ),
+        NativeBinding::new(
+            FS_MMAP_MMAP_FILE,
+            "destack.fs.mmap.mmapFile",
+            destack_fs_mmap_mmap_file as *const (),
+        ),
+        NativeBinding::new(
             FS_MMAP_MPROTECT,
             "destack.fs.mmap.mprotect",
             destack_fs_mmap_mprotect as *const (),
@@ -9291,16 +9301,6 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             FS_MMAP_MUNMAP,
             "destack.fs.mmap.munmap",
             destack_fs_mmap_munmap as *const (),
-        ),
-        NativeBinding::new(
-            FS_MMAP_ANONYMOUS,
-            "destack.fs.mmapAnonymous",
-            destack_fs_mmap_anonymous as *const (),
-        ),
-        NativeBinding::new(
-            FS_MMAP_FILE,
-            "destack.fs.mmapFile",
-            destack_fs_mmap_file as *const (),
         ),
         NativeBinding::new(
             FS_PATH_COPYFILE,
@@ -9403,40 +9403,44 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_fs_stat_lstat as *const (),
         ),
         NativeBinding::new(
-            FS_STAT_STAT,
-            "destack.fs.stat.stat",
-            destack_fs_stat_stat as *const (),
+            FS_STAT_PATH,
+            "destack.fs.stat.path",
+            destack_fs_stat_path as *const (),
         ),
         NativeBinding::new(
-            FS_STAT_STATAT,
-            "destack.fs.stat.statat",
-            destack_fs_stat_statat as *const (),
+            FS_STAT_PATHAT,
+            "destack.fs.stat.pathat",
+            destack_fs_stat_pathat as *const (),
         ),
         NativeBinding::new(
-            FS_STAT_STATFS,
-            "destack.fs.stat.statfs",
-            destack_fs_stat_statfs as *const (),
+            FS_STAT_PATHFS,
+            "destack.fs.stat.pathfs",
+            destack_fs_stat_pathfs as *const (),
         ),
         NativeBinding::new(
-            FS_STAT_STATX,
-            "destack.fs.stat.statx",
-            destack_fs_stat_statx as *const (),
-        ),
-        NativeBinding::new(FS_WATCH, "destack.fs.watch", destack_fs_watch as *const ()),
-        NativeBinding::new(
-            FS_WATCH_CLOSE,
-            "destack.fs.watchClose",
-            destack_fs_watch_close as *const (),
+            FS_STAT_PATHX,
+            "destack.fs.stat.pathx",
+            destack_fs_stat_pathx as *const (),
         ),
         NativeBinding::new(
-            FS_WATCH_READ,
-            "destack.fs.watchRead",
-            destack_fs_watch_read as *const (),
+            FS_WATCH_OPEN,
+            "destack.fs.watch.open",
+            destack_fs_watch_open as *const (),
         ),
         NativeBinding::new(
-            FS_WATCHAT,
-            "destack.fs.watchat",
-            destack_fs_watchat as *const (),
+            FS_WATCH_OPEN_CLOSE,
+            "destack.fs.watch.openClose",
+            destack_fs_watch_open_close as *const (),
+        ),
+        NativeBinding::new(
+            FS_WATCH_OPEN_READ,
+            "destack.fs.watch.openRead",
+            destack_fs_watch_open_read as *const (),
+        ),
+        NativeBinding::new(
+            FS_WATCH_OPENAT,
+            "destack.fs.watch.openat",
+            destack_fs_watch_openat as *const (),
         ),
         NativeBinding::new(
             FS_XATTR_FGETXATTR,
@@ -13112,6 +13116,162 @@ fn destack_fs_mmap_madvise_replay(
 }
 
 #[inline]
+fn destack_fs_mmap_mmap_anonymous_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<u8>,
+    length: FileSize,
+    prot: MmapProt,
+    flags: MmapFlags,
+) -> RuntimeResult<()> {
+    let _ = (&length, &prot, &flags);
+
+    context.replay().run_binding_with_payload_policy(
+        FS_MMAP_MMAP_ANONYMOUS,
+        context.replay_payload_for(FS_MMAP_MMAP_ANONYMOUS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_fs_mmap_anonymous(context, out, length, prot, flags)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_fs_mmap_anonymous(
+                    context, out, length, prot, flags,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = FsMmapMmapAnonymousReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsMmapMmapAnonymousReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_mmap_mmap_file_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<u8>,
+    handle: resource::FileHandle,
+    offset: FileOffset,
+    length: FileSize,
+    prot: MmapProt,
+    flags: MmapFlags,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &offset, &length, &prot, &flags);
+
+    context.replay().run_binding_with_payload_policy(
+        FS_MMAP_MMAP_FILE,
+        context.replay_payload_for(FS_MMAP_MMAP_FILE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_fs_mmap_file(
+                    context, out, handle, offset, length, prot, flags,
+                )
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_fs_mmap_file(
+                    context, out, handle, offset, length, prot, flags,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = FsMmapMmapFileReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsMmapMmapFileReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_fs_mmap_mprotect_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
@@ -13249,162 +13409,6 @@ fn destack_fs_mmap_munmap_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_fs_mmap_anonymous_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    out: *mut NativeSlice<u8>,
-    length: FileSize,
-    prot: MmapProt,
-    flags: MmapFlags,
-) -> RuntimeResult<()> {
-    let _ = (&length, &prot, &flags);
-
-    context.replay().run_binding_with_payload_policy(
-        FS_MMAP_ANONYMOUS,
-        context.replay_payload_for(FS_MMAP_ANONYMOUS)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_mmap_anonymous(context, out, length, prot, flags)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_mmap_anonymous(
-                    context, out, length, prot, flags,
-                )
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded_raw = unsafe { result_value.as_slice()? };
-                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = *result_recorded_item_value;
-                    let result_recorded_item_recorded = result_recorded_item;
-                    result_recorded.push(result_recorded_item_recorded);
-                }
-                let payload = FsMmapAnonymousReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    FsMmapAnonymousReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let mut value_native_values = Vec::with_capacity(value.len());
-                    for value_native_item in value {
-                        let value_native_item_native = value_native_item;
-                        value_native_values.push(value_native_item_native);
-                    }
-                    let value_native = context.store_slice(value_native_values);
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_fs_mmap_file_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    out: *mut NativeSlice<u8>,
-    handle: resource::FileHandle,
-    offset: FileOffset,
-    length: FileSize,
-    prot: MmapProt,
-    flags: MmapFlags,
-) -> RuntimeResult<()> {
-    let _ = (&handle, &offset, &length, &prot, &flags);
-
-    context.replay().run_binding_with_payload_policy(
-        FS_MMAP_FILE,
-        context.replay_payload_for(FS_MMAP_FILE)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_mmap_file(
-                    context, out, handle, offset, length, prot, flags,
-                )
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_mmap_file(
-                    context, out, handle, offset, length, prot, flags,
-                )
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded_raw = unsafe { result_value.as_slice()? };
-                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = *result_recorded_item_value;
-                    let result_recorded_item_recorded = result_recorded_item;
-                    result_recorded.push(result_recorded_item_recorded);
-                }
-                let payload = FsMmapFileReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    FsMmapFileReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let mut value_native_values = Vec::with_capacity(value.len());
-                    for value_native_item in value {
-                        let value_native_item_native = value_native_item;
-                        value_native_values.push(value_native_item_native);
-                    }
-                    let value_native = context.store_slice(value_native_values);
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
@@ -14781,7 +14785,7 @@ fn destack_fs_stat_lstat_replay(
 }
 
 #[inline]
-fn destack_fs_stat_stat_replay(
+fn destack_fs_stat_path_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut Stat,
@@ -14790,8 +14794,8 @@ fn destack_fs_stat_stat_replay(
     let _ = &path;
 
     context.replay().run_binding_with_payload_policy(
-        FS_STAT_STAT,
-        context.replay_payload_for(FS_STAT_STAT)?,
+        FS_STAT_PATH,
+        context.replay_payload_for(FS_STAT_PATH)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_stat(context, out, path) },
             RuntimeWorld::Simulated => unsafe {
@@ -14836,7 +14840,7 @@ fn destack_fs_stat_stat_replay(
                     ctime_ns: result_recorded_ctime_ns,
                     birthtime_ns: result_recorded_birthtime_ns,
                 };
-                let payload = FsStatStatReplay {
+                let payload = FsStatPathReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -14845,7 +14849,7 @@ fn destack_fs_stat_stat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsStatStatReplay { result }
+                    FsStatPathReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -14898,7 +14902,7 @@ fn destack_fs_stat_stat_replay(
 }
 
 #[inline]
-fn destack_fs_stat_statat_replay(
+fn destack_fs_stat_pathat_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut Stat,
@@ -14909,8 +14913,8 @@ fn destack_fs_stat_statat_replay(
     let _ = (&dir, &path, &flags);
 
     context.replay().run_binding_with_payload_policy(
-        FS_STAT_STATAT,
-        context.replay_payload_for(FS_STAT_STATAT)?,
+        FS_STAT_PATHAT,
+        context.replay_payload_for(FS_STAT_PATHAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_statat(context, out, dir, path, flags)
@@ -14957,7 +14961,7 @@ fn destack_fs_stat_statat_replay(
                     ctime_ns: result_recorded_ctime_ns,
                     birthtime_ns: result_recorded_birthtime_ns,
                 };
-                let payload = FsStatStatatReplay {
+                let payload = FsStatPathatReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -14966,7 +14970,7 @@ fn destack_fs_stat_statat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsStatStatatReplay { result }
+                    FsStatPathatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15019,7 +15023,7 @@ fn destack_fs_stat_statat_replay(
 }
 
 #[inline]
-fn destack_fs_stat_statfs_replay(
+fn destack_fs_stat_pathfs_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut StatFs,
@@ -15028,8 +15032,8 @@ fn destack_fs_stat_statfs_replay(
     let _ = &path;
 
     context.replay().run_binding_with_payload_policy(
-        FS_STAT_STATFS,
-        context.replay_payload_for(FS_STAT_STATFS)?,
+        FS_STAT_PATHFS,
+        context.replay_payload_for(FS_STAT_PATHFS)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_statfs(context, out, path) },
             RuntimeWorld::Simulated => unsafe {
@@ -15066,7 +15070,7 @@ fn destack_fs_stat_statfs_replay(
                     flags: result_recorded_flags,
                     namelen: result_recorded_namelen,
                 };
-                let payload = FsStatStatfsReplay {
+                let payload = FsStatPathfsReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -15075,7 +15079,7 @@ fn destack_fs_stat_statfs_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsStatStatfsReplay { result }
+                    FsStatPathfsReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15120,7 +15124,7 @@ fn destack_fs_stat_statfs_replay(
 }
 
 #[inline]
-fn destack_fs_stat_statx_replay(
+fn destack_fs_stat_pathx_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut Statx,
@@ -15132,8 +15136,8 @@ fn destack_fs_stat_statx_replay(
     let _ = (&dir, &path, &flags, &mask);
 
     context.replay().run_binding_with_payload_policy(
-        FS_STAT_STATX,
-        context.replay_payload_for(FS_STAT_STATX)?,
+        FS_STAT_PATHX,
+        context.replay_payload_for(FS_STAT_PATHX)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_statx(context, out, dir, path, flags, mask)
@@ -15188,7 +15192,7 @@ fn destack_fs_stat_statx_replay(
                     ctime_ns: result_recorded_ctime_ns,
                     mtime_ns: result_recorded_mtime_ns,
                 };
-                let payload = FsStatStatxReplay {
+                let payload = FsStatPathxReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -15197,7 +15201,7 @@ fn destack_fs_stat_statx_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsStatStatxReplay { result }
+                    FsStatPathxReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15258,7 +15262,7 @@ fn destack_fs_stat_statx_replay(
 }
 
 #[inline]
-fn destack_fs_watch_replay(
+fn destack_fs_watch_open_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut resource::WatchHandle,
@@ -15268,8 +15272,8 @@ fn destack_fs_watch_replay(
     let _ = (&path, &options);
 
     context.replay().run_binding_with_payload_policy(
-        FS_WATCH,
-        context.replay_payload_for(FS_WATCH)?,
+        FS_WATCH_OPEN,
+        context.replay_payload_for(FS_WATCH_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_watch(context, out, path, options)
@@ -15287,7 +15291,7 @@ fn destack_fs_watch_replay(
                     *out
                 };
                 let result_recorded = result_value;
-                let payload = FsWatchReplay {
+                let payload = FsWatchOpenReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -15296,7 +15300,7 @@ fn destack_fs_watch_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsWatchReplay { result }
+                    FsWatchOpenReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15320,7 +15324,7 @@ fn destack_fs_watch_replay(
 }
 
 #[inline]
-fn destack_fs_watch_close_replay(
+fn destack_fs_watch_open_close_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     handle: resource::WatchHandle,
@@ -15328,8 +15332,8 @@ fn destack_fs_watch_close_replay(
     let _ = &handle;
 
     context.replay().run_binding_with_payload_policy(
-        FS_WATCH_CLOSE,
-        context.replay_payload_for(FS_WATCH_CLOSE)?,
+        FS_WATCH_OPEN_CLOSE,
+        context.replay_payload_for(FS_WATCH_OPEN_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_watch_close(context, handle)
@@ -15341,7 +15345,7 @@ fn destack_fs_watch_close_replay(
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = FsWatchCloseReplay {
+                let payload = FsWatchOpenCloseReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -15350,7 +15354,7 @@ fn destack_fs_watch_close_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsWatchCloseReplay { result }
+                    FsWatchOpenCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15368,7 +15372,7 @@ fn destack_fs_watch_close_replay(
 }
 
 #[inline]
-fn destack_fs_watch_read_replay(
+fn destack_fs_watch_open_read_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut WatchBatch,
@@ -15377,8 +15381,8 @@ fn destack_fs_watch_read_replay(
     let _ = &handle;
 
     context.replay().run_binding_with_payload_policy(
-        FS_WATCH_READ,
-        context.replay_payload_for(FS_WATCH_READ)?,
+        FS_WATCH_OPEN_READ,
+        context.replay_payload_for(FS_WATCH_OPEN_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_watch_read(context, out, handle) },
             RuntimeWorld::Simulated => unsafe { platform_simulated_native::destack_fs_watch_read(context, out, handle) },
@@ -15448,7 +15452,7 @@ fn destack_fs_watch_read_replay(
                     events: result_recorded_events,
                     overflowed: result_recorded_overflowed,
                 };
-                let payload = FsWatchReadReplay {
+                let payload = FsWatchOpenReadReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -15457,7 +15461,7 @@ fn destack_fs_watch_read_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsWatchReadReplay {
+                    FsWatchOpenReadReplay {
                         result,
                     }
                 };
@@ -15538,7 +15542,7 @@ fn destack_fs_watch_read_replay(
 }
 
 #[inline]
-fn destack_fs_watchat_replay(
+fn destack_fs_watch_openat_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut resource::WatchHandle,
@@ -15549,8 +15553,8 @@ fn destack_fs_watchat_replay(
     let _ = (&directory, &path, &options);
 
     context.replay().run_binding_with_payload_policy(
-        FS_WATCHAT,
-        context.replay_payload_for(FS_WATCHAT)?,
+        FS_WATCH_OPENAT,
+        context.replay_payload_for(FS_WATCH_OPENAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_watchat(context, out, directory, path, options)
@@ -15570,7 +15574,7 @@ fn destack_fs_watchat_replay(
                     *out
                 };
                 let result_recorded = result_value;
-                let payload = FsWatchatReplay {
+                let payload = FsWatchOpenatReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -15579,7 +15583,7 @@ fn destack_fs_watchat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsWatchatReplay { result }
+                    FsWatchOpenatReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18165,6 +18169,46 @@ pub unsafe extern "C" fn destack_fs_mmap_madvise(
     })
 }
 
+#[unsafe(export_name = "destack.fs.mmap.mmapAnonymous")]
+pub unsafe extern "C" fn destack_fs_mmap_mmap_anonymous(
+    out: *mut NativeSlice<u8>,
+    length: FileSize,
+    prot: MmapProt,
+    flags: MmapFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &length, &prot, &flags);
+
+        context.check_policy(FS_MMAP_MMAP_ANONYMOUS)?;
+        let world = context.check_and_resolve_world(FS_MMAP_MMAP_ANONYMOUS)?;
+        destack_fs_mmap_mmap_anonymous_replay(context, world, out, length, prot, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.mmap.mmapFile")]
+pub unsafe extern "C" fn destack_fs_mmap_mmap_file(
+    out: *mut NativeSlice<u8>,
+    handle: resource::FileHandle,
+    offset: FileOffset,
+    length: FileSize,
+    prot: MmapProt,
+    flags: MmapFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &offset, &length, &prot, &flags);
+
+        context.check_policy(FS_MMAP_MMAP_FILE)?;
+        let world = context.check_and_resolve_world(FS_MMAP_MMAP_FILE)?;
+        destack_fs_mmap_mmap_file_replay(context, world, out, handle, offset, length, prot, flags)
+    })
+}
+
 #[unsafe(export_name = "destack.fs.mmap.mprotect")]
 pub unsafe extern "C" fn destack_fs_mmap_mprotect(
     mapping: NativeSlice<u8>,
@@ -18201,46 +18245,6 @@ pub unsafe extern "C" fn destack_fs_mmap_munmap(mapping: NativeSlice<u8>) -> Run
         context.check_policy(FS_MMAP_MUNMAP)?;
         let world = context.check_and_resolve_world(FS_MMAP_MUNMAP)?;
         destack_fs_mmap_munmap_replay(context, world, mapping)
-    })
-}
-
-#[unsafe(export_name = "destack.fs.mmapAnonymous")]
-pub unsafe extern "C" fn destack_fs_mmap_anonymous(
-    out: *mut NativeSlice<u8>,
-    length: FileSize,
-    prot: MmapProt,
-    flags: MmapFlags,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &length, &prot, &flags);
-
-        context.check_policy(FS_MMAP_ANONYMOUS)?;
-        let world = context.check_and_resolve_world(FS_MMAP_ANONYMOUS)?;
-        destack_fs_mmap_anonymous_replay(context, world, out, length, prot, flags)
-    })
-}
-
-#[unsafe(export_name = "destack.fs.mmapFile")]
-pub unsafe extern "C" fn destack_fs_mmap_file(
-    out: *mut NativeSlice<u8>,
-    handle: resource::FileHandle,
-    offset: FileOffset,
-    length: FileSize,
-    prot: MmapProt,
-    flags: MmapFlags,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle, &offset, &length, &prot, &flags);
-
-        context.check_policy(FS_MMAP_FILE)?;
-        let world = context.check_and_resolve_world(FS_MMAP_FILE)?;
-        destack_fs_mmap_file_replay(context, world, out, handle, offset, length, prot, flags)
     })
 }
 
@@ -18550,22 +18554,22 @@ pub unsafe extern "C" fn destack_fs_stat_lstat(out: *mut Stat, path: OsPath) -> 
     })
 }
 
-#[unsafe(export_name = "destack.fs.stat.stat")]
-pub unsafe extern "C" fn destack_fs_stat_stat(out: *mut Stat, path: OsPath) -> RuntimeStatus {
+#[unsafe(export_name = "destack.fs.stat.path")]
+pub unsafe extern "C" fn destack_fs_stat_path(out: *mut Stat, path: OsPath) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        context.check_policy(FS_STAT_STAT)?;
-        let world = context.check_and_resolve_world(FS_STAT_STAT)?;
-        destack_fs_stat_stat_replay(context, world, out, path)
+        context.check_policy(FS_STAT_PATH)?;
+        let world = context.check_and_resolve_world(FS_STAT_PATH)?;
+        destack_fs_stat_path_replay(context, world, out, path)
     })
 }
 
-#[unsafe(export_name = "destack.fs.stat.statat")]
-pub unsafe extern "C" fn destack_fs_stat_statat(
+#[unsafe(export_name = "destack.fs.stat.pathat")]
+pub unsafe extern "C" fn destack_fs_stat_pathat(
     out: *mut Stat,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -18577,28 +18581,28 @@ pub unsafe extern "C" fn destack_fs_stat_statat(
         }
         let _ = (&out, &dir, &path, &flags);
 
-        context.check_policy(FS_STAT_STATAT)?;
-        let world = context.check_and_resolve_world(FS_STAT_STATAT)?;
-        destack_fs_stat_statat_replay(context, world, out, dir, path, flags)
+        context.check_policy(FS_STAT_PATHAT)?;
+        let world = context.check_and_resolve_world(FS_STAT_PATHAT)?;
+        destack_fs_stat_pathat_replay(context, world, out, dir, path, flags)
     })
 }
 
-#[unsafe(export_name = "destack.fs.stat.statfs")]
-pub unsafe extern "C" fn destack_fs_stat_statfs(out: *mut StatFs, path: OsPath) -> RuntimeStatus {
+#[unsafe(export_name = "destack.fs.stat.pathfs")]
+pub unsafe extern "C" fn destack_fs_stat_pathfs(out: *mut StatFs, path: OsPath) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        context.check_policy(FS_STAT_STATFS)?;
-        let world = context.check_and_resolve_world(FS_STAT_STATFS)?;
-        destack_fs_stat_statfs_replay(context, world, out, path)
+        context.check_policy(FS_STAT_PATHFS)?;
+        let world = context.check_and_resolve_world(FS_STAT_PATHFS)?;
+        destack_fs_stat_pathfs_replay(context, world, out, path)
     })
 }
 
-#[unsafe(export_name = "destack.fs.stat.statx")]
-pub unsafe extern "C" fn destack_fs_stat_statx(
+#[unsafe(export_name = "destack.fs.stat.pathx")]
+pub unsafe extern "C" fn destack_fs_stat_pathx(
     out: *mut Statx,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -18611,14 +18615,14 @@ pub unsafe extern "C" fn destack_fs_stat_statx(
         }
         let _ = (&out, &dir, &path, &flags, &mask);
 
-        context.check_policy(FS_STAT_STATX)?;
-        let world = context.check_and_resolve_world(FS_STAT_STATX)?;
-        destack_fs_stat_statx_replay(context, world, out, dir, path, flags, mask)
+        context.check_policy(FS_STAT_PATHX)?;
+        let world = context.check_and_resolve_world(FS_STAT_PATHX)?;
+        destack_fs_stat_pathx_replay(context, world, out, dir, path, flags, mask)
     })
 }
 
-#[unsafe(export_name = "destack.fs.watch")]
-pub unsafe extern "C" fn destack_fs_watch(
+#[unsafe(export_name = "destack.fs.watch.open")]
+pub unsafe extern "C" fn destack_fs_watch_open(
     out: *mut resource::WatchHandle,
     path: OsPath,
     options: WatchOptions,
@@ -18629,25 +18633,27 @@ pub unsafe extern "C" fn destack_fs_watch(
         }
         let _ = (&out, &path, &options);
 
-        context.check_policy(FS_WATCH)?;
-        let world = context.check_and_resolve_world(FS_WATCH)?;
-        destack_fs_watch_replay(context, world, out, path, options)
+        context.check_policy(FS_WATCH_OPEN)?;
+        let world = context.check_and_resolve_world(FS_WATCH_OPEN)?;
+        destack_fs_watch_open_replay(context, world, out, path, options)
     })
 }
 
-#[unsafe(export_name = "destack.fs.watchClose")]
-pub unsafe extern "C" fn destack_fs_watch_close(handle: resource::WatchHandle) -> RuntimeStatus {
+#[unsafe(export_name = "destack.fs.watch.openClose")]
+pub unsafe extern "C" fn destack_fs_watch_open_close(
+    handle: resource::WatchHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(FS_WATCH_CLOSE)?;
-        let world = context.check_and_resolve_world(FS_WATCH_CLOSE)?;
-        destack_fs_watch_close_replay(context, world, handle)
+        context.check_policy(FS_WATCH_OPEN_CLOSE)?;
+        let world = context.check_and_resolve_world(FS_WATCH_OPEN_CLOSE)?;
+        destack_fs_watch_open_close_replay(context, world, handle)
     })
 }
 
-#[unsafe(export_name = "destack.fs.watchRead")]
-pub unsafe extern "C" fn destack_fs_watch_read(
+#[unsafe(export_name = "destack.fs.watch.openRead")]
+pub unsafe extern "C" fn destack_fs_watch_open_read(
     out: *mut WatchBatch,
     handle: resource::WatchHandle,
 ) -> RuntimeStatus {
@@ -18657,14 +18663,14 @@ pub unsafe extern "C" fn destack_fs_watch_read(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(FS_WATCH_READ)?;
-        let world = context.check_and_resolve_world(FS_WATCH_READ)?;
-        destack_fs_watch_read_replay(context, world, out, handle)
+        context.check_policy(FS_WATCH_OPEN_READ)?;
+        let world = context.check_and_resolve_world(FS_WATCH_OPEN_READ)?;
+        destack_fs_watch_open_read_replay(context, world, out, handle)
     })
 }
 
-#[unsafe(export_name = "destack.fs.watchat")]
-pub unsafe extern "C" fn destack_fs_watchat(
+#[unsafe(export_name = "destack.fs.watch.openat")]
+pub unsafe extern "C" fn destack_fs_watch_openat(
     out: *mut resource::WatchHandle,
     directory: resource::DirectoryHandle,
     path: OsPath,
@@ -18676,9 +18682,9 @@ pub unsafe extern "C" fn destack_fs_watchat(
         }
         let _ = (&out, &directory, &path, &options);
 
-        context.check_policy(FS_WATCHAT)?;
-        let world = context.check_and_resolve_world(FS_WATCHAT)?;
-        destack_fs_watchat_replay(context, world, out, directory, path, options)
+        context.check_policy(FS_WATCH_OPENAT)?;
+        let world = context.check_and_resolve_world(FS_WATCH_OPENAT)?;
+        destack_fs_watch_openat_replay(context, world, out, directory, path, options)
     })
 }
 
@@ -22787,6 +22793,128 @@ fn destack_fs_mmap_madvise_vm_replay(
 }
 
 #[inline]
+fn destack_fs_mmap_mmap_anonymous_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    length: FileSize,
+    prot: MmapProt,
+    flags: MmapFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            FS_MMAP_MMAP_ANONYMOUS,
+            runtime.replay_payload_for(FS_MMAP_MMAP_ANONYMOUS)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_fs_mmap_anonymous(runtime, context, length, prot, flags)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_mmap_anonymous(
+                    runtime, context, length, prot, flags,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: VmSlice<u8> = value.clone();
+                    let result_recorded = result_value.read_bytes(context)?;
+                    let payload = FsMmapMmapAnonymousReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        FsMmapMmapAnonymousReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = VmSlice::from_bytes(context, value.as_slice());
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_fs_mmap_mmap_anonymous_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_mmap_mmap_file_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::FileHandle,
+    offset: FileOffset,
+    length: FileSize,
+    prot: MmapProt,
+    flags: MmapFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            FS_MMAP_MMAP_FILE,
+            runtime.replay_payload_for(FS_MMAP_MMAP_FILE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_fs_mmap_file(
+                    runtime, context, handle, offset, length, prot, flags,
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_mmap_file(
+                    runtime, context, handle, offset, length, prot, flags,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: VmSlice<u8> = value.clone();
+                    let result_recorded = result_value.read_bytes(context)?;
+                    let payload = FsMmapMmapFileReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        FsMmapMmapFileReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = VmSlice::from_bytes(context, value.as_slice());
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_fs_mmap_mmap_file_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_fs_mmap_mprotect_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -22945,128 +23073,6 @@ fn destack_fs_mmap_munmap_vm_replay(
             },
         );
     let result = encode_destack_fs_mmap_munmap_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_fs_mmap_anonymous_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    length: FileSize,
-    prot: MmapProt,
-    flags: MmapFlags,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_MMAP_ANONYMOUS,
-            runtime.replay_payload_for(FS_MMAP_ANONYMOUS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_mmap_anonymous(runtime, context, length, prot, flags)
-                }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_mmap_anonymous(
-                    runtime, context, length, prot, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmSlice<u8> = value.clone();
-                    let result_recorded = result_value.read_bytes(context)?;
-                    let payload = FsMmapAnonymousReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsMmapAnonymousReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = VmSlice::from_bytes(context, value.as_slice());
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_fs_mmap_anonymous_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_fs_mmap_file_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::FileHandle,
-    offset: FileOffset,
-    length: FileSize,
-    prot: MmapProt,
-    flags: MmapFlags,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_MMAP_FILE,
-            runtime.replay_payload_for(FS_MMAP_FILE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_mmap_file(
-                    runtime, context, handle, offset, length, prot, flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_mmap_file(
-                    runtime, context, handle, offset, length, prot, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmSlice<u8> = value.clone();
-                    let result_recorded = result_value.read_bytes(context)?;
-                    let payload = FsMmapFileReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsMmapFileReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = VmSlice::from_bytes(context, value.as_slice());
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_fs_mmap_file_result(context, result)?;
     Ok(result)
 }
 
@@ -24486,7 +24492,7 @@ fn destack_fs_stat_lstat_vm_replay(
 }
 
 #[inline]
-fn destack_fs_stat_stat_vm_replay(
+fn destack_fs_stat_path_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -24495,8 +24501,8 @@ fn destack_fs_stat_stat_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            FS_STAT_STAT,
-            runtime.replay_payload_for(FS_STAT_STAT)?,
+            FS_STAT_PATH,
+            runtime.replay_payload_for(FS_STAT_PATH)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_stat(runtime, context, path),
@@ -24538,7 +24544,7 @@ fn destack_fs_stat_stat_vm_replay(
                         ctime_ns: result_recorded_ctime_ns,
                         birthtime_ns: result_recorded_birthtime_ns,
                     };
-                    let payload = FsStatStatReplay {
+                    let payload = FsStatPathReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -24547,7 +24553,7 @@ fn destack_fs_stat_stat_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        FsStatStatReplay { result }
+                        FsStatPathReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -24595,12 +24601,12 @@ fn destack_fs_stat_stat_vm_replay(
                 }
             },
         );
-    let result = encode_destack_fs_stat_stat_result(context, result)?;
+    let result = encode_destack_fs_stat_path_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_stat_statat_vm_replay(
+fn destack_fs_stat_pathat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -24611,8 +24617,8 @@ fn destack_fs_stat_statat_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            FS_STAT_STATAT,
-            runtime.replay_payload_for(FS_STAT_STATAT)?,
+            FS_STAT_PATHAT,
+            runtime.replay_payload_for(FS_STAT_PATHAT)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
@@ -24656,7 +24662,7 @@ fn destack_fs_stat_statat_vm_replay(
                         ctime_ns: result_recorded_ctime_ns,
                         birthtime_ns: result_recorded_birthtime_ns,
                     };
-                    let payload = FsStatStatatReplay {
+                    let payload = FsStatPathatReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -24665,7 +24671,7 @@ fn destack_fs_stat_statat_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        FsStatStatatReplay { result }
+                        FsStatPathatReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -24713,12 +24719,12 @@ fn destack_fs_stat_statat_vm_replay(
                 }
             },
         );
-    let result = encode_destack_fs_stat_statat_result(context, result)?;
+    let result = encode_destack_fs_stat_pathat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_stat_statfs_vm_replay(
+fn destack_fs_stat_pathfs_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -24727,8 +24733,8 @@ fn destack_fs_stat_statfs_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            FS_STAT_STATFS,
-            runtime.replay_payload_for(FS_STAT_STATFS)?,
+            FS_STAT_PATHFS,
+            runtime.replay_payload_for(FS_STAT_PATHFS)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_statfs(runtime, context, path),
@@ -24762,7 +24768,7 @@ fn destack_fs_stat_statfs_vm_replay(
                         flags: result_recorded_flags,
                         namelen: result_recorded_namelen,
                     };
-                    let payload = FsStatStatfsReplay {
+                    let payload = FsStatPathfsReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -24771,7 +24777,7 @@ fn destack_fs_stat_statfs_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        FsStatStatfsReplay { result }
+                        FsStatPathfsReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -24811,12 +24817,12 @@ fn destack_fs_stat_statfs_vm_replay(
                 }
             },
         );
-    let result = encode_destack_fs_stat_statfs_result(context, result)?;
+    let result = encode_destack_fs_stat_pathfs_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_stat_statx_vm_replay(
+fn destack_fs_stat_pathx_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -24828,8 +24834,8 @@ fn destack_fs_stat_statx_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            FS_STAT_STATX,
-            runtime.replay_payload_for(FS_STAT_STATX)?,
+            FS_STAT_PATHX,
+            runtime.replay_payload_for(FS_STAT_PATHX)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
@@ -24881,7 +24887,7 @@ fn destack_fs_stat_statx_vm_replay(
                         ctime_ns: result_recorded_ctime_ns,
                         mtime_ns: result_recorded_mtime_ns,
                     };
-                    let payload = FsStatStatxReplay {
+                    let payload = FsStatPathxReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -24890,7 +24896,7 @@ fn destack_fs_stat_statx_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        FsStatStatxReplay { result }
+                        FsStatPathxReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -24946,12 +24952,12 @@ fn destack_fs_stat_statx_vm_replay(
                 }
             },
         );
-    let result = encode_destack_fs_stat_statx_result(context, result)?;
+    let result = encode_destack_fs_stat_pathx_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_watch_vm_replay(
+fn destack_fs_watch_open_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -24961,8 +24967,8 @@ fn destack_fs_watch_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            FS_WATCH,
-            runtime.replay_payload_for(FS_WATCH)?,
+            FS_WATCH_OPEN,
+            runtime.replay_payload_for(FS_WATCH_OPEN)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
@@ -24977,7 +24983,7 @@ fn destack_fs_watch_vm_replay(
                 if let Ok(value) = result {
                     let result_value: resource::WatchHandle = value.clone();
                     let result_recorded = result_value;
-                    let payload = FsWatchReplay {
+                    let payload = FsWatchOpenReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -24986,7 +24992,7 @@ fn destack_fs_watch_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        FsWatchReplay { result }
+                        FsWatchOpenReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -25005,12 +25011,12 @@ fn destack_fs_watch_vm_replay(
                 }
             },
         );
-    let result = encode_destack_fs_watch_result(context, result)?;
+    let result = encode_destack_fs_watch_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_watch_close_vm_replay(
+fn destack_fs_watch_open_close_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -25019,8 +25025,8 @@ fn destack_fs_watch_close_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            FS_WATCH_CLOSE,
-            runtime.replay_payload_for(FS_WATCH_CLOSE)?,
+            FS_WATCH_OPEN_CLOSE,
+            runtime.replay_payload_for(FS_WATCH_OPEN_CLOSE)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_watch_close(runtime, context, handle),
@@ -25032,7 +25038,7 @@ fn destack_fs_watch_close_vm_replay(
                 let _ = &context;
                 if let Ok(()) = result {
                     let result_recorded = ();
-                    let payload = FsWatchCloseReplay {
+                    let payload = FsWatchOpenCloseReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -25041,7 +25047,7 @@ fn destack_fs_watch_close_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        FsWatchCloseReplay { result }
+                        FsWatchOpenCloseReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -25057,20 +25063,20 @@ fn destack_fs_watch_close_vm_replay(
                 }
             },
         );
-    let result = encode_destack_fs_watch_close_result(context, result)?;
+    let result = encode_destack_fs_watch_open_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_watch_read_vm_replay(
+fn destack_fs_watch_open_read_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::WatchHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context_and_payload_policy(
-        FS_WATCH_READ,
-        runtime.replay_payload_for(FS_WATCH_READ)?,
+        FS_WATCH_OPEN_READ,
+        runtime.replay_payload_for(FS_WATCH_OPEN_READ)?,
         context,
         |context| {
             match world {
@@ -25178,7 +25184,7 @@ fn destack_fs_watch_read_vm_replay(
                     events: result_recorded_events,
                     overflowed: result_recorded_overflowed,
                 };
-                let payload = FsWatchReadReplay {
+                let payload = FsWatchOpenReadReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -25187,7 +25193,7 @@ fn destack_fs_watch_read_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsWatchReadReplay {
+                    FsWatchOpenReadReplay {
                         result,
                     }
                 };
@@ -25260,12 +25266,12 @@ fn destack_fs_watch_read_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_watch_read_result(context, result)?;
+    let result = encode_destack_fs_watch_open_read_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_watchat_vm_replay(
+fn destack_fs_watch_openat_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -25276,8 +25282,8 @@ fn destack_fs_watchat_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            FS_WATCHAT,
-            runtime.replay_payload_for(FS_WATCHAT)?,
+            FS_WATCH_OPENAT,
+            runtime.replay_payload_for(FS_WATCH_OPENAT)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
@@ -25292,7 +25298,7 @@ fn destack_fs_watchat_vm_replay(
                 if let Ok(value) = result {
                     let result_value: resource::WatchHandle = value.clone();
                     let result_recorded = result_value;
-                    let payload = FsWatchatReplay {
+                    let payload = FsWatchOpenatReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -25301,7 +25307,7 @@ fn destack_fs_watchat_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        FsWatchatReplay { result }
+                        FsWatchOpenatReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -25320,7 +25326,7 @@ fn destack_fs_watchat_vm_replay(
                 }
             },
         );
-    let result = encode_destack_fs_watchat_result(context, result)?;
+    let result = encode_destack_fs_watch_openat_result(context, result)?;
     Ok(result)
 }
 
@@ -27854,6 +27860,50 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
+        binding!(
+            registry,
+            isolate,
+            FS_MMAP_MMAP_ANONYMOUS,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (length, prot, flags) =
+                        decode_destack_fs_mmap_mmap_anonymous_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(FS_MMAP_MMAP_ANONYMOUS)?;
+                    let world = runtime.check_and_resolve_world(FS_MMAP_MMAP_ANONYMOUS)?;
+                    destack_fs_mmap_mmap_anonymous_vm_replay(
+                        runtime, context, world, length, prot, flags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            FS_MMAP_MMAP_FILE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, offset, length, prot, flags) =
+                        decode_destack_fs_mmap_mmap_file_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(FS_MMAP_MMAP_FILE)?;
+                    let world = runtime.check_and_resolve_world(FS_MMAP_MMAP_FILE)?;
+                    destack_fs_mmap_mmap_file_vm_replay(
+                        runtime, context, world, handle, offset, length, prot, flags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
         binding!(registry, isolate, FS_MMAP_MPROTECT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // decode args
@@ -27891,45 +27941,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 runtime.check_policy(FS_MMAP_MUNMAP)?;
                 let world = runtime.check_and_resolve_world(FS_MMAP_MUNMAP)?;
                 destack_fs_mmap_munmap_vm_replay(runtime, context, world, mapping)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            FS_MMAP_ANONYMOUS,
-            move |context, args| {
-                with_runtime_call_context(|runtime| {
-                    // decode args
-                    let (length, prot, flags) =
-                        decode_destack_fs_mmap_anonymous_args(context, args)?;
-
-                    // execute binding
-                    runtime.check_policy(FS_MMAP_ANONYMOUS)?;
-                    let world = runtime.check_and_resolve_world(FS_MMAP_ANONYMOUS)?;
-                    destack_fs_mmap_anonymous_vm_replay(
-                        runtime, context, world, length, prot, flags,
-                    )
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(registry, isolate, FS_MMAP_FILE, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle, offset, length, prot, flags) =
-                    decode_destack_fs_mmap_file_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(FS_MMAP_FILE)?;
-                let world = runtime.check_and_resolve_world(FS_MMAP_FILE)?;
-                destack_fs_mmap_file_vm_replay(
-                    runtime, context, world, handle, offset, length, prot, flags,
-                )
             })
             .map_err(Into::into)
         });
@@ -28249,113 +28260,124 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, FS_STAT_STAT, move |context, args| {
+        binding!(registry, isolate, FS_STAT_PATH, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // decode args
-                let (path,) = decode_destack_fs_stat_stat_args(context, args)?;
+                let (path,) = decode_destack_fs_stat_path_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_STAT_STAT)?;
-                let world = runtime.check_and_resolve_world(FS_STAT_STAT)?;
-                destack_fs_stat_stat_vm_replay(runtime, context, world, path)
+                runtime.check_policy(FS_STAT_PATH)?;
+                let world = runtime.check_and_resolve_world(FS_STAT_PATH)?;
+                destack_fs_stat_path_vm_replay(runtime, context, world, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FS_STAT_STATAT, move |context, args| {
+        binding!(registry, isolate, FS_STAT_PATHAT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // decode args
-                let (dir, path, flags) = decode_destack_fs_stat_statat_args(context, args)?;
+                let (dir, path, flags) = decode_destack_fs_stat_pathat_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_STAT_STATAT)?;
-                let world = runtime.check_and_resolve_world(FS_STAT_STATAT)?;
-                destack_fs_stat_statat_vm_replay(runtime, context, world, dir, path, flags)
+                runtime.check_policy(FS_STAT_PATHAT)?;
+                let world = runtime.check_and_resolve_world(FS_STAT_PATHAT)?;
+                destack_fs_stat_pathat_vm_replay(runtime, context, world, dir, path, flags)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FS_STAT_STATFS, move |context, args| {
+        binding!(registry, isolate, FS_STAT_PATHFS, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // decode args
-                let (path,) = decode_destack_fs_stat_statfs_args(context, args)?;
+                let (path,) = decode_destack_fs_stat_pathfs_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_STAT_STATFS)?;
-                let world = runtime.check_and_resolve_world(FS_STAT_STATFS)?;
-                destack_fs_stat_statfs_vm_replay(runtime, context, world, path)
+                runtime.check_policy(FS_STAT_PATHFS)?;
+                let world = runtime.check_and_resolve_world(FS_STAT_PATHFS)?;
+                destack_fs_stat_pathfs_vm_replay(runtime, context, world, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FS_STAT_STATX, move |context, args| {
+        binding!(registry, isolate, FS_STAT_PATHX, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // decode args
-                let (dir, path, flags, mask) = decode_destack_fs_stat_statx_args(context, args)?;
+                let (dir, path, flags, mask) = decode_destack_fs_stat_pathx_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_STAT_STATX)?;
-                let world = runtime.check_and_resolve_world(FS_STAT_STATX)?;
-                destack_fs_stat_statx_vm_replay(runtime, context, world, dir, path, flags, mask)
+                runtime.check_policy(FS_STAT_PATHX)?;
+                let world = runtime.check_and_resolve_world(FS_STAT_PATHX)?;
+                destack_fs_stat_pathx_vm_replay(runtime, context, world, dir, path, flags, mask)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FS_WATCH, move |context, args| {
+        binding!(registry, isolate, FS_WATCH_OPEN, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // decode args
-                let (path, options) = decode_destack_fs_watch_args(context, args)?;
+                let (path, options) = decode_destack_fs_watch_open_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_WATCH)?;
-                let world = runtime.check_and_resolve_world(FS_WATCH)?;
-                destack_fs_watch_vm_replay(runtime, context, world, path, options)
+                runtime.check_policy(FS_WATCH_OPEN)?;
+                let world = runtime.check_and_resolve_world(FS_WATCH_OPEN)?;
+                destack_fs_watch_open_vm_replay(runtime, context, world, path, options)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, FS_WATCH_CLOSE, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle,) = decode_destack_fs_watch_close_args(context, args)?;
+        binding!(
+            registry,
+            isolate,
+            FS_WATCH_OPEN_CLOSE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_fs_watch_open_close_args(context, args)?;
 
-                // execute binding
-                runtime.check_policy(FS_WATCH_CLOSE)?;
-                let world = runtime.check_and_resolve_world(FS_WATCH_CLOSE)?;
-                destack_fs_watch_close_vm_replay(runtime, context, world, handle)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    runtime.check_policy(FS_WATCH_OPEN_CLOSE)?;
+                    let world = runtime.check_and_resolve_world(FS_WATCH_OPEN_CLOSE)?;
+                    destack_fs_watch_open_close_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, FS_WATCH_READ, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle,) = decode_destack_fs_watch_read_args(context, args)?;
+        binding!(
+            registry,
+            isolate,
+            FS_WATCH_OPEN_READ,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_fs_watch_open_read_args(context, args)?;
 
-                // execute binding
-                runtime.check_policy(FS_WATCH_READ)?;
-                let world = runtime.check_and_resolve_world(FS_WATCH_READ)?;
-                destack_fs_watch_read_vm_replay(runtime, context, world, handle)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    runtime.check_policy(FS_WATCH_OPEN_READ)?;
+                    let world = runtime.check_and_resolve_world(FS_WATCH_OPEN_READ)?;
+                    destack_fs_watch_open_read_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, FS_WATCHAT, move |context, args| {
+        binding!(registry, isolate, FS_WATCH_OPENAT, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // decode args
-                let (directory, path, options) = decode_destack_fs_watchat_args(context, args)?;
+                let (directory, path, options) =
+                    decode_destack_fs_watch_openat_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_WATCHAT)?;
-                let world = runtime.check_and_resolve_world(FS_WATCHAT)?;
-                destack_fs_watchat_vm_replay(runtime, context, world, directory, path, options)
+                runtime.check_policy(FS_WATCH_OPENAT)?;
+                let world = runtime.check_and_resolve_world(FS_WATCH_OPENAT)?;
+                destack_fs_watch_openat_vm_replay(runtime, context, world, directory, path, options)
             })
             .map_err(Into::into)
         });

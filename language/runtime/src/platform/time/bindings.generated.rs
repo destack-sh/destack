@@ -387,7 +387,6 @@ pub const TIME_CLOCK_INFO: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -414,7 +413,6 @@ pub const TIME_CLOCK_MONO_NS: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -441,7 +439,6 @@ pub const TIME_CLOCK_NOW_NS: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -520,7 +517,6 @@ pub const TIME_CLOCK_WALL_NS: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -547,7 +543,6 @@ pub const TIME_SLEEP_NS: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -561,7 +556,7 @@ pub const TIME_SLEEP_ON_NS: BindingDescriptor = BindingDescriptor::external_with
     BindingScope::Hybrid,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.time.sleep.untilNs.
 pub const TIME_SLEEP_UNTIL_NS: BindingDescriptor =
@@ -586,7 +581,6 @@ pub const TIME_SLEEP_UNTIL_NS: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -600,7 +594,7 @@ pub const TIME_SLEEP_UNTIL_ON_NS: BindingDescriptor = BindingDescriptor::externa
     BindingScope::Hybrid,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptors for time.
 pub const BINDINGS: &[BindingDescriptor] = &[

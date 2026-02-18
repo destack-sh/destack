@@ -100,7 +100,7 @@ fn test_fs_mkdtemp() {
         // create a temporary directory
         let template = context.path_bytes(&template_path);
         let created = context.destack_fs_mkdtemp(template)?;
-        let name = context.path_ref_string(created.clone());
+        let name = context.path_ref_string(created);
         assert!(name.contains("destack_"));
 
         // cleanup

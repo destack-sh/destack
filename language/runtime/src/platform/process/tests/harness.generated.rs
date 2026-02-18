@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(clippy::type_complexity)]
 
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -387,6 +388,56 @@ impl<'call> ProcessHarnessContext<'call> {
         }
     }
 
+    /// Replace the current process image using an executable file handle.
+    ///
+    /// Replace the current process image in-place from an already-open executable descriptor.
+    /// Descriptor validity, executable format, and permission checks are enforced by the host kernel.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses fexecve(2) on Unix where available and runtime fallback or `notSupported` on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, processPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.exec`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_process_fexec(
+        &mut self,
+        executable: resource::FileHandle,
+        arguments: HarnessValue<NativeStringSlice, VmSlice<vm::StringHandle>>,
+        environment: HarnessValue<NativeStringSlice, VmSlice<vm::StringHandle>>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let arguments = arguments.into_vm("arguments")?;
+                let environment = environment.into_vm("environment")?;
+                process_vm::destack_process_fexec(
+                    self.call_context,
+                    context,
+                    executable,
+                    arguments,
+                    environment,
+                )
+            }
+            None => {
+                let arguments = arguments.into_native("arguments")?;
+                let environment = environment.into_native("environment")?;
+                unsafe {
+                    process_native::destack_process_fexec(
+                        self.call_context,
+                        executable,
+                        arguments,
+                        environment,
+                    )
+                }
+            }
+        }
+    }
+
     /// Replace the current process image with a command path.
     ///
     /// Replace the current process image in-place by executing the given command path.
@@ -497,64 +548,14 @@ impl<'call> ProcessHarnessContext<'call> {
         }
     }
 
-    /// Replace the current process image using an executable file handle.
-    ///
-    /// Replace the current process image in-place from an already-open executable descriptor.
-    /// Descriptor validity, executable format, and permission checks are enforced by the host kernel.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses fexecve(2) on Unix where available and runtime fallback or `notSupported` on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, processPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `process.exec`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_process_fexec(
-        &mut self,
-        executable: resource::FileHandle,
-        arguments: HarnessValue<NativeStringSlice, VmSlice<vm::StringHandle>>,
-        environment: HarnessValue<NativeStringSlice, VmSlice<vm::StringHandle>>,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let arguments = arguments.into_vm("arguments")?;
-                let environment = environment.into_vm("environment")?;
-                process_vm::destack_process_fexec(
-                    self.call_context,
-                    context,
-                    executable,
-                    arguments,
-                    environment,
-                )
-            }
-            None => {
-                let arguments = arguments.into_native("arguments")?;
-                let environment = environment.into_native("environment")?;
-                unsafe {
-                    process_native::destack_process_fexec(
-                        self.call_context,
-                        executable,
-                        arguments,
-                        environment,
-                    )
-                }
-            }
-        }
-    }
-
     /// Exit the current process with the given code.
     ///
     /// Terminate the current process without returning to the caller.
     /// Exit code interpretation is host-defined and propagated to the parent process.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses _exit(2) or exit(3) on Unix, ExitProcess on Windows, and proc_exit on Wasi.
+    /// Unix and Windows.
+    /// Uses _exit(2) or exit(3) on Unix and ExitProcess on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -3021,6 +3022,50 @@ impl<'call> ProcessHarnessContext<'call> {
         }
     }
 
+    /// Wait for a child process handle.
+    ///
+    /// Wait for one child state transition and return a normalized wait status payload.
+    /// Blocking and state-filter behavior is controlled by wait flags and host wait semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses waitpid or waitid on Unix and WaitForSingleObject plus status queries on Windows.
+    ///
+    /// # Errors
+    /// Returns processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.wait`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_process_wait(
+        &mut self,
+        handle: resource::ProcessHandle,
+        flags: ProcessWaitFlags,
+    ) -> RuntimeResult<HarnessValue<ProcessWaitStatus, ProcessWaitStatusVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    process_vm::destack_process_wait(self.call_context, context, handle, flags)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<ProcessWaitStatus>::uninit();
+                unsafe {
+                    process_native::destack_process_wait(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        flags,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Wait for a process identifier.
     ///
     /// Wait for one state transition for the specified process identifier.
@@ -3098,50 +3143,6 @@ impl<'call> ProcessHarnessContext<'call> {
                         self.call_context,
                         out.as_mut_ptr(),
                         handle,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
-    /// Wait for a child process handle.
-    ///
-    /// Wait for one child state transition and return a normalized wait status payload.
-    /// Blocking and state-filter behavior is controlled by wait flags and host wait semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses waitpid or waitid on Unix and WaitForSingleObject plus status queries on Windows.
-    ///
-    /// # Errors
-    /// Returns processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `process.wait`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_process_wait(
-        &mut self,
-        handle: resource::ProcessHandle,
-        flags: ProcessWaitFlags,
-    ) -> RuntimeResult<HarnessValue<ProcessWaitStatus, ProcessWaitStatusVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out =
-                    process_vm::destack_process_wait(self.call_context, context, handle, flags)?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<ProcessWaitStatus>::uninit();
-                unsafe {
-                    process_native::destack_process_wait(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        flags,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };

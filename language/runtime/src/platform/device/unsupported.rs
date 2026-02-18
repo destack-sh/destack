@@ -42,7 +42,7 @@ pub(crate) unsafe fn destack_device_control(
     let _ = (out, handle, operation, input, output);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.control.control",
+        "destack.device.control.request",
     ))
     .boxed())
 }

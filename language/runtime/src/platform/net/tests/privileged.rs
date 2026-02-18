@@ -46,8 +46,7 @@ fn test_net_bind_privileged_port_succeeds_in_privileged_mode() {
                     }
 
                     panic!(
-                        "failed to bind privileged port {port} with unexpected error code {:?}: {error:?}",
-                        code
+                        "failed to bind privileged port {port} with unexpected error code {code:?}: {error:?}",
                     );
                 }
             }

@@ -33,7 +33,7 @@ pub(crate) fn destack_process_args(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<vm::StringHandle>> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.args.args")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.process.args.list")).boxed())
 }
 
 /// Change the current working directory.
@@ -83,7 +83,7 @@ pub(crate) fn destack_process_cwd(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<fs::OsPathVm> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.cwd.cwd")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.process.cwd.get")).boxed())
 }
 
 /// Delete an environment variable by UTF-8 name.
@@ -272,7 +272,7 @@ pub(crate) fn destack_process_exec(
     environment: VmSlice<vm::StringHandle>,
 ) -> RuntimeResult<()> {
     let _ = (command, arguments, environment);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.exec.exec")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.process.exec.path")).boxed())
 }
 
 /// Replace the current process image using a directory-relative path.
@@ -302,7 +302,7 @@ pub(crate) fn destack_process_execat(
     flags: ExecAtFlags,
 ) -> RuntimeResult<()> {
     let _ = (directory, path, arguments, environment, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.exec.execat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.process.exec.pathat")).boxed())
 }
 
 /// Replace the current process image using an executable file handle.
@@ -339,8 +339,8 @@ pub(crate) fn destack_process_fexec(
 /// Exit code interpretation is host-defined and propagated to the parent process.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses _exit(2) or exit(3) on Unix, ExitProcess on Windows, and proc_exit on Wasi.
+/// Unix and Windows.
+/// Uses _exit(2) or exit(3) on Unix and ExitProcess on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -356,7 +356,10 @@ pub(crate) fn destack_process_exit(
     code: u32,
 ) -> RuntimeResult<()> {
     let _ = code;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.exit.exit")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.exit.terminate",
+    ))
+    .boxed())
 }
 
 /// Close one process descriptor.
@@ -2103,7 +2106,7 @@ pub(crate) fn destack_process_spawn(
     options: ProcessSpawnOptionsVm,
 ) -> RuntimeResult<resource::ProcessHandle> {
     let _ = (command, arguments, environment, options);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.spawn.spawn")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.process.spawn.start")).boxed())
 }
 
 /// Spawn a child process with explicit stdio and descriptor actions.
@@ -2163,7 +2166,7 @@ pub(crate) fn destack_process_umask(
     mask: u32,
 ) -> RuntimeResult<u32> {
     let _ = mask;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.umask.umask")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.process.umask.set")).boxed())
 }
 
 /// Wait for a process identifier.
@@ -2243,5 +2246,5 @@ pub(crate) fn destack_process_wait(
     flags: ProcessWaitFlags,
 ) -> RuntimeResult<ProcessWaitStatusVm> {
     let _ = (handle, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.wait.wait")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.process.wait.handle")).boxed())
 }

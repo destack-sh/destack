@@ -178,8 +178,8 @@ pub(crate) unsafe fn destack_ipc_message_queue_unlink(
 /// Pending readers and writers observe host close semantics.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses close(2) on Unix and Wasi and CloseHandle on Windows.
+/// Unix and Windows.
+/// Uses close(2) on Unix and CloseHandle on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -205,8 +205,8 @@ pub(crate) unsafe fn destack_ipc_pipe_close(
 /// Endpoint inheritance and blocking mode follow host pipe semantics.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses pipe2 or pipe on Unix, CreatePipe on Windows, and wasi pipe primitives where available.
+/// Unix and Windows.
+/// Uses pipe2 or pipe on Unix and CreatePipe on Windows.
 ///
 /// # Errors
 /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -233,8 +233,8 @@ pub(crate) unsafe fn destack_ipc_pipe_open(
 /// Partial reads are preserved exactly as reported by the host.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses read(2) on Unix and Wasi and ReadFile on Windows.
+/// Unix and Windows.
+/// Uses read(2) on Unix and ReadFile on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -262,8 +262,8 @@ pub(crate) unsafe fn destack_ipc_pipe_read(
 /// Partial writes are preserved exactly as reported by the host.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses write(2) on Unix and Wasi and WriteFile on Windows.
+/// Unix and Windows.
+/// Uses write(2) on Unix and WriteFile on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -291,8 +291,8 @@ pub(crate) unsafe fn destack_ipc_pipe_write(
 /// Mapping lifetime remains independent until explicit unmap calls.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses close(2), CloseHandle, or wasi equivalent object close semantics.
+/// Unix and Windows.
+/// Uses close(2) on Unix and CloseHandle on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -321,8 +321,8 @@ pub(crate) unsafe fn destack_ipc_shared_memory_close(
 /// Name namespace and visibility follow host object manager semantics.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses shm_open or memfd-style APIs on Unix, file mapping objects on Windows, and wasi shared-memory support when available.
+/// Unix and Windows.
+/// Uses shm_open or memfd-style APIs on Unix and file mapping objects on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioAlreadyExists, ioWouldBlock, notSupported.
@@ -354,8 +354,8 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
 /// Mapping protection and coherence follow host virtual-memory semantics.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses mmap family on Unix, MapViewOfFile on Windows, and wasi memory mapping equivalents.
+/// Unix and Windows.
+/// Uses mmap family on Unix and MapViewOfFile on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -385,8 +385,8 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
 /// Access rights and visibility follow host object manager semantics.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses shm_open-style APIs on Unix, OpenFileMapping on Windows, and wasi shared-memory support when available.
+/// Unix and Windows.
+/// Uses shm_open-style APIs on Unix and OpenFileMapping on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -417,8 +417,8 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
 /// Unmap operation does not destroy the underlying shared memory object.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses munmap on Unix, UnmapViewOfFile on Windows, and wasi unmap equivalents.
+/// Unix and Windows.
+/// Uses munmap on Unix and UnmapViewOfFile on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

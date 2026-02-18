@@ -1566,7 +1566,7 @@ pub(crate) fn destack_net_resolve(
     _context: &mut vm::ExternalCallContext<'_>,
     _query: ResolveQueryVm,
 ) -> RuntimeResult<VmArray<SocketAddressVm>> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.resolve.resolve")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.resolve.lookup")).boxed())
 }
 
 /// Reverse lookup a raw socket address into host and service names.

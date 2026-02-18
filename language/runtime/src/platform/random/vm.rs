@@ -14,7 +14,7 @@ use destack_vm as vm;
 /// Entropy quality and blocking behavior follow host kernel guarantees.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi where host entropy APIs are available.
+/// Unix and Windows where host entropy APIs are available.
 /// Uses getrandom(2) or getentropy on Unix and BCryptGenRandom on Windows.
 ///
 /// # Errors
@@ -43,7 +43,7 @@ pub(crate) fn destack_random_secure_bytes(
 /// Fails with `ioWouldBlock` when the host source requires blocking.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi where host entropy APIs are available.
+/// Unix and Windows where host entropy APIs are available.
 /// Uses nonblocking host entropy APIs when available and runtime fallbacks otherwise.
 ///
 /// # Errors
@@ -72,7 +72,7 @@ pub(crate) fn destack_random_secure_bytes_try(
 /// Metadata values are normalized across host operating systems.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi where host entropy APIs are available.
+/// Unix and Windows where host entropy APIs are available.
 /// Uses runtime source selection metadata.
 ///
 /// # Errors
@@ -377,7 +377,7 @@ pub(crate) fn destack_random_stream(
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<RandomStream> {
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.random.stream.stream is not available in the VM yet",
+        "destack.random.stream.create is not available in the VM yet",
     ))
     .boxed())
 }

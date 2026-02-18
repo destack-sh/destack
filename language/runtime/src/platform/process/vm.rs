@@ -740,8 +740,8 @@ pub(crate) fn destack_process_fexec(
 /// Exit code interpretation is host-defined and propagated to the parent process.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses _exit(2) or exit(3) on Unix, ExitProcess on Windows, and proc_exit on Wasi.
+/// Unix and Windows.
+/// Uses _exit(2) or exit(3) on Unix and ExitProcess on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.

@@ -29,11 +29,11 @@ fn test_fs_chown_and_fchown_succeed_in_privileged_mode() {
         let uid = unsafe { libc::getuid() };
         let gid = unsafe { libc::getgid() };
         let file = context.path_bytes(&file_path);
-        context.destack_fs_chown(file.clone(), uid, gid)?;
+        context.destack_fs_chown(file, uid, gid)?;
         context.destack_fs_fchown(handle, uid, gid)?;
 
         // ownership should match the requested ids after privileged updates
-        let stat = context.destack_fs_stat(file.clone())?;
+        let stat = context.destack_fs_stat(file)?;
         assert_eq!(stat.uid, uid);
         assert_eq!(stat.gid, gid);
 

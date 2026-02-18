@@ -1618,7 +1618,7 @@ pub(crate) unsafe fn destack_net_resolve(
 ) -> RuntimeResult<()> {
     let _ = (out, query);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.resolve.resolve")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.resolve.lookup")).boxed())
 }
 
 /// Reverse lookup a raw socket address into host and service names.

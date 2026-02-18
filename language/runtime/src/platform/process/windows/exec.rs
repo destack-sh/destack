@@ -314,7 +314,7 @@ pub(crate) unsafe fn destack_process_execat(
 ) -> RuntimeResult<()> {
     if flags.0 != 0 {
         return Err(RuntimeError::from(PlatformError::not_supported(
-            "destack.process.exec.execat.flags",
+            "destack.process.exec.pathat.flags",
         ))
         .boxed());
     }

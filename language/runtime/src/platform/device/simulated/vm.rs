@@ -33,7 +33,7 @@ pub(crate) fn destack_device_control(
 ) -> RuntimeResult<u64> {
     let _ = (handle, operation, input, output);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.control.control",
+        "destack.device.control.request",
     ))
     .boxed())
 }

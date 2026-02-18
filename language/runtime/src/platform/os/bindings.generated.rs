@@ -491,7 +491,6 @@ pub const OS_HOST_IDENTITY: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -569,7 +568,6 @@ pub const OS_INFO_SYSTEM_INFO: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -596,7 +594,6 @@ pub const OS_INFO_UPTIME_NS: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 

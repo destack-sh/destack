@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(clippy::type_complexity)]
 
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};

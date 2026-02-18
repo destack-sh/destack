@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(clippy::type_complexity)]
 
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -35,7 +36,7 @@ impl<'call> TimeHarnessContext<'call> {
     /// Metadata is normalized by runtime policy across host operating systems.
     ///
     /// # Platform
-    /// Runtime-integrated clock available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated clock available on Unix and Windows targets.
     /// Uses runtime clock registry metadata and host clock probes.
     ///
     /// # Errors
@@ -76,7 +77,7 @@ impl<'call> TimeHarnessContext<'call> {
     /// Resolution and origin are platform-specific.
     ///
     /// # Platform
-    /// Runtime-integrated clock available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated clock available on Unix and Windows targets.
     /// Uses clock_gettime(CLOCK_MONOTONIC) on Unix and QueryPerformanceCounter on Windows.
     ///
     /// # Errors
@@ -110,7 +111,7 @@ impl<'call> TimeHarnessContext<'call> {
     /// Clock identifier support varies by host and runtime configuration.
     ///
     /// # Platform
-    /// Runtime-integrated clock available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated clock available on Unix and Windows targets.
     /// Uses host clock APIs selected by clock identifier and runtime policy.
     ///
     /// # Errors
@@ -212,7 +213,7 @@ impl<'call> TimeHarnessContext<'call> {
     /// Epoch choice and leap-second behavior follow the active runtime time policy.
     ///
     /// # Platform
-    /// Runtime-integrated clock available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated clock available on Unix and Windows targets.
     /// Uses clock_gettime(CLOCK_REALTIME) on Unix and GetSystemTimePreciseAsFileTime on Windows.
     ///
     /// # Errors
@@ -246,7 +247,7 @@ impl<'call> TimeHarnessContext<'call> {
     /// Wakeup precision depends on host timer granularity and scheduler latency.
     ///
     /// # Platform
-    /// Runtime-integrated sleep available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated sleep available on Unix and Windows targets.
     /// Uses nanosleep(2) on Unix and waitable timers or Sleep on Windows.
     ///
     /// # Errors
@@ -270,7 +271,7 @@ impl<'call> TimeHarnessContext<'call> {
     /// Wakeup precision depends on host timer granularity and scheduler latency.
     ///
     /// # Platform
-    /// Runtime-integrated sleep available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated sleep available on Unix and Windows targets.
     /// Uses host sleep primitives selected by runtime for the requested clock domain.
     ///
     /// # Errors
@@ -302,7 +303,7 @@ impl<'call> TimeHarnessContext<'call> {
     /// Deadline interpretation follows runtime wall-clock policy.
     ///
     /// # Platform
-    /// Runtime-integrated sleep available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated sleep available on Unix and Windows targets.
     /// Uses clock_nanosleep on Unix when available and waitable deadline timers on Windows.
     ///
     /// # Errors
@@ -330,7 +331,7 @@ impl<'call> TimeHarnessContext<'call> {
     /// Deadline interpretation follows runtime policy and host clock behavior.
     ///
     /// # Platform
-    /// Runtime-integrated sleep available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated sleep available on Unix and Windows targets.
     /// Uses host deadline sleep primitives selected by runtime for the requested clock domain.
     ///
     /// # Errors

@@ -191,9 +191,9 @@ fn decode_array<T>(
     VmArray::<T>::from_value(context, value, name, expected)
 }
 
-/// Encode the result for destack.process.args.args.
+/// Encode the result for destack.process.args.list.
 #[inline]
-fn encode_destack_process_args_args_result(
+fn encode_destack_process_args_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Value> {
@@ -257,9 +257,9 @@ fn encode_destack_process_cwd_chdir_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Encode the result for destack.process.cwd.cwd.
+/// Encode the result for destack.process.cwd.get.
 #[inline]
-fn encode_destack_process_cwd_cwd_result(
+fn encode_destack_process_cwd_get_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<fs::OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -400,9 +400,46 @@ fn encode_destack_process_env_set_bytes_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.process.exec.exec.
+/// Decode arguments for destack.process.exec.fexec.
 #[inline]
-fn decode_destack_process_exec_exec_args(
+fn decode_destack_process_exec_fexec_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::FileHandle,
+    VmSlice<vm::StringHandle>,
+    VmSlice<vm::StringHandle>,
+)> {
+    let executable_value = arg_value(args, 0, "executable", "FileHandle")?;
+    let executable_inner_inner =
+        decode_uint64(executable_value, "executable_inner_inner", "FileHandle")?;
+    let executable_inner = resource::ResourceId(executable_inner_inner);
+    let executable = resource::FileHandle(executable_inner);
+    let arguments_value = arg_value(args, 1, "arguments", "Slice<string>")?;
+    let arguments =
+        decode_slice::<vm::StringHandle>(context, arguments_value, "arguments", "Slice<string>")?;
+    let environment_value = arg_value(args, 2, "environment", "Slice<string>")?;
+    let environment = decode_slice::<vm::StringHandle>(
+        context,
+        environment_value,
+        "environment",
+        "Slice<string>",
+    )?;
+    Ok((executable, arguments, environment))
+}
+
+/// Encode the result for destack.process.exec.fexec.
+#[inline]
+fn encode_destack_process_exec_fexec_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.process.exec.path.
+#[inline]
+fn decode_destack_process_exec_path_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
@@ -465,18 +502,18 @@ fn decode_destack_process_exec_exec_args(
     Ok((command, arguments, environment))
 }
 
-/// Encode the result for destack.process.exec.exec.
+/// Encode the result for destack.process.exec.path.
 #[inline]
-fn encode_destack_process_exec_exec_result(
+fn encode_destack_process_exec_path_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.process.exec.execat.
+/// Decode arguments for destack.process.exec.pathat.
 #[inline]
-fn decode_destack_process_exec_execat_args(
+fn decode_destack_process_exec_pathat_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
@@ -546,55 +583,18 @@ fn decode_destack_process_exec_execat_args(
     Ok((directory, path, arguments, environment, flags))
 }
 
-/// Encode the result for destack.process.exec.execat.
+/// Encode the result for destack.process.exec.pathat.
 #[inline]
-fn encode_destack_process_exec_execat_result(
+fn encode_destack_process_exec_pathat_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.process.exec.fexec.
+/// Decode arguments for destack.process.exit.terminate.
 #[inline]
-fn decode_destack_process_exec_fexec_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(
-    resource::FileHandle,
-    VmSlice<vm::StringHandle>,
-    VmSlice<vm::StringHandle>,
-)> {
-    let executable_value = arg_value(args, 0, "executable", "FileHandle")?;
-    let executable_inner_inner =
-        decode_uint64(executable_value, "executable_inner_inner", "FileHandle")?;
-    let executable_inner = resource::ResourceId(executable_inner_inner);
-    let executable = resource::FileHandle(executable_inner);
-    let arguments_value = arg_value(args, 1, "arguments", "Slice<string>")?;
-    let arguments =
-        decode_slice::<vm::StringHandle>(context, arguments_value, "arguments", "Slice<string>")?;
-    let environment_value = arg_value(args, 2, "environment", "Slice<string>")?;
-    let environment = decode_slice::<vm::StringHandle>(
-        context,
-        environment_value,
-        "environment",
-        "Slice<string>",
-    )?;
-    Ok((executable, arguments, environment))
-}
-
-/// Encode the result for destack.process.exec.fexec.
-#[inline]
-fn encode_destack_process_exec_fexec_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.process.exit.exit.
-#[inline]
-fn decode_destack_process_exit_exit_args(
+fn decode_destack_process_exit_terminate_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32,)> {
@@ -603,9 +603,9 @@ fn decode_destack_process_exit_exit_args(
     Ok((code,))
 }
 
-/// Encode the result for destack.process.exit.exit.
+/// Encode the result for destack.process.exit.terminate.
 #[inline]
-fn encode_destack_process_exit_exit_result(
+fn encode_destack_process_exit_terminate_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -2118,9 +2118,9 @@ fn encode_destack_process_signals_signal_wait_result(
     })
 }
 
-/// Decode arguments for destack.process.spawn.spawn.
+/// Decode arguments for destack.process.spawn.start.
 #[inline]
-fn decode_destack_process_spawn_spawn_args(
+fn decode_destack_process_spawn_start_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
@@ -2259,9 +2259,9 @@ fn decode_destack_process_spawn_spawn_args(
     Ok((command, arguments, environment, options))
 }
 
-/// Encode the result for destack.process.spawn.spawn.
+/// Encode the result for destack.process.spawn.start.
 #[inline]
-fn encode_destack_process_spawn_spawn_result(
+fn encode_destack_process_spawn_start_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProcessHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -2430,9 +2430,9 @@ fn encode_destack_process_spawn_with_actions_result(
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.process.umask.umask.
+/// Decode arguments for destack.process.umask.set.
 #[inline]
-fn decode_destack_process_umask_umask_args(
+fn decode_destack_process_umask_set_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32,)> {
@@ -2441,13 +2441,45 @@ fn decode_destack_process_umask_umask_args(
     Ok((mask,))
 }
 
-/// Encode the result for destack.process.umask.umask.
+/// Encode the result for destack.process.umask.set.
 #[inline]
-fn encode_destack_process_umask_umask_result(
+fn encode_destack_process_umask_set_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| vm::Value::uint(value as u64, 32))
+}
+
+/// Decode arguments for destack.process.wait.handle.
+#[inline]
+fn decode_destack_process_wait_handle_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::ProcessHandle, ProcessWaitFlags)> {
+    let handle_value = arg_value(args, 0, "handle", "ProcessHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProcessHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::ProcessHandle(handle_inner);
+    let flags_value = arg_value(args, 1, "flags", "ProcessWaitFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "ProcessWaitFlags")?;
+    let flags = ProcessWaitFlags(flags_inner);
+    Ok((handle, flags))
+}
+
+/// Encode the result for destack.process.wait.handle.
+#[inline]
+fn encode_destack_process_wait_handle_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<ProcessWaitStatusVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.pid.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_2 = vm::Value::int(value.exit_code as i64, 32);
+        let field_3 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_4 = vm::Value::bool(value.core_dumped);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+    })
 }
 
 /// Decode arguments for destack.process.wait.pid.
@@ -2510,41 +2542,9 @@ fn encode_destack_process_wait_try_wait_result(
     })
 }
 
-/// Decode arguments for destack.process.wait.wait.
-#[inline]
-fn decode_destack_process_wait_wait_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::ProcessHandle, ProcessWaitFlags)> {
-    let handle_value = arg_value(args, 0, "handle", "ProcessHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProcessHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::ProcessHandle(handle_inner);
-    let flags_value = arg_value(args, 1, "flags", "ProcessWaitFlags")?;
-    let flags_inner = decode_uint32(flags_value, "flags_inner", "ProcessWaitFlags")?;
-    let flags = ProcessWaitFlags(flags_inner);
-    Ok((handle, flags))
-}
-
-/// Encode the result for destack.process.wait.wait.
-#[inline]
-fn encode_destack_process_wait_wait_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<ProcessWaitStatusVm>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.pid.0 as u64, 32);
-        let field_1 = vm::Value::uint(value.kind as u8 as u64, 8);
-        let field_2 = vm::Value::int(value.exit_code as i64, 32);
-        let field_3 = vm::Value::uint(value.signal.0 as u64, 32);
-        let field_4 = vm::Value::bool(value.core_dumped);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
-    })
-}
-
-/// Replay payload for destack.process.args.args.
+/// Replay payload for destack.process.args.list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ProcessArgsArgsReplay {
+struct ProcessArgsListReplay {
     /// Replay result payload.
     pub result: Result<Vec<String>, PlatformError>,
 }
@@ -2556,9 +2556,9 @@ struct ProcessCwdChdirReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.process.cwd.cwd.
+/// Replay payload for destack.process.cwd.get.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ProcessCwdCwdReplay {
+struct ProcessCwdGetReplay {
     /// Replay result payload.
     pub result: Result<fs::OsPathReplayRecord, PlatformError>,
 }
@@ -2605,20 +2605,6 @@ struct ProcessEnvSetBytesReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.process.exec.exec.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ProcessExecExecReplay {
-    /// Replay result payload.
-    pub result: Result<(), PlatformError>,
-}
-
-/// Replay payload for destack.process.exec.execat.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ProcessExecExecatReplay {
-    /// Replay result payload.
-    pub result: Result<(), PlatformError>,
-}
-
 /// Replay payload for destack.process.exec.fexec.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessExecFexecReplay {
@@ -2626,9 +2612,23 @@ struct ProcessExecFexecReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.process.exit.exit.
+/// Replay payload for destack.process.exec.path.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ProcessExitExitReplay {
+struct ProcessExecPathReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.exec.pathat.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessExecPathatReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.process.exit.terminate.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessExitTerminateReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
@@ -2983,9 +2983,9 @@ struct ProcessSignalsSignalWaitReplay {
     pub result: Result<SignalEvent, PlatformError>,
 }
 
-/// Replay payload for destack.process.spawn.spawn.
+/// Replay payload for destack.process.spawn.start.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ProcessSpawnSpawnReplay {
+struct ProcessSpawnStartReplay {
     /// Replay result payload.
     pub result: Result<resource::ProcessHandle, PlatformError>,
 }
@@ -2997,11 +2997,18 @@ struct ProcessSpawnWithActionsReplay {
     pub result: Result<resource::ProcessHandle, PlatformError>,
 }
 
-/// Replay payload for destack.process.umask.umask.
+/// Replay payload for destack.process.umask.set.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ProcessUmaskUmaskReplay {
+struct ProcessUmaskSetReplay {
     /// Replay result payload.
     pub result: Result<u32, PlatformError>,
+}
+
+/// Replay payload for destack.process.wait.handle.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessWaitHandleReplay {
+    /// Replay result payload.
+    pub result: Result<ProcessWaitStatus, PlatformError>,
 }
 
 /// Replay payload for destack.process.wait.pid.
@@ -3018,17 +3025,10 @@ struct ProcessWaitTryWaitReplay {
     pub result: Result<ProcessWaitStatus, PlatformError>,
 }
 
-/// Replay payload for destack.process.wait.wait.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ProcessWaitWaitReplay {
-    /// Replay result payload.
-    pub result: Result<ProcessWaitStatus, PlatformError>,
-}
-
-/// Binding descriptor for destack.process.args.args.
-pub const PROCESS_ARGS_ARGS: BindingDescriptor =
+/// Binding descriptor for destack.process.args.list.
+pub const PROCESS_ARGS_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.args.args",
+        "destack.process.args.list",
         "export function args(): Result<Slice<string>, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -3048,7 +3048,6 @@ pub const PROCESS_ARGS_ARGS: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -3078,10 +3077,10 @@ pub const PROCESS_CWD_CHDIR: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.process.cwd.cwd.
-pub const PROCESS_CWD_CWD: BindingDescriptor =
+/// Binding descriptor for destack.process.cwd.get.
+pub const PROCESS_CWD_GET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.cwd.cwd",
+        "destack.process.cwd.get",
         "export function cwd(): Result<OsPath, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -3127,7 +3126,6 @@ pub const PROCESS_ENV_DELETE: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -3154,7 +3152,6 @@ pub const PROCESS_ENV_DELETE_BYTES: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -3181,7 +3178,6 @@ pub const PROCESS_ENV_GET: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -3208,7 +3204,6 @@ pub const PROCESS_ENV_GET_BYTES: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -3235,7 +3230,6 @@ pub const PROCESS_ENV_SET: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -3247,30 +3241,6 @@ pub const PROCESS_ENV_SET_BYTES: BindingDescriptor = BindingDescriptor::external
     BindingReplayKind::Regular,
     &["env.write"],
     BindingScope::Runtime,
-    BindingBlocking::Never,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
-
-/// Binding descriptor for destack.process.exec.exec.
-pub const PROCESS_EXEC_EXEC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.process.exec.exec",
-    "export function exec(command: OsPath, arguments: Slice<string>, environment: Slice<string>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["process.exec"],
-    BindingScope::Os,
-    BindingBlocking::Never,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.process.exec.execat.
-pub const PROCESS_EXEC_EXECAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.process.exec.execat",
-    "export function execat(directory: DirectoryHandle, path: OsPath, arguments: Slice<string>, environment: Slice<string>, flags: ExecAtFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["process.exec"],
-    BindingScope::Os,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -3287,10 +3257,34 @@ pub const PROCESS_EXEC_FEXEC: BindingDescriptor = BindingDescriptor::external_wi
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.process.exit.exit.
-pub const PROCESS_EXIT_EXIT: BindingDescriptor =
+/// Binding descriptor for destack.process.exec.path.
+pub const PROCESS_EXEC_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.exec.path",
+    "export function exec(command: OsPath, arguments: Slice<string>, environment: Slice<string>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.exec"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.process.exec.pathat.
+pub const PROCESS_EXEC_PATHAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.exec.pathat",
+    "export function execat(directory: DirectoryHandle, path: OsPath, arguments: Slice<string>, environment: Slice<string>, flags: ExecAtFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.exec"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.process.exit.terminate.
+pub const PROCESS_EXIT_TERMINATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.exit.exit",
+        "destack.process.exit.terminate",
         "export function exit(code: uint32): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -3310,7 +3304,6 @@ pub const PROCESS_EXIT_EXIT: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -4580,9 +4573,9 @@ pub const PROCESS_SIGNALS_SIGNAL_WAIT: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.process.spawn.spawn.
-pub const PROCESS_SPAWN_SPAWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.process.spawn.spawn",
+/// Binding descriptor for destack.process.spawn.start.
+pub const PROCESS_SPAWN_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.spawn.start",
     "export function spawn(command: OsPath, arguments: Slice<string>, environment: Slice<string>, options: ProcessSpawnOptions): Result<ProcessHandle, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -4604,10 +4597,10 @@ pub const PROCESS_SPAWN_WITH_ACTIONS: BindingDescriptor = BindingDescriptor::ext
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.process.umask.umask.
-pub const PROCESS_UMASK_UMASK: BindingDescriptor =
+/// Binding descriptor for destack.process.umask.set.
+pub const PROCESS_UMASK_SET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.umask.umask",
+        "destack.process.umask.set",
         "export function umask(mask: uint32): Result<uint32, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -4629,6 +4622,18 @@ pub const PROCESS_UMASK_UMASK: BindingDescriptor =
         "solaris",
         "windows",
     ]);
+
+/// Binding descriptor for destack.process.wait.handle.
+pub const PROCESS_WAIT_HANDLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.wait.handle",
+    "export function wait(handle: ProcessHandle, flags: ProcessWaitFlags): Result<ProcessWaitStatus, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.wait"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.wait.pid.
 pub const PROCESS_WAIT_PID: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4668,33 +4673,21 @@ pub const PROCESS_WAIT_TRY_WAIT: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.process.wait.wait.
-pub const PROCESS_WAIT_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.process.wait.wait",
-    "export function wait(handle: ProcessHandle, flags: ProcessWaitFlags): Result<ProcessWaitStatus, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["process.wait"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
 /// Binding descriptors for process.
 pub const BINDINGS: &[BindingDescriptor] = &[
-    PROCESS_ARGS_ARGS,
+    PROCESS_ARGS_LIST,
     PROCESS_CWD_CHDIR,
-    PROCESS_CWD_CWD,
+    PROCESS_CWD_GET,
     PROCESS_ENV_DELETE,
     PROCESS_ENV_DELETE_BYTES,
     PROCESS_ENV_GET,
     PROCESS_ENV_GET_BYTES,
     PROCESS_ENV_SET,
     PROCESS_ENV_SET_BYTES,
-    PROCESS_EXEC_EXEC,
-    PROCESS_EXEC_EXECAT,
     PROCESS_EXEC_FEXEC,
-    PROCESS_EXIT_EXIT,
+    PROCESS_EXEC_PATH,
+    PROCESS_EXEC_PATHAT,
+    PROCESS_EXIT_TERMINATE,
     PROCESS_FD_PROCESS_FD_CLOSE,
     PROCESS_FD_PROCESS_FD_OPEN,
     PROCESS_FD_PROCESS_FD_SEND_SIGNAL,
@@ -4756,12 +4749,12 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     PROCESS_SIGNALS_SIGNAL_TRY_WAIT,
     PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE,
     PROCESS_SIGNALS_SIGNAL_WAIT,
-    PROCESS_SPAWN_SPAWN,
+    PROCESS_SPAWN_START,
     PROCESS_SPAWN_WITH_ACTIONS,
-    PROCESS_UMASK_UMASK,
+    PROCESS_UMASK_SET,
+    PROCESS_WAIT_HANDLE,
     PROCESS_WAIT_PID,
     PROCESS_WAIT_TRY_WAIT,
-    PROCESS_WAIT_WAIT,
 ];
 
 /// Native binding set for process.
@@ -4769,9 +4762,9 @@ pub const PROCESS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "process",
     bindings: &[
         NativeBinding::new(
-            PROCESS_ARGS_ARGS,
-            "destack.process.args.args",
-            destack_process_args_args as *const (),
+            PROCESS_ARGS_LIST,
+            "destack.process.args.list",
+            destack_process_args_list as *const (),
         ),
         NativeBinding::new(
             PROCESS_CWD_CHDIR,
@@ -4779,9 +4772,9 @@ pub const PROCESS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_process_cwd_chdir as *const (),
         ),
         NativeBinding::new(
-            PROCESS_CWD_CWD,
-            "destack.process.cwd.cwd",
-            destack_process_cwd_cwd as *const (),
+            PROCESS_CWD_GET,
+            "destack.process.cwd.get",
+            destack_process_cwd_get as *const (),
         ),
         NativeBinding::new(
             PROCESS_ENV_DELETE,
@@ -4814,24 +4807,24 @@ pub const PROCESS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_process_env_set_bytes as *const (),
         ),
         NativeBinding::new(
-            PROCESS_EXEC_EXEC,
-            "destack.process.exec.exec",
-            destack_process_exec_exec as *const (),
-        ),
-        NativeBinding::new(
-            PROCESS_EXEC_EXECAT,
-            "destack.process.exec.execat",
-            destack_process_exec_execat as *const (),
-        ),
-        NativeBinding::new(
             PROCESS_EXEC_FEXEC,
             "destack.process.exec.fexec",
             destack_process_exec_fexec as *const (),
         ),
         NativeBinding::new(
-            PROCESS_EXIT_EXIT,
-            "destack.process.exit.exit",
-            destack_process_exit_exit as *const (),
+            PROCESS_EXEC_PATH,
+            "destack.process.exec.path",
+            destack_process_exec_path as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_EXEC_PATHAT,
+            "destack.process.exec.pathat",
+            destack_process_exec_pathat as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_EXIT_TERMINATE,
+            "destack.process.exit.terminate",
+            destack_process_exit_terminate as *const (),
         ),
         NativeBinding::new(
             PROCESS_FD_PROCESS_FD_CLOSE,
@@ -5139,9 +5132,9 @@ pub const PROCESS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_process_signals_signal_wait as *const (),
         ),
         NativeBinding::new(
-            PROCESS_SPAWN_SPAWN,
-            "destack.process.spawn.spawn",
-            destack_process_spawn_spawn as *const (),
+            PROCESS_SPAWN_START,
+            "destack.process.spawn.start",
+            destack_process_spawn_start as *const (),
         ),
         NativeBinding::new(
             PROCESS_SPAWN_WITH_ACTIONS,
@@ -5149,9 +5142,14 @@ pub const PROCESS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_process_spawn_with_actions as *const (),
         ),
         NativeBinding::new(
-            PROCESS_UMASK_UMASK,
-            "destack.process.umask.umask",
-            destack_process_umask_umask as *const (),
+            PROCESS_UMASK_SET,
+            "destack.process.umask.set",
+            destack_process_umask_set as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_WAIT_HANDLE,
+            "destack.process.wait.handle",
+            destack_process_wait_handle as *const (),
         ),
         NativeBinding::new(
             PROCESS_WAIT_PID,
@@ -5163,23 +5161,18 @@ pub const PROCESS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             "destack.process.wait.tryWait",
             destack_process_wait_try_wait as *const (),
         ),
-        NativeBinding::new(
-            PROCESS_WAIT_WAIT,
-            "destack.process.wait.wait",
-            destack_process_wait_wait as *const (),
-        ),
     ],
 };
 
 /// Native replay implementations for process bindings.
 #[inline]
-fn destack_process_args_args_replay(
+fn destack_process_args_list_replay(
     context: &RuntimeCallContext,
     out: *mut NativeStringSlice,
 ) -> RuntimeResult<()> {
     context.replay().run_binding_with_payload_policy(
-        PROCESS_ARGS_ARGS,
-        context.replay_payload_for(PROCESS_ARGS_ARGS)?,
+        PROCESS_ARGS_LIST,
+        context.replay_payload_for(PROCESS_ARGS_LIST)?,
         || unsafe { platform_runtime_native::destack_process_args(context, out) },
         |result| {
             if let Ok(()) = result {
@@ -5196,7 +5189,7 @@ fn destack_process_args_args_replay(
                         unsafe { result_recorded_item.as_str()? }.to_string();
                     result_recorded.push(result_recorded_item_recorded);
                 }
-                let payload = ProcessArgsArgsReplay {
+                let payload = ProcessArgsListReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -5205,7 +5198,7 @@ fn destack_process_args_args_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ProcessArgsArgsReplay { result }
+                    ProcessArgsListReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -5280,14 +5273,14 @@ fn destack_process_cwd_chdir_replay(
 }
 
 #[inline]
-fn destack_process_cwd_cwd_replay(
+fn destack_process_cwd_get_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut fs::OsPath,
 ) -> RuntimeResult<()> {
     context.replay().run_binding_with_payload_policy(
-        PROCESS_CWD_CWD,
-        context.replay_payload_for(PROCESS_CWD_CWD)?,
+        PROCESS_CWD_GET,
+        context.replay_payload_for(PROCESS_CWD_GET)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_process_cwd(context, out) },
             RuntimeWorld::Simulated => unsafe {
@@ -5322,7 +5315,7 @@ fn destack_process_cwd_cwd_replay(
                     bytes: result_recorded_bytes,
                     utf16: result_recorded_utf16,
                 };
-                let payload = ProcessCwdCwdReplay {
+                let payload = ProcessCwdGetReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -5331,7 +5324,7 @@ fn destack_process_cwd_cwd_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ProcessCwdCwdReplay { result }
+                    ProcessCwdGetReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -5663,127 +5656,6 @@ fn destack_process_env_set_bytes_replay(
 }
 
 #[inline]
-fn destack_process_exec_exec_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    command: fs::OsPath,
-    arguments: NativeStringSlice,
-    environment: NativeStringSlice,
-) -> RuntimeResult<()> {
-    let _ = (&command, &arguments, &environment);
-
-    context.replay().run_binding_with_payload_policy(
-        PROCESS_EXEC_EXEC,
-        context.replay_payload_for(PROCESS_EXEC_EXEC)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_exec(context, command, arguments, environment)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_exec(
-                    context,
-                    command,
-                    arguments,
-                    environment,
-                )
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = ProcessExecExecReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    ProcessExecExecReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_process_exec_execat_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    directory: resource::DirectoryHandle,
-    path: fs::OsPath,
-    arguments: NativeStringSlice,
-    environment: NativeStringSlice,
-    flags: ExecAtFlags,
-) -> RuntimeResult<()> {
-    let _ = (&directory, &path, &arguments, &environment, &flags);
-
-    context.replay().run_binding_with_payload_policy(
-        PROCESS_EXEC_EXECAT,
-        context.replay_payload_for(PROCESS_EXEC_EXECAT)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_execat(
-                    context,
-                    directory,
-                    path,
-                    arguments,
-                    environment,
-                    flags,
-                )
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_execat(
-                    context,
-                    directory,
-                    path,
-                    arguments,
-                    environment,
-                    flags,
-                )
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = ProcessExecExecatReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    ProcessExecExecatReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
 fn destack_process_exec_fexec_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
@@ -5839,7 +5711,128 @@ fn destack_process_exec_fexec_replay(
 }
 
 #[inline]
-fn destack_process_exit_exit_replay(
+fn destack_process_exec_path_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    command: fs::OsPath,
+    arguments: NativeStringSlice,
+    environment: NativeStringSlice,
+) -> RuntimeResult<()> {
+    let _ = (&command, &arguments, &environment);
+
+    context.replay().run_binding_with_payload_policy(
+        PROCESS_EXEC_PATH,
+        context.replay_payload_for(PROCESS_EXEC_PATH)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_exec(context, command, arguments, environment)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_exec(
+                    context,
+                    command,
+                    arguments,
+                    environment,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = ProcessExecPathReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessExecPathReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_exec_pathat_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    directory: resource::DirectoryHandle,
+    path: fs::OsPath,
+    arguments: NativeStringSlice,
+    environment: NativeStringSlice,
+    flags: ExecAtFlags,
+) -> RuntimeResult<()> {
+    let _ = (&directory, &path, &arguments, &environment, &flags);
+
+    context.replay().run_binding_with_payload_policy(
+        PROCESS_EXEC_PATHAT,
+        context.replay_payload_for(PROCESS_EXEC_PATHAT)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_execat(
+                    context,
+                    directory,
+                    path,
+                    arguments,
+                    environment,
+                    flags,
+                )
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_execat(
+                    context,
+                    directory,
+                    path,
+                    arguments,
+                    environment,
+                    flags,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = ProcessExecPathatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessExecPathatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_exit_terminate_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     code: u32,
@@ -5847,8 +5840,8 @@ fn destack_process_exit_exit_replay(
     let _ = &code;
 
     context.replay().run_binding_with_payload_policy(
-        PROCESS_EXIT_EXIT,
-        context.replay_payload_for(PROCESS_EXIT_EXIT)?,
+        PROCESS_EXIT_TERMINATE,
+        context.replay_payload_for(PROCESS_EXIT_TERMINATE)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_process_exit(context, code) },
             RuntimeWorld::Simulated => unsafe {
@@ -5858,7 +5851,7 @@ fn destack_process_exit_exit_replay(
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = ProcessExitExitReplay {
+                let payload = ProcessExitTerminateReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -5867,7 +5860,7 @@ fn destack_process_exit_exit_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ProcessExitExitReplay { result }
+                    ProcessExitTerminateReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8802,7 +8795,7 @@ fn destack_process_signals_signal_wait_replay(
 }
 
 #[inline]
-fn destack_process_spawn_spawn_replay(
+fn destack_process_spawn_start_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut resource::ProcessHandle,
@@ -8814,8 +8807,8 @@ fn destack_process_spawn_spawn_replay(
     let _ = (&command, &arguments, &environment, &options);
 
     context.replay().run_binding_with_payload_policy(
-        PROCESS_SPAWN_SPAWN,
-        context.replay_payload_for(PROCESS_SPAWN_SPAWN)?,
+        PROCESS_SPAWN_START,
+        context.replay_payload_for(PROCESS_SPAWN_START)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_process_spawn(
@@ -8847,7 +8840,7 @@ fn destack_process_spawn_spawn_replay(
                     *out
                 };
                 let result_recorded = result_value;
-                let payload = ProcessSpawnSpawnReplay {
+                let payload = ProcessSpawnStartReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -8856,7 +8849,7 @@ fn destack_process_spawn_spawn_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ProcessSpawnSpawnReplay { result }
+                    ProcessSpawnStartReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -8971,7 +8964,7 @@ fn destack_process_spawn_with_actions_replay(
 }
 
 #[inline]
-fn destack_process_umask_umask_replay(
+fn destack_process_umask_set_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut u32,
@@ -8980,8 +8973,8 @@ fn destack_process_umask_umask_replay(
     let _ = &mask;
 
     context.replay().run_binding_with_payload_policy(
-        PROCESS_UMASK_UMASK,
-        context.replay_payload_for(PROCESS_UMASK_UMASK)?,
+        PROCESS_UMASK_SET,
+        context.replay_payload_for(PROCESS_UMASK_SET)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_process_umask(context, out, mask)
@@ -8999,7 +8992,7 @@ fn destack_process_umask_umask_replay(
                     *out
                 };
                 let result_recorded = result_value;
-                let payload = ProcessUmaskUmaskReplay {
+                let payload = ProcessUmaskSetReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -9008,7 +9001,7 @@ fn destack_process_umask_umask_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ProcessUmaskUmaskReplay { result }
+                    ProcessUmaskSetReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9020,6 +9013,90 @@ fn destack_process_umask_umask_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_wait_handle_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut ProcessWaitStatus,
+    handle: resource::ProcessHandle,
+    flags: ProcessWaitFlags,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &flags);
+
+    context.replay().run_binding_with_payload_policy(
+        PROCESS_WAIT_HANDLE,
+        context.replay_payload_for(PROCESS_WAIT_HANDLE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_wait(context, out, handle, flags)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_wait(context, out, handle, flags)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_pid = result_value.pid;
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_exit_code = result_value.exit_code;
+                let result_recorded_signal = result_value.signal;
+                let result_recorded_core_dumped = result_value.core_dumped;
+                let result_recorded = ProcessWaitStatus {
+                    pid: result_recorded_pid,
+                    kind: result_recorded_kind,
+                    exit_code: result_recorded_exit_code,
+                    signal: result_recorded_signal,
+                    core_dumped: result_recorded_core_dumped,
+                };
+                let payload = ProcessWaitHandleReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessWaitHandleReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_pid = value.pid;
+                    let value_native_kind = value.kind;
+                    let value_native_exit_code = value.exit_code;
+                    let value_native_signal = value.signal;
+                    let value_native_core_dumped = value.core_dumped;
+                    let value_native = ProcessWaitStatus {
+                        pid: value_native_pid,
+                        kind: value_native_kind,
+                        exit_code: value_native_exit_code,
+                        signal: value_native_signal,
+                        core_dumped: value_native_core_dumped,
+                    };
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -9198,101 +9275,17 @@ fn destack_process_wait_try_wait_replay(
     )
 }
 
-#[inline]
-fn destack_process_wait_wait_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    out: *mut ProcessWaitStatus,
-    handle: resource::ProcessHandle,
-    flags: ProcessWaitFlags,
-) -> RuntimeResult<()> {
-    let _ = (&handle, &flags);
-
-    context.replay().run_binding_with_payload_policy(
-        PROCESS_WAIT_WAIT,
-        context.replay_payload_for(PROCESS_WAIT_WAIT)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_wait(context, out, handle, flags)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_wait(context, out, handle, flags)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded_pid = result_value.pid;
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_exit_code = result_value.exit_code;
-                let result_recorded_signal = result_value.signal;
-                let result_recorded_core_dumped = result_value.core_dumped;
-                let result_recorded = ProcessWaitStatus {
-                    pid: result_recorded_pid,
-                    kind: result_recorded_kind,
-                    exit_code: result_recorded_exit_code,
-                    signal: result_recorded_signal,
-                    core_dumped: result_recorded_core_dumped,
-                };
-                let payload = ProcessWaitWaitReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    ProcessWaitWaitReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native_pid = value.pid;
-                    let value_native_kind = value.kind;
-                    let value_native_exit_code = value.exit_code;
-                    let value_native_signal = value.signal;
-                    let value_native_core_dumped = value.core_dumped;
-                    let value_native = ProcessWaitStatus {
-                        pid: value_native_pid,
-                        kind: value_native_kind,
-                        exit_code: value_native_exit_code,
-                        signal: value_native_signal,
-                        core_dumped: value_native_core_dumped,
-                    };
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
 /// Native export wrappers for process bindings.
-#[unsafe(export_name = "destack.process.args.args")]
-pub unsafe extern "C" fn destack_process_args_args(out: *mut NativeStringSlice) -> RuntimeStatus {
+#[unsafe(export_name = "destack.process.args.list")]
+pub unsafe extern "C" fn destack_process_args_list(out: *mut NativeStringSlice) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = &out;
 
-        context.check_policy(PROCESS_ARGS_ARGS)?;
-        destack_process_args_args_replay(context, out)
+        context.check_policy(PROCESS_ARGS_LIST)?;
+        destack_process_args_list_replay(context, out)
     })
 }
 
@@ -9307,17 +9300,17 @@ pub unsafe extern "C" fn destack_process_cwd_chdir(path: fs::OsPath) -> RuntimeS
     })
 }
 
-#[unsafe(export_name = "destack.process.cwd.cwd")]
-pub unsafe extern "C" fn destack_process_cwd_cwd(out: *mut fs::OsPath) -> RuntimeStatus {
+#[unsafe(export_name = "destack.process.cwd.get")]
+pub unsafe extern "C" fn destack_process_cwd_get(out: *mut fs::OsPath) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = &out;
 
-        context.check_policy(PROCESS_CWD_CWD)?;
-        let world = context.check_and_resolve_world(PROCESS_CWD_CWD)?;
-        destack_process_cwd_cwd_replay(context, world, out)
+        context.check_policy(PROCESS_CWD_GET)?;
+        let world = context.check_and_resolve_world(PROCESS_CWD_GET)?;
+        destack_process_cwd_get_replay(context, world, out)
     })
 }
 
@@ -9399,46 +9392,6 @@ pub unsafe extern "C" fn destack_process_env_set_bytes(
     })
 }
 
-#[unsafe(export_name = "destack.process.exec.exec")]
-pub unsafe extern "C" fn destack_process_exec_exec(
-    command: fs::OsPath,
-    arguments: NativeStringSlice,
-    environment: NativeStringSlice,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&command, &arguments, &environment);
-
-        context.check_policy(PROCESS_EXEC_EXEC)?;
-        let world = context.check_and_resolve_world(PROCESS_EXEC_EXEC)?;
-        destack_process_exec_exec_replay(context, world, command, arguments, environment)
-    })
-}
-
-#[unsafe(export_name = "destack.process.exec.execat")]
-pub unsafe extern "C" fn destack_process_exec_execat(
-    directory: resource::DirectoryHandle,
-    path: fs::OsPath,
-    arguments: NativeStringSlice,
-    environment: NativeStringSlice,
-    flags: ExecAtFlags,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&directory, &path, &arguments, &environment, &flags);
-
-        context.check_policy(PROCESS_EXEC_EXECAT)?;
-        let world = context.check_and_resolve_world(PROCESS_EXEC_EXECAT)?;
-        destack_process_exec_execat_replay(
-            context,
-            world,
-            directory,
-            path,
-            arguments,
-            environment,
-            flags,
-        )
-    })
-}
-
 #[unsafe(export_name = "destack.process.exec.fexec")]
 pub unsafe extern "C" fn destack_process_exec_fexec(
     executable: resource::FileHandle,
@@ -9454,14 +9407,54 @@ pub unsafe extern "C" fn destack_process_exec_fexec(
     })
 }
 
-#[unsafe(export_name = "destack.process.exit.exit")]
-pub unsafe extern "C" fn destack_process_exit_exit(code: u32) -> RuntimeStatus {
+#[unsafe(export_name = "destack.process.exec.path")]
+pub unsafe extern "C" fn destack_process_exec_path(
+    command: fs::OsPath,
+    arguments: NativeStringSlice,
+    environment: NativeStringSlice,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&command, &arguments, &environment);
+
+        context.check_policy(PROCESS_EXEC_PATH)?;
+        let world = context.check_and_resolve_world(PROCESS_EXEC_PATH)?;
+        destack_process_exec_path_replay(context, world, command, arguments, environment)
+    })
+}
+
+#[unsafe(export_name = "destack.process.exec.pathat")]
+pub unsafe extern "C" fn destack_process_exec_pathat(
+    directory: resource::DirectoryHandle,
+    path: fs::OsPath,
+    arguments: NativeStringSlice,
+    environment: NativeStringSlice,
+    flags: ExecAtFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&directory, &path, &arguments, &environment, &flags);
+
+        context.check_policy(PROCESS_EXEC_PATHAT)?;
+        let world = context.check_and_resolve_world(PROCESS_EXEC_PATHAT)?;
+        destack_process_exec_pathat_replay(
+            context,
+            world,
+            directory,
+            path,
+            arguments,
+            environment,
+            flags,
+        )
+    })
+}
+
+#[unsafe(export_name = "destack.process.exit.terminate")]
+pub unsafe extern "C" fn destack_process_exit_terminate(code: u32) -> RuntimeStatus {
     native_call(|context| {
         let _ = &code;
 
-        context.check_policy(PROCESS_EXIT_EXIT)?;
-        let world = context.check_and_resolve_world(PROCESS_EXIT_EXIT)?;
-        destack_process_exit_exit_replay(context, world, code)
+        context.check_policy(PROCESS_EXIT_TERMINATE)?;
+        let world = context.check_and_resolve_world(PROCESS_EXIT_TERMINATE)?;
+        destack_process_exit_terminate_replay(context, world, code)
     })
 }
 
@@ -10457,8 +10450,8 @@ pub unsafe extern "C" fn destack_process_signals_signal_wait(
     })
 }
 
-#[unsafe(export_name = "destack.process.spawn.spawn")]
-pub unsafe extern "C" fn destack_process_spawn_spawn(
+#[unsafe(export_name = "destack.process.spawn.start")]
+pub unsafe extern "C" fn destack_process_spawn_start(
     out: *mut resource::ProcessHandle,
     command: fs::OsPath,
     arguments: NativeStringSlice,
@@ -10471,9 +10464,9 @@ pub unsafe extern "C" fn destack_process_spawn_spawn(
         }
         let _ = (&out, &command, &arguments, &environment, &options);
 
-        context.check_policy(PROCESS_SPAWN_SPAWN)?;
-        let world = context.check_and_resolve_world(PROCESS_SPAWN_SPAWN)?;
-        destack_process_spawn_spawn_replay(
+        context.check_policy(PROCESS_SPAWN_START)?;
+        let world = context.check_and_resolve_world(PROCESS_SPAWN_START)?;
+        destack_process_spawn_start_replay(
             context,
             world,
             out,
@@ -10525,17 +10518,35 @@ pub unsafe extern "C" fn destack_process_spawn_with_actions(
     })
 }
 
-#[unsafe(export_name = "destack.process.umask.umask")]
-pub unsafe extern "C" fn destack_process_umask_umask(out: *mut u32, mask: u32) -> RuntimeStatus {
+#[unsafe(export_name = "destack.process.umask.set")]
+pub unsafe extern "C" fn destack_process_umask_set(out: *mut u32, mask: u32) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &mask);
 
-        context.check_policy(PROCESS_UMASK_UMASK)?;
-        let world = context.check_and_resolve_world(PROCESS_UMASK_UMASK)?;
-        destack_process_umask_umask_replay(context, world, out, mask)
+        context.check_policy(PROCESS_UMASK_SET)?;
+        let world = context.check_and_resolve_world(PROCESS_UMASK_SET)?;
+        destack_process_umask_set_replay(context, world, out, mask)
+    })
+}
+
+#[unsafe(export_name = "destack.process.wait.handle")]
+pub unsafe extern "C" fn destack_process_wait_handle(
+    out: *mut ProcessWaitStatus,
+    handle: resource::ProcessHandle,
+    flags: ProcessWaitFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &flags);
+
+        context.check_policy(PROCESS_WAIT_HANDLE)?;
+        let world = context.check_and_resolve_world(PROCESS_WAIT_HANDLE)?;
+        destack_process_wait_handle_replay(context, world, out, handle, flags)
     })
 }
 
@@ -10574,35 +10585,17 @@ pub unsafe extern "C" fn destack_process_wait_try_wait(
     })
 }
 
-#[unsafe(export_name = "destack.process.wait.wait")]
-pub unsafe extern "C" fn destack_process_wait_wait(
-    out: *mut ProcessWaitStatus,
-    handle: resource::ProcessHandle,
-    flags: ProcessWaitFlags,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle, &flags);
-
-        context.check_policy(PROCESS_WAIT_WAIT)?;
-        let world = context.check_and_resolve_world(PROCESS_WAIT_WAIT)?;
-        destack_process_wait_wait_replay(context, world, out, handle, flags)
-    })
-}
-
 /// VM replay implementations for process bindings.
 #[inline]
-fn destack_process_args_args_vm_replay(
+fn destack_process_args_list_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            PROCESS_ARGS_ARGS,
-            runtime.replay_payload_for(PROCESS_ARGS_ARGS)?,
+            PROCESS_ARGS_LIST,
+            runtime.replay_payload_for(PROCESS_ARGS_LIST)?,
             context,
             |context| platform_runtime_vm::destack_process_args(runtime, context),
             |context, result| {
@@ -10625,7 +10618,7 @@ fn destack_process_args_args_vm_replay(
                         };
                         result_recorded.push(result_recorded_item_recorded);
                     }
-                    let payload = ProcessArgsArgsReplay {
+                    let payload = ProcessArgsListReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -10634,7 +10627,7 @@ fn destack_process_args_args_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        ProcessArgsArgsReplay { result }
+                        ProcessArgsListReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -10661,7 +10654,7 @@ fn destack_process_args_args_vm_replay(
                 }
             },
         );
-    let result = encode_destack_process_args_args_result(context, result)?;
+    let result = encode_destack_process_args_list_result(context, result)?;
     Ok(result)
 }
 
@@ -10718,7 +10711,7 @@ fn destack_process_cwd_chdir_vm_replay(
 }
 
 #[inline]
-fn destack_process_cwd_cwd_vm_replay(
+fn destack_process_cwd_get_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -10726,8 +10719,8 @@ fn destack_process_cwd_cwd_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            PROCESS_CWD_CWD,
-            runtime.replay_payload_for(PROCESS_CWD_CWD)?,
+            PROCESS_CWD_GET,
+            runtime.replay_payload_for(PROCESS_CWD_GET)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_cwd(runtime, context),
@@ -10762,7 +10755,7 @@ fn destack_process_cwd_cwd_vm_replay(
                         bytes: result_recorded_bytes,
                         utf16: result_recorded_utf16,
                     };
-                    let payload = ProcessCwdCwdReplay {
+                    let payload = ProcessCwdGetReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -10771,7 +10764,7 @@ fn destack_process_cwd_cwd_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        ProcessCwdCwdReplay { result }
+                        ProcessCwdGetReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -10810,7 +10803,7 @@ fn destack_process_cwd_cwd_vm_replay(
                 }
             },
         );
-    let result = encode_destack_process_cwd_cwd_result(context, result)?;
+    let result = encode_destack_process_cwd_get_result(context, result)?;
     Ok(result)
 }
 
@@ -11116,140 +11109,6 @@ fn destack_process_env_set_bytes_vm_replay(
 }
 
 #[inline]
-fn destack_process_exec_exec_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    command: fs::OsPathVm,
-    arguments: VmSlice<vm::StringHandle>,
-    environment: VmSlice<vm::StringHandle>,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            PROCESS_EXEC_EXEC,
-            runtime.replay_payload_for(PROCESS_EXEC_EXEC)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_process_exec(
-                    runtime,
-                    context,
-                    command,
-                    arguments,
-                    environment,
-                ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_exec(
-                    runtime,
-                    context,
-                    command,
-                    arguments,
-                    environment,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = ProcessExecExecReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        ProcessExecExecReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_process_exec_exec_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_process_exec_execat_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    directory: resource::DirectoryHandle,
-    path: fs::OsPathVm,
-    arguments: VmSlice<vm::StringHandle>,
-    environment: VmSlice<vm::StringHandle>,
-    flags: ExecAtFlags,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            PROCESS_EXEC_EXECAT,
-            runtime.replay_payload_for(PROCESS_EXEC_EXECAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_process_execat(
-                    runtime,
-                    context,
-                    directory,
-                    path,
-                    arguments,
-                    environment,
-                    flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_execat(
-                    runtime,
-                    context,
-                    directory,
-                    path,
-                    arguments,
-                    environment,
-                    flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = ProcessExecExecatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        ProcessExecExecatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_process_exec_execat_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
 fn destack_process_exec_fexec_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -11314,29 +11173,41 @@ fn destack_process_exec_fexec_vm_replay(
 }
 
 #[inline]
-fn destack_process_exit_exit_vm_replay(
+fn destack_process_exec_path_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    code: u32,
+    command: fs::OsPathVm,
+    arguments: VmSlice<vm::StringHandle>,
+    environment: VmSlice<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            PROCESS_EXIT_EXIT,
-            runtime.replay_payload_for(PROCESS_EXIT_EXIT)?,
+            PROCESS_EXEC_PATH,
+            runtime.replay_payload_for(PROCESS_EXEC_PATH)?,
             context,
             |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_process_exit(runtime, context, code),
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_exit(runtime, context, code)
-                }
+                RuntimeWorld::Host => platform_vm::destack_process_exec(
+                    runtime,
+                    context,
+                    command,
+                    arguments,
+                    environment,
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_exec(
+                    runtime,
+                    context,
+                    command,
+                    arguments,
+                    environment,
+                ),
             },
             |context, result| {
                 let _ = &context;
                 if let Ok(()) = result {
                     let result_recorded = ();
-                    let payload = ProcessExitExitReplay {
+                    let payload = ProcessExecPathReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -11345,7 +11216,7 @@ fn destack_process_exit_exit_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        ProcessExitExitReplay { result }
+                        ProcessExecPathReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -11361,7 +11232,129 @@ fn destack_process_exit_exit_vm_replay(
                 }
             },
         );
-    let result = encode_destack_process_exit_exit_result(context, result)?;
+    let result = encode_destack_process_exec_path_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_exec_pathat_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    directory: resource::DirectoryHandle,
+    path: fs::OsPathVm,
+    arguments: VmSlice<vm::StringHandle>,
+    environment: VmSlice<vm::StringHandle>,
+    flags: ExecAtFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            PROCESS_EXEC_PATHAT,
+            runtime.replay_payload_for(PROCESS_EXEC_PATHAT)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_process_execat(
+                    runtime,
+                    context,
+                    directory,
+                    path,
+                    arguments,
+                    environment,
+                    flags,
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_execat(
+                    runtime,
+                    context,
+                    directory,
+                    path,
+                    arguments,
+                    environment,
+                    flags,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = ProcessExecPathatReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        ProcessExecPathatReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_process_exec_pathat_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_exit_terminate_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    code: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            PROCESS_EXIT_TERMINATE,
+            runtime.replay_payload_for(PROCESS_EXIT_TERMINATE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_process_exit(runtime, context, code),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_process_exit(runtime, context, code)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = ProcessExitTerminateReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        ProcessExitTerminateReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_process_exit_terminate_result(context, result)?;
     Ok(result)
 }
 
@@ -14351,7 +14344,7 @@ fn destack_process_signals_signal_wait_vm_replay(
 }
 
 #[inline]
-fn destack_process_spawn_spawn_vm_replay(
+fn destack_process_spawn_start_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -14363,8 +14356,8 @@ fn destack_process_spawn_spawn_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            PROCESS_SPAWN_SPAWN,
-            runtime.replay_payload_for(PROCESS_SPAWN_SPAWN)?,
+            PROCESS_SPAWN_START,
+            runtime.replay_payload_for(PROCESS_SPAWN_START)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_spawn(
@@ -14389,7 +14382,7 @@ fn destack_process_spawn_spawn_vm_replay(
                 if let Ok(value) = result {
                     let result_value: resource::ProcessHandle = value.clone();
                     let result_recorded = result_value;
-                    let payload = ProcessSpawnSpawnReplay {
+                    let payload = ProcessSpawnStartReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -14398,7 +14391,7 @@ fn destack_process_spawn_spawn_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        ProcessSpawnSpawnReplay { result }
+                        ProcessSpawnStartReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -14417,7 +14410,7 @@ fn destack_process_spawn_spawn_vm_replay(
                 }
             },
         );
-    let result = encode_destack_process_spawn_spawn_result(context, result)?;
+    let result = encode_destack_process_spawn_start_result(context, result)?;
     Ok(result)
 }
 
@@ -14501,7 +14494,7 @@ fn destack_process_spawn_with_actions_vm_replay(
 }
 
 #[inline]
-fn destack_process_umask_umask_vm_replay(
+fn destack_process_umask_set_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -14510,8 +14503,8 @@ fn destack_process_umask_umask_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            PROCESS_UMASK_UMASK,
-            runtime.replay_payload_for(PROCESS_UMASK_UMASK)?,
+            PROCESS_UMASK_SET,
+            runtime.replay_payload_for(PROCESS_UMASK_SET)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_umask(runtime, context, mask),
@@ -14524,7 +14517,7 @@ fn destack_process_umask_umask_vm_replay(
                 if let Ok(value) = result {
                     let result_value: u32 = value.clone();
                     let result_recorded = result_value;
-                    let payload = ProcessUmaskUmaskReplay {
+                    let payload = ProcessUmaskSetReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -14533,7 +14526,7 @@ fn destack_process_umask_umask_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        ProcessUmaskUmaskReplay { result }
+                        ProcessUmaskSetReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -14552,7 +14545,88 @@ fn destack_process_umask_umask_vm_replay(
                 }
             },
         );
-    let result = encode_destack_process_umask_umask_result(context, result)?;
+    let result = encode_destack_process_umask_set_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_wait_handle_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::ProcessHandle,
+    flags: ProcessWaitFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            PROCESS_WAIT_HANDLE,
+            runtime.replay_payload_for(PROCESS_WAIT_HANDLE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_process_wait(runtime, context, handle, flags)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_process_wait(runtime, context, handle, flags)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: ProcessWaitStatusVm = value.clone();
+                    let result_recorded_pid = result_value.pid;
+                    let result_recorded_kind = result_value.kind;
+                    let result_recorded_exit_code = result_value.exit_code;
+                    let result_recorded_signal = result_value.signal;
+                    let result_recorded_core_dumped = result_value.core_dumped;
+                    let result_recorded = ProcessWaitStatus {
+                        pid: result_recorded_pid,
+                        kind: result_recorded_kind,
+                        exit_code: result_recorded_exit_code,
+                        signal: result_recorded_signal,
+                        core_dumped: result_recorded_core_dumped,
+                    };
+                    let payload = ProcessWaitHandleReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        ProcessWaitHandleReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_pid = value.pid;
+                        let vm_result_kind = value.kind;
+                        let vm_result_exit_code = value.exit_code;
+                        let vm_result_signal = value.signal;
+                        let vm_result_core_dumped = value.core_dumped;
+                        let vm_result = ProcessWaitStatusVm {
+                            pid: vm_result_pid,
+                            kind: vm_result_kind,
+                            exit_code: vm_result_exit_code,
+                            signal: vm_result_signal,
+                            core_dumped: vm_result_core_dumped,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_process_wait_handle_result(context, result)?;
     Ok(result)
 }
 
@@ -14717,99 +14791,18 @@ fn destack_process_wait_try_wait_vm_replay(
     Ok(result)
 }
 
-#[inline]
-fn destack_process_wait_wait_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::ProcessHandle,
-    flags: ProcessWaitFlags,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            PROCESS_WAIT_WAIT,
-            runtime.replay_payload_for(PROCESS_WAIT_WAIT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_process_wait(runtime, context, handle, flags)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_wait(runtime, context, handle, flags)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: ProcessWaitStatusVm = value.clone();
-                    let result_recorded_pid = result_value.pid;
-                    let result_recorded_kind = result_value.kind;
-                    let result_recorded_exit_code = result_value.exit_code;
-                    let result_recorded_signal = result_value.signal;
-                    let result_recorded_core_dumped = result_value.core_dumped;
-                    let result_recorded = ProcessWaitStatus {
-                        pid: result_recorded_pid,
-                        kind: result_recorded_kind,
-                        exit_code: result_recorded_exit_code,
-                        signal: result_recorded_signal,
-                        core_dumped: result_recorded_core_dumped,
-                    };
-                    let payload = ProcessWaitWaitReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        ProcessWaitWaitReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_pid = value.pid;
-                        let vm_result_kind = value.kind;
-                        let vm_result_exit_code = value.exit_code;
-                        let vm_result_signal = value.signal;
-                        let vm_result_core_dumped = value.core_dumped;
-                        let vm_result = ProcessWaitStatusVm {
-                            pid: vm_result_pid,
-                            kind: vm_result_kind,
-                            exit_code: vm_result_exit_code,
-                            signal: vm_result_signal,
-                            core_dumped: vm_result_core_dumped,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_process_wait_wait_result(context, result)?;
-    Ok(result)
-}
-
 /// Register VM bindings for process.
 pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
             isolate,
-            PROCESS_ARGS_ARGS,
+            PROCESS_ARGS_LIST,
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
-                    runtime.check_policy(PROCESS_ARGS_ARGS)?;
-                    destack_process_args_args_vm_replay(runtime, context)
+                    runtime.check_policy(PROCESS_ARGS_LIST)?;
+                    destack_process_args_list_vm_replay(runtime, context)
                 })
                 .map_err(Into::into)
             }
@@ -14835,12 +14828,12 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
         );
     }
     {
-        binding!(registry, isolate, PROCESS_CWD_CWD, move |context, _args| {
+        binding!(registry, isolate, PROCESS_CWD_GET, move |context, _args| {
             with_runtime_call_context(|runtime| {
                 // execute binding
-                runtime.check_policy(PROCESS_CWD_CWD)?;
-                let world = runtime.check_and_resolve_world(PROCESS_CWD_CWD)?;
-                destack_process_cwd_cwd_vm_replay(runtime, context, world)
+                runtime.check_policy(PROCESS_CWD_GET)?;
+                let world = runtime.check_and_resolve_world(PROCESS_CWD_GET)?;
+                destack_process_cwd_get_vm_replay(runtime, context, world)
             })
             .map_err(Into::into)
         });
@@ -14948,62 +14941,6 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
         binding!(
             registry,
             isolate,
-            PROCESS_EXEC_EXEC,
-            move |context, args| {
-                with_runtime_call_context(|runtime| {
-                    // decode args
-                    let (command, arguments, environment) =
-                        decode_destack_process_exec_exec_args(context, args)?;
-
-                    // execute binding
-                    runtime.check_policy(PROCESS_EXEC_EXEC)?;
-                    let world = runtime.check_and_resolve_world(PROCESS_EXEC_EXEC)?;
-                    destack_process_exec_exec_vm_replay(
-                        runtime,
-                        context,
-                        world,
-                        command,
-                        arguments,
-                        environment,
-                    )
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            PROCESS_EXEC_EXECAT,
-            move |context, args| {
-                with_runtime_call_context(|runtime| {
-                    // decode args
-                    let (directory, path, arguments, environment, flags) =
-                        decode_destack_process_exec_execat_args(context, args)?;
-
-                    // execute binding
-                    runtime.check_policy(PROCESS_EXEC_EXECAT)?;
-                    let world = runtime.check_and_resolve_world(PROCESS_EXEC_EXECAT)?;
-                    destack_process_exec_execat_vm_replay(
-                        runtime,
-                        context,
-                        world,
-                        directory,
-                        path,
-                        arguments,
-                        environment,
-                        flags,
-                    )
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
             PROCESS_EXEC_FEXEC,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
@@ -15031,16 +14968,72 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
         binding!(
             registry,
             isolate,
-            PROCESS_EXIT_EXIT,
+            PROCESS_EXEC_PATH,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (code,) = decode_destack_process_exit_exit_args(context, args)?;
+                    let (command, arguments, environment) =
+                        decode_destack_process_exec_path_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(PROCESS_EXIT_EXIT)?;
-                    let world = runtime.check_and_resolve_world(PROCESS_EXIT_EXIT)?;
-                    destack_process_exit_exit_vm_replay(runtime, context, world, code)
+                    runtime.check_policy(PROCESS_EXEC_PATH)?;
+                    let world = runtime.check_and_resolve_world(PROCESS_EXEC_PATH)?;
+                    destack_process_exec_path_vm_replay(
+                        runtime,
+                        context,
+                        world,
+                        command,
+                        arguments,
+                        environment,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_EXEC_PATHAT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (directory, path, arguments, environment, flags) =
+                        decode_destack_process_exec_pathat_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(PROCESS_EXEC_PATHAT)?;
+                    let world = runtime.check_and_resolve_world(PROCESS_EXEC_PATHAT)?;
+                    destack_process_exec_pathat_vm_replay(
+                        runtime,
+                        context,
+                        world,
+                        directory,
+                        path,
+                        arguments,
+                        environment,
+                        flags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_EXIT_TERMINATE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (code,) = decode_destack_process_exit_terminate_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(PROCESS_EXIT_TERMINATE)?;
+                    let world = runtime.check_and_resolve_world(PROCESS_EXIT_TERMINATE)?;
+                    destack_process_exit_terminate_vm_replay(runtime, context, world, code)
                 })
                 .map_err(Into::into)
             }
@@ -16338,17 +16331,17 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
         binding!(
             registry,
             isolate,
-            PROCESS_SPAWN_SPAWN,
+            PROCESS_SPAWN_START,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
                     let (command, arguments, environment, options) =
-                        decode_destack_process_spawn_spawn_args(context, args)?;
+                        decode_destack_process_spawn_start_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(PROCESS_SPAWN_SPAWN)?;
-                    let world = runtime.check_and_resolve_world(PROCESS_SPAWN_SPAWN)?;
-                    destack_process_spawn_spawn_vm_replay(
+                    runtime.check_policy(PROCESS_SPAWN_START)?;
+                    let world = runtime.check_and_resolve_world(PROCESS_SPAWN_START)?;
+                    destack_process_spawn_start_vm_replay(
                         runtime,
                         context,
                         world,
@@ -16396,16 +16389,35 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
         binding!(
             registry,
             isolate,
-            PROCESS_UMASK_UMASK,
+            PROCESS_UMASK_SET,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (mask,) = decode_destack_process_umask_umask_args(context, args)?;
+                    let (mask,) = decode_destack_process_umask_set_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(PROCESS_UMASK_UMASK)?;
-                    let world = runtime.check_and_resolve_world(PROCESS_UMASK_UMASK)?;
-                    destack_process_umask_umask_vm_replay(runtime, context, world, mask)
+                    runtime.check_policy(PROCESS_UMASK_SET)?;
+                    let world = runtime.check_and_resolve_world(PROCESS_UMASK_SET)?;
+                    destack_process_umask_set_vm_replay(runtime, context, world, mask)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_WAIT_HANDLE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, flags) = decode_destack_process_wait_handle_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(PROCESS_WAIT_HANDLE)?;
+                    let world = runtime.check_and_resolve_world(PROCESS_WAIT_HANDLE)?;
+                    destack_process_wait_handle_vm_replay(runtime, context, world, handle, flags)
                 })
                 .map_err(Into::into)
             }
@@ -16439,25 +16451,6 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     runtime.check_policy(PROCESS_WAIT_TRY_WAIT)?;
                     let world = runtime.check_and_resolve_world(PROCESS_WAIT_TRY_WAIT)?;
                     destack_process_wait_try_wait_vm_replay(runtime, context, world, handle)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            PROCESS_WAIT_WAIT,
-            move |context, args| {
-                with_runtime_call_context(|runtime| {
-                    // decode args
-                    let (handle, flags) = decode_destack_process_wait_wait_args(context, args)?;
-
-                    // execute binding
-                    runtime.check_policy(PROCESS_WAIT_WAIT)?;
-                    let world = runtime.check_and_resolve_world(PROCESS_WAIT_WAIT)?;
-                    destack_process_wait_wait_vm_replay(runtime, context, world, handle, flags)
                 })
                 .map_err(Into::into)
             }

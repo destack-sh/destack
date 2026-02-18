@@ -98,9 +98,9 @@ fn decode_uint64(
     decode_uint(value, name, expected, 64)
 }
 
-/// Decode arguments for destack.memory.advise.advise.
+/// Decode arguments for destack.memory.advise.adviseRange.
 #[inline]
-fn decode_destack_memory_advise_advise_args(
+fn decode_destack_memory_advise_advise_range_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, u32)> {
@@ -113,9 +113,9 @@ fn decode_destack_memory_advise_advise_args(
     Ok((address, length, advice))
 }
 
-/// Encode the result for destack.memory.advise.advise.
+/// Encode the result for destack.memory.advise.adviseRange.
 #[inline]
-fn encode_destack_memory_advise_advise_result(
+fn encode_destack_memory_advise_advise_range_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -168,9 +168,9 @@ fn encode_destack_memory_advise_huge_page_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.memory.lock.lock.
+/// Decode arguments for destack.memory.lock.lockRange.
 #[inline]
-fn decode_destack_memory_lock_lock_args(
+fn decode_destack_memory_lock_lock_range_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64)> {
@@ -181,9 +181,9 @@ fn decode_destack_memory_lock_lock_args(
     Ok((address, length))
 }
 
-/// Encode the result for destack.memory.lock.lock.
+/// Encode the result for destack.memory.lock.lockRange.
 #[inline]
-fn encode_destack_memory_lock_lock_result(
+fn encode_destack_memory_lock_lock_range_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -378,9 +378,9 @@ fn encode_destack_memory_protect_flush_instruction_cache_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.memory.protect.protect.
+/// Decode arguments for destack.memory.protect.protectRange.
 #[inline]
-fn decode_destack_memory_protect_protect_args(
+fn decode_destack_memory_protect_protect_range_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, u32)> {
@@ -393,9 +393,9 @@ fn decode_destack_memory_protect_protect_args(
     Ok((address, length, protection))
 }
 
-/// Encode the result for destack.memory.protect.protect.
+/// Encode the result for destack.memory.protect.protectRange.
 #[inline]
-fn encode_destack_memory_protect_protect_result(
+fn encode_destack_memory_protect_protect_range_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -452,9 +452,9 @@ fn encode_destack_memory_protect_set_write_xor_execute_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Replay payload for destack.memory.advise.advise.
+/// Replay payload for destack.memory.advise.adviseRange.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MemoryAdviseAdviseReplay {
+struct MemoryAdviseAdviseRangeReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
@@ -473,9 +473,9 @@ struct MemoryAdviseHugePageReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.memory.lock.lock.
+/// Replay payload for destack.memory.lock.lockRange.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MemoryLockLockReplay {
+struct MemoryLockLockRangeReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
@@ -536,9 +536,9 @@ struct MemoryProtectFlushInstructionCacheReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.memory.protect.protect.
+/// Replay payload for destack.memory.protect.protectRange.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MemoryProtectProtectReplay {
+struct MemoryProtectProtectRangeReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
@@ -550,9 +550,9 @@ struct MemoryProtectRemapReplay {
     pub result: Result<ProtectedMemoryRange, PlatformError>,
 }
 
-/// Binding descriptor for destack.memory.advise.advise.
-pub const MEMORY_ADVISE_ADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.memory.advise.advise",
+/// Binding descriptor for destack.memory.advise.adviseRange.
+pub const MEMORY_ADVISE_ADVISE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.memory.advise.adviseRange",
     "export function advise(address: uint64, length: uint64, advice: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -600,10 +600,10 @@ pub const MEMORY_ADVISE_HUGE_PAGE: BindingDescriptor = BindingDescriptor::extern
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.memory.lock.lock.
-pub const MEMORY_LOCK_LOCK: BindingDescriptor =
+/// Binding descriptor for destack.memory.lock.lockRange.
+pub const MEMORY_LOCK_LOCK_RANGE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.memory.lock.lock",
+        "destack.memory.lock.lockRange",
         "export function lock(address: uint64, length: uint64): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -764,9 +764,9 @@ pub const MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE: BindingDescriptor = BindingDes
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.memory.protect.protect.
-pub const MEMORY_PROTECT_PROTECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.memory.protect.protect",
+/// Binding descriptor for destack.memory.protect.protectRange.
+pub const MEMORY_PROTECT_PROTECT_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.memory.protect.protectRange",
     "export function protect(address: uint64, length: uint64, protection: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -809,16 +809,15 @@ pub const MEMORY_PROTECT_SET_WRITE_XOR_EXECUTE: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
 /// Binding descriptors for memory.
 pub const BINDINGS: &[BindingDescriptor] = &[
-    MEMORY_ADVISE_ADVISE,
+    MEMORY_ADVISE_ADVISE_RANGE,
     MEMORY_ADVISE_DISCARD,
     MEMORY_ADVISE_HUGE_PAGE,
-    MEMORY_LOCK_LOCK,
+    MEMORY_LOCK_LOCK_RANGE,
     MEMORY_LOCK_UNLOCK,
     MEMORY_MAP_COMMIT,
     MEMORY_MAP_DECOMMIT,
@@ -827,7 +826,7 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     MEMORY_MAP_RESERVE,
     MEMORY_PROTECT_EXECUTE,
     MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE,
-    MEMORY_PROTECT_PROTECT,
+    MEMORY_PROTECT_PROTECT_RANGE,
     MEMORY_PROTECT_REMAP,
     MEMORY_PROTECT_SET_WRITE_XOR_EXECUTE,
 ];
@@ -837,9 +836,9 @@ pub const MEMORY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "memory",
     bindings: &[
         NativeBinding::new(
-            MEMORY_ADVISE_ADVISE,
-            "destack.memory.advise.advise",
-            destack_memory_advise_advise as *const (),
+            MEMORY_ADVISE_ADVISE_RANGE,
+            "destack.memory.advise.adviseRange",
+            destack_memory_advise_advise_range as *const (),
         ),
         NativeBinding::new(
             MEMORY_ADVISE_DISCARD,
@@ -852,9 +851,9 @@ pub const MEMORY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_memory_advise_huge_page as *const (),
         ),
         NativeBinding::new(
-            MEMORY_LOCK_LOCK,
-            "destack.memory.lock.lock",
-            destack_memory_lock_lock as *const (),
+            MEMORY_LOCK_LOCK_RANGE,
+            "destack.memory.lock.lockRange",
+            destack_memory_lock_lock_range as *const (),
         ),
         NativeBinding::new(
             MEMORY_LOCK_UNLOCK,
@@ -897,9 +896,9 @@ pub const MEMORY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_memory_protect_flush_instruction_cache as *const (),
         ),
         NativeBinding::new(
-            MEMORY_PROTECT_PROTECT,
-            "destack.memory.protect.protect",
-            destack_memory_protect_protect as *const (),
+            MEMORY_PROTECT_PROTECT_RANGE,
+            "destack.memory.protect.protectRange",
+            destack_memory_protect_protect_range as *const (),
         ),
         NativeBinding::new(
             MEMORY_PROTECT_REMAP,
@@ -916,7 +915,7 @@ pub const MEMORY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 
 /// Native replay implementations for memory bindings.
 #[inline]
-fn destack_memory_advise_advise_replay(
+fn destack_memory_advise_advise_range_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     address: u64,
@@ -926,8 +925,8 @@ fn destack_memory_advise_advise_replay(
     let _ = (&address, &length, &advice);
 
     context.replay().run_binding_with_payload_policy(
-        MEMORY_ADVISE_ADVISE,
-        context.replay_payload_for(MEMORY_ADVISE_ADVISE)?,
+        MEMORY_ADVISE_ADVISE_RANGE,
+        context.replay_payload_for(MEMORY_ADVISE_ADVISE_RANGE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_memory_advise(context, address, length, advice)
@@ -939,7 +938,7 @@ fn destack_memory_advise_advise_replay(
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = MemoryAdviseAdviseReplay {
+                let payload = MemoryAdviseAdviseRangeReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -948,7 +947,7 @@ fn destack_memory_advise_advise_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MemoryAdviseAdviseReplay { result }
+                    MemoryAdviseAdviseRangeReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1067,7 +1066,7 @@ fn destack_memory_advise_huge_page_replay(
 }
 
 #[inline]
-fn destack_memory_lock_lock_replay(
+fn destack_memory_lock_lock_range_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     address: u64,
@@ -1076,8 +1075,8 @@ fn destack_memory_lock_lock_replay(
     let _ = (&address, &length);
 
     context.replay().run_binding_with_payload_policy(
-        MEMORY_LOCK_LOCK,
-        context.replay_payload_for(MEMORY_LOCK_LOCK)?,
+        MEMORY_LOCK_LOCK_RANGE,
+        context.replay_payload_for(MEMORY_LOCK_LOCK_RANGE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_memory_lock(context, address, length)
@@ -1089,7 +1088,7 @@ fn destack_memory_lock_lock_replay(
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = MemoryLockLockReplay {
+                let payload = MemoryLockLockRangeReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -1098,7 +1097,7 @@ fn destack_memory_lock_lock_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MemoryLockLockReplay { result }
+                    MemoryLockLockRangeReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1543,7 +1542,7 @@ fn destack_memory_protect_flush_instruction_cache_replay(
 }
 
 #[inline]
-fn destack_memory_protect_protect_replay(
+fn destack_memory_protect_protect_range_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     address: u64,
@@ -1553,8 +1552,8 @@ fn destack_memory_protect_protect_replay(
     let _ = (&address, &length, &protection);
 
     context.replay().run_binding_with_payload_policy(
-        MEMORY_PROTECT_PROTECT,
-        context.replay_payload_for(MEMORY_PROTECT_PROTECT)?,
+        MEMORY_PROTECT_PROTECT_RANGE,
+        context.replay_payload_for(MEMORY_PROTECT_PROTECT_RANGE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_memory_protect(context, address, length, protection)
@@ -1568,7 +1567,7 @@ fn destack_memory_protect_protect_replay(
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = MemoryProtectProtectReplay {
+                let payload = MemoryProtectProtectRangeReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -1577,7 +1576,7 @@ fn destack_memory_protect_protect_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MemoryProtectProtectReplay { result }
+                    MemoryProtectProtectRangeReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1673,8 +1672,8 @@ fn destack_memory_protect_remap_replay(
 }
 
 /// Native export wrappers for memory bindings.
-#[unsafe(export_name = "destack.memory.advise.advise")]
-pub unsafe extern "C" fn destack_memory_advise_advise(
+#[unsafe(export_name = "destack.memory.advise.adviseRange")]
+pub unsafe extern "C" fn destack_memory_advise_advise_range(
     address: u64,
     length: u64,
     advice: u32,
@@ -1682,9 +1681,9 @@ pub unsafe extern "C" fn destack_memory_advise_advise(
     native_call(|context| {
         let _ = (&address, &length, &advice);
 
-        context.check_policy(MEMORY_ADVISE_ADVISE)?;
-        let world = context.check_and_resolve_world(MEMORY_ADVISE_ADVISE)?;
-        destack_memory_advise_advise_replay(context, world, address, length, advice)
+        context.check_policy(MEMORY_ADVISE_ADVISE_RANGE)?;
+        let world = context.check_and_resolve_world(MEMORY_ADVISE_ADVISE_RANGE)?;
+        destack_memory_advise_advise_range_replay(context, world, address, length, advice)
     })
 }
 
@@ -1714,14 +1713,17 @@ pub unsafe extern "C" fn destack_memory_advise_huge_page(
     })
 }
 
-#[unsafe(export_name = "destack.memory.lock.lock")]
-pub unsafe extern "C" fn destack_memory_lock_lock(address: u64, length: u64) -> RuntimeStatus {
+#[unsafe(export_name = "destack.memory.lock.lockRange")]
+pub unsafe extern "C" fn destack_memory_lock_lock_range(
+    address: u64,
+    length: u64,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&address, &length);
 
-        context.check_policy(MEMORY_LOCK_LOCK)?;
-        let world = context.check_and_resolve_world(MEMORY_LOCK_LOCK)?;
-        destack_memory_lock_lock_replay(context, world, address, length)
+        context.check_policy(MEMORY_LOCK_LOCK_RANGE)?;
+        let world = context.check_and_resolve_world(MEMORY_LOCK_LOCK_RANGE)?;
+        destack_memory_lock_lock_range_replay(context, world, address, length)
     })
 }
 
@@ -1836,8 +1838,8 @@ pub unsafe extern "C" fn destack_memory_protect_flush_instruction_cache(
     })
 }
 
-#[unsafe(export_name = "destack.memory.protect.protect")]
-pub unsafe extern "C" fn destack_memory_protect_protect(
+#[unsafe(export_name = "destack.memory.protect.protectRange")]
+pub unsafe extern "C" fn destack_memory_protect_protect_range(
     address: u64,
     length: u64,
     protection: u32,
@@ -1845,9 +1847,9 @@ pub unsafe extern "C" fn destack_memory_protect_protect(
     native_call(|context| {
         let _ = (&address, &length, &protection);
 
-        context.check_policy(MEMORY_PROTECT_PROTECT)?;
-        let world = context.check_and_resolve_world(MEMORY_PROTECT_PROTECT)?;
-        destack_memory_protect_protect_replay(context, world, address, length, protection)
+        context.check_policy(MEMORY_PROTECT_PROTECT_RANGE)?;
+        let world = context.check_and_resolve_world(MEMORY_PROTECT_PROTECT_RANGE)?;
+        destack_memory_protect_protect_range_replay(context, world, address, length, protection)
     })
 }
 
@@ -1891,7 +1893,7 @@ pub unsafe extern "C" fn destack_memory_protect_set_write_xor_execute(
 
 /// VM replay implementations for memory bindings.
 #[inline]
-fn destack_memory_advise_advise_vm_replay(
+fn destack_memory_advise_advise_range_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -1902,8 +1904,8 @@ fn destack_memory_advise_advise_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            MEMORY_ADVISE_ADVISE,
-            runtime.replay_payload_for(MEMORY_ADVISE_ADVISE)?,
+            MEMORY_ADVISE_ADVISE_RANGE,
+            runtime.replay_payload_for(MEMORY_ADVISE_ADVISE_RANGE)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
@@ -1917,7 +1919,7 @@ fn destack_memory_advise_advise_vm_replay(
                 let _ = &context;
                 if let Ok(()) = result {
                     let result_recorded = ();
-                    let payload = MemoryAdviseAdviseReplay {
+                    let payload = MemoryAdviseAdviseRangeReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -1926,7 +1928,7 @@ fn destack_memory_advise_advise_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryAdviseAdviseReplay { result }
+                        MemoryAdviseAdviseRangeReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -1942,7 +1944,7 @@ fn destack_memory_advise_advise_vm_replay(
                 }
             },
         );
-    let result = encode_destack_memory_advise_advise_result(context, result)?;
+    let result = encode_destack_memory_advise_advise_range_result(context, result)?;
     Ok(result)
 }
 
@@ -2058,7 +2060,7 @@ fn destack_memory_advise_huge_page_vm_replay(
 }
 
 #[inline]
-fn destack_memory_lock_lock_vm_replay(
+fn destack_memory_lock_lock_range_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -2068,8 +2070,8 @@ fn destack_memory_lock_lock_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            MEMORY_LOCK_LOCK,
-            runtime.replay_payload_for(MEMORY_LOCK_LOCK)?,
+            MEMORY_LOCK_LOCK_RANGE,
+            runtime.replay_payload_for(MEMORY_LOCK_LOCK_RANGE)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
@@ -2083,7 +2085,7 @@ fn destack_memory_lock_lock_vm_replay(
                 let _ = &context;
                 if let Ok(()) = result {
                     let result_recorded = ();
-                    let payload = MemoryLockLockReplay {
+                    let payload = MemoryLockLockRangeReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -2092,7 +2094,7 @@ fn destack_memory_lock_lock_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryLockLockReplay { result }
+                        MemoryLockLockRangeReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -2108,7 +2110,7 @@ fn destack_memory_lock_lock_vm_replay(
                 }
             },
         );
-    let result = encode_destack_memory_lock_lock_result(context, result)?;
+    let result = encode_destack_memory_lock_lock_range_result(context, result)?;
     Ok(result)
 }
 
@@ -2573,7 +2575,7 @@ fn destack_memory_protect_flush_instruction_cache_vm_replay(
 }
 
 #[inline]
-fn destack_memory_protect_protect_vm_replay(
+fn destack_memory_protect_protect_range_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -2584,8 +2586,8 @@ fn destack_memory_protect_protect_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            MEMORY_PROTECT_PROTECT,
-            runtime.replay_payload_for(MEMORY_PROTECT_PROTECT)?,
+            MEMORY_PROTECT_PROTECT_RANGE,
+            runtime.replay_payload_for(MEMORY_PROTECT_PROTECT_RANGE)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_memory_protect(
@@ -2599,7 +2601,7 @@ fn destack_memory_protect_protect_vm_replay(
                 let _ = &context;
                 if let Ok(()) = result {
                     let result_recorded = ();
-                    let payload = MemoryProtectProtectReplay {
+                    let payload = MemoryProtectProtectRangeReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -2608,7 +2610,7 @@ fn destack_memory_protect_protect_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryProtectProtectReplay { result }
+                        MemoryProtectProtectRangeReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -2624,7 +2626,7 @@ fn destack_memory_protect_protect_vm_replay(
                 }
             },
         );
-    let result = encode_destack_memory_protect_protect_result(context, result)?;
+    let result = encode_destack_memory_protect_protect_range_result(context, result)?;
     Ok(result)
 }
 
@@ -2705,17 +2707,17 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
         binding!(
             registry,
             isolate,
-            MEMORY_ADVISE_ADVISE,
+            MEMORY_ADVISE_ADVISE_RANGE,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
                     let (address, length, advice) =
-                        decode_destack_memory_advise_advise_args(context, args)?;
+                        decode_destack_memory_advise_advise_range_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(MEMORY_ADVISE_ADVISE)?;
-                    let world = runtime.check_and_resolve_world(MEMORY_ADVISE_ADVISE)?;
-                    destack_memory_advise_advise_vm_replay(
+                    runtime.check_policy(MEMORY_ADVISE_ADVISE_RANGE)?;
+                    let world = runtime.check_and_resolve_world(MEMORY_ADVISE_ADVISE_RANGE)?;
+                    destack_memory_advise_advise_range_vm_replay(
                         runtime, context, world, address, length, advice,
                     )
                 })
@@ -2768,18 +2770,26 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
         );
     }
     {
-        binding!(registry, isolate, MEMORY_LOCK_LOCK, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (address, length) = decode_destack_memory_lock_lock_args(context, args)?;
+        binding!(
+            registry,
+            isolate,
+            MEMORY_LOCK_LOCK_RANGE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (address, length) =
+                        decode_destack_memory_lock_lock_range_args(context, args)?;
 
-                // execute binding
-                runtime.check_policy(MEMORY_LOCK_LOCK)?;
-                let world = runtime.check_and_resolve_world(MEMORY_LOCK_LOCK)?;
-                destack_memory_lock_lock_vm_replay(runtime, context, world, address, length)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    runtime.check_policy(MEMORY_LOCK_LOCK_RANGE)?;
+                    let world = runtime.check_and_resolve_world(MEMORY_LOCK_LOCK_RANGE)?;
+                    destack_memory_lock_lock_range_vm_replay(
+                        runtime, context, world, address, length,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
         binding!(
@@ -2950,17 +2960,17 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
         binding!(
             registry,
             isolate,
-            MEMORY_PROTECT_PROTECT,
+            MEMORY_PROTECT_PROTECT_RANGE,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
                     let (address, length, protection) =
-                        decode_destack_memory_protect_protect_args(context, args)?;
+                        decode_destack_memory_protect_protect_range_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(MEMORY_PROTECT_PROTECT)?;
-                    let world = runtime.check_and_resolve_world(MEMORY_PROTECT_PROTECT)?;
-                    destack_memory_protect_protect_vm_replay(
+                    runtime.check_policy(MEMORY_PROTECT_PROTECT_RANGE)?;
+                    let world = runtime.check_and_resolve_world(MEMORY_PROTECT_PROTECT_RANGE)?;
+                    destack_memory_protect_protect_range_vm_replay(
                         runtime, context, world, address, length, protection,
                     )
                 })

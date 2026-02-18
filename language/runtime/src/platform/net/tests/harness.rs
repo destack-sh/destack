@@ -6,6 +6,8 @@ mod generated;
 #[allow(unused_imports)]
 pub(crate) use generated::*;
 
+type ByteSlicesValue = HarnessValue<NativeSlice<NativeSlice<u8>>, VmSlice<VmSlice<u8>>>;
+
 impl<'call> NetHarnessContext<'call> {
     /// Return the VM context if available.
     #[allow(clippy::mut_from_ref)]
@@ -94,10 +96,7 @@ impl<'call> NetHarnessContext<'call> {
     }
 
     /// Build one backend-specific nested byte-slice value.
-    pub(crate) fn bytes_slices_value(
-        &self,
-        buffers: &[&[u8]],
-    ) -> RuntimeResult<HarnessValue<NativeSlice<NativeSlice<u8>>, VmSlice<VmSlice<u8>>>> {
+    pub(crate) fn bytes_slices_value(&self, buffers: &[&[u8]]) -> RuntimeResult<ByteSlicesValue> {
         match self.vm_context_mut() {
             Some(context) => {
                 let vm_buffers = buffers
@@ -122,7 +121,7 @@ impl<'call> NetHarnessContext<'call> {
     pub(crate) fn mutable_bytes_slices_value(
         &self,
         buffers: &mut [Vec<u8>],
-    ) -> RuntimeResult<HarnessValue<NativeSlice<NativeSlice<u8>>, VmSlice<VmSlice<u8>>>> {
+    ) -> RuntimeResult<ByteSlicesValue> {
         match self.vm_context_mut() {
             Some(context) => {
                 let vm_buffers = buffers

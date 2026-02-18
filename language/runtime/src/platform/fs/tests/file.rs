@@ -35,7 +35,7 @@ fn test_fs_truncate_and_fsync() {
         context.destack_fs_close(handle)?;
 
         let file = context.path_bytes(&file_path);
-        context.destack_fs_truncate(file.clone(), FileOffset(0))?;
+        context.destack_fs_truncate(file, FileOffset(0))?;
         context.destack_fs_unlink(file)?;
 
         let dir = context.path_bytes(&temp_dir);

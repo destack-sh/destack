@@ -197,7 +197,12 @@ impl<'call> NetHarnessContext<'call> {
                     second: SocketHandle(ResourceId(0)),
                 };
                 let status = unsafe {
-                    platform_net::destack_net_socket_pair(&mut pair, family, socket_type, protocol)
+                    platform_net::destack_net_socket_open_pair(
+                        &mut pair,
+                        family,
+                        socket_type,
+                        protocol,
+                    )
                 };
                 self.status_ok(status, "socketPair")?;
 
@@ -244,8 +249,9 @@ impl<'call> NetHarnessContext<'call> {
                     first: SocketHandle(ResourceId(0)),
                     second: SocketHandle(ResourceId(0)),
                 };
-                let status =
-                    unsafe { platform_net::destack_net_uds_socket_pair(&mut pair, socket_type) };
+                let status = unsafe {
+                    platform_net::destack_net_uds_uds_socket_pair(&mut pair, socket_type)
+                };
                 self.status_ok(status, "udsSocketPair")?;
 
                 Ok((pair.first, pair.second))
@@ -322,8 +328,7 @@ fn assert_no_permission_denied_in_privileged_mode(
 
     if is_permission_denied_code(observed) {
         panic!(
-            "permission-denied error {:?} is not allowed when DESTACK_TEST_PRIVILEGED=1 (expected one of {:?})",
-            observed, expected,
+            "permission-denied error {observed:?} is not allowed when DESTACK_TEST_PRIVILEGED=1 (expected one of {expected:?})",
         );
     }
 }

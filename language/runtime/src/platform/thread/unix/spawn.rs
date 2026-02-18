@@ -73,7 +73,7 @@ fn thread_spawn_error(code: libc::c_int) -> Box<RuntimeError> {
 /// Detached thread lifecycle and cleanup are host-managed.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
+/// Unix and Windows.
 /// Uses pthread_detach on Unix and handle-release semantics on Windows.
 ///
 /// # Errors
@@ -111,8 +111,8 @@ pub(crate) unsafe fn destack_thread_detach(
 /// Join behavior follows host thread lifecycle rules.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses pthread_join on Unix, WaitForSingleObject plus exit code on Windows, and wasi equivalents where available.
+/// Unix and Windows.
+/// Uses pthread_join on Unix and WaitForSingleObject plus exit code on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -162,8 +162,8 @@ pub(crate) unsafe fn destack_thread_join(
 /// Entry dispatch and argument passing are runtime ABI contracts.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses pthread_create on Unix, CreateThread on Windows, and wasi thread support when available.
+/// Unix and Windows.
+/// Uses pthread_create on Unix and CreateThread on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
