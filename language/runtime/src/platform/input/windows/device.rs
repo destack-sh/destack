@@ -34,11 +34,11 @@ pub(crate) unsafe fn destack_input_close(
 /// Device ordering and hotplug visibility follow host input subsystem semantics.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses evdev device-node enumeration on Linux, terminal input discovery on other Unix hosts, and console-input availability checks on Windows.
+/// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one discoverable input backend.
+/// Uses evdev device-node enumeration on Linux, global-session and terminal discovery on macOS, terminal input discovery on other Unix hosts, and console plus raw-state discovery on Windows.
 ///
 /// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData.
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
 ///
 /// # Security
 /// Requires `input.read`.
@@ -67,11 +67,11 @@ pub(crate) unsafe fn destack_input_list(
 /// Exclusive-grab behavior and permission checks are host-defined.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses evdev device-node open on Linux, terminal-device open on other Unix hosts, and duplicated console-input handles on Windows.
+/// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one openable input backend.
+/// Uses evdev device-node open on Linux, global-session or terminal-device open on macOS, terminal-device open on other Unix hosts, and duplicated console-input handles or raw-state handles on Windows.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock.
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
 ///
 /// # Security
 /// Requires `input.read`.

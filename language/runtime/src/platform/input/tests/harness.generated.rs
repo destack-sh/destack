@@ -7,11 +7,12 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
-    InputDeviceInfo, InputDeviceInfoVm, InputDeviceKind, InputEvent, InputEventKind, InputEventVm,
-    native as input_native, vm as input_vm,
+    InputDeviceInfo, InputDeviceInfoVm, InputDeviceKind, InputEvent, InputEventAction,
+    InputEventKind, InputEventVm, InputReadMode, native as input_native, vm as input_vm,
 };
 use crate::platform::{
-    NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmSlice, resource,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
+    VmSlice, resource,
 };
 use destack_vm as vm;
 
@@ -66,11 +67,11 @@ impl<'call> InputHarnessContext<'call> {
     /// Device ordering and hotplug visibility follow host input subsystem semantics.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses evdev device-node enumeration on Linux, terminal input discovery on other Unix hosts, and console-input availability checks on Windows.
+    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one discoverable input backend.
+    /// Uses evdev device-node enumeration on Linux, global-session and terminal discovery on macOS, terminal input discovery on other Unix hosts, and console plus raw-state discovery on Windows.
     ///
     /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData.
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
     /// Requires `input.read`.
@@ -102,11 +103,11 @@ impl<'call> InputHarnessContext<'call> {
     /// Exclusive-grab behavior and permission checks are host-defined.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses evdev device-node open on Linux, terminal-device open on other Unix hosts, and duplicated console-input handles on Windows.
+    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one openable input backend.
+    /// Uses evdev device-node open on Linux, global-session or terminal-device open on macOS, terminal-device open on other Unix hosts, and duplicated console-input handles or raw-state handles on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock.
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
     /// Requires `input.read`.
@@ -135,17 +136,167 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one input event.
+    /// Close one global input event monitor.
     ///
-    /// Read one pending input event from the runtime input queue.
-    /// Event ordering follows host event queue delivery semantics.
+    /// Close one opened monitor stream and release host subscription resources.
+    /// Pending unread monitor events are discarded.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses evdev event reads on Linux, terminal-byte event reads on other Unix hosts, and ReadConsoleInputW queue reads on Windows.
+    /// Uses close(2) on Unix and CloseHandle on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted.
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_monitor_close(
+        &mut self,
+        handle: resource::InputMonitorHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                input_vm::destack_input_monitor_close(self.call_context, context, handle)
+            }
+            None => unsafe { input_native::destack_input_monitor_close(self.call_context, handle) },
+        }
+    }
+
+    /// Open one global input event monitor.
+    ///
+    /// Open one monitor stream that reports host input topology events, including connect and disconnect.
+    /// Monitor streams are independent from per-device data streams.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
+    /// Uses inotify-backed `/dev/input` monitor events on Linux with snapshot fallback when watcher setup is unavailable, global-session subscriptions on macOS, terminal-device scans on other Unix hosts, and raw-input device-change subscriptions on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_monitor_open(
+        &mut self,
+    ) -> RuntimeResult<resource::InputMonitorHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_monitor_open(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::InputMonitorHandle>::uninit();
+                unsafe {
+                    input_native::destack_input_monitor_open(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Read one global input monitor event.
+    ///
+    /// Read one pending monitor event from the global input monitor stream.
+    /// This stream is the canonical source for device connect and disconnect events.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
+    /// Uses blocking reads from inotify-backed Linux monitor queues with snapshot fallback on watcherless hosts, terminal or session monitor streams on Unix hosts, and raw-input monitor queues on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_monitor_read(
+        &mut self,
+        handle: resource::InputMonitorHandle,
+    ) -> RuntimeResult<HarnessValue<InputEvent, InputEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_monitor_read(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputEvent>::uninit();
+                unsafe {
+                    input_native::destack_input_monitor_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one global input monitor event without blocking.
+    ///
+    /// Poll one pending monitor event and return immediately when no event is queued.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
+    /// Uses nonblocking reads from inotify-backed Linux monitor queues with snapshot fallback on watcherless hosts, terminal or session monitor streams on Unix hosts, and raw-input monitor queues on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_monitor_try_read(
+        &mut self,
+        handle: resource::InputMonitorHandle,
+    ) -> RuntimeResult<HarnessValue<InputEvent, InputEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    input_vm::destack_input_monitor_try_read(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputEvent>::uninit();
+                unsafe {
+                    input_native::destack_input_monitor_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one input event.
+    ///
+    /// Read one pending input event from one opened device stream.
+    /// Per-device streams report control and motion events for that device and exclude global device topology events.
+    /// Backend framing packets are filtered from this semantic stream.
+    /// Queue pressure can report one device cancel packet that carries overflow details in code and value.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
+    /// Uses evdev event reads on Linux, global-session state polling on macOS, terminal-byte event reads on other Unix hosts, and ReadConsoleInputW queue reads or raw-state polling on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
     ///
     /// # Security
     /// Requires `input.read`.
@@ -172,20 +323,70 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
+    /// Read one batch of input events.
+    ///
+    /// Read up to `maxEvents` events from one opened device stream in one call.
+    /// Batch ordering matches backend delivery order and excludes global device topology events.
+    /// Backend framing packets are filtered from this semantic stream.
+    /// Queue pressure can report one device cancel packet that carries overflow details in code and value.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
+    /// Uses batched reads when supported and runtime looped reads otherwise.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_read_batch(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        maxevents: u32,
+    ) -> RuntimeResult<HarnessValue<NativeArray<InputEvent>, VmArray<InputEventVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_read_batch(
+                    self.call_context,
+                    context,
+                    handle,
+                    maxevents,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<InputEvent>>::uninit();
+                unsafe {
+                    input_native::destack_input_read_batch(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        maxevents,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Enable or disable exclusive device grab.
     ///
     /// Toggle exclusive-grab mode for one input device when the host backend supports it.
     /// Grabs can prevent event delivery to other clients.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses EVIOCGRAB on Linux, returns notSupported for terminal-backed Unix input, and uses SetConsoleMode capture toggles on Windows.
+    /// Unix and Windows, with operation-level `notSupported` where exclusive grab is not defined by host policy.
+    /// Uses EVIOCGRAB on Linux, returns notSupported for global-session and terminal-backed Unix input, and uses SetConsoleMode capture toggles on Windows console input.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `input.control`.
+    /// Requires `input.grab`.
     ///
     /// # Replay
     /// External, recordable.
@@ -204,17 +405,51 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Poll one input event without blocking.
+    /// Select event decoding mode for one input stream.
     ///
-    /// Poll one pending input event and return immediately when no event is queued.
-    /// Empty queue state is reported through ioWouldBlock.
+    /// Select translated or raw decoding mode for one opened input endpoint.
+    /// Hosts can return notSupported when raw mode is unavailable for the selected endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses nonblocking evdev reads on Linux, nonblocking terminal-byte reads on other Unix hosts, and nonblocking console queue reads on Windows.
+    /// Uses per-stream runtime mode selection on Linux evdev and macOS session backends, termios raw and cooked mode updates on Unix TTY paths, and SetConsoleMode updates on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock.
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_set_read_mode(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        mode: InputReadMode,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                input_vm::destack_input_set_read_mode(self.call_context, context, handle, mode)
+            }
+            None => unsafe {
+                input_native::destack_input_set_read_mode(self.call_context, handle, mode)
+            },
+        }
+    }
+
+    /// Poll one input event without blocking.
+    ///
+    /// Poll one pending input event from one opened device stream and return immediately when no event is queued.
+    /// Empty queue state is reported through ioWouldBlock.
+    /// Backend framing packets are filtered from this semantic stream.
+    /// Queue pressure can report one device cancel packet that carries overflow details in code and value.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
+    /// Uses nonblocking evdev reads on Linux, nonblocking global-session polling on macOS, nonblocking terminal-byte reads on other Unix hosts, and nonblocking console queue reads or raw-state polling on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
     /// Requires `input.read`.
