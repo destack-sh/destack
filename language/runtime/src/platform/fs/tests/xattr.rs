@@ -26,7 +26,7 @@ fn test_fs_xattr_roundtrip() {
 
         let path = context.path_bytes(&file_path);
         let set_result = context.destack_fs_setxattr(
-            path.clone(),
+            path,
             context.string_value(name),
             context.bytes_slice_value(value)?,
             XattrFlags(0),
@@ -36,11 +36,11 @@ fn test_fs_xattr_roundtrip() {
         // when supported, path xattr reads and lists should reflect writes
         if wrote.is_some() {
             let path = context.path_bytes(&file_path);
-            let read = context.destack_fs_getxattr(path.clone(), context.string_value(name))?;
+            let read = context.destack_fs_getxattr(path, context.string_value(name))?;
             let read = context.bytes_from_array_value(read)?;
             assert_eq!(read, value);
 
-            let list = context.destack_fs_listxattr(path.clone())?;
+            let list = context.destack_fs_listxattr(path)?;
             let list = context.string_list_from_value(list)?;
             assert!(list.iter().any(|entry| entry == name));
 
@@ -108,7 +108,7 @@ fn test_fs_xattr_symlink() {
         let allowed = [PlatformErrorCode::NotSupported];
         let link = context.path_bytes(&link_path);
         let set_result = context.destack_fs_lsetxattr(
-            link.clone(),
+            link,
             context.string_value(name),
             context.bytes_slice_value(value)?,
             XattrFlags(0),

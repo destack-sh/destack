@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(clippy::type_complexity)]
 
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -2386,107 +2387,6 @@ impl<'call> FsHarnessContext<'call> {
         }
     }
 
-    /// Change memory protection for a mapping.
-    ///
-    /// Change memory protection for a mapping via host kernel APIs.
-    /// Page alignment, commit behavior, and memory fault semantics follow host virtual-memory rules.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-    /// Uses mprotect(2) on Unix and VirtualProtect on Windows.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `fs.mmap`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_fs_mprotect(
-        &mut self,
-        mapping: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
-        prot: MmapProt,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let mapping = mapping.into_vm("mapping")?;
-                fs_vm::destack_fs_mprotect(self.call_context, context, mapping, prot)
-            }
-            None => {
-                let mapping = mapping.into_native("mapping")?;
-                unsafe { fs_native::destack_fs_mprotect(self.call_context, mapping, prot) }
-            }
-        }
-    }
-
-    /// Flush a mapping to storage.
-    ///
-    /// Flush a mapping to storage via host kernel APIs.
-    /// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-    /// Uses msync(2) on Unix and FlushViewOfFile on Windows.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `fs.mmap`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_fs_msync(
-        &mut self,
-        mapping: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
-        flags: MmapSyncFlags,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let mapping = mapping.into_vm("mapping")?;
-                fs_vm::destack_fs_msync(self.call_context, context, mapping, flags)
-            }
-            None => {
-                let mapping = mapping.into_native("mapping")?;
-                unsafe { fs_native::destack_fs_msync(self.call_context, mapping, flags) }
-            }
-        }
-    }
-
-    /// Unmap a memory region.
-    ///
-    /// Unmap the specified virtual-memory range and release its mapping resources.
-    /// Page alignment, commit behavior, and memory fault semantics follow host virtual-memory rules.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-    /// Uses munmap(2) on Unix and UnmapViewOfFile/VirtualFree on Windows.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `fs.mmap`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_fs_munmap(
-        &mut self,
-        mapping: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let mapping = mapping.into_vm("mapping")?;
-                fs_vm::destack_fs_munmap(self.call_context, context, mapping)
-            }
-            None => {
-                let mapping = mapping.into_native("mapping")?;
-                unsafe { fs_native::destack_fs_munmap(self.call_context, mapping) }
-            }
-        }
-    }
-
     /// Create an anonymous memory mapping.
     ///
     /// Map an anonymous zero-initialized region into virtual memory using host allocation primitives.
@@ -2591,6 +2491,107 @@ impl<'call> FsHarnessContext<'call> {
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Change memory protection for a mapping.
+    ///
+    /// Change memory protection for a mapping via host kernel APIs.
+    /// Page alignment, commit behavior, and memory fault semantics follow host virtual-memory rules.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses mprotect(2) on Unix and VirtualProtect on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.mmap`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_fs_mprotect(
+        &mut self,
+        mapping: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+        prot: MmapProt,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let mapping = mapping.into_vm("mapping")?;
+                fs_vm::destack_fs_mprotect(self.call_context, context, mapping, prot)
+            }
+            None => {
+                let mapping = mapping.into_native("mapping")?;
+                unsafe { fs_native::destack_fs_mprotect(self.call_context, mapping, prot) }
+            }
+        }
+    }
+
+    /// Flush a mapping to storage.
+    ///
+    /// Flush a mapping to storage via host kernel APIs.
+    /// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses msync(2) on Unix and FlushViewOfFile on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.mmap`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_fs_msync(
+        &mut self,
+        mapping: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+        flags: MmapSyncFlags,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let mapping = mapping.into_vm("mapping")?;
+                fs_vm::destack_fs_msync(self.call_context, context, mapping, flags)
+            }
+            None => {
+                let mapping = mapping.into_native("mapping")?;
+                unsafe { fs_native::destack_fs_msync(self.call_context, mapping, flags) }
+            }
+        }
+    }
+
+    /// Unmap a memory region.
+    ///
+    /// Unmap the specified virtual-memory range and release its mapping resources.
+    /// Page alignment, commit behavior, and memory fault semantics follow host virtual-memory rules.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+    /// Uses munmap(2) on Unix and UnmapViewOfFile/VirtualFree on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `fs.mmap`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_fs_munmap(
+        &mut self,
+        mapping: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let mapping = mapping.into_vm("mapping")?;
+                fs_vm::destack_fs_munmap(self.call_context, context, mapping)
+            }
+            None => {
+                let mapping = mapping.into_native("mapping")?;
+                unsafe { fs_native::destack_fs_munmap(self.call_context, mapping) }
             }
         }
     }

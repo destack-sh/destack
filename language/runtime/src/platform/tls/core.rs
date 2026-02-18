@@ -29,8 +29,10 @@ use crate::platform::tls::{
 use crate::platform::{NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, resource};
 use crate::runtime::RuntimeCallContext;
 
-/// Canonical resource kind used for tls resources.
-const TLS_RESOURCE_KIND: ResourceKind = ResourceKind::Unknown;
+/// Canonical resource kind used for tls context resources.
+const TLS_CONTEXT_RESOURCE_KIND: ResourceKind = ResourceKind::TlsContext;
+/// Canonical resource kind used for tls session resources.
+const TLS_SESSION_RESOURCE_KIND: ResourceKind = ResourceKind::TlsSession;
 
 /// Policy and material attached to one TLS context.
 #[derive(Debug, Clone)]
@@ -185,7 +187,7 @@ pub(crate) fn insert_context_resource(
     value: TlsContextResource,
 ) -> resource::TlsContextHandle {
     // store the context payload
-    let entry = ResourceEntry::new(TLS_RESOURCE_KIND)
+    let entry = ResourceEntry::new(TLS_CONTEXT_RESOURCE_KIND)
         .with_label("tls.context")
         .with_payload(Arc::new(Mutex::new(value)));
     let resource_id = context.runtime().resources.insert(entry);
@@ -200,6 +202,10 @@ pub(crate) fn resolve_context_resource(
 ) -> RuntimeResult<Arc<Mutex<TlsContextResource>>> {
     // resolve one context payload
     let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
+        if entry.kind != TLS_CONTEXT_RESOURCE_KIND {
+            return None;
+        }
+
         entry
             .payload
             .as_ref()
@@ -231,11 +237,12 @@ pub(crate) fn remove_context_resource(
     };
 
     // validate the removed payload type
-    let is_valid = entry
-        .payload
-        .as_ref()
-        .and_then(|payload| payload.downcast_ref::<Arc<Mutex<TlsContextResource>>>())
-        .is_some();
+    let is_valid = entry.kind == TLS_CONTEXT_RESOURCE_KIND
+        && entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<Arc<Mutex<TlsContextResource>>>())
+            .is_some();
     if !is_valid {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -258,7 +265,7 @@ pub(crate) fn insert_session_resource(
         socket,
         connection: Mutex::new(connection),
     };
-    let entry = ResourceEntry::new(TLS_RESOURCE_KIND)
+    let entry = ResourceEntry::new(TLS_SESSION_RESOURCE_KIND)
         .with_label("tls.session")
         .with_payload(Arc::new(resource));
     let resource_id = context.runtime().resources.insert(entry);
@@ -273,6 +280,10 @@ pub(crate) fn resolve_session_resource(
 ) -> RuntimeResult<Arc<TlsSessionResource>> {
     // resolve one session payload
     let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
+        if entry.kind != TLS_SESSION_RESOURCE_KIND {
+            return None;
+        }
+
         entry
             .payload
             .as_ref()
@@ -304,11 +315,12 @@ pub(crate) fn remove_session_resource(
     };
 
     // validate the removed payload type
-    let is_valid = entry
-        .payload
-        .as_ref()
-        .and_then(|payload| payload.downcast_ref::<Arc<TlsSessionResource>>())
-        .is_some();
+    let is_valid = entry.kind == TLS_SESSION_RESOURCE_KIND
+        && entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<Arc<TlsSessionResource>>())
+            .is_some();
     if !is_valid {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",

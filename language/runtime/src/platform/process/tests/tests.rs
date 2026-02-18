@@ -190,11 +190,11 @@ fn vm_path_from_utf8(
             capacity: 0,
             _marker: std::marker::PhantomData,
         });
-        return Ok(fs::OsPathVm {
+        Ok(fs::OsPathVm {
             encoding: fs::PathEncoding::Bytes,
             bytes,
             utf16,
-        });
+        })
     }
 
     #[cfg(windows)]
@@ -387,8 +387,7 @@ fn assert_no_permission_denied_in_privileged_mode(
 
     if is_permission_denied_code(observed) {
         panic!(
-            "permission-denied error {:?} is not allowed when DESTACK_TEST_PRIVILEGED=1 (expected one of {:?})",
-            observed, expected,
+            "permission-denied error {observed:?} is not allowed when DESTACK_TEST_PRIVILEGED=1 (expected one of {expected:?})",
         );
     }
 }
@@ -468,10 +467,7 @@ pub(crate) fn syscall_groups() -> RuntimeResult<Vec<GroupId>> {
         return Err(unix_io_error("failed to read supplementary groups"));
     }
 
-    Ok(groups
-        .into_iter()
-        .map(|group| GroupId(group as u32))
-        .collect::<Vec<_>>())
+    Ok(groups.into_iter().map(GroupId).collect::<Vec<_>>())
 }
 
 /// Read user ids through direct unix syscalls.
@@ -615,10 +611,10 @@ pub(crate) fn fork_child_sleep_then_exit(seconds: u32, code: i32) -> RuntimeResu
 pub(crate) fn shell_exit_command(code: i32) -> (String, Vec<String>) {
     #[cfg(unix)]
     {
-        return (
+        (
             "/bin/sh".to_string(),
             vec!["-c".to_string(), format!("exit {code}")],
-        );
+        )
     }
 
     #[cfg(windows)]
@@ -635,10 +631,10 @@ pub(crate) fn shell_exit_command(code: i32) -> (String, Vec<String>) {
 pub(crate) fn shell_sleep_then_exit_command(seconds: u32, code: i32) -> (String, Vec<String>) {
     #[cfg(unix)]
     {
-        return (
+        (
             "/bin/sh".to_string(),
             vec!["-c".to_string(), format!("sleep {seconds}; exit {code}")],
-        );
+        )
     }
 
     #[cfg(windows)]

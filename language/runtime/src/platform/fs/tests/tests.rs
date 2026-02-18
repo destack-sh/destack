@@ -218,8 +218,7 @@ fn assert_no_permission_denied_in_privileged_mode(
 
     if is_permission_denied_code(observed) {
         panic!(
-            "permission-denied error {:?} is not allowed when DESTACK_TEST_PRIVILEGED=1 (expected one of {:?})",
-            observed, expected,
+            "permission-denied error {observed:?} is not allowed when DESTACK_TEST_PRIVILEGED=1 (expected one of {expected:?})",
         );
     }
 }

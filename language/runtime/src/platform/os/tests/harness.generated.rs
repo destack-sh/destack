@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(clippy::type_complexity)]
 
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -38,8 +39,8 @@ impl<'call> OsHarnessContext<'call> {
     /// Identity fields are sourced from host kernel and runtime normalization rules.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses uname and hostname APIs on Unix, version and hostname APIs on Windows, and wasi host metadata.
+    /// Unix and Windows.
+    /// Uses uname and hostname APIs on Unix and version and hostname APIs on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -144,8 +145,8 @@ impl<'call> OsHarnessContext<'call> {
     /// Topology and capacity fields are sampled from host APIs at call time.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses sysconf/sysinfo-style APIs on Unix, GlobalMemoryStatusEx and processor APIs on Windows, and wasi sysinfo support.
+    /// Unix and Windows.
+    /// Uses sysconf/sysinfo-style APIs on Unix and GlobalMemoryStatusEx plus processor APIs on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -180,8 +181,8 @@ impl<'call> OsHarnessContext<'call> {
     /// Uptime source follows host monotonic uptime facilities.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses clock_gettime style uptime on Unix, GetTickCount64 style uptime on Windows, and wasi clocks when available.
+    /// Unix and Windows.
+    /// Uses clock_gettime style uptime on Unix and GetTickCount64 style uptime on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.

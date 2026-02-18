@@ -34,7 +34,7 @@ pub(crate) fn destack_ffi_call(
 ) -> RuntimeResult<VmSlice<u8>> {
     let _ = (symbol, abi, flags, arguments, resultsize);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.ffi.call.call is not available in the VM yet",
+        "destack.ffi.call.invoke is not available in the VM yet",
     ))
     .boxed())
 }

@@ -27,8 +27,106 @@ pub enum ResourceKind {
     Listener,
     /// Timer handle resources.
     Timer,
+    /// Timer fd-style resources.
+    TimerFd,
+    /// File watch resources.
+    Watch,
     /// Process handle resources.
     Process,
+    /// Poll handle resources.
+    Poll,
+    /// Completion queue resources.
+    Completion,
+    /// User event token resources.
+    Event,
+    /// io_uring ring resources.
+    Uring,
+    /// Process fd-style resources.
+    ProcessFd,
+    /// Shared memory resources.
+    SharedMemory,
+    /// Semaphore resources.
+    Semaphore,
+    /// Signal subscription resources.
+    Signal,
+    /// Signal fd-style queue resources.
+    SignalFd,
+    /// Thread-domain resources.
+    Thread,
+    /// Mutex resources.
+    Mutex,
+    /// Read-write lock resources.
+    RwLock,
+    /// Condition variable resources.
+    CondVar,
+    /// Thread semaphore resources.
+    ThreadSemaphore,
+    /// Barrier resources.
+    Barrier,
+    /// Thread local key resources.
+    ThreadLocal,
+    /// Dynamic library resources.
+    Library,
+    /// Symbol resources.
+    Symbol,
+    /// Crypto store resources.
+    CryptoStore,
+    /// Crypto key resources.
+    CryptoKey,
+    /// Crypto certificate resources.
+    CryptoCertificate,
+    /// TLS context resources.
+    TlsContext,
+    /// TLS session resources.
+    TlsSession,
+    /// Device endpoint resources.
+    Device,
+    /// Pty resources.
+    Pty,
+    /// Tty resources.
+    Tty,
+    /// Sandbox resources.
+    Sandbox,
+    /// Inspector resources.
+    Inspector,
+    /// Profile resources.
+    Profile,
+    /// Trace resources.
+    Trace,
+    /// IPC transferred-handle resources.
+    Transferred,
+    /// Message queue resources.
+    MessageQueue,
+    /// Audio device resources.
+    AudioDevice,
+    /// Audio stream resources.
+    AudioStream,
+    /// Display resources.
+    Display,
+    /// Window resources.
+    Window,
+    /// Input device handle resources.
+    Input,
+    /// GPU adapter resources.
+    GpuAdapter,
+    /// GPU device resources.
+    GpuDevice,
+    /// GPU queue resources.
+    GpuQueue,
+    /// GPU command list resources.
+    GpuCommandList,
+    /// GPU memory resources.
+    GpuMemory,
+    /// GPU buffer resources.
+    GpuBuffer,
+    /// GPU texture resources.
+    GpuTexture,
+    /// GPU sampler resources.
+    GpuSampler,
+    /// GPU shader resources.
+    GpuShader,
+    /// GPU pipeline resources.
+    GpuPipeline,
     /// Unknown resource kind.
     Unknown,
 }

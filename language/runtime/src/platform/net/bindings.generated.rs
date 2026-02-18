@@ -197,32 +197,6 @@ fn decode_array<T>(
     VmArray::<T>::from_value(context, value, name, expected)
 }
 
-/// Decode arguments for destack.net.accept.
-#[inline]
-fn decode_destack_net_accept_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::ListenerHandle, AcceptFlags)> {
-    let listener_value = arg_value(args, 0, "listener", "ListenerHandle")?;
-    let listener_inner_inner =
-        decode_uint64(listener_value, "listener_inner_inner", "ListenerHandle")?;
-    let listener_inner = resource::ResourceId(listener_inner_inner);
-    let listener = resource::ListenerHandle(listener_inner);
-    let flags_value = arg_value(args, 1, "flags", "AcceptFlags")?;
-    let flags_inner = decode_uint32(flags_value, "flags_inner", "AcceptFlags")?;
-    let flags = AcceptFlags(flags_inner);
-    Ok((listener, flags))
-}
-
-/// Encode the result for destack.net.accept.
-#[inline]
-fn encode_destack_net_accept_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<resource::SocketHandle>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
-}
-
 /// Decode arguments for destack.net.address.localAddress.
 #[inline]
 fn decode_destack_net_address_local_address_args(
@@ -277,148 +251,44 @@ fn encode_destack_net_address_peer_address_result(
     })
 }
 
-/// Decode arguments for destack.net.bind.
+/// Decode arguments for destack.net.interface.interfaceIndex.
 #[inline]
-fn decode_destack_net_bind_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::SocketHandle, SocketAddressVm)> {
-    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::SocketHandle(handle_inner);
-    let address_value = arg_value(args, 1, "address", "SocketAddress")?;
-    let address = {
-        if address_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "address",
-                "SocketAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(address_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "address",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let address_family = decode_uint16(slots[0], "address_family", "family")?;
-        let address_length = decode_uint32(slots[1], "address_length", "length")?;
-        let address_bytes = decode_array::<u8>(context, slots[2], "address_bytes", "bytes")?;
-        SocketAddressVm {
-            family: address_family,
-            length: address_length,
-            bytes: address_bytes,
-        }
-    };
-    Ok((handle, address))
-}
-
-/// Encode the result for destack.net.bind.
-#[inline]
-fn encode_destack_net_bind_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.net.close.
-#[inline]
-fn decode_destack_net_close_args(
+fn decode_destack_net_interface_interface_index_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::SocketHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::SocketHandle(handle_inner);
-    Ok((handle,))
+) -> RuntimeResult<(vm::StringHandle,)> {
+    let name_value = arg_value(args, 0, "name", "string")?;
+    let name = decode_string(name_value, "name", "string")?;
+    Ok((name,))
 }
 
-/// Encode the result for destack.net.close.
+/// Encode the result for destack.net.interface.interfaceIndex.
 #[inline]
-fn encode_destack_net_close_result(
+fn encode_destack_net_interface_interface_index_result(
     _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
+    result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
-/// Decode arguments for destack.net.closeListener.
+/// Decode arguments for destack.net.interface.interfaceName.
 #[inline]
-fn decode_destack_net_close_listener_args(
+fn decode_destack_net_interface_interface_name_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::ListenerHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "ListenerHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ListenerHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::ListenerHandle(handle_inner);
-    Ok((handle,))
+) -> RuntimeResult<(u32,)> {
+    let index_value = arg_value(args, 0, "index", "uint32")?;
+    let index = decode_uint32(index_value, "index", "uint32")?;
+    Ok((index,))
 }
 
-/// Encode the result for destack.net.closeListener.
+/// Encode the result for destack.net.interface.interfaceName.
 #[inline]
-fn encode_destack_net_close_listener_result(
+fn encode_destack_net_interface_interface_name_result(
     _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
+    result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.net.connect.
-#[inline]
-fn decode_destack_net_connect_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::SocketHandle, SocketAddressVm)> {
-    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::SocketHandle(handle_inner);
-    let address_value = arg_value(args, 1, "address", "SocketAddress")?;
-    let address = {
-        if address_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "address",
-                "SocketAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(address_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "address",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let address_family = decode_uint16(slots[0], "address_family", "family")?;
-        let address_length = decode_uint32(slots[1], "address_length", "length")?;
-        let address_bytes = decode_array::<u8>(context, slots[2], "address_bytes", "bytes")?;
-        SocketAddressVm {
-            family: address_family,
-            length: address_length,
-            bytes: address_bytes,
-        }
-    };
-    Ok((handle, address))
-}
-
-/// Encode the result for destack.net.connect.
-#[inline]
-fn encode_destack_net_connect_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
+    result.map(|value| value.value())
 }
 
 /// Encode the result for destack.net.interface.listInterfaces.
@@ -430,49 +300,107 @@ fn encode_destack_net_interface_list_interfaces_result(
     result.map(|value| value.to_value(context))
 }
 
-/// Decode arguments for destack.net.interfaceIndex.
+/// Decode arguments for destack.net.listener.accept.
 #[inline]
-fn decode_destack_net_interface_index_args(
+fn decode_destack_net_listener_accept_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle,)> {
-    let name_value = arg_value(args, 0, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
-    Ok((name,))
+) -> RuntimeResult<(resource::ListenerHandle, AcceptFlags)> {
+    let listener_value = arg_value(args, 0, "listener", "ListenerHandle")?;
+    let listener_inner_inner =
+        decode_uint64(listener_value, "listener_inner_inner", "ListenerHandle")?;
+    let listener_inner = resource::ResourceId(listener_inner_inner);
+    let listener = resource::ListenerHandle(listener_inner);
+    let flags_value = arg_value(args, 1, "flags", "AcceptFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "AcceptFlags")?;
+    let flags = AcceptFlags(flags_inner);
+    Ok((listener, flags))
 }
 
-/// Encode the result for destack.net.interfaceIndex.
+/// Encode the result for destack.net.listener.accept.
 #[inline]
-fn encode_destack_net_interface_index_result(
+fn encode_destack_net_listener_accept_result(
     _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<u32>,
+    result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u64, 32))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.net.interfaceName.
+/// Decode arguments for destack.net.listener.bind.
 #[inline]
-fn decode_destack_net_interface_name_args(
+fn decode_destack_net_listener_bind_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::SocketHandle, SocketAddressVm)> {
+    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SocketHandle(handle_inner);
+    let address_value = arg_value(args, 1, "address", "SocketAddress")?;
+    let address = {
+        if address_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "address",
+                "SocketAddress",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(address_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "address",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let address_family = decode_uint16(slots[0], "address_family", "family")?;
+        let address_length = decode_uint32(slots[1], "address_length", "length")?;
+        let address_bytes = decode_array::<u8>(context, slots[2], "address_bytes", "bytes")?;
+        SocketAddressVm {
+            family: address_family,
+            length: address_length,
+            bytes: address_bytes,
+        }
+    };
+    Ok((handle, address))
+}
+
+/// Encode the result for destack.net.listener.bind.
+#[inline]
+fn encode_destack_net_listener_bind_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.net.listener.closeListener.
+#[inline]
+fn decode_destack_net_listener_close_listener_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(u32,)> {
-    let index_value = arg_value(args, 0, "index", "uint32")?;
-    let index = decode_uint32(index_value, "index", "uint32")?;
-    Ok((index,))
+) -> RuntimeResult<(resource::ListenerHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "ListenerHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ListenerHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::ListenerHandle(handle_inner);
+    Ok((handle,))
 }
 
-/// Encode the result for destack.net.interfaceName.
+/// Encode the result for destack.net.listener.closeListener.
 #[inline]
-fn encode_destack_net_interface_name_result(
+fn encode_destack_net_listener_close_listener_result(
     _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<vm::StringHandle>,
+    result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.value())
+    result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.net.listen.
+/// Decode arguments for destack.net.listener.listen.
 #[inline]
-fn decode_destack_net_listen_args(
+fn decode_destack_net_listener_listen_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketAddressVm, u32)> {
@@ -509,9 +437,9 @@ fn decode_destack_net_listen_args(
     Ok((address, backlog))
 }
 
-/// Encode the result for destack.net.listen.
+/// Encode the result for destack.net.listener.listen.
 #[inline]
-fn encode_destack_net_listen_result(
+fn encode_destack_net_listener_listen_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ListenerHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -1642,208 +1570,9 @@ fn encode_destack_net_raw_socket_result(
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.net.read.
+/// Decode arguments for destack.net.resolve.lookup.
 #[inline]
-fn decode_destack_net_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>)> {
-    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::SocketHandle(handle_inner);
-    let buffer_value = arg_value(args, 1, "buffer", "Slice<uint8>")?;
-    let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
-    Ok((handle, buffer))
-}
-
-/// Encode the result for destack.net.read.
-#[inline]
-fn encode_destack_net_read_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<u64>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
-}
-
-/// Decode arguments for destack.net.readv.
-#[inline]
-fn decode_destack_net_readv_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::SocketHandle, VmSlice<VmSlice<u8>>)> {
-    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::SocketHandle(handle_inner);
-    let buffers_value = arg_value(args, 1, "buffers", "Slice<Slice<uint8>>")?;
-    let buffers =
-        decode_slice::<VmSlice<u8>>(context, buffers_value, "buffers", "Slice<Slice<uint8>>")?;
-    Ok((handle, buffers))
-}
-
-/// Encode the result for destack.net.readv.
-#[inline]
-fn encode_destack_net_readv_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<u64>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
-}
-
-/// Decode arguments for destack.net.recvFrom.
-#[inline]
-fn decode_destack_net_recv_from_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>, SocketMessageFlags)> {
-    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::SocketHandle(handle_inner);
-    let buffer_value = arg_value(args, 1, "buffer", "Slice<uint8>")?;
-    let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
-    let recvflags_value = arg_value(args, 2, "recvflags", "SocketMessageFlags")?;
-    let recvflags_inner = decode_uint32(recvflags_value, "recvflags_inner", "SocketMessageFlags")?;
-    let recvflags = SocketMessageFlags(recvflags_inner);
-    Ok((handle, buffer, recvflags))
-}
-
-/// Encode the result for destack.net.recvFrom.
-#[inline]
-fn encode_destack_net_recv_from_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<SocketRecvFromVm>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.bytes, 64);
-        let field_1 = {
-            let field_0 = vm::Value::uint(value.address.family as u64, 16);
-            let field_1 = vm::Value::uint(value.address.length as u64, 32);
-            let field_2 = value.address.bytes.to_value(context);
-            context.allocate_aggregate(vec![field_0, field_1, field_2])
-        };
-        let field_2 = vm::Value::uint(value.recv_flags.0 as u64, 32);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
-    })
-}
-
-/// Decode arguments for destack.net.recvMmsg.
-#[inline]
-fn decode_destack_net_recv_mmsg_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(
-    resource::SocketHandle,
-    VmSlice<SocketRecvBatchRequestVm>,
-    u32,
-    bool,
-    u32,
-)> {
-    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::SocketHandle(handle_inner);
-    let requests_value = arg_value(args, 1, "requests", "Slice<SocketRecvBatchRequest>")?;
-    let requests = decode_slice::<SocketRecvBatchRequestVm>(
-        context,
-        requests_value,
-        "requests",
-        "Slice<SocketRecvBatchRequest>",
-    )?;
-    let maxfds_value = arg_value(args, 2, "maxfds", "uint32")?;
-    let maxfds = decode_uint32(maxfds_value, "maxfds", "uint32")?;
-    let wantcredentials_value = arg_value(args, 3, "wantcredentials", "boolean")?;
-    let wantcredentials = decode_bool(wantcredentials_value, "wantcredentials", "boolean")?;
-    let maxcontrolbytes_value = arg_value(args, 4, "maxcontrolbytes", "uint32")?;
-    let maxcontrolbytes = decode_uint32(maxcontrolbytes_value, "maxcontrolbytes", "uint32")?;
-    Ok((handle, requests, maxfds, wantcredentials, maxcontrolbytes))
-}
-
-/// Encode the result for destack.net.recvMmsg.
-#[inline]
-fn encode_destack_net_recv_mmsg_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<VmArray<SocketRecvMessageVm>>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
-}
-
-/// Decode arguments for destack.net.recvMsg.
-#[inline]
-fn decode_destack_net_recv_msg_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(
-    resource::SocketHandle,
-    VmSlice<u8>,
-    SocketMessageFlags,
-    u32,
-    bool,
-    u32,
-)> {
-    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::SocketHandle(handle_inner);
-    let buffer_value = arg_value(args, 1, "buffer", "Slice<uint8>")?;
-    let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
-    let recvflags_value = arg_value(args, 2, "recvflags", "SocketMessageFlags")?;
-    let recvflags_inner = decode_uint32(recvflags_value, "recvflags_inner", "SocketMessageFlags")?;
-    let recvflags = SocketMessageFlags(recvflags_inner);
-    let maxfds_value = arg_value(args, 3, "maxfds", "uint32")?;
-    let maxfds = decode_uint32(maxfds_value, "maxfds", "uint32")?;
-    let wantcredentials_value = arg_value(args, 4, "wantcredentials", "boolean")?;
-    let wantcredentials = decode_bool(wantcredentials_value, "wantcredentials", "boolean")?;
-    let maxcontrolbytes_value = arg_value(args, 5, "maxcontrolbytes", "uint32")?;
-    let maxcontrolbytes = decode_uint32(maxcontrolbytes_value, "maxcontrolbytes", "uint32")?;
-    Ok((
-        handle,
-        buffer,
-        recvflags,
-        maxfds,
-        wantcredentials,
-        maxcontrolbytes,
-    ))
-}
-
-/// Encode the result for destack.net.recvMsg.
-#[inline]
-fn encode_destack_net_recv_msg_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<SocketRecvMessageVm>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.bytes, 64);
-        let field_1 = vm::Value::bool(value.has_address);
-        let field_2 = {
-            let field_0 = vm::Value::uint(value.address.family as u64, 16);
-            let field_1 = vm::Value::uint(value.address.length as u64, 32);
-            let field_2 = value.address.bytes.to_value(context);
-            context.allocate_aggregate(vec![field_0, field_1, field_2])
-        };
-        let field_3 = vm::Value::uint(value.recv_flags.0 as u64, 32);
-        let field_4 = vm::Value::bool(value.payload_truncated);
-        let field_5 = vm::Value::bool(value.control_truncated);
-        let field_6 = value.control.0.to_value(context);
-        let field_7 = value.fds.to_value(context);
-        let field_8 = vm::Value::bool(value.has_credentials);
-        let field_9 = {
-            let field_0 = vm::Value::uint(value.credentials.pid as u64, 32);
-            let field_1 = vm::Value::uint(value.credentials.uid as u64, 32);
-            let field_2 = vm::Value::uint(value.credentials.gid as u64, 32);
-            context.allocate_aggregate(vec![field_0, field_1, field_2])
-        };
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9,
-        ])
-    })
-}
-
-/// Decode arguments for destack.net.resolve.resolve.
-#[inline]
-fn decode_destack_net_resolve_resolve_args(
+fn decode_destack_net_resolve_lookup_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ResolveQueryVm,)> {
@@ -1897,9 +1626,9 @@ fn decode_destack_net_resolve_resolve_args(
     Ok((query,))
 }
 
-/// Encode the result for destack.net.resolve.resolve.
+/// Encode the result for destack.net.resolve.lookup.
 #[inline]
-fn encode_destack_net_resolve_resolve_result(
+fn encode_destack_net_resolve_lookup_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<SocketAddressVm>>,
 ) -> RuntimeResult<vm::Value> {
@@ -2047,9 +1776,9 @@ fn encode_destack_net_reuse_set_reuse_port_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.net.routeAdd.
+/// Decode arguments for destack.net.route.routeAdd.
 #[inline]
-fn decode_destack_net_route_add_args(
+fn decode_destack_net_route_route_add_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RouteEntryVm,)> {
@@ -2175,18 +1904,18 @@ fn decode_destack_net_route_add_args(
     Ok((route,))
 }
 
-/// Encode the result for destack.net.routeAdd.
+/// Encode the result for destack.net.route.routeAdd.
 #[inline]
-fn encode_destack_net_route_add_result(
+fn encode_destack_net_route_route_add_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.net.routeDelete.
+/// Decode arguments for destack.net.route.routeDelete.
 #[inline]
-fn decode_destack_net_route_delete_args(
+fn decode_destack_net_route_route_delete_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RouteEntryVm,)> {
@@ -2312,18 +2041,18 @@ fn decode_destack_net_route_delete_args(
     Ok((route,))
 }
 
-/// Encode the result for destack.net.routeDelete.
+/// Encode the result for destack.net.route.routeDelete.
 #[inline]
-fn encode_destack_net_route_delete_result(
+fn encode_destack_net_route_route_delete_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.net.routeList.
+/// Decode arguments for destack.net.route.routeList.
 #[inline]
-fn decode_destack_net_route_list_args(
+fn decode_destack_net_route_route_list_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketFamily,)> {
@@ -2344,18 +2073,369 @@ fn decode_destack_net_route_list_args(
     Ok((family,))
 }
 
-/// Encode the result for destack.net.routeList.
+/// Encode the result for destack.net.route.routeList.
 #[inline]
-fn encode_destack_net_route_list_result(
+fn encode_destack_net_route_route_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<RouteEntryVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
 }
 
-/// Decode arguments for destack.net.sendMmsg.
+/// Decode arguments for destack.net.socket.close.
 #[inline]
-fn decode_destack_net_send_mmsg_args(
+fn decode_destack_net_socket_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::SocketHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SocketHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.net.socket.close.
+#[inline]
+fn encode_destack_net_socket_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.net.socket.connect.
+#[inline]
+fn decode_destack_net_socket_connect_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::SocketHandle, SocketAddressVm)> {
+    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SocketHandle(handle_inner);
+    let address_value = arg_value(args, 1, "address", "SocketAddress")?;
+    let address = {
+        if address_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "address",
+                "SocketAddress",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(address_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "address",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let address_family = decode_uint16(slots[0], "address_family", "family")?;
+        let address_length = decode_uint32(slots[1], "address_length", "length")?;
+        let address_bytes = decode_array::<u8>(context, slots[2], "address_bytes", "bytes")?;
+        SocketAddressVm {
+            family: address_family,
+            length: address_length,
+            bytes: address_bytes,
+        }
+    };
+    Ok((handle, address))
+}
+
+/// Encode the result for destack.net.socket.connect.
+#[inline]
+fn encode_destack_net_socket_connect_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.net.socket.open.
+#[inline]
+fn decode_destack_net_socket_open_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(SocketFamily, SocketType, SocketProtocol)> {
+    let family_value = arg_value(args, 0, "family", "SocketFamily")?;
+    let family_raw = decode_uint8(family_value, "family_raw", "SocketFamily")?;
+    let family = match family_raw {
+        0u8 => SocketFamily::Unspecified,
+        4u8 => SocketFamily::IPv4,
+        6u8 => SocketFamily::IPv6,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "family",
+                "unknown SocketFamily value",
+            ))
+            .boxed());
+        }
+    };
+    let sockettype_value = arg_value(args, 1, "sockettype", "SocketType")?;
+    let sockettype_inner = decode_uint32(sockettype_value, "sockettype_inner", "SocketType")?;
+    let sockettype = SocketType(sockettype_inner);
+    let protocol_value = arg_value(args, 2, "protocol", "SocketProtocol")?;
+    let protocol_inner = decode_int32(protocol_value, "protocol_inner", "SocketProtocol")?;
+    let protocol = SocketProtocol(protocol_inner);
+    Ok((family, sockettype, protocol))
+}
+
+/// Encode the result for destack.net.socket.open.
+#[inline]
+fn encode_destack_net_socket_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::SocketHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.net.socket.openPair.
+#[inline]
+fn decode_destack_net_socket_open_pair_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(SocketFamily, SocketType, SocketProtocol)> {
+    let family_value = arg_value(args, 0, "family", "SocketFamily")?;
+    let family_raw = decode_uint8(family_value, "family_raw", "SocketFamily")?;
+    let family = match family_raw {
+        0u8 => SocketFamily::Unspecified,
+        4u8 => SocketFamily::IPv4,
+        6u8 => SocketFamily::IPv6,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "family",
+                "unknown SocketFamily value",
+            ))
+            .boxed());
+        }
+    };
+    let sockettype_value = arg_value(args, 1, "sockettype", "SocketType")?;
+    let sockettype_inner = decode_uint32(sockettype_value, "sockettype_inner", "SocketType")?;
+    let sockettype = SocketType(sockettype_inner);
+    let protocol_value = arg_value(args, 2, "protocol", "SocketProtocol")?;
+    let protocol_inner = decode_int32(protocol_value, "protocol_inner", "SocketProtocol")?;
+    let protocol = SocketProtocol(protocol_inner);
+    Ok((family, sockettype, protocol))
+}
+
+/// Encode the result for destack.net.socket.openPair.
+#[inline]
+fn encode_destack_net_socket_open_pair_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<SocketPairVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.first.0.0, 64);
+        let field_1 = vm::Value::uint(value.second.0.0, 64);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
+}
+
+/// Decode arguments for destack.net.socket.read.
+#[inline]
+fn decode_destack_net_socket_read_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>)> {
+    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SocketHandle(handle_inner);
+    let buffer_value = arg_value(args, 1, "buffer", "Slice<uint8>")?;
+    let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
+    Ok((handle, buffer))
+}
+
+/// Encode the result for destack.net.socket.read.
+#[inline]
+fn encode_destack_net_socket_read_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u64>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value, 64))
+}
+
+/// Decode arguments for destack.net.socket.readv.
+#[inline]
+fn decode_destack_net_socket_readv_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::SocketHandle, VmSlice<VmSlice<u8>>)> {
+    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SocketHandle(handle_inner);
+    let buffers_value = arg_value(args, 1, "buffers", "Slice<Slice<uint8>>")?;
+    let buffers =
+        decode_slice::<VmSlice<u8>>(context, buffers_value, "buffers", "Slice<Slice<uint8>>")?;
+    Ok((handle, buffers))
+}
+
+/// Encode the result for destack.net.socket.readv.
+#[inline]
+fn encode_destack_net_socket_readv_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u64>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value, 64))
+}
+
+/// Decode arguments for destack.net.socket.recvFrom.
+#[inline]
+fn decode_destack_net_socket_recv_from_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>, SocketMessageFlags)> {
+    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SocketHandle(handle_inner);
+    let buffer_value = arg_value(args, 1, "buffer", "Slice<uint8>")?;
+    let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
+    let recvflags_value = arg_value(args, 2, "recvflags", "SocketMessageFlags")?;
+    let recvflags_inner = decode_uint32(recvflags_value, "recvflags_inner", "SocketMessageFlags")?;
+    let recvflags = SocketMessageFlags(recvflags_inner);
+    Ok((handle, buffer, recvflags))
+}
+
+/// Encode the result for destack.net.socket.recvFrom.
+#[inline]
+fn encode_destack_net_socket_recv_from_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<SocketRecvFromVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.bytes, 64);
+        let field_1 = {
+            let field_0 = vm::Value::uint(value.address.family as u64, 16);
+            let field_1 = vm::Value::uint(value.address.length as u64, 32);
+            let field_2 = value.address.bytes.to_value(context);
+            context.allocate_aggregate(vec![field_0, field_1, field_2])
+        };
+        let field_2 = vm::Value::uint(value.recv_flags.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    })
+}
+
+/// Decode arguments for destack.net.socket.recvMmsg.
+#[inline]
+fn decode_destack_net_socket_recv_mmsg_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::SocketHandle,
+    VmSlice<SocketRecvBatchRequestVm>,
+    u32,
+    bool,
+    u32,
+)> {
+    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SocketHandle(handle_inner);
+    let requests_value = arg_value(args, 1, "requests", "Slice<SocketRecvBatchRequest>")?;
+    let requests = decode_slice::<SocketRecvBatchRequestVm>(
+        context,
+        requests_value,
+        "requests",
+        "Slice<SocketRecvBatchRequest>",
+    )?;
+    let maxfds_value = arg_value(args, 2, "maxfds", "uint32")?;
+    let maxfds = decode_uint32(maxfds_value, "maxfds", "uint32")?;
+    let wantcredentials_value = arg_value(args, 3, "wantcredentials", "boolean")?;
+    let wantcredentials = decode_bool(wantcredentials_value, "wantcredentials", "boolean")?;
+    let maxcontrolbytes_value = arg_value(args, 4, "maxcontrolbytes", "uint32")?;
+    let maxcontrolbytes = decode_uint32(maxcontrolbytes_value, "maxcontrolbytes", "uint32")?;
+    Ok((handle, requests, maxfds, wantcredentials, maxcontrolbytes))
+}
+
+/// Encode the result for destack.net.socket.recvMmsg.
+#[inline]
+fn encode_destack_net_socket_recv_mmsg_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<SocketRecvMessageVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.net.socket.recvMsg.
+#[inline]
+fn decode_destack_net_socket_recv_msg_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::SocketHandle,
+    VmSlice<u8>,
+    SocketMessageFlags,
+    u32,
+    bool,
+    u32,
+)> {
+    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SocketHandle(handle_inner);
+    let buffer_value = arg_value(args, 1, "buffer", "Slice<uint8>")?;
+    let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
+    let recvflags_value = arg_value(args, 2, "recvflags", "SocketMessageFlags")?;
+    let recvflags_inner = decode_uint32(recvflags_value, "recvflags_inner", "SocketMessageFlags")?;
+    let recvflags = SocketMessageFlags(recvflags_inner);
+    let maxfds_value = arg_value(args, 3, "maxfds", "uint32")?;
+    let maxfds = decode_uint32(maxfds_value, "maxfds", "uint32")?;
+    let wantcredentials_value = arg_value(args, 4, "wantcredentials", "boolean")?;
+    let wantcredentials = decode_bool(wantcredentials_value, "wantcredentials", "boolean")?;
+    let maxcontrolbytes_value = arg_value(args, 5, "maxcontrolbytes", "uint32")?;
+    let maxcontrolbytes = decode_uint32(maxcontrolbytes_value, "maxcontrolbytes", "uint32")?;
+    Ok((
+        handle,
+        buffer,
+        recvflags,
+        maxfds,
+        wantcredentials,
+        maxcontrolbytes,
+    ))
+}
+
+/// Encode the result for destack.net.socket.recvMsg.
+#[inline]
+fn encode_destack_net_socket_recv_msg_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<SocketRecvMessageVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.bytes, 64);
+        let field_1 = vm::Value::bool(value.has_address);
+        let field_2 = {
+            let field_0 = vm::Value::uint(value.address.family as u64, 16);
+            let field_1 = vm::Value::uint(value.address.length as u64, 32);
+            let field_2 = value.address.bytes.to_value(context);
+            context.allocate_aggregate(vec![field_0, field_1, field_2])
+        };
+        let field_3 = vm::Value::uint(value.recv_flags.0 as u64, 32);
+        let field_4 = vm::Value::bool(value.payload_truncated);
+        let field_5 = vm::Value::bool(value.control_truncated);
+        let field_6 = value.control.0.to_value(context);
+        let field_7 = value.fds.to_value(context);
+        let field_8 = vm::Value::bool(value.has_credentials);
+        let field_9 = {
+            let field_0 = vm::Value::uint(value.credentials.pid as u64, 32);
+            let field_1 = vm::Value::uint(value.credentials.uid as u64, 32);
+            let field_2 = vm::Value::uint(value.credentials.gid as u64, 32);
+            context.allocate_aggregate(vec![field_0, field_1, field_2])
+        };
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9,
+        ])
+    })
+}
+
+/// Decode arguments for destack.net.socket.sendMmsg.
+#[inline]
+fn decode_destack_net_socket_send_mmsg_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<SocketSendBatchEntryVm>)> {
@@ -2373,18 +2453,18 @@ fn decode_destack_net_send_mmsg_args(
     Ok((handle, messages))
 }
 
-/// Encode the result for destack.net.sendMmsg.
+/// Encode the result for destack.net.socket.sendMmsg.
 #[inline]
-fn encode_destack_net_send_mmsg_result(
+fn encode_destack_net_socket_send_mmsg_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| vm::Value::uint(value, 64))
 }
 
-/// Decode arguments for destack.net.sendMsg.
+/// Decode arguments for destack.net.socket.sendMsg.
 #[inline]
-fn decode_destack_net_send_msg_args(
+fn decode_destack_net_socket_send_msg_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>, SocketSendMessageVm)> {
@@ -2497,18 +2577,18 @@ fn decode_destack_net_send_msg_args(
     Ok((handle, buffer, message))
 }
 
-/// Encode the result for destack.net.sendMsg.
+/// Encode the result for destack.net.socket.sendMsg.
 #[inline]
-fn encode_destack_net_send_msg_result(
+fn encode_destack_net_socket_send_msg_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| vm::Value::uint(value, 64))
 }
 
-/// Decode arguments for destack.net.sendTo.
+/// Decode arguments for destack.net.socket.sendTo.
 #[inline]
-fn decode_destack_net_send_to_args(
+fn decode_destack_net_socket_send_to_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>, SocketSendToVm)> {
@@ -2577,18 +2657,18 @@ fn decode_destack_net_send_to_args(
     Ok((handle, buffer, message))
 }
 
-/// Encode the result for destack.net.sendTo.
+/// Encode the result for destack.net.socket.sendTo.
 #[inline]
-fn encode_destack_net_send_to_result(
+fn encode_destack_net_socket_send_to_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| vm::Value::uint(value, 64))
 }
 
-/// Decode arguments for destack.net.setNonblocking.
+/// Decode arguments for destack.net.socket.setNonblocking.
 #[inline]
-fn decode_destack_net_set_nonblocking_args(
+fn decode_destack_net_socket_set_nonblocking_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, bool)> {
@@ -2601,18 +2681,18 @@ fn decode_destack_net_set_nonblocking_args(
     Ok((handle, enabled))
 }
 
-/// Encode the result for destack.net.setNonblocking.
+/// Encode the result for destack.net.socket.setNonblocking.
 #[inline]
-fn encode_destack_net_set_nonblocking_result(
+fn encode_destack_net_socket_set_nonblocking_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.net.shutdown.
+/// Decode arguments for destack.net.socket.shutdown.
 #[inline]
-fn decode_destack_net_shutdown_args(
+fn decode_destack_net_socket_shutdown_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, SocketShutdown)> {
@@ -2637,93 +2717,62 @@ fn decode_destack_net_shutdown_args(
     Ok((handle, how))
 }
 
-/// Encode the result for destack.net.shutdown.
+/// Encode the result for destack.net.socket.shutdown.
 #[inline]
-fn encode_destack_net_shutdown_result(
+fn encode_destack_net_socket_shutdown_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.net.socket.
+/// Decode arguments for destack.net.socket.write.
 #[inline]
-fn decode_destack_net_socket_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(SocketFamily, SocketType, SocketProtocol)> {
-    let family_value = arg_value(args, 0, "family", "SocketFamily")?;
-    let family_raw = decode_uint8(family_value, "family_raw", "SocketFamily")?;
-    let family = match family_raw {
-        0u8 => SocketFamily::Unspecified,
-        4u8 => SocketFamily::IPv4,
-        6u8 => SocketFamily::IPv6,
-        _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "family",
-                "unknown SocketFamily value",
-            ))
-            .boxed());
-        }
-    };
-    let sockettype_value = arg_value(args, 1, "sockettype", "SocketType")?;
-    let sockettype_inner = decode_uint32(sockettype_value, "sockettype_inner", "SocketType")?;
-    let sockettype = SocketType(sockettype_inner);
-    let protocol_value = arg_value(args, 2, "protocol", "SocketProtocol")?;
-    let protocol_inner = decode_int32(protocol_value, "protocol_inner", "SocketProtocol")?;
-    let protocol = SocketProtocol(protocol_inner);
-    Ok((family, sockettype, protocol))
-}
-
-/// Encode the result for destack.net.socket.
-#[inline]
-fn encode_destack_net_socket_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<resource::SocketHandle>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
-}
-
-/// Decode arguments for destack.net.socketPair.
-#[inline]
-fn decode_destack_net_socket_pair_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(SocketFamily, SocketType, SocketProtocol)> {
-    let family_value = arg_value(args, 0, "family", "SocketFamily")?;
-    let family_raw = decode_uint8(family_value, "family_raw", "SocketFamily")?;
-    let family = match family_raw {
-        0u8 => SocketFamily::Unspecified,
-        4u8 => SocketFamily::IPv4,
-        6u8 => SocketFamily::IPv6,
-        _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "family",
-                "unknown SocketFamily value",
-            ))
-            .boxed());
-        }
-    };
-    let sockettype_value = arg_value(args, 1, "sockettype", "SocketType")?;
-    let sockettype_inner = decode_uint32(sockettype_value, "sockettype_inner", "SocketType")?;
-    let sockettype = SocketType(sockettype_inner);
-    let protocol_value = arg_value(args, 2, "protocol", "SocketProtocol")?;
-    let protocol_inner = decode_int32(protocol_value, "protocol_inner", "SocketProtocol")?;
-    let protocol = SocketProtocol(protocol_inner);
-    Ok((family, sockettype, protocol))
-}
-
-/// Encode the result for destack.net.socketPair.
-#[inline]
-fn encode_destack_net_socket_pair_result(
+fn decode_destack_net_socket_write_args(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<SocketPairVm>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>)> {
+    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SocketHandle(handle_inner);
+    let buffer_value = arg_value(args, 1, "buffer", "Slice<uint8>")?;
+    let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
+    Ok((handle, buffer))
+}
+
+/// Encode the result for destack.net.socket.write.
+#[inline]
+fn encode_destack_net_socket_write_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.first.0.0, 64);
-        let field_1 = vm::Value::uint(value.second.0.0, 64);
-        context.allocate_aggregate(vec![field_0, field_1])
-    })
+    result.map(|value| vm::Value::uint(value, 64))
+}
+
+/// Decode arguments for destack.net.socket.writev.
+#[inline]
+fn decode_destack_net_socket_writev_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::SocketHandle, VmSlice<VmSlice<u8>>)> {
+    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::SocketHandle(handle_inner);
+    let buffers_value = arg_value(args, 1, "buffers", "Slice<Slice<uint8>>")?;
+    let buffers =
+        decode_slice::<VmSlice<u8>>(context, buffers_value, "buffers", "Slice<Slice<uint8>>")?;
+    Ok((handle, buffers))
+}
+
+/// Encode the result for destack.net.socket.writev.
+#[inline]
+fn encode_destack_net_socket_writev_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u64>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.net.tcp.getKeepAlive.
@@ -3574,9 +3623,9 @@ fn encode_destack_net_udp_socket_result(
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.net.udsAccept.
+/// Decode arguments for destack.net.uds.udsAccept.
 #[inline]
-fn decode_destack_net_uds_accept_args(
+fn decode_destack_net_uds_uds_accept_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ListenerHandle,)> {
@@ -3588,18 +3637,18 @@ fn decode_destack_net_uds_accept_args(
     Ok((listener,))
 }
 
-/// Encode the result for destack.net.udsAccept.
+/// Encode the result for destack.net.uds.udsAccept.
 #[inline]
-fn encode_destack_net_uds_accept_result(
+fn encode_destack_net_uds_uds_accept_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.net.udsCloseListener.
+/// Decode arguments for destack.net.uds.udsCloseListener.
 #[inline]
-fn decode_destack_net_uds_close_listener_args(
+fn decode_destack_net_uds_uds_close_listener_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ListenerHandle,)> {
@@ -3610,18 +3659,18 @@ fn decode_destack_net_uds_close_listener_args(
     Ok((handle,))
 }
 
-/// Encode the result for destack.net.udsCloseListener.
+/// Encode the result for destack.net.uds.udsCloseListener.
 #[inline]
-fn encode_destack_net_uds_close_listener_result(
+fn encode_destack_net_uds_uds_close_listener_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.net.udsConnect.
+/// Decode arguments for destack.net.uds.udsConnect.
 #[inline]
-fn decode_destack_net_uds_connect_args(
+fn decode_destack_net_uds_uds_connect_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(UdsAddressVm,)> {
@@ -3713,18 +3762,18 @@ fn decode_destack_net_uds_connect_args(
     Ok((address,))
 }
 
-/// Encode the result for destack.net.udsConnect.
+/// Encode the result for destack.net.uds.udsConnect.
 #[inline]
-fn encode_destack_net_uds_connect_result(
+fn encode_destack_net_uds_uds_connect_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.net.udsListen.
+/// Decode arguments for destack.net.uds.udsListen.
 #[inline]
-fn decode_destack_net_uds_listen_args(
+fn decode_destack_net_uds_uds_listen_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(UdsAddressVm, u32)> {
@@ -3818,18 +3867,18 @@ fn decode_destack_net_uds_listen_args(
     Ok((address, backlog))
 }
 
-/// Encode the result for destack.net.udsListen.
+/// Encode the result for destack.net.uds.udsListen.
 #[inline]
-fn encode_destack_net_uds_listen_result(
+fn encode_destack_net_uds_uds_listen_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ListenerHandle>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.net.udsSocketPair.
+/// Decode arguments for destack.net.uds.udsSocketPair.
 #[inline]
-fn decode_destack_net_uds_socket_pair_args(
+fn decode_destack_net_uds_uds_socket_pair_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketType,)> {
@@ -3839,9 +3888,9 @@ fn decode_destack_net_uds_socket_pair_args(
     Ok((sockettype,))
 }
 
-/// Encode the result for destack.net.udsSocketPair.
+/// Encode the result for destack.net.uds.udsSocketPair.
 #[inline]
-fn encode_destack_net_uds_socket_pair_result(
+fn encode_destack_net_uds_uds_socket_pair_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketPairVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -3850,62 +3899,6 @@ fn encode_destack_net_uds_socket_pair_result(
         let field_1 = vm::Value::uint(value.second.0.0, 64);
         context.allocate_aggregate(vec![field_0, field_1])
     })
-}
-
-/// Decode arguments for destack.net.write.
-#[inline]
-fn decode_destack_net_write_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>)> {
-    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::SocketHandle(handle_inner);
-    let buffer_value = arg_value(args, 1, "buffer", "Slice<uint8>")?;
-    let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
-    Ok((handle, buffer))
-}
-
-/// Encode the result for destack.net.write.
-#[inline]
-fn encode_destack_net_write_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<u64>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
-}
-
-/// Decode arguments for destack.net.writev.
-#[inline]
-fn decode_destack_net_writev_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::SocketHandle, VmSlice<VmSlice<u8>>)> {
-    let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::SocketHandle(handle_inner);
-    let buffers_value = arg_value(args, 1, "buffers", "Slice<Slice<uint8>>")?;
-    let buffers =
-        decode_slice::<VmSlice<u8>>(context, buffers_value, "buffers", "Slice<Slice<uint8>>")?;
-    Ok((handle, buffers))
-}
-
-/// Encode the result for destack.net.writev.
-#[inline]
-fn encode_destack_net_writev_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<u64>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
-}
-
-/// Replay payload for destack.net.accept.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetAcceptReplay {
-    /// Replay result payload.
-    pub result: Result<resource::SocketHandle, PlatformError>,
 }
 
 /// Replay payload for destack.net.address.localAddress.
@@ -3922,32 +3915,18 @@ struct NetAddressPeerAddressReplay {
     pub result: Result<SocketAddressReplayRecord, PlatformError>,
 }
 
-/// Replay payload for destack.net.bind.
+/// Replay payload for destack.net.interface.interfaceIndex.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetBindReplay {
+struct NetInterfaceInterfaceIndexReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<u32, PlatformError>,
 }
 
-/// Replay payload for destack.net.close.
+/// Replay payload for destack.net.interface.interfaceName.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetCloseReplay {
+struct NetInterfaceInterfaceNameReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
-}
-
-/// Replay payload for destack.net.closeListener.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetCloseListenerReplay {
-    /// Replay result payload.
-    pub result: Result<(), PlatformError>,
-}
-
-/// Replay payload for destack.net.connect.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetConnectReplay {
-    /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<String, PlatformError>,
 }
 
 /// Replay payload for destack.net.interface.listInterfaces.
@@ -3957,23 +3936,30 @@ struct NetInterfaceListInterfacesReplay {
     pub result: Result<Vec<NetInterfaceReplayRecord>, PlatformError>,
 }
 
-/// Replay payload for destack.net.interfaceIndex.
+/// Replay payload for destack.net.listener.accept.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetInterfaceIndexReplay {
+struct NetListenerAcceptReplay {
     /// Replay result payload.
-    pub result: Result<u32, PlatformError>,
+    pub result: Result<resource::SocketHandle, PlatformError>,
 }
 
-/// Replay payload for destack.net.interfaceName.
+/// Replay payload for destack.net.listener.bind.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetInterfaceNameReplay {
+struct NetListenerBindReplay {
     /// Replay result payload.
-    pub result: Result<String, PlatformError>,
+    pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.net.listen.
+/// Replay payload for destack.net.listener.closeListener.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetListenReplay {
+struct NetListenerCloseListenerReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.net.listener.listen.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct NetListenerListenReplay {
     /// Replay result payload.
     pub result: Result<resource::ListenerHandle, PlatformError>,
 }
@@ -4244,44 +4230,9 @@ struct NetRawSocketReplay {
     pub result: Result<resource::SocketHandle, PlatformError>,
 }
 
-/// Replay payload for destack.net.read.
+/// Replay payload for destack.net.resolve.lookup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetReadReplay {
-    /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
-}
-
-/// Replay payload for destack.net.readv.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetReadvReplay {
-    /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
-}
-
-/// Replay payload for destack.net.recvFrom.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetRecvFromReplay {
-    /// Replay result payload.
-    pub result: Result<SocketRecvFromReplayRecord, PlatformError>,
-}
-
-/// Replay payload for destack.net.recvMmsg.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetRecvMmsgReplay {
-    /// Replay result payload.
-    pub result: Result<Vec<SocketRecvMessageReplayRecord>, PlatformError>,
-}
-
-/// Replay payload for destack.net.recvMsg.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetRecvMsgReplay {
-    /// Replay result payload.
-    pub result: Result<SocketRecvMessageReplayRecord, PlatformError>,
-}
-
-/// Replay payload for destack.net.resolve.resolve.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetResolveResolveReplay {
+struct NetResolveLookupReplay {
     /// Replay result payload.
     pub result: Result<Vec<SocketAddressReplayRecord>, PlatformError>,
 }
@@ -4321,74 +4272,137 @@ struct NetReuseSetReusePortReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.net.routeAdd.
+/// Replay payload for destack.net.route.routeAdd.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetRouteAddReplay {
+struct NetRouteRouteAddReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.net.routeDelete.
+/// Replay payload for destack.net.route.routeDelete.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetRouteDeleteReplay {
+struct NetRouteRouteDeleteReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.net.routeList.
+/// Replay payload for destack.net.route.routeList.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetRouteListReplay {
+struct NetRouteRouteListReplay {
     /// Replay result payload.
     pub result: Result<Vec<RouteEntryReplayRecord>, PlatformError>,
 }
 
-/// Replay payload for destack.net.sendMmsg.
+/// Replay payload for destack.net.socket.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetSendMmsgReplay {
-    /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
-}
-
-/// Replay payload for destack.net.sendMsg.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetSendMsgReplay {
-    /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
-}
-
-/// Replay payload for destack.net.sendTo.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetSendToReplay {
-    /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
-}
-
-/// Replay payload for destack.net.setNonblocking.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetSetNonblockingReplay {
+struct NetSocketCloseReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.net.shutdown.
+/// Replay payload for destack.net.socket.connect.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetShutdownReplay {
+struct NetSocketConnectReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.net.socket.
+/// Replay payload for destack.net.socket.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetSocketReplay {
+struct NetSocketOpenReplay {
     /// Replay result payload.
     pub result: Result<resource::SocketHandle, PlatformError>,
 }
 
-/// Replay payload for destack.net.socketPair.
+/// Replay payload for destack.net.socket.openPair.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetSocketPairReplay {
+struct NetSocketOpenPairReplay {
     /// Replay result payload.
     pub result: Result<SocketPair, PlatformError>,
+}
+
+/// Replay payload for destack.net.socket.read.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct NetSocketReadReplay {
+    /// Replay result payload.
+    pub result: Result<u64, PlatformError>,
+}
+
+/// Replay payload for destack.net.socket.readv.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct NetSocketReadvReplay {
+    /// Replay result payload.
+    pub result: Result<u64, PlatformError>,
+}
+
+/// Replay payload for destack.net.socket.recvFrom.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct NetSocketRecvFromReplay {
+    /// Replay result payload.
+    pub result: Result<SocketRecvFromReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.net.socket.recvMmsg.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct NetSocketRecvMmsgReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<SocketRecvMessageReplayRecord>, PlatformError>,
+}
+
+/// Replay payload for destack.net.socket.recvMsg.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct NetSocketRecvMsgReplay {
+    /// Replay result payload.
+    pub result: Result<SocketRecvMessageReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.net.socket.sendMmsg.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct NetSocketSendMmsgReplay {
+    /// Replay result payload.
+    pub result: Result<u64, PlatformError>,
+}
+
+/// Replay payload for destack.net.socket.sendMsg.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct NetSocketSendMsgReplay {
+    /// Replay result payload.
+    pub result: Result<u64, PlatformError>,
+}
+
+/// Replay payload for destack.net.socket.sendTo.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct NetSocketSendToReplay {
+    /// Replay result payload.
+    pub result: Result<u64, PlatformError>,
+}
+
+/// Replay payload for destack.net.socket.setNonblocking.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct NetSocketSetNonblockingReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.net.socket.shutdown.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct NetSocketShutdownReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.net.socket.write.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct NetSocketWriteReplay {
+    /// Replay result payload.
+    pub result: Result<u64, PlatformError>,
+}
+
+/// Replay payload for destack.net.socket.writev.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct NetSocketWritevReplay {
+    /// Replay result payload.
+    pub result: Result<u64, PlatformError>,
 }
 
 /// Replay payload for destack.net.tcp.getKeepAlive.
@@ -4566,66 +4580,40 @@ struct NetUdpSocketReplay {
     pub result: Result<resource::SocketHandle, PlatformError>,
 }
 
-/// Replay payload for destack.net.udsAccept.
+/// Replay payload for destack.net.uds.udsAccept.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetUdsAcceptReplay {
+struct NetUdsUdsAcceptReplay {
     /// Replay result payload.
     pub result: Result<resource::SocketHandle, PlatformError>,
 }
 
-/// Replay payload for destack.net.udsCloseListener.
+/// Replay payload for destack.net.uds.udsCloseListener.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetUdsCloseListenerReplay {
+struct NetUdsUdsCloseListenerReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.net.udsConnect.
+/// Replay payload for destack.net.uds.udsConnect.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetUdsConnectReplay {
+struct NetUdsUdsConnectReplay {
     /// Replay result payload.
     pub result: Result<resource::SocketHandle, PlatformError>,
 }
 
-/// Replay payload for destack.net.udsListen.
+/// Replay payload for destack.net.uds.udsListen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetUdsListenReplay {
+struct NetUdsUdsListenReplay {
     /// Replay result payload.
     pub result: Result<resource::ListenerHandle, PlatformError>,
 }
 
-/// Replay payload for destack.net.udsSocketPair.
+/// Replay payload for destack.net.uds.udsSocketPair.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetUdsSocketPairReplay {
+struct NetUdsUdsSocketPairReplay {
     /// Replay result payload.
     pub result: Result<SocketPair, PlatformError>,
 }
-
-/// Replay payload for destack.net.write.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetWriteReplay {
-    /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
-}
-
-/// Replay payload for destack.net.writev.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct NetWritevReplay {
-    /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
-}
-
-/// Binding descriptor for destack.net.accept.
-pub const NET_ACCEPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.accept",
-    "export function accept(listener: ListenerHandle, flags: AcceptFlags): Result<SocketHandle, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["net.accept"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.address.localAddress.
 pub const NET_ADDRESS_LOCAL_ADDRESS: BindingDescriptor =
@@ -4679,51 +4667,14 @@ pub const NET_ADDRESS_PEER_ADDRESS: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.net.bind.
-pub const NET_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.bind",
-    "export function bind(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["net.listen"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.net.close.
-pub const NET_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.close",
-    "export function close(handle: SocketHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["net.close"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-.with_host_platforms(&[
-    "android",
-    "dragonfly",
-    "freebsd",
-    "haiku",
-    "illumos",
-    "ios",
-    "linux",
-    "macos",
-    "netbsd",
-    "openbsd",
-    "solaris",
-    "windows",
-]);
-
-/// Binding descriptor for destack.net.closeListener.
-pub const NET_CLOSE_LISTENER: BindingDescriptor =
+/// Binding descriptor for destack.net.interface.interfaceIndex.
+pub const NET_INTERFACE_INTERFACE_INDEX: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.closeListener",
-        "export function closeListener(handle: ListenerHandle): Result<void, PlatformError>",
+        "destack.net.interface.interfaceIndex",
+        "export function interfaceIndex(name: string): Result<uint32, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
-        &["net.close"],
+        &["net.interface"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
     )
@@ -4742,17 +4693,31 @@ pub const NET_CLOSE_LISTENER: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.net.connect.
-pub const NET_CONNECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.connect",
-    "export function connect(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["net.connect"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+/// Binding descriptor for destack.net.interface.interfaceName.
+pub const NET_INTERFACE_INTERFACE_NAME: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.net.interface.interfaceName",
+        "export function interfaceName(index: uint32): Result<string, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["net.interface"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.interface.listInterfaces.
 pub const NET_INTERFACE_LIST_INTERFACES: BindingDescriptor =
@@ -4780,14 +4745,38 @@ pub const NET_INTERFACE_LIST_INTERFACES: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.net.interfaceIndex.
-pub const NET_INTERFACE_INDEX: BindingDescriptor =
+/// Binding descriptor for destack.net.listener.accept.
+pub const NET_LISTENER_ACCEPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.listener.accept",
+    "export function accept(listener: ListenerHandle, flags: AcceptFlags): Result<SocketHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.accept"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.net.listener.bind.
+pub const NET_LISTENER_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.listener.bind",
+    "export function bind(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.listen"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.net.listener.closeListener.
+pub const NET_LISTENER_CLOSE_LISTENER: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.interfaceIndex",
-        "export function interfaceIndex(name: string): Result<uint32, PlatformError>",
+        "destack.net.listener.closeListener",
+        "export function closeListener(handle: ListenerHandle): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
-        &["net.interface"],
+        &["net.close"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
     )
@@ -4806,35 +4795,9 @@ pub const NET_INTERFACE_INDEX: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.net.interfaceName.
-pub const NET_INTERFACE_NAME: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.interfaceName",
-        "export function interfaceName(index: uint32): Result<string, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.interface"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    )
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
-/// Binding descriptor for destack.net.listen.
-pub const NET_LISTEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.listen",
+/// Binding descriptor for destack.net.listener.listen.
+pub const NET_LISTENER_LISTEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.listener.listen",
     "export function listen(address: SocketAddress, backlog: uint32): Result<ListenerHandle, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -5479,70 +5442,10 @@ pub const NET_RAW_SOCKET: BindingDescriptor = BindingDescriptor::external_with_r
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.net.read.
-pub const NET_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.read",
-    "export function read(handle: SocketHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["net.connect"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.net.readv.
-pub const NET_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.readv",
-    "export function readv(handle: SocketHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["net.connect"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.net.recvFrom.
-pub const NET_RECV_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.recvFrom",
-    "export function recvFrom(handle: SocketHandle, buffer: Slice<uint8>, recvFlags: SocketMessageFlags): Result<SocketRecvFrom, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["net.udp"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.net.recvMmsg.
-pub const NET_RECV_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.recvMmsg",
-    "export function recvMmsg(handle: SocketHandle, requests: Slice<SocketRecvBatchRequest>, maxFds: uint32, wantCredentials: boolean, maxControlBytes: uint32): Result<SocketRecvMessage[], PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["net.udp"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.net.recvMsg.
-pub const NET_RECV_MSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.recvMsg",
-    "export function recvMsg(handle: SocketHandle, buffer: Slice<uint8>, recvFlags: SocketMessageFlags, maxFds: uint32, wantCredentials: boolean, maxControlBytes: uint32): Result<SocketRecvMessage, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["net.control"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.net.resolve.resolve.
-pub const NET_RESOLVE_RESOLVE: BindingDescriptor =
+/// Binding descriptor for destack.net.resolve.lookup.
+pub const NET_RESOLVE_LOOKUP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.resolve.resolve",
+        "destack.net.resolve.lookup",
         "export function resolve(query: ResolveQuery): Result<SocketAddress[], PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -5652,10 +5555,10 @@ pub const NET_REUSE_SET_REUSE_PORT: BindingDescriptor = BindingDescriptor::exter
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
-/// Binding descriptor for destack.net.routeAdd.
-pub const NET_ROUTE_ADD: BindingDescriptor =
+/// Binding descriptor for destack.net.route.routeAdd.
+pub const NET_ROUTE_ROUTE_ADD: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.routeAdd",
+        "destack.net.route.routeAdd",
         "export function routeAdd(route: RouteEntry): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -5672,10 +5575,10 @@ pub const NET_ROUTE_ADD: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.net.routeDelete.
-pub const NET_ROUTE_DELETE: BindingDescriptor =
+/// Binding descriptor for destack.net.route.routeDelete.
+pub const NET_ROUTE_ROUTE_DELETE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.routeDelete",
+        "destack.net.route.routeDelete",
         "export function routeDelete(route: RouteEntry): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -5692,10 +5595,10 @@ pub const NET_ROUTE_DELETE: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.net.routeList.
-pub const NET_ROUTE_LIST: BindingDescriptor =
+/// Binding descriptor for destack.net.route.routeList.
+pub const NET_ROUTE_ROUTE_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.routeList",
+        "destack.net.route.routeList",
         "export function routeList(family: SocketFamily): Result<RouteEntry[], PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -5712,69 +5615,47 @@ pub const NET_ROUTE_LIST: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.net.sendMmsg.
-pub const NET_SEND_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.sendMmsg",
-    "export function sendMmsg(handle: SocketHandle, messages: Slice<SocketSendBatchEntry>): Result<uint64, PlatformError>",
+/// Binding descriptor for destack.net.socket.close.
+pub const NET_SOCKET_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.net.socket.close",
+        "export function close(handle: SocketHandle): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["net.close"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.net.socket.connect.
+pub const NET_SOCKET_CONNECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socket.connect",
+    "export function connect(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["net.udp"],
+    &["net.connect"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.net.sendMsg.
-pub const NET_SEND_MSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.sendMsg",
-    "export function sendMsg(handle: SocketHandle, buffer: Slice<uint8>, message: SocketSendMessage): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["net.control"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.net.sendTo.
-pub const NET_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.sendTo",
-    "export function sendTo(handle: SocketHandle, buffer: Slice<uint8>, message: SocketSendTo): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["net.udp"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.net.setNonblocking.
-pub const NET_SET_NONBLOCKING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.setNonblocking",
-    "export function setNonblocking(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["net.control"],
-    BindingScope::Os,
-    BindingBlocking::Never,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.net.shutdown.
-pub const NET_SHUTDOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.shutdown",
-    "export function shutdown(handle: SocketHandle, how: SocketShutdown): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["net.close"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.net.socket.
-pub const NET_SOCKET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.socket",
+/// Binding descriptor for destack.net.socket.open.
+pub const NET_SOCKET_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socket.open",
     "export function socket(family: SocketFamily, socketType: SocketType, protocol: SocketProtocol): Result<SocketHandle, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -5784,10 +5665,154 @@ pub const NET_SOCKET: BindingDescriptor = BindingDescriptor::external_with_requi
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.net.socketPair.
-pub const NET_SOCKET_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.socketPair",
+/// Binding descriptor for destack.net.socket.openPair.
+pub const NET_SOCKET_OPEN_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socket.openPair",
     "export function socketPair(family: SocketFamily, socketType: SocketType, protocol: SocketProtocol): Result<SocketPair, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.connect"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.net.socket.read.
+pub const NET_SOCKET_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socket.read",
+    "export function read(handle: SocketHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.connect"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.net.socket.readv.
+pub const NET_SOCKET_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socket.readv",
+    "export function readv(handle: SocketHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.connect"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.net.socket.recvFrom.
+pub const NET_SOCKET_RECV_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socket.recvFrom",
+    "export function recvFrom(handle: SocketHandle, buffer: Slice<uint8>, recvFlags: SocketMessageFlags): Result<SocketRecvFrom, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.udp"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.net.socket.recvMmsg.
+pub const NET_SOCKET_RECV_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socket.recvMmsg",
+    "export function recvMmsg(handle: SocketHandle, requests: Slice<SocketRecvBatchRequest>, maxFds: uint32, wantCredentials: boolean, maxControlBytes: uint32): Result<SocketRecvMessage[], PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.udp"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.net.socket.recvMsg.
+pub const NET_SOCKET_RECV_MSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socket.recvMsg",
+    "export function recvMsg(handle: SocketHandle, buffer: Slice<uint8>, recvFlags: SocketMessageFlags, maxFds: uint32, wantCredentials: boolean, maxControlBytes: uint32): Result<SocketRecvMessage, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.net.socket.sendMmsg.
+pub const NET_SOCKET_SEND_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socket.sendMmsg",
+    "export function sendMmsg(handle: SocketHandle, messages: Slice<SocketSendBatchEntry>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.udp"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.net.socket.sendMsg.
+pub const NET_SOCKET_SEND_MSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socket.sendMsg",
+    "export function sendMsg(handle: SocketHandle, buffer: Slice<uint8>, message: SocketSendMessage): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.net.socket.sendTo.
+pub const NET_SOCKET_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socket.sendTo",
+    "export function sendTo(handle: SocketHandle, buffer: Slice<uint8>, message: SocketSendTo): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.udp"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.net.socket.setNonblocking.
+pub const NET_SOCKET_SET_NONBLOCKING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socket.setNonblocking",
+    "export function setNonblocking(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.net.socket.shutdown.
+pub const NET_SOCKET_SHUTDOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socket.shutdown",
+    "export function shutdown(handle: SocketHandle, how: SocketShutdown): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.close"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.net.socket.write.
+pub const NET_SOCKET_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socket.write",
+    "export function write(handle: SocketHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.connect"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.net.socket.writev.
+pub const NET_SOCKET_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socket.writev",
+    "export function writev(handle: SocketHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.connect"],
@@ -6152,10 +6177,10 @@ pub const NET_UDP_SOCKET: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.net.udsAccept.
-pub const NET_UDS_ACCEPT: BindingDescriptor =
+/// Binding descriptor for destack.net.uds.udsAccept.
+pub const NET_UDS_UDS_ACCEPT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udsAccept",
+        "destack.net.uds.udsAccept",
         "export function udsAccept(listener: ListenerHandle): Result<SocketHandle, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -6178,10 +6203,10 @@ pub const NET_UDS_ACCEPT: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.net.udsCloseListener.
-pub const NET_UDS_CLOSE_LISTENER: BindingDescriptor =
+/// Binding descriptor for destack.net.uds.udsCloseListener.
+pub const NET_UDS_UDS_CLOSE_LISTENER: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udsCloseListener",
+        "destack.net.uds.udsCloseListener",
         "export function udsCloseListener(handle: ListenerHandle): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -6204,10 +6229,10 @@ pub const NET_UDS_CLOSE_LISTENER: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.net.udsConnect.
-pub const NET_UDS_CONNECT: BindingDescriptor =
+/// Binding descriptor for destack.net.uds.udsConnect.
+pub const NET_UDS_UDS_CONNECT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udsConnect",
+        "destack.net.uds.udsConnect",
         "export function udsConnect(address: UdsAddress): Result<SocketHandle, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -6230,9 +6255,9 @@ pub const NET_UDS_CONNECT: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.net.udsListen.
-pub const NET_UDS_LISTEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.udsListen",
+/// Binding descriptor for destack.net.uds.udsListen.
+pub const NET_UDS_UDS_LISTEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.uds.udsListen",
     "export function udsListen(address: UdsAddress, backlog: uint32): Result<ListenerHandle, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -6242,10 +6267,10 @@ pub const NET_UDS_LISTEN: BindingDescriptor = BindingDescriptor::external_with_r
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.net.udsSocketPair.
-pub const NET_UDS_SOCKET_PAIR: BindingDescriptor =
+/// Binding descriptor for destack.net.uds.udsSocketPair.
+pub const NET_UDS_UDS_SOCKET_PAIR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udsSocketPair",
+        "destack.net.uds.udsSocketPair",
         "export function udsSocketPair(socketType: SocketType): Result<SocketPair, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
@@ -6268,43 +6293,17 @@ pub const NET_UDS_SOCKET_PAIR: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.net.write.
-pub const NET_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.write",
-    "export function write(handle: SocketHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["net.connect"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.net.writev.
-pub const NET_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.writev",
-    "export function writev(handle: SocketHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["net.connect"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
 /// Binding descriptors for net.
 pub const BINDINGS: &[BindingDescriptor] = &[
-    NET_ACCEPT,
     NET_ADDRESS_LOCAL_ADDRESS,
     NET_ADDRESS_PEER_ADDRESS,
-    NET_BIND,
-    NET_CLOSE,
-    NET_CLOSE_LISTENER,
-    NET_CONNECT,
+    NET_INTERFACE_INTERFACE_INDEX,
+    NET_INTERFACE_INTERFACE_NAME,
     NET_INTERFACE_LIST_INTERFACES,
-    NET_INTERFACE_INDEX,
-    NET_INTERFACE_NAME,
-    NET_LISTEN,
+    NET_LISTENER_ACCEPT,
+    NET_LISTENER_BIND,
+    NET_LISTENER_CLOSE_LISTENER,
+    NET_LISTENER_LISTEN,
     NET_OPTIONS_GET_BROADCAST,
     NET_OPTIONS_GET_LINGER,
     NET_OPTIONS_GET_ONLY_V6,
@@ -6343,27 +6342,31 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     NET_RAW_PACKET_STATS,
     NET_RAW_SET_HEADER_INCLUDED,
     NET_RAW_SOCKET,
-    NET_READ,
-    NET_READV,
-    NET_RECV_FROM,
-    NET_RECV_MMSG,
-    NET_RECV_MSG,
-    NET_RESOLVE_RESOLVE,
+    NET_RESOLVE_LOOKUP,
     NET_RESOLVE_REVERSE_LOOKUP,
     NET_REUSE_GET_REUSE_ADDR,
     NET_REUSE_GET_REUSE_PORT,
     NET_REUSE_SET_REUSE_ADDR,
     NET_REUSE_SET_REUSE_PORT,
-    NET_ROUTE_ADD,
-    NET_ROUTE_DELETE,
-    NET_ROUTE_LIST,
-    NET_SEND_MMSG,
-    NET_SEND_MSG,
-    NET_SEND_TO,
-    NET_SET_NONBLOCKING,
-    NET_SHUTDOWN,
-    NET_SOCKET,
-    NET_SOCKET_PAIR,
+    NET_ROUTE_ROUTE_ADD,
+    NET_ROUTE_ROUTE_DELETE,
+    NET_ROUTE_ROUTE_LIST,
+    NET_SOCKET_CLOSE,
+    NET_SOCKET_CONNECT,
+    NET_SOCKET_OPEN,
+    NET_SOCKET_OPEN_PAIR,
+    NET_SOCKET_READ,
+    NET_SOCKET_READV,
+    NET_SOCKET_RECV_FROM,
+    NET_SOCKET_RECV_MMSG,
+    NET_SOCKET_RECV_MSG,
+    NET_SOCKET_SEND_MMSG,
+    NET_SOCKET_SEND_MSG,
+    NET_SOCKET_SEND_TO,
+    NET_SOCKET_SET_NONBLOCKING,
+    NET_SOCKET_SHUTDOWN,
+    NET_SOCKET_WRITE,
+    NET_SOCKET_WRITEV,
     NET_TCP_GET_KEEP_ALIVE,
     NET_TCP_GET_NO_DELAY,
     NET_TCP_SET_KEEP_ALIVE,
@@ -6389,24 +6392,17 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     NET_UDP_SET_MULTICAST_LOOP,
     NET_UDP_SET_MULTICAST_TTL,
     NET_UDP_SOCKET,
-    NET_UDS_ACCEPT,
-    NET_UDS_CLOSE_LISTENER,
-    NET_UDS_CONNECT,
-    NET_UDS_LISTEN,
-    NET_UDS_SOCKET_PAIR,
-    NET_WRITE,
-    NET_WRITEV,
+    NET_UDS_UDS_ACCEPT,
+    NET_UDS_UDS_CLOSE_LISTENER,
+    NET_UDS_UDS_CONNECT,
+    NET_UDS_UDS_LISTEN,
+    NET_UDS_UDS_SOCKET_PAIR,
 ];
 
 /// Native binding set for net.
 pub const NET_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "net",
     bindings: &[
-        NativeBinding::new(
-            NET_ACCEPT,
-            "destack.net.accept",
-            destack_net_accept as *const (),
-        ),
         NativeBinding::new(
             NET_ADDRESS_LOCAL_ADDRESS,
             "destack.net.address.localAddress",
@@ -6417,21 +6413,15 @@ pub const NET_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             "destack.net.address.peerAddress",
             destack_net_address_peer_address as *const (),
         ),
-        NativeBinding::new(NET_BIND, "destack.net.bind", destack_net_bind as *const ()),
         NativeBinding::new(
-            NET_CLOSE,
-            "destack.net.close",
-            destack_net_close as *const (),
+            NET_INTERFACE_INTERFACE_INDEX,
+            "destack.net.interface.interfaceIndex",
+            destack_net_interface_interface_index as *const (),
         ),
         NativeBinding::new(
-            NET_CLOSE_LISTENER,
-            "destack.net.closeListener",
-            destack_net_close_listener as *const (),
-        ),
-        NativeBinding::new(
-            NET_CONNECT,
-            "destack.net.connect",
-            destack_net_connect as *const (),
+            NET_INTERFACE_INTERFACE_NAME,
+            "destack.net.interface.interfaceName",
+            destack_net_interface_interface_name as *const (),
         ),
         NativeBinding::new(
             NET_INTERFACE_LIST_INTERFACES,
@@ -6439,19 +6429,24 @@ pub const NET_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_net_interface_list_interfaces as *const (),
         ),
         NativeBinding::new(
-            NET_INTERFACE_INDEX,
-            "destack.net.interfaceIndex",
-            destack_net_interface_index as *const (),
+            NET_LISTENER_ACCEPT,
+            "destack.net.listener.accept",
+            destack_net_listener_accept as *const (),
         ),
         NativeBinding::new(
-            NET_INTERFACE_NAME,
-            "destack.net.interfaceName",
-            destack_net_interface_name as *const (),
+            NET_LISTENER_BIND,
+            "destack.net.listener.bind",
+            destack_net_listener_bind as *const (),
         ),
         NativeBinding::new(
-            NET_LISTEN,
-            "destack.net.listen",
-            destack_net_listen as *const (),
+            NET_LISTENER_CLOSE_LISTENER,
+            "destack.net.listener.closeListener",
+            destack_net_listener_close_listener as *const (),
+        ),
+        NativeBinding::new(
+            NET_LISTENER_LISTEN,
+            "destack.net.listener.listen",
+            destack_net_listener_listen as *const (),
         ),
         NativeBinding::new(
             NET_OPTIONS_GET_BROADCAST,
@@ -6643,31 +6638,10 @@ pub const NET_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             "destack.net.raw.socket",
             destack_net_raw_socket as *const (),
         ),
-        NativeBinding::new(NET_READ, "destack.net.read", destack_net_read as *const ()),
         NativeBinding::new(
-            NET_READV,
-            "destack.net.readv",
-            destack_net_readv as *const (),
-        ),
-        NativeBinding::new(
-            NET_RECV_FROM,
-            "destack.net.recvFrom",
-            destack_net_recv_from as *const (),
-        ),
-        NativeBinding::new(
-            NET_RECV_MMSG,
-            "destack.net.recvMmsg",
-            destack_net_recv_mmsg as *const (),
-        ),
-        NativeBinding::new(
-            NET_RECV_MSG,
-            "destack.net.recvMsg",
-            destack_net_recv_msg as *const (),
-        ),
-        NativeBinding::new(
-            NET_RESOLVE_RESOLVE,
-            "destack.net.resolve.resolve",
-            destack_net_resolve_resolve as *const (),
+            NET_RESOLVE_LOOKUP,
+            "destack.net.resolve.lookup",
+            destack_net_resolve_lookup as *const (),
         ),
         NativeBinding::new(
             NET_RESOLVE_REVERSE_LOOKUP,
@@ -6695,54 +6669,99 @@ pub const NET_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_net_reuse_set_reuse_port as *const (),
         ),
         NativeBinding::new(
-            NET_ROUTE_ADD,
-            "destack.net.routeAdd",
-            destack_net_route_add as *const (),
+            NET_ROUTE_ROUTE_ADD,
+            "destack.net.route.routeAdd",
+            destack_net_route_route_add as *const (),
         ),
         NativeBinding::new(
-            NET_ROUTE_DELETE,
-            "destack.net.routeDelete",
-            destack_net_route_delete as *const (),
+            NET_ROUTE_ROUTE_DELETE,
+            "destack.net.route.routeDelete",
+            destack_net_route_route_delete as *const (),
         ),
         NativeBinding::new(
-            NET_ROUTE_LIST,
-            "destack.net.routeList",
-            destack_net_route_list as *const (),
+            NET_ROUTE_ROUTE_LIST,
+            "destack.net.route.routeList",
+            destack_net_route_route_list as *const (),
         ),
         NativeBinding::new(
-            NET_SEND_MMSG,
-            "destack.net.sendMmsg",
-            destack_net_send_mmsg as *const (),
+            NET_SOCKET_CLOSE,
+            "destack.net.socket.close",
+            destack_net_socket_close as *const (),
         ),
         NativeBinding::new(
-            NET_SEND_MSG,
-            "destack.net.sendMsg",
-            destack_net_send_msg as *const (),
+            NET_SOCKET_CONNECT,
+            "destack.net.socket.connect",
+            destack_net_socket_connect as *const (),
         ),
         NativeBinding::new(
-            NET_SEND_TO,
-            "destack.net.sendTo",
-            destack_net_send_to as *const (),
+            NET_SOCKET_OPEN,
+            "destack.net.socket.open",
+            destack_net_socket_open as *const (),
         ),
         NativeBinding::new(
-            NET_SET_NONBLOCKING,
-            "destack.net.setNonblocking",
-            destack_net_set_nonblocking as *const (),
+            NET_SOCKET_OPEN_PAIR,
+            "destack.net.socket.openPair",
+            destack_net_socket_open_pair as *const (),
         ),
         NativeBinding::new(
-            NET_SHUTDOWN,
-            "destack.net.shutdown",
-            destack_net_shutdown as *const (),
+            NET_SOCKET_READ,
+            "destack.net.socket.read",
+            destack_net_socket_read as *const (),
         ),
         NativeBinding::new(
-            NET_SOCKET,
-            "destack.net.socket",
-            destack_net_socket as *const (),
+            NET_SOCKET_READV,
+            "destack.net.socket.readv",
+            destack_net_socket_readv as *const (),
         ),
         NativeBinding::new(
-            NET_SOCKET_PAIR,
-            "destack.net.socketPair",
-            destack_net_socket_pair as *const (),
+            NET_SOCKET_RECV_FROM,
+            "destack.net.socket.recvFrom",
+            destack_net_socket_recv_from as *const (),
+        ),
+        NativeBinding::new(
+            NET_SOCKET_RECV_MMSG,
+            "destack.net.socket.recvMmsg",
+            destack_net_socket_recv_mmsg as *const (),
+        ),
+        NativeBinding::new(
+            NET_SOCKET_RECV_MSG,
+            "destack.net.socket.recvMsg",
+            destack_net_socket_recv_msg as *const (),
+        ),
+        NativeBinding::new(
+            NET_SOCKET_SEND_MMSG,
+            "destack.net.socket.sendMmsg",
+            destack_net_socket_send_mmsg as *const (),
+        ),
+        NativeBinding::new(
+            NET_SOCKET_SEND_MSG,
+            "destack.net.socket.sendMsg",
+            destack_net_socket_send_msg as *const (),
+        ),
+        NativeBinding::new(
+            NET_SOCKET_SEND_TO,
+            "destack.net.socket.sendTo",
+            destack_net_socket_send_to as *const (),
+        ),
+        NativeBinding::new(
+            NET_SOCKET_SET_NONBLOCKING,
+            "destack.net.socket.setNonblocking",
+            destack_net_socket_set_nonblocking as *const (),
+        ),
+        NativeBinding::new(
+            NET_SOCKET_SHUTDOWN,
+            "destack.net.socket.shutdown",
+            destack_net_socket_shutdown as *const (),
+        ),
+        NativeBinding::new(
+            NET_SOCKET_WRITE,
+            "destack.net.socket.write",
+            destack_net_socket_write as *const (),
+        ),
+        NativeBinding::new(
+            NET_SOCKET_WRITEV,
+            "destack.net.socket.writev",
+            destack_net_socket_writev as *const (),
         ),
         NativeBinding::new(
             NET_TCP_GET_KEEP_ALIVE,
@@ -6870,106 +6889,34 @@ pub const NET_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_net_udp_socket as *const (),
         ),
         NativeBinding::new(
-            NET_UDS_ACCEPT,
-            "destack.net.udsAccept",
-            destack_net_uds_accept as *const (),
+            NET_UDS_UDS_ACCEPT,
+            "destack.net.uds.udsAccept",
+            destack_net_uds_uds_accept as *const (),
         ),
         NativeBinding::new(
-            NET_UDS_CLOSE_LISTENER,
-            "destack.net.udsCloseListener",
-            destack_net_uds_close_listener as *const (),
+            NET_UDS_UDS_CLOSE_LISTENER,
+            "destack.net.uds.udsCloseListener",
+            destack_net_uds_uds_close_listener as *const (),
         ),
         NativeBinding::new(
-            NET_UDS_CONNECT,
-            "destack.net.udsConnect",
-            destack_net_uds_connect as *const (),
+            NET_UDS_UDS_CONNECT,
+            "destack.net.uds.udsConnect",
+            destack_net_uds_uds_connect as *const (),
         ),
         NativeBinding::new(
-            NET_UDS_LISTEN,
-            "destack.net.udsListen",
-            destack_net_uds_listen as *const (),
+            NET_UDS_UDS_LISTEN,
+            "destack.net.uds.udsListen",
+            destack_net_uds_uds_listen as *const (),
         ),
         NativeBinding::new(
-            NET_UDS_SOCKET_PAIR,
-            "destack.net.udsSocketPair",
-            destack_net_uds_socket_pair as *const (),
-        ),
-        NativeBinding::new(
-            NET_WRITE,
-            "destack.net.write",
-            destack_net_write as *const (),
-        ),
-        NativeBinding::new(
-            NET_WRITEV,
-            "destack.net.writev",
-            destack_net_writev as *const (),
+            NET_UDS_UDS_SOCKET_PAIR,
+            "destack.net.uds.udsSocketPair",
+            destack_net_uds_uds_socket_pair as *const (),
         ),
     ],
 };
 
 /// Native replay implementations for net bindings.
-#[inline]
-fn destack_net_accept_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    out: *mut resource::SocketHandle,
-    listener: resource::ListenerHandle,
-    flags: AcceptFlags,
-) -> RuntimeResult<()> {
-    let _ = (&listener, &flags);
-
-    context.replay().run_binding_with_payload_policy(
-        NET_ACCEPT,
-        context.replay_payload_for(NET_ACCEPT)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_accept(context, out, listener, flags)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_accept(context, out, listener, flags)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded = result_value;
-                let payload = NetAcceptReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    NetAcceptReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native = value;
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
 #[inline]
 fn destack_net_address_local_address_replay(
     context: &RuntimeCallContext,
@@ -7143,29 +7090,35 @@ fn destack_net_address_peer_address_replay(
 }
 
 #[inline]
-fn destack_net_bind_replay(
+fn destack_net_interface_interface_index_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::SocketHandle,
-    address: SocketAddress,
+    out: *mut u32,
+    name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &address);
+    let _ = &name;
 
     context.replay().run_binding_with_payload_policy(
-        NET_BIND,
-        context.replay_payload_for(NET_BIND)?,
+        NET_INTERFACE_INTERFACE_INDEX,
+        context.replay_payload_for(NET_INTERFACE_INTERFACE_INDEX)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_bind(context, handle, address)
+                platform_native::destack_net_interface_index(context, out, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_bind(context, handle, address)
+                platform_simulated_native::destack_net_interface_index(context, out, name)
             },
         },
         |result| {
             if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = NetBindReplay {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = NetInterfaceInterfaceIndexReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -7174,7 +7127,7 @@ fn destack_net_bind_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetBindReplay { result }
+                    NetInterfaceInterfaceIndexReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7184,7 +7137,13 @@ fn destack_net_bind_replay(
         |payload| {
             // replay result
             match payload.result {
-                Ok(()) => Ok(()),
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
@@ -7192,74 +7151,35 @@ fn destack_net_bind_replay(
 }
 
 #[inline]
-fn destack_net_close_replay(
+fn destack_net_interface_interface_name_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::SocketHandle,
+    out: *mut NativeStringRef,
+    index: u32,
 ) -> RuntimeResult<()> {
-    let _ = &handle;
+    let _ = &index;
 
     context.replay().run_binding_with_payload_policy(
-        NET_CLOSE,
-        context.replay_payload_for(NET_CLOSE)?,
-        || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_net_close(context, handle) },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_close(context, handle)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = NetCloseReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    NetCloseReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_net_close_listener_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    handle: resource::ListenerHandle,
-) -> RuntimeResult<()> {
-    let _ = &handle;
-
-    context.replay().run_binding_with_payload_policy(
-        NET_CLOSE_LISTENER,
-        context.replay_payload_for(NET_CLOSE_LISTENER)?,
+        NET_INTERFACE_INTERFACE_NAME,
+        context.replay_payload_for(NET_INTERFACE_INTERFACE_NAME)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_close_listener(context, handle)
+                platform_native::destack_net_interface_name(context, out, index)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_close_listener(context, handle)
+                platform_simulated_native::destack_net_interface_name(context, out, index)
             },
         },
         |result| {
             if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = NetCloseListenerReplay {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = unsafe { result_value.as_str()? }.to_string();
+                let payload = NetInterfaceInterfaceNameReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -7268,7 +7188,7 @@ fn destack_net_close_listener_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetCloseListenerReplay { result }
+                    NetInterfaceInterfaceNameReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7278,56 +7198,13 @@ fn destack_net_close_listener_replay(
         |payload| {
             // replay result
             match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_net_connect_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    handle: resource::SocketHandle,
-    address: SocketAddress,
-) -> RuntimeResult<()> {
-    let _ = (&handle, &address);
-
-    context.replay().run_binding_with_payload_policy(
-        NET_CONNECT,
-        context.replay_payload_for(NET_CONNECT)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_connect(context, handle, address)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_connect(context, handle, address)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = NetConnectReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    NetConnectReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
+                Ok(value) => {
+                    let value_native = context.store_string(&value);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
@@ -7471,23 +7348,24 @@ fn destack_net_interface_list_interfaces_replay(
 }
 
 #[inline]
-fn destack_net_interface_index_replay(
+fn destack_net_listener_accept_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    out: *mut u32,
-    name: NativeStringRef,
+    out: *mut resource::SocketHandle,
+    listener: resource::ListenerHandle,
+    flags: AcceptFlags,
 ) -> RuntimeResult<()> {
-    let _ = &name;
+    let _ = (&listener, &flags);
 
     context.replay().run_binding_with_payload_policy(
-        NET_INTERFACE_INDEX,
-        context.replay_payload_for(NET_INTERFACE_INDEX)?,
+        NET_LISTENER_ACCEPT,
+        context.replay_payload_for(NET_LISTENER_ACCEPT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_interface_index(context, out, name)
+                platform_native::destack_net_accept(context, out, listener, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_interface_index(context, out, name)
+                platform_simulated_native::destack_net_accept(context, out, listener, flags)
             },
         },
         |result| {
@@ -7499,7 +7377,7 @@ fn destack_net_interface_index_replay(
                     *out
                 };
                 let result_recorded = result_value;
-                let payload = NetInterfaceIndexReplay {
+                let payload = NetListenerAcceptReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -7508,7 +7386,7 @@ fn destack_net_interface_index_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetInterfaceIndexReplay { result }
+                    NetListenerAcceptReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7532,35 +7410,29 @@ fn destack_net_interface_index_replay(
 }
 
 #[inline]
-fn destack_net_interface_name_replay(
+fn destack_net_listener_bind_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    out: *mut NativeStringRef,
-    index: u32,
+    handle: resource::SocketHandle,
+    address: SocketAddress,
 ) -> RuntimeResult<()> {
-    let _ = &index;
+    let _ = (&handle, &address);
 
     context.replay().run_binding_with_payload_policy(
-        NET_INTERFACE_NAME,
-        context.replay_payload_for(NET_INTERFACE_NAME)?,
+        NET_LISTENER_BIND,
+        context.replay_payload_for(NET_LISTENER_BIND)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_interface_name(context, out, index)
+                platform_native::destack_net_bind(context, handle, address)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_interface_name(context, out, index)
+                platform_simulated_native::destack_net_bind(context, handle, address)
             },
         },
         |result| {
             if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded = unsafe { result_value.as_str()? }.to_string();
-                let payload = NetInterfaceNameReplay {
+                let result_recorded = ();
+                let payload = NetListenerBindReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -7569,7 +7441,7 @@ fn destack_net_interface_name_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetInterfaceNameReplay { result }
+                    NetListenerBindReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7579,13 +7451,7 @@ fn destack_net_interface_name_replay(
         |payload| {
             // replay result
             match payload.result {
-                Ok(value) => {
-                    let value_native = context.store_string(&value);
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
+                Ok(()) => Ok(()),
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
@@ -7593,7 +7459,55 @@ fn destack_net_interface_name_replay(
 }
 
 #[inline]
-fn destack_net_listen_replay(
+fn destack_net_listener_close_listener_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::ListenerHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        NET_LISTENER_CLOSE_LISTENER,
+        context.replay_payload_for(NET_LISTENER_CLOSE_LISTENER)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_net_close_listener(context, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_net_close_listener(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = NetListenerCloseListenerReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    NetListenerCloseListenerReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_net_listener_listen_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut resource::ListenerHandle,
@@ -7603,8 +7517,8 @@ fn destack_net_listen_replay(
     let _ = (&address, &backlog);
 
     context.replay().run_binding_with_payload_policy(
-        NET_LISTEN,
-        context.replay_payload_for(NET_LISTEN)?,
+        NET_LISTENER_LISTEN,
+        context.replay_payload_for(NET_LISTENER_LISTEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_listen(context, out, address, backlog)
@@ -7622,7 +7536,7 @@ fn destack_net_listen_replay(
                     *out
                 };
                 let result_recorded = result_value;
-                let payload = NetListenReplay {
+                let payload = NetListenerListenReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -7631,7 +7545,7 @@ fn destack_net_listen_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetListenReplay { result }
+                    NetListenerListenReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -9814,711 +9728,7 @@ fn destack_net_raw_socket_replay(
 }
 
 #[inline]
-fn destack_net_read_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    out: *mut u64,
-    handle: resource::SocketHandle,
-    buffer: NativeSlice<u8>,
-) -> RuntimeResult<()> {
-    let _ = (&handle, &buffer);
-
-    context.replay().run_binding_with_payload_policy(
-        NET_READ,
-        context.replay_payload_for(NET_READ)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_read(context, out, handle, buffer)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_read(context, out, handle, buffer)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded = result_value;
-                let payload = NetReadReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    NetReadReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native = value;
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_net_readv_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    out: *mut u64,
-    handle: resource::SocketHandle,
-    buffers: NativeSlice<NativeSlice<u8>>,
-) -> RuntimeResult<()> {
-    let _ = (&handle, &buffers);
-
-    context.replay().run_binding_with_payload_policy(
-        NET_READV,
-        context.replay_payload_for(NET_READV)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_readv(context, out, handle, buffers)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_readv(context, out, handle, buffers)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded = result_value;
-                let payload = NetReadvReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    NetReadvReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native = value;
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_net_recv_from_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    out: *mut SocketRecvFrom,
-    handle: resource::SocketHandle,
-    buffer: NativeSlice<u8>,
-    recvflags: SocketMessageFlags,
-) -> RuntimeResult<()> {
-    let _ = (&handle, &buffer, &recvflags);
-
-    context.replay().run_binding_with_payload_policy(
-        NET_RECV_FROM,
-        context.replay_payload_for(NET_RECV_FROM)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_recv_from(context, out, handle, buffer, recvflags)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_recv_from(
-                    context, out, handle, buffer, recvflags,
-                )
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded_bytes = result_value.bytes;
-                let result_recorded_address_family = result_value.address.family;
-                let result_recorded_address_length = result_value.address.length;
-                let result_recorded_address_bytes_raw =
-                    unsafe { result_value.address.bytes.as_slice()? };
-                let mut result_recorded_address_bytes =
-                    Vec::with_capacity(result_recorded_address_bytes_raw.len());
-                for result_recorded_address_bytes_item_value in result_recorded_address_bytes_raw {
-                    let result_recorded_address_bytes_item =
-                        *result_recorded_address_bytes_item_value;
-                    let result_recorded_address_bytes_item_recorded =
-                        result_recorded_address_bytes_item;
-                    result_recorded_address_bytes.push(result_recorded_address_bytes_item_recorded);
-                }
-                let result_recorded_address = SocketAddressReplayRecord {
-                    family: result_recorded_address_family,
-                    length: result_recorded_address_length,
-                    bytes: result_recorded_address_bytes,
-                };
-                let result_recorded_recv_flags = result_value.recv_flags;
-                let result_recorded = SocketRecvFromReplayRecord {
-                    bytes: result_recorded_bytes,
-                    address: result_recorded_address,
-                    recv_flags: result_recorded_recv_flags,
-                };
-                let payload = NetRecvFromReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    NetRecvFromReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native_bytes = value.bytes;
-                    let value_native_address_family = value.address.family;
-                    let value_native_address_length = value.address.length;
-                    let mut value_native_address_bytes_values =
-                        Vec::with_capacity(value.address.bytes.len());
-                    for value_native_address_bytes_item in value.address.bytes {
-                        let value_native_address_bytes_item_native =
-                            value_native_address_bytes_item;
-                        value_native_address_bytes_values
-                            .push(value_native_address_bytes_item_native);
-                    }
-                    let value_native_address_bytes =
-                        context.store_array(value_native_address_bytes_values);
-                    let value_native_address = SocketAddress {
-                        family: value_native_address_family,
-                        length: value_native_address_length,
-                        bytes: value_native_address_bytes,
-                    };
-                    let value_native_recv_flags = value.recv_flags;
-                    let value_native = SocketRecvFrom {
-                        bytes: value_native_bytes,
-                        address: value_native_address,
-                        recv_flags: value_native_recv_flags,
-                    };
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_net_recv_mmsg_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    out: *mut NativeArray<SocketRecvMessage>,
-    handle: resource::SocketHandle,
-    requests: NativeSlice<SocketRecvBatchRequest>,
-    maxfds: u32,
-    wantcredentials: bool,
-    maxcontrolbytes: u32,
-) -> RuntimeResult<()> {
-    let _ = (
-        &handle,
-        &requests,
-        &maxfds,
-        &wantcredentials,
-        &maxcontrolbytes,
-    );
-
-    context.replay().run_binding_with_payload_policy(
-        NET_RECV_MMSG,
-        context.replay_payload_for(NET_RECV_MMSG)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_recv_mmsg(
-                    context,
-                    out,
-                    handle,
-                    requests,
-                    maxfds,
-                    wantcredentials,
-                    maxcontrolbytes,
-                )
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_recv_mmsg(
-                    context,
-                    out,
-                    handle,
-                    requests,
-                    maxfds,
-                    wantcredentials,
-                    maxcontrolbytes,
-                )
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded_raw = unsafe { result_value.as_slice()? };
-                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = *result_recorded_item_value;
-                    let result_recorded_item_recorded_bytes = result_recorded_item.bytes;
-                    let result_recorded_item_recorded_has_address =
-                        result_recorded_item.has_address;
-                    let result_recorded_item_recorded_address_family =
-                        result_recorded_item.address.family;
-                    let result_recorded_item_recorded_address_length =
-                        result_recorded_item.address.length;
-                    let result_recorded_item_recorded_address_bytes_raw =
-                        unsafe { result_recorded_item.address.bytes.as_slice()? };
-                    let mut result_recorded_item_recorded_address_bytes =
-                        Vec::with_capacity(result_recorded_item_recorded_address_bytes_raw.len());
-                    for result_recorded_item_recorded_address_bytes_item_value in
-                        result_recorded_item_recorded_address_bytes_raw
-                    {
-                        let result_recorded_item_recorded_address_bytes_item =
-                            *result_recorded_item_recorded_address_bytes_item_value;
-                        let result_recorded_item_recorded_address_bytes_item_recorded =
-                            result_recorded_item_recorded_address_bytes_item;
-                        result_recorded_item_recorded_address_bytes
-                            .push(result_recorded_item_recorded_address_bytes_item_recorded);
-                    }
-                    let result_recorded_item_recorded_address = SocketAddressReplayRecord {
-                        family: result_recorded_item_recorded_address_family,
-                        length: result_recorded_item_recorded_address_length,
-                        bytes: result_recorded_item_recorded_address_bytes,
-                    };
-                    let result_recorded_item_recorded_recv_flags = result_recorded_item.recv_flags;
-                    let result_recorded_item_recorded_payload_truncated =
-                        result_recorded_item.payload_truncated;
-                    let result_recorded_item_recorded_control_truncated =
-                        result_recorded_item.control_truncated;
-                    let result_recorded_item_recorded_control_raw =
-                        unsafe { result_recorded_item.control.0.as_slice()? };
-                    let mut result_recorded_item_recorded_control =
-                        Vec::with_capacity(result_recorded_item_recorded_control_raw.len());
-                    for result_recorded_item_recorded_control_item_value in
-                        result_recorded_item_recorded_control_raw
-                    {
-                        let result_recorded_item_recorded_control_item =
-                            *result_recorded_item_recorded_control_item_value;
-                        let result_recorded_item_recorded_control_item_recorded =
-                            result_recorded_item_recorded_control_item;
-                        result_recorded_item_recorded_control
-                            .push(result_recorded_item_recorded_control_item_recorded);
-                    }
-                    let result_recorded_item_recorded_fds_raw =
-                        unsafe { result_recorded_item.fds.as_slice()? };
-                    let mut result_recorded_item_recorded_fds =
-                        Vec::with_capacity(result_recorded_item_recorded_fds_raw.len());
-                    for result_recorded_item_recorded_fds_item_value in
-                        result_recorded_item_recorded_fds_raw
-                    {
-                        let result_recorded_item_recorded_fds_item =
-                            *result_recorded_item_recorded_fds_item_value;
-                        let result_recorded_item_recorded_fds_item_recorded =
-                            result_recorded_item_recorded_fds_item;
-                        result_recorded_item_recorded_fds
-                            .push(result_recorded_item_recorded_fds_item_recorded);
-                    }
-                    let result_recorded_item_recorded_has_credentials =
-                        result_recorded_item.has_credentials;
-                    let result_recorded_item_recorded_credentials_pid =
-                        result_recorded_item.credentials.pid;
-                    let result_recorded_item_recorded_credentials_uid =
-                        result_recorded_item.credentials.uid;
-                    let result_recorded_item_recorded_credentials_gid =
-                        result_recorded_item.credentials.gid;
-                    let result_recorded_item_recorded_credentials = SocketCredentials {
-                        pid: result_recorded_item_recorded_credentials_pid,
-                        uid: result_recorded_item_recorded_credentials_uid,
-                        gid: result_recorded_item_recorded_credentials_gid,
-                    };
-                    let result_recorded_item_recorded = SocketRecvMessageReplayRecord {
-                        bytes: result_recorded_item_recorded_bytes,
-                        has_address: result_recorded_item_recorded_has_address,
-                        address: result_recorded_item_recorded_address,
-                        recv_flags: result_recorded_item_recorded_recv_flags,
-                        payload_truncated: result_recorded_item_recorded_payload_truncated,
-                        control_truncated: result_recorded_item_recorded_control_truncated,
-                        control: result_recorded_item_recorded_control,
-                        fds: result_recorded_item_recorded_fds,
-                        has_credentials: result_recorded_item_recorded_has_credentials,
-                        credentials: result_recorded_item_recorded_credentials,
-                    };
-                    result_recorded.push(result_recorded_item_recorded);
-                }
-                let payload = NetRecvMmsgReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    NetRecvMmsgReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let mut value_native_values = Vec::with_capacity(value.len());
-                    for value_native_item in value {
-                        let value_native_item_native_bytes = value_native_item.bytes;
-                        let value_native_item_native_has_address = value_native_item.has_address;
-                        let value_native_item_native_address_family =
-                            value_native_item.address.family;
-                        let value_native_item_native_address_length =
-                            value_native_item.address.length;
-                        let mut value_native_item_native_address_bytes_values =
-                            Vec::with_capacity(value_native_item.address.bytes.len());
-                        for value_native_item_native_address_bytes_item in
-                            value_native_item.address.bytes
-                        {
-                            let value_native_item_native_address_bytes_item_native =
-                                value_native_item_native_address_bytes_item;
-                            value_native_item_native_address_bytes_values
-                                .push(value_native_item_native_address_bytes_item_native);
-                        }
-                        let value_native_item_native_address_bytes =
-                            context.store_array(value_native_item_native_address_bytes_values);
-                        let value_native_item_native_address = SocketAddress {
-                            family: value_native_item_native_address_family,
-                            length: value_native_item_native_address_length,
-                            bytes: value_native_item_native_address_bytes,
-                        };
-                        let value_native_item_native_recv_flags = value_native_item.recv_flags;
-                        let value_native_item_native_payload_truncated =
-                            value_native_item.payload_truncated;
-                        let value_native_item_native_control_truncated =
-                            value_native_item.control_truncated;
-                        let mut value_native_item_native_control_inner_values =
-                            Vec::with_capacity(value_native_item.control.len());
-                        for value_native_item_native_control_inner_item in value_native_item.control
-                        {
-                            let value_native_item_native_control_inner_item_native =
-                                value_native_item_native_control_inner_item;
-                            value_native_item_native_control_inner_values
-                                .push(value_native_item_native_control_inner_item_native);
-                        }
-                        let value_native_item_native_control_inner =
-                            context.store_array(value_native_item_native_control_inner_values);
-                        let value_native_item_native_control =
-                            platform_net::SocketControlBufferAbi::<platform_abi::NativeAbi>(
-                                value_native_item_native_control_inner,
-                            );
-                        let mut value_native_item_native_fds_values =
-                            Vec::with_capacity(value_native_item.fds.len());
-                        for value_native_item_native_fds_item in value_native_item.fds {
-                            let value_native_item_native_fds_item_native =
-                                value_native_item_native_fds_item;
-                            value_native_item_native_fds_values
-                                .push(value_native_item_native_fds_item_native);
-                        }
-                        let value_native_item_native_fds =
-                            context.store_array(value_native_item_native_fds_values);
-                        let value_native_item_native_has_credentials =
-                            value_native_item.has_credentials;
-                        let value_native_item_native_credentials_pid =
-                            value_native_item.credentials.pid;
-                        let value_native_item_native_credentials_uid =
-                            value_native_item.credentials.uid;
-                        let value_native_item_native_credentials_gid =
-                            value_native_item.credentials.gid;
-                        let value_native_item_native_credentials = SocketCredentials {
-                            pid: value_native_item_native_credentials_pid,
-                            uid: value_native_item_native_credentials_uid,
-                            gid: value_native_item_native_credentials_gid,
-                        };
-                        let value_native_item_native = SocketRecvMessage {
-                            bytes: value_native_item_native_bytes,
-                            has_address: value_native_item_native_has_address,
-                            address: value_native_item_native_address,
-                            recv_flags: value_native_item_native_recv_flags,
-                            payload_truncated: value_native_item_native_payload_truncated,
-                            control_truncated: value_native_item_native_control_truncated,
-                            control: value_native_item_native_control,
-                            fds: value_native_item_native_fds,
-                            has_credentials: value_native_item_native_has_credentials,
-                            credentials: value_native_item_native_credentials,
-                        };
-                        value_native_values.push(value_native_item_native);
-                    }
-                    let value_native = context.store_array(value_native_values);
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_net_recv_msg_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    out: *mut SocketRecvMessage,
-    handle: resource::SocketHandle,
-    buffer: NativeSlice<u8>,
-    recvflags: SocketMessageFlags,
-    maxfds: u32,
-    wantcredentials: bool,
-    maxcontrolbytes: u32,
-) -> RuntimeResult<()> {
-    let _ = (
-        &handle,
-        &buffer,
-        &recvflags,
-        &maxfds,
-        &wantcredentials,
-        &maxcontrolbytes,
-    );
-
-    context.replay().run_binding_with_payload_policy(
-        NET_RECV_MSG,
-        context.replay_payload_for(NET_RECV_MSG)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_recv_msg(
-                    context,
-                    out,
-                    handle,
-                    buffer,
-                    recvflags,
-                    maxfds,
-                    wantcredentials,
-                    maxcontrolbytes,
-                )
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_recv_msg(
-                    context,
-                    out,
-                    handle,
-                    buffer,
-                    recvflags,
-                    maxfds,
-                    wantcredentials,
-                    maxcontrolbytes,
-                )
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded_bytes = result_value.bytes;
-                let result_recorded_has_address = result_value.has_address;
-                let result_recorded_address_family = result_value.address.family;
-                let result_recorded_address_length = result_value.address.length;
-                let result_recorded_address_bytes_raw =
-                    unsafe { result_value.address.bytes.as_slice()? };
-                let mut result_recorded_address_bytes =
-                    Vec::with_capacity(result_recorded_address_bytes_raw.len());
-                for result_recorded_address_bytes_item_value in result_recorded_address_bytes_raw {
-                    let result_recorded_address_bytes_item =
-                        *result_recorded_address_bytes_item_value;
-                    let result_recorded_address_bytes_item_recorded =
-                        result_recorded_address_bytes_item;
-                    result_recorded_address_bytes.push(result_recorded_address_bytes_item_recorded);
-                }
-                let result_recorded_address = SocketAddressReplayRecord {
-                    family: result_recorded_address_family,
-                    length: result_recorded_address_length,
-                    bytes: result_recorded_address_bytes,
-                };
-                let result_recorded_recv_flags = result_value.recv_flags;
-                let result_recorded_payload_truncated = result_value.payload_truncated;
-                let result_recorded_control_truncated = result_value.control_truncated;
-                let result_recorded_control_raw = unsafe { result_value.control.0.as_slice()? };
-                let mut result_recorded_control =
-                    Vec::with_capacity(result_recorded_control_raw.len());
-                for result_recorded_control_item_value in result_recorded_control_raw {
-                    let result_recorded_control_item = *result_recorded_control_item_value;
-                    let result_recorded_control_item_recorded = result_recorded_control_item;
-                    result_recorded_control.push(result_recorded_control_item_recorded);
-                }
-                let result_recorded_fds_raw = unsafe { result_value.fds.as_slice()? };
-                let mut result_recorded_fds = Vec::with_capacity(result_recorded_fds_raw.len());
-                for result_recorded_fds_item_value in result_recorded_fds_raw {
-                    let result_recorded_fds_item = *result_recorded_fds_item_value;
-                    let result_recorded_fds_item_recorded = result_recorded_fds_item;
-                    result_recorded_fds.push(result_recorded_fds_item_recorded);
-                }
-                let result_recorded_has_credentials = result_value.has_credentials;
-                let result_recorded_credentials_pid = result_value.credentials.pid;
-                let result_recorded_credentials_uid = result_value.credentials.uid;
-                let result_recorded_credentials_gid = result_value.credentials.gid;
-                let result_recorded_credentials = SocketCredentials {
-                    pid: result_recorded_credentials_pid,
-                    uid: result_recorded_credentials_uid,
-                    gid: result_recorded_credentials_gid,
-                };
-                let result_recorded = SocketRecvMessageReplayRecord {
-                    bytes: result_recorded_bytes,
-                    has_address: result_recorded_has_address,
-                    address: result_recorded_address,
-                    recv_flags: result_recorded_recv_flags,
-                    payload_truncated: result_recorded_payload_truncated,
-                    control_truncated: result_recorded_control_truncated,
-                    control: result_recorded_control,
-                    fds: result_recorded_fds,
-                    has_credentials: result_recorded_has_credentials,
-                    credentials: result_recorded_credentials,
-                };
-                let payload = NetRecvMsgReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    NetRecvMsgReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native_bytes = value.bytes;
-                    let value_native_has_address = value.has_address;
-                    let value_native_address_family = value.address.family;
-                    let value_native_address_length = value.address.length;
-                    let mut value_native_address_bytes_values =
-                        Vec::with_capacity(value.address.bytes.len());
-                    for value_native_address_bytes_item in value.address.bytes {
-                        let value_native_address_bytes_item_native =
-                            value_native_address_bytes_item;
-                        value_native_address_bytes_values
-                            .push(value_native_address_bytes_item_native);
-                    }
-                    let value_native_address_bytes =
-                        context.store_array(value_native_address_bytes_values);
-                    let value_native_address = SocketAddress {
-                        family: value_native_address_family,
-                        length: value_native_address_length,
-                        bytes: value_native_address_bytes,
-                    };
-                    let value_native_recv_flags = value.recv_flags;
-                    let value_native_payload_truncated = value.payload_truncated;
-                    let value_native_control_truncated = value.control_truncated;
-                    let mut value_native_control_inner_values =
-                        Vec::with_capacity(value.control.len());
-                    for value_native_control_inner_item in value.control {
-                        let value_native_control_inner_item_native =
-                            value_native_control_inner_item;
-                        value_native_control_inner_values
-                            .push(value_native_control_inner_item_native);
-                    }
-                    let value_native_control_inner =
-                        context.store_array(value_native_control_inner_values);
-                    let value_native_control = platform_net::SocketControlBufferAbi::<
-                        platform_abi::NativeAbi,
-                    >(value_native_control_inner);
-                    let mut value_native_fds_values = Vec::with_capacity(value.fds.len());
-                    for value_native_fds_item in value.fds {
-                        let value_native_fds_item_native = value_native_fds_item;
-                        value_native_fds_values.push(value_native_fds_item_native);
-                    }
-                    let value_native_fds = context.store_array(value_native_fds_values);
-                    let value_native_has_credentials = value.has_credentials;
-                    let value_native_credentials_pid = value.credentials.pid;
-                    let value_native_credentials_uid = value.credentials.uid;
-                    let value_native_credentials_gid = value.credentials.gid;
-                    let value_native_credentials = SocketCredentials {
-                        pid: value_native_credentials_pid,
-                        uid: value_native_credentials_uid,
-                        gid: value_native_credentials_gid,
-                    };
-                    let value_native = SocketRecvMessage {
-                        bytes: value_native_bytes,
-                        has_address: value_native_has_address,
-                        address: value_native_address,
-                        recv_flags: value_native_recv_flags,
-                        payload_truncated: value_native_payload_truncated,
-                        control_truncated: value_native_control_truncated,
-                        control: value_native_control,
-                        fds: value_native_fds,
-                        has_credentials: value_native_has_credentials,
-                        credentials: value_native_credentials,
-                    };
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_net_resolve_resolve_replay(
+fn destack_net_resolve_lookup_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<SocketAddress>,
@@ -10527,8 +9737,8 @@ fn destack_net_resolve_resolve_replay(
     let _ = &query;
 
     context.replay().run_binding_with_payload_policy(
-        NET_RESOLVE_RESOLVE,
-        context.replay_payload_for(NET_RESOLVE_RESOLVE)?,
+        NET_RESOLVE_LOOKUP,
+        context.replay_payload_for(NET_RESOLVE_LOOKUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_resolve(context, out, query)
@@ -10572,7 +9782,7 @@ fn destack_net_resolve_resolve_replay(
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
-                let payload = NetResolveResolveReplay {
+                let payload = NetResolveLookupReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -10581,7 +9791,7 @@ fn destack_net_resolve_resolve_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetResolveResolveReplay { result }
+                    NetResolveLookupReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10933,7 +10143,7 @@ fn destack_net_reuse_set_reuse_port_replay(
 }
 
 #[inline]
-fn destack_net_route_add_replay(
+fn destack_net_route_route_add_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     route: RouteEntry,
@@ -10941,8 +10151,8 @@ fn destack_net_route_add_replay(
     let _ = &route;
 
     context.replay().run_binding_with_payload_policy(
-        NET_ROUTE_ADD,
-        context.replay_payload_for(NET_ROUTE_ADD)?,
+        NET_ROUTE_ROUTE_ADD,
+        context.replay_payload_for(NET_ROUTE_ROUTE_ADD)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_net_route_add(context, route) },
             RuntimeWorld::Simulated => unsafe {
@@ -10952,7 +10162,7 @@ fn destack_net_route_add_replay(
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = NetRouteAddReplay {
+                let payload = NetRouteRouteAddReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -10961,7 +10171,7 @@ fn destack_net_route_add_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetRouteAddReplay { result }
+                    NetRouteRouteAddReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -10979,7 +10189,7 @@ fn destack_net_route_add_replay(
 }
 
 #[inline]
-fn destack_net_route_delete_replay(
+fn destack_net_route_route_delete_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     route: RouteEntry,
@@ -10987,8 +10197,8 @@ fn destack_net_route_delete_replay(
     let _ = &route;
 
     context.replay().run_binding_with_payload_policy(
-        NET_ROUTE_DELETE,
-        context.replay_payload_for(NET_ROUTE_DELETE)?,
+        NET_ROUTE_ROUTE_DELETE,
+        context.replay_payload_for(NET_ROUTE_ROUTE_DELETE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_route_delete(context, route)
@@ -11000,7 +10210,7 @@ fn destack_net_route_delete_replay(
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = NetRouteDeleteReplay {
+                let payload = NetRouteRouteDeleteReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -11009,7 +10219,7 @@ fn destack_net_route_delete_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetRouteDeleteReplay { result }
+                    NetRouteRouteDeleteReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11027,7 +10237,7 @@ fn destack_net_route_delete_replay(
 }
 
 #[inline]
-fn destack_net_route_list_replay(
+fn destack_net_route_route_list_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<RouteEntry>,
@@ -11036,8 +10246,8 @@ fn destack_net_route_list_replay(
     let _ = &family;
 
     context.replay().run_binding_with_payload_policy(
-        NET_ROUTE_LIST,
-        context.replay_payload_for(NET_ROUTE_LIST)?,
+        NET_ROUTE_ROUTE_LIST,
+        context.replay_payload_for(NET_ROUTE_ROUTE_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_route_list(context, out, family)
@@ -11123,7 +10333,7 @@ fn destack_net_route_list_replay(
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
-                let payload = NetRouteListReplay {
+                let payload = NetRouteRouteListReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -11132,7 +10342,7 @@ fn destack_net_route_list_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetRouteListReplay { result }
+                    NetRouteRouteListReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11218,221 +10428,26 @@ fn destack_net_route_list_replay(
 }
 
 #[inline]
-fn destack_net_send_mmsg_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    out: *mut u64,
-    handle: resource::SocketHandle,
-    messages: NativeSlice<SocketSendBatchEntry>,
-) -> RuntimeResult<()> {
-    let _ = (&handle, &messages);
-
-    context.replay().run_binding_with_payload_policy(
-        NET_SEND_MMSG,
-        context.replay_payload_for(NET_SEND_MMSG)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_send_mmsg(context, out, handle, messages)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_send_mmsg(context, out, handle, messages)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded = result_value;
-                let payload = NetSendMmsgReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    NetSendMmsgReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native = value;
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_net_send_msg_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    out: *mut u64,
-    handle: resource::SocketHandle,
-    buffer: NativeSlice<u8>,
-    message: SocketSendMessage,
-) -> RuntimeResult<()> {
-    let _ = (&handle, &buffer, &message);
-
-    context.replay().run_binding_with_payload_policy(
-        NET_SEND_MSG,
-        context.replay_payload_for(NET_SEND_MSG)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_send_msg(context, out, handle, buffer, message)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_send_msg(
-                    context, out, handle, buffer, message,
-                )
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded = result_value;
-                let payload = NetSendMsgReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    NetSendMsgReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native = value;
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_net_send_to_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    out: *mut u64,
-    handle: resource::SocketHandle,
-    buffer: NativeSlice<u8>,
-    message: SocketSendTo,
-) -> RuntimeResult<()> {
-    let _ = (&handle, &buffer, &message);
-
-    context.replay().run_binding_with_payload_policy(
-        NET_SEND_TO,
-        context.replay_payload_for(NET_SEND_TO)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_send_to(context, out, handle, buffer, message)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_send_to(
-                    context, out, handle, buffer, message,
-                )
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded = result_value;
-                let payload = NetSendToReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    NetSendToReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native = value;
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_net_set_nonblocking_replay(
+fn destack_net_socket_close_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
-    enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &enabled);
+    let _ = &handle;
 
     context.replay().run_binding_with_payload_policy(
-        NET_SET_NONBLOCKING,
-        context.replay_payload_for(NET_SET_NONBLOCKING)?,
+        NET_SOCKET_CLOSE,
+        context.replay_payload_for(NET_SOCKET_CLOSE)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_nonblocking(context, handle, enabled)
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_net_close(context, handle) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_nonblocking(context, handle, enabled)
+                platform_simulated_native::destack_net_close(context, handle)
             },
         },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = NetSetNonblockingReplay {
+                let payload = NetSocketCloseReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -11441,7 +10456,7 @@ fn destack_net_set_nonblocking_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetSetNonblockingReplay { result }
+                    NetSocketCloseReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11459,29 +10474,29 @@ fn destack_net_set_nonblocking_replay(
 }
 
 #[inline]
-fn destack_net_shutdown_replay(
+fn destack_net_socket_connect_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
-    how: SocketShutdown,
+    address: SocketAddress,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &how);
+    let _ = (&handle, &address);
 
     context.replay().run_binding_with_payload_policy(
-        NET_SHUTDOWN,
-        context.replay_payload_for(NET_SHUTDOWN)?,
+        NET_SOCKET_CONNECT,
+        context.replay_payload_for(NET_SOCKET_CONNECT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_shutdown(context, handle, how)
+                platform_native::destack_net_connect(context, handle, address)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_shutdown(context, handle, how)
+                platform_simulated_native::destack_net_connect(context, handle, address)
             },
         },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = NetShutdownReplay {
+                let payload = NetSocketConnectReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -11490,7 +10505,7 @@ fn destack_net_shutdown_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetShutdownReplay { result }
+                    NetSocketConnectReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11508,7 +10523,7 @@ fn destack_net_shutdown_replay(
 }
 
 #[inline]
-fn destack_net_socket_replay(
+fn destack_net_socket_open_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut resource::SocketHandle,
@@ -11519,8 +10534,8 @@ fn destack_net_socket_replay(
     let _ = (&family, &sockettype, &protocol);
 
     context.replay().run_binding_with_payload_policy(
-        NET_SOCKET,
-        context.replay_payload_for(NET_SOCKET)?,
+        NET_SOCKET_OPEN,
+        context.replay_payload_for(NET_SOCKET_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_socket(context, out, family, sockettype, protocol)
@@ -11540,7 +10555,7 @@ fn destack_net_socket_replay(
                     *out
                 };
                 let result_recorded = result_value;
-                let payload = NetSocketReplay {
+                let payload = NetSocketOpenReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -11549,7 +10564,7 @@ fn destack_net_socket_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetSocketReplay { result }
+                    NetSocketOpenReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11573,7 +10588,7 @@ fn destack_net_socket_replay(
 }
 
 #[inline]
-fn destack_net_socket_pair_replay(
+fn destack_net_socket_open_pair_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut SocketPair,
@@ -11584,8 +10599,8 @@ fn destack_net_socket_pair_replay(
     let _ = (&family, &sockettype, &protocol);
 
     context.replay().run_binding_with_payload_policy(
-        NET_SOCKET_PAIR,
-        context.replay_payload_for(NET_SOCKET_PAIR)?,
+        NET_SOCKET_OPEN_PAIR,
+        context.replay_payload_for(NET_SOCKET_OPEN_PAIR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_socket_pair(context, out, family, sockettype, protocol)
@@ -11610,7 +10625,7 @@ fn destack_net_socket_pair_replay(
                     first: result_recorded_first,
                     second: result_recorded_second,
                 };
-                let payload = NetSocketPairReplay {
+                let payload = NetSocketOpenPairReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -11619,7 +10634,7 @@ fn destack_net_socket_pair_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetSocketPairReplay { result }
+                    NetSocketOpenPairReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11636,6 +10651,1124 @@ fn destack_net_socket_pair_replay(
                         first: value_native_first,
                         second: value_native_second,
                     };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_net_socket_read_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+    handle: resource::SocketHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &buffer);
+
+    context.replay().run_binding_with_payload_policy(
+        NET_SOCKET_READ,
+        context.replay_payload_for(NET_SOCKET_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_net_read(context, out, handle, buffer)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_net_read(context, out, handle, buffer)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = NetSocketReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    NetSocketReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_net_socket_readv_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+    handle: resource::SocketHandle,
+    buffers: NativeSlice<NativeSlice<u8>>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &buffers);
+
+    context.replay().run_binding_with_payload_policy(
+        NET_SOCKET_READV,
+        context.replay_payload_for(NET_SOCKET_READV)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_net_readv(context, out, handle, buffers)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_net_readv(context, out, handle, buffers)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = NetSocketReadvReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    NetSocketReadvReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_net_socket_recv_from_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut SocketRecvFrom,
+    handle: resource::SocketHandle,
+    buffer: NativeSlice<u8>,
+    recvflags: SocketMessageFlags,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &buffer, &recvflags);
+
+    context.replay().run_binding_with_payload_policy(
+        NET_SOCKET_RECV_FROM,
+        context.replay_payload_for(NET_SOCKET_RECV_FROM)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_net_recv_from(context, out, handle, buffer, recvflags)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_net_recv_from(
+                    context, out, handle, buffer, recvflags,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_address_family = result_value.address.family;
+                let result_recorded_address_length = result_value.address.length;
+                let result_recorded_address_bytes_raw =
+                    unsafe { result_value.address.bytes.as_slice()? };
+                let mut result_recorded_address_bytes =
+                    Vec::with_capacity(result_recorded_address_bytes_raw.len());
+                for result_recorded_address_bytes_item_value in result_recorded_address_bytes_raw {
+                    let result_recorded_address_bytes_item =
+                        *result_recorded_address_bytes_item_value;
+                    let result_recorded_address_bytes_item_recorded =
+                        result_recorded_address_bytes_item;
+                    result_recorded_address_bytes.push(result_recorded_address_bytes_item_recorded);
+                }
+                let result_recorded_address = SocketAddressReplayRecord {
+                    family: result_recorded_address_family,
+                    length: result_recorded_address_length,
+                    bytes: result_recorded_address_bytes,
+                };
+                let result_recorded_recv_flags = result_value.recv_flags;
+                let result_recorded = SocketRecvFromReplayRecord {
+                    bytes: result_recorded_bytes,
+                    address: result_recorded_address,
+                    recv_flags: result_recorded_recv_flags,
+                };
+                let payload = NetSocketRecvFromReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    NetSocketRecvFromReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_bytes = value.bytes;
+                    let value_native_address_family = value.address.family;
+                    let value_native_address_length = value.address.length;
+                    let mut value_native_address_bytes_values =
+                        Vec::with_capacity(value.address.bytes.len());
+                    for value_native_address_bytes_item in value.address.bytes {
+                        let value_native_address_bytes_item_native =
+                            value_native_address_bytes_item;
+                        value_native_address_bytes_values
+                            .push(value_native_address_bytes_item_native);
+                    }
+                    let value_native_address_bytes =
+                        context.store_array(value_native_address_bytes_values);
+                    let value_native_address = SocketAddress {
+                        family: value_native_address_family,
+                        length: value_native_address_length,
+                        bytes: value_native_address_bytes,
+                    };
+                    let value_native_recv_flags = value.recv_flags;
+                    let value_native = SocketRecvFrom {
+                        bytes: value_native_bytes,
+                        address: value_native_address,
+                        recv_flags: value_native_recv_flags,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_net_socket_recv_mmsg_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeArray<SocketRecvMessage>,
+    handle: resource::SocketHandle,
+    requests: NativeSlice<SocketRecvBatchRequest>,
+    maxfds: u32,
+    wantcredentials: bool,
+    maxcontrolbytes: u32,
+) -> RuntimeResult<()> {
+    let _ = (
+        &handle,
+        &requests,
+        &maxfds,
+        &wantcredentials,
+        &maxcontrolbytes,
+    );
+
+    context.replay().run_binding_with_payload_policy(
+        NET_SOCKET_RECV_MMSG,
+        context.replay_payload_for(NET_SOCKET_RECV_MMSG)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_net_recv_mmsg(
+                    context,
+                    out,
+                    handle,
+                    requests,
+                    maxfds,
+                    wantcredentials,
+                    maxcontrolbytes,
+                )
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_net_recv_mmsg(
+                    context,
+                    out,
+                    handle,
+                    requests,
+                    maxfds,
+                    wantcredentials,
+                    maxcontrolbytes,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_bytes = result_recorded_item.bytes;
+                    let result_recorded_item_recorded_has_address =
+                        result_recorded_item.has_address;
+                    let result_recorded_item_recorded_address_family =
+                        result_recorded_item.address.family;
+                    let result_recorded_item_recorded_address_length =
+                        result_recorded_item.address.length;
+                    let result_recorded_item_recorded_address_bytes_raw =
+                        unsafe { result_recorded_item.address.bytes.as_slice()? };
+                    let mut result_recorded_item_recorded_address_bytes =
+                        Vec::with_capacity(result_recorded_item_recorded_address_bytes_raw.len());
+                    for result_recorded_item_recorded_address_bytes_item_value in
+                        result_recorded_item_recorded_address_bytes_raw
+                    {
+                        let result_recorded_item_recorded_address_bytes_item =
+                            *result_recorded_item_recorded_address_bytes_item_value;
+                        let result_recorded_item_recorded_address_bytes_item_recorded =
+                            result_recorded_item_recorded_address_bytes_item;
+                        result_recorded_item_recorded_address_bytes
+                            .push(result_recorded_item_recorded_address_bytes_item_recorded);
+                    }
+                    let result_recorded_item_recorded_address = SocketAddressReplayRecord {
+                        family: result_recorded_item_recorded_address_family,
+                        length: result_recorded_item_recorded_address_length,
+                        bytes: result_recorded_item_recorded_address_bytes,
+                    };
+                    let result_recorded_item_recorded_recv_flags = result_recorded_item.recv_flags;
+                    let result_recorded_item_recorded_payload_truncated =
+                        result_recorded_item.payload_truncated;
+                    let result_recorded_item_recorded_control_truncated =
+                        result_recorded_item.control_truncated;
+                    let result_recorded_item_recorded_control_raw =
+                        unsafe { result_recorded_item.control.0.as_slice()? };
+                    let mut result_recorded_item_recorded_control =
+                        Vec::with_capacity(result_recorded_item_recorded_control_raw.len());
+                    for result_recorded_item_recorded_control_item_value in
+                        result_recorded_item_recorded_control_raw
+                    {
+                        let result_recorded_item_recorded_control_item =
+                            *result_recorded_item_recorded_control_item_value;
+                        let result_recorded_item_recorded_control_item_recorded =
+                            result_recorded_item_recorded_control_item;
+                        result_recorded_item_recorded_control
+                            .push(result_recorded_item_recorded_control_item_recorded);
+                    }
+                    let result_recorded_item_recorded_fds_raw =
+                        unsafe { result_recorded_item.fds.as_slice()? };
+                    let mut result_recorded_item_recorded_fds =
+                        Vec::with_capacity(result_recorded_item_recorded_fds_raw.len());
+                    for result_recorded_item_recorded_fds_item_value in
+                        result_recorded_item_recorded_fds_raw
+                    {
+                        let result_recorded_item_recorded_fds_item =
+                            *result_recorded_item_recorded_fds_item_value;
+                        let result_recorded_item_recorded_fds_item_recorded =
+                            result_recorded_item_recorded_fds_item;
+                        result_recorded_item_recorded_fds
+                            .push(result_recorded_item_recorded_fds_item_recorded);
+                    }
+                    let result_recorded_item_recorded_has_credentials =
+                        result_recorded_item.has_credentials;
+                    let result_recorded_item_recorded_credentials_pid =
+                        result_recorded_item.credentials.pid;
+                    let result_recorded_item_recorded_credentials_uid =
+                        result_recorded_item.credentials.uid;
+                    let result_recorded_item_recorded_credentials_gid =
+                        result_recorded_item.credentials.gid;
+                    let result_recorded_item_recorded_credentials = SocketCredentials {
+                        pid: result_recorded_item_recorded_credentials_pid,
+                        uid: result_recorded_item_recorded_credentials_uid,
+                        gid: result_recorded_item_recorded_credentials_gid,
+                    };
+                    let result_recorded_item_recorded = SocketRecvMessageReplayRecord {
+                        bytes: result_recorded_item_recorded_bytes,
+                        has_address: result_recorded_item_recorded_has_address,
+                        address: result_recorded_item_recorded_address,
+                        recv_flags: result_recorded_item_recorded_recv_flags,
+                        payload_truncated: result_recorded_item_recorded_payload_truncated,
+                        control_truncated: result_recorded_item_recorded_control_truncated,
+                        control: result_recorded_item_recorded_control,
+                        fds: result_recorded_item_recorded_fds,
+                        has_credentials: result_recorded_item_recorded_has_credentials,
+                        credentials: result_recorded_item_recorded_credentials,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = NetSocketRecvMmsgReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    NetSocketRecvMmsgReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native_bytes = value_native_item.bytes;
+                        let value_native_item_native_has_address = value_native_item.has_address;
+                        let value_native_item_native_address_family =
+                            value_native_item.address.family;
+                        let value_native_item_native_address_length =
+                            value_native_item.address.length;
+                        let mut value_native_item_native_address_bytes_values =
+                            Vec::with_capacity(value_native_item.address.bytes.len());
+                        for value_native_item_native_address_bytes_item in
+                            value_native_item.address.bytes
+                        {
+                            let value_native_item_native_address_bytes_item_native =
+                                value_native_item_native_address_bytes_item;
+                            value_native_item_native_address_bytes_values
+                                .push(value_native_item_native_address_bytes_item_native);
+                        }
+                        let value_native_item_native_address_bytes =
+                            context.store_array(value_native_item_native_address_bytes_values);
+                        let value_native_item_native_address = SocketAddress {
+                            family: value_native_item_native_address_family,
+                            length: value_native_item_native_address_length,
+                            bytes: value_native_item_native_address_bytes,
+                        };
+                        let value_native_item_native_recv_flags = value_native_item.recv_flags;
+                        let value_native_item_native_payload_truncated =
+                            value_native_item.payload_truncated;
+                        let value_native_item_native_control_truncated =
+                            value_native_item.control_truncated;
+                        let mut value_native_item_native_control_inner_values =
+                            Vec::with_capacity(value_native_item.control.len());
+                        for value_native_item_native_control_inner_item in value_native_item.control
+                        {
+                            let value_native_item_native_control_inner_item_native =
+                                value_native_item_native_control_inner_item;
+                            value_native_item_native_control_inner_values
+                                .push(value_native_item_native_control_inner_item_native);
+                        }
+                        let value_native_item_native_control_inner =
+                            context.store_array(value_native_item_native_control_inner_values);
+                        let value_native_item_native_control =
+                            platform_net::SocketControlBufferAbi::<platform_abi::NativeAbi>(
+                                value_native_item_native_control_inner,
+                            );
+                        let mut value_native_item_native_fds_values =
+                            Vec::with_capacity(value_native_item.fds.len());
+                        for value_native_item_native_fds_item in value_native_item.fds {
+                            let value_native_item_native_fds_item_native =
+                                value_native_item_native_fds_item;
+                            value_native_item_native_fds_values
+                                .push(value_native_item_native_fds_item_native);
+                        }
+                        let value_native_item_native_fds =
+                            context.store_array(value_native_item_native_fds_values);
+                        let value_native_item_native_has_credentials =
+                            value_native_item.has_credentials;
+                        let value_native_item_native_credentials_pid =
+                            value_native_item.credentials.pid;
+                        let value_native_item_native_credentials_uid =
+                            value_native_item.credentials.uid;
+                        let value_native_item_native_credentials_gid =
+                            value_native_item.credentials.gid;
+                        let value_native_item_native_credentials = SocketCredentials {
+                            pid: value_native_item_native_credentials_pid,
+                            uid: value_native_item_native_credentials_uid,
+                            gid: value_native_item_native_credentials_gid,
+                        };
+                        let value_native_item_native = SocketRecvMessage {
+                            bytes: value_native_item_native_bytes,
+                            has_address: value_native_item_native_has_address,
+                            address: value_native_item_native_address,
+                            recv_flags: value_native_item_native_recv_flags,
+                            payload_truncated: value_native_item_native_payload_truncated,
+                            control_truncated: value_native_item_native_control_truncated,
+                            control: value_native_item_native_control,
+                            fds: value_native_item_native_fds,
+                            has_credentials: value_native_item_native_has_credentials,
+                            credentials: value_native_item_native_credentials,
+                        };
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_net_socket_recv_msg_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut SocketRecvMessage,
+    handle: resource::SocketHandle,
+    buffer: NativeSlice<u8>,
+    recvflags: SocketMessageFlags,
+    maxfds: u32,
+    wantcredentials: bool,
+    maxcontrolbytes: u32,
+) -> RuntimeResult<()> {
+    let _ = (
+        &handle,
+        &buffer,
+        &recvflags,
+        &maxfds,
+        &wantcredentials,
+        &maxcontrolbytes,
+    );
+
+    context.replay().run_binding_with_payload_policy(
+        NET_SOCKET_RECV_MSG,
+        context.replay_payload_for(NET_SOCKET_RECV_MSG)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_net_recv_msg(
+                    context,
+                    out,
+                    handle,
+                    buffer,
+                    recvflags,
+                    maxfds,
+                    wantcredentials,
+                    maxcontrolbytes,
+                )
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_net_recv_msg(
+                    context,
+                    out,
+                    handle,
+                    buffer,
+                    recvflags,
+                    maxfds,
+                    wantcredentials,
+                    maxcontrolbytes,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_has_address = result_value.has_address;
+                let result_recorded_address_family = result_value.address.family;
+                let result_recorded_address_length = result_value.address.length;
+                let result_recorded_address_bytes_raw =
+                    unsafe { result_value.address.bytes.as_slice()? };
+                let mut result_recorded_address_bytes =
+                    Vec::with_capacity(result_recorded_address_bytes_raw.len());
+                for result_recorded_address_bytes_item_value in result_recorded_address_bytes_raw {
+                    let result_recorded_address_bytes_item =
+                        *result_recorded_address_bytes_item_value;
+                    let result_recorded_address_bytes_item_recorded =
+                        result_recorded_address_bytes_item;
+                    result_recorded_address_bytes.push(result_recorded_address_bytes_item_recorded);
+                }
+                let result_recorded_address = SocketAddressReplayRecord {
+                    family: result_recorded_address_family,
+                    length: result_recorded_address_length,
+                    bytes: result_recorded_address_bytes,
+                };
+                let result_recorded_recv_flags = result_value.recv_flags;
+                let result_recorded_payload_truncated = result_value.payload_truncated;
+                let result_recorded_control_truncated = result_value.control_truncated;
+                let result_recorded_control_raw = unsafe { result_value.control.0.as_slice()? };
+                let mut result_recorded_control =
+                    Vec::with_capacity(result_recorded_control_raw.len());
+                for result_recorded_control_item_value in result_recorded_control_raw {
+                    let result_recorded_control_item = *result_recorded_control_item_value;
+                    let result_recorded_control_item_recorded = result_recorded_control_item;
+                    result_recorded_control.push(result_recorded_control_item_recorded);
+                }
+                let result_recorded_fds_raw = unsafe { result_value.fds.as_slice()? };
+                let mut result_recorded_fds = Vec::with_capacity(result_recorded_fds_raw.len());
+                for result_recorded_fds_item_value in result_recorded_fds_raw {
+                    let result_recorded_fds_item = *result_recorded_fds_item_value;
+                    let result_recorded_fds_item_recorded = result_recorded_fds_item;
+                    result_recorded_fds.push(result_recorded_fds_item_recorded);
+                }
+                let result_recorded_has_credentials = result_value.has_credentials;
+                let result_recorded_credentials_pid = result_value.credentials.pid;
+                let result_recorded_credentials_uid = result_value.credentials.uid;
+                let result_recorded_credentials_gid = result_value.credentials.gid;
+                let result_recorded_credentials = SocketCredentials {
+                    pid: result_recorded_credentials_pid,
+                    uid: result_recorded_credentials_uid,
+                    gid: result_recorded_credentials_gid,
+                };
+                let result_recorded = SocketRecvMessageReplayRecord {
+                    bytes: result_recorded_bytes,
+                    has_address: result_recorded_has_address,
+                    address: result_recorded_address,
+                    recv_flags: result_recorded_recv_flags,
+                    payload_truncated: result_recorded_payload_truncated,
+                    control_truncated: result_recorded_control_truncated,
+                    control: result_recorded_control,
+                    fds: result_recorded_fds,
+                    has_credentials: result_recorded_has_credentials,
+                    credentials: result_recorded_credentials,
+                };
+                let payload = NetSocketRecvMsgReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    NetSocketRecvMsgReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_bytes = value.bytes;
+                    let value_native_has_address = value.has_address;
+                    let value_native_address_family = value.address.family;
+                    let value_native_address_length = value.address.length;
+                    let mut value_native_address_bytes_values =
+                        Vec::with_capacity(value.address.bytes.len());
+                    for value_native_address_bytes_item in value.address.bytes {
+                        let value_native_address_bytes_item_native =
+                            value_native_address_bytes_item;
+                        value_native_address_bytes_values
+                            .push(value_native_address_bytes_item_native);
+                    }
+                    let value_native_address_bytes =
+                        context.store_array(value_native_address_bytes_values);
+                    let value_native_address = SocketAddress {
+                        family: value_native_address_family,
+                        length: value_native_address_length,
+                        bytes: value_native_address_bytes,
+                    };
+                    let value_native_recv_flags = value.recv_flags;
+                    let value_native_payload_truncated = value.payload_truncated;
+                    let value_native_control_truncated = value.control_truncated;
+                    let mut value_native_control_inner_values =
+                        Vec::with_capacity(value.control.len());
+                    for value_native_control_inner_item in value.control {
+                        let value_native_control_inner_item_native =
+                            value_native_control_inner_item;
+                        value_native_control_inner_values
+                            .push(value_native_control_inner_item_native);
+                    }
+                    let value_native_control_inner =
+                        context.store_array(value_native_control_inner_values);
+                    let value_native_control = platform_net::SocketControlBufferAbi::<
+                        platform_abi::NativeAbi,
+                    >(value_native_control_inner);
+                    let mut value_native_fds_values = Vec::with_capacity(value.fds.len());
+                    for value_native_fds_item in value.fds {
+                        let value_native_fds_item_native = value_native_fds_item;
+                        value_native_fds_values.push(value_native_fds_item_native);
+                    }
+                    let value_native_fds = context.store_array(value_native_fds_values);
+                    let value_native_has_credentials = value.has_credentials;
+                    let value_native_credentials_pid = value.credentials.pid;
+                    let value_native_credentials_uid = value.credentials.uid;
+                    let value_native_credentials_gid = value.credentials.gid;
+                    let value_native_credentials = SocketCredentials {
+                        pid: value_native_credentials_pid,
+                        uid: value_native_credentials_uid,
+                        gid: value_native_credentials_gid,
+                    };
+                    let value_native = SocketRecvMessage {
+                        bytes: value_native_bytes,
+                        has_address: value_native_has_address,
+                        address: value_native_address,
+                        recv_flags: value_native_recv_flags,
+                        payload_truncated: value_native_payload_truncated,
+                        control_truncated: value_native_control_truncated,
+                        control: value_native_control,
+                        fds: value_native_fds,
+                        has_credentials: value_native_has_credentials,
+                        credentials: value_native_credentials,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_net_socket_send_mmsg_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+    handle: resource::SocketHandle,
+    messages: NativeSlice<SocketSendBatchEntry>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &messages);
+
+    context.replay().run_binding_with_payload_policy(
+        NET_SOCKET_SEND_MMSG,
+        context.replay_payload_for(NET_SOCKET_SEND_MMSG)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_net_send_mmsg(context, out, handle, messages)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_net_send_mmsg(context, out, handle, messages)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = NetSocketSendMmsgReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    NetSocketSendMmsgReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_net_socket_send_msg_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+    handle: resource::SocketHandle,
+    buffer: NativeSlice<u8>,
+    message: SocketSendMessage,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &buffer, &message);
+
+    context.replay().run_binding_with_payload_policy(
+        NET_SOCKET_SEND_MSG,
+        context.replay_payload_for(NET_SOCKET_SEND_MSG)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_net_send_msg(context, out, handle, buffer, message)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_net_send_msg(
+                    context, out, handle, buffer, message,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = NetSocketSendMsgReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    NetSocketSendMsgReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_net_socket_send_to_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+    handle: resource::SocketHandle,
+    buffer: NativeSlice<u8>,
+    message: SocketSendTo,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &buffer, &message);
+
+    context.replay().run_binding_with_payload_policy(
+        NET_SOCKET_SEND_TO,
+        context.replay_payload_for(NET_SOCKET_SEND_TO)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_net_send_to(context, out, handle, buffer, message)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_net_send_to(
+                    context, out, handle, buffer, message,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = NetSocketSendToReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    NetSocketSendToReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_net_socket_set_nonblocking_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::SocketHandle,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &enabled);
+
+    context.replay().run_binding_with_payload_policy(
+        NET_SOCKET_SET_NONBLOCKING,
+        context.replay_payload_for(NET_SOCKET_SET_NONBLOCKING)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_net_set_nonblocking(context, handle, enabled)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_net_set_nonblocking(context, handle, enabled)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = NetSocketSetNonblockingReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    NetSocketSetNonblockingReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_net_socket_shutdown_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::SocketHandle,
+    how: SocketShutdown,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &how);
+
+    context.replay().run_binding_with_payload_policy(
+        NET_SOCKET_SHUTDOWN,
+        context.replay_payload_for(NET_SOCKET_SHUTDOWN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_net_shutdown(context, handle, how)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_net_shutdown(context, handle, how)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = NetSocketShutdownReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    NetSocketShutdownReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_net_socket_write_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+    handle: resource::SocketHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &buffer);
+
+    context.replay().run_binding_with_payload_policy(
+        NET_SOCKET_WRITE,
+        context.replay_payload_for(NET_SOCKET_WRITE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_net_write(context, out, handle, buffer)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_net_write(context, out, handle, buffer)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = NetSocketWriteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    NetSocketWriteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_net_socket_writev_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+    handle: resource::SocketHandle,
+    buffers: NativeSlice<NativeSlice<u8>>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &buffers);
+
+    context.replay().run_binding_with_payload_policy(
+        NET_SOCKET_WRITEV,
+        context.replay_payload_for(NET_SOCKET_WRITEV)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_net_writev(context, out, handle, buffers)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_net_writev(context, out, handle, buffers)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = NetSocketWritevReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    NetSocketWritevReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -13129,7 +13262,7 @@ fn destack_net_udp_socket_replay(
 }
 
 #[inline]
-fn destack_net_uds_accept_replay(
+fn destack_net_uds_uds_accept_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut resource::SocketHandle,
@@ -13138,8 +13271,8 @@ fn destack_net_uds_accept_replay(
     let _ = &listener;
 
     context.replay().run_binding_with_payload_policy(
-        NET_UDS_ACCEPT,
-        context.replay_payload_for(NET_UDS_ACCEPT)?,
+        NET_UDS_UDS_ACCEPT,
+        context.replay_payload_for(NET_UDS_UDS_ACCEPT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_uds_accept(context, out, listener)
@@ -13157,7 +13290,7 @@ fn destack_net_uds_accept_replay(
                     *out
                 };
                 let result_recorded = result_value;
-                let payload = NetUdsAcceptReplay {
+                let payload = NetUdsUdsAcceptReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -13166,7 +13299,7 @@ fn destack_net_uds_accept_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetUdsAcceptReplay { result }
+                    NetUdsUdsAcceptReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13190,7 +13323,7 @@ fn destack_net_uds_accept_replay(
 }
 
 #[inline]
-fn destack_net_uds_close_listener_replay(
+fn destack_net_uds_uds_close_listener_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     handle: resource::ListenerHandle,
@@ -13198,8 +13331,8 @@ fn destack_net_uds_close_listener_replay(
     let _ = &handle;
 
     context.replay().run_binding_with_payload_policy(
-        NET_UDS_CLOSE_LISTENER,
-        context.replay_payload_for(NET_UDS_CLOSE_LISTENER)?,
+        NET_UDS_UDS_CLOSE_LISTENER,
+        context.replay_payload_for(NET_UDS_UDS_CLOSE_LISTENER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_uds_close_listener(context, handle)
@@ -13211,7 +13344,7 @@ fn destack_net_uds_close_listener_replay(
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = NetUdsCloseListenerReplay {
+                let payload = NetUdsUdsCloseListenerReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -13220,7 +13353,7 @@ fn destack_net_uds_close_listener_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetUdsCloseListenerReplay { result }
+                    NetUdsUdsCloseListenerReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13238,7 +13371,7 @@ fn destack_net_uds_close_listener_replay(
 }
 
 #[inline]
-fn destack_net_uds_connect_replay(
+fn destack_net_uds_uds_connect_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut resource::SocketHandle,
@@ -13247,8 +13380,8 @@ fn destack_net_uds_connect_replay(
     let _ = &address;
 
     context.replay().run_binding_with_payload_policy(
-        NET_UDS_CONNECT,
-        context.replay_payload_for(NET_UDS_CONNECT)?,
+        NET_UDS_UDS_CONNECT,
+        context.replay_payload_for(NET_UDS_UDS_CONNECT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_uds_connect(context, out, address)
@@ -13266,7 +13399,7 @@ fn destack_net_uds_connect_replay(
                     *out
                 };
                 let result_recorded = result_value;
-                let payload = NetUdsConnectReplay {
+                let payload = NetUdsUdsConnectReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -13275,7 +13408,7 @@ fn destack_net_uds_connect_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetUdsConnectReplay { result }
+                    NetUdsUdsConnectReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13299,7 +13432,7 @@ fn destack_net_uds_connect_replay(
 }
 
 #[inline]
-fn destack_net_uds_listen_replay(
+fn destack_net_uds_uds_listen_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut resource::ListenerHandle,
@@ -13309,8 +13442,8 @@ fn destack_net_uds_listen_replay(
     let _ = (&address, &backlog);
 
     context.replay().run_binding_with_payload_policy(
-        NET_UDS_LISTEN,
-        context.replay_payload_for(NET_UDS_LISTEN)?,
+        NET_UDS_UDS_LISTEN,
+        context.replay_payload_for(NET_UDS_UDS_LISTEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_uds_listen(context, out, address, backlog)
@@ -13328,7 +13461,7 @@ fn destack_net_uds_listen_replay(
                     *out
                 };
                 let result_recorded = result_value;
-                let payload = NetUdsListenReplay {
+                let payload = NetUdsUdsListenReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -13337,7 +13470,7 @@ fn destack_net_uds_listen_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetUdsListenReplay { result }
+                    NetUdsUdsListenReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13361,7 +13494,7 @@ fn destack_net_uds_listen_replay(
 }
 
 #[inline]
-fn destack_net_uds_socket_pair_replay(
+fn destack_net_uds_uds_socket_pair_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut SocketPair,
@@ -13370,8 +13503,8 @@ fn destack_net_uds_socket_pair_replay(
     let _ = &sockettype;
 
     context.replay().run_binding_with_payload_policy(
-        NET_UDS_SOCKET_PAIR,
-        context.replay_payload_for(NET_UDS_SOCKET_PAIR)?,
+        NET_UDS_UDS_SOCKET_PAIR,
+        context.replay_payload_for(NET_UDS_UDS_SOCKET_PAIR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_uds_socket_pair(context, out, sockettype)
@@ -13394,7 +13527,7 @@ fn destack_net_uds_socket_pair_replay(
                     first: result_recorded_first,
                     second: result_recorded_second,
                 };
-                let payload = NetUdsSocketPairReplay {
+                let payload = NetUdsUdsSocketPairReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -13403,7 +13536,7 @@ fn destack_net_uds_socket_pair_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    NetUdsSocketPairReplay { result }
+                    NetUdsUdsSocketPairReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13431,149 +13564,7 @@ fn destack_net_uds_socket_pair_replay(
     )
 }
 
-#[inline]
-fn destack_net_write_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    out: *mut u64,
-    handle: resource::SocketHandle,
-    buffer: NativeSlice<u8>,
-) -> RuntimeResult<()> {
-    let _ = (&handle, &buffer);
-
-    context.replay().run_binding_with_payload_policy(
-        NET_WRITE,
-        context.replay_payload_for(NET_WRITE)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_write(context, out, handle, buffer)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_write(context, out, handle, buffer)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded = result_value;
-                let payload = NetWriteReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    NetWriteReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native = value;
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_net_writev_replay(
-    context: &RuntimeCallContext,
-    world: RuntimeWorld,
-    out: *mut u64,
-    handle: resource::SocketHandle,
-    buffers: NativeSlice<NativeSlice<u8>>,
-) -> RuntimeResult<()> {
-    let _ = (&handle, &buffers);
-
-    context.replay().run_binding_with_payload_policy(
-        NET_WRITEV,
-        context.replay_payload_for(NET_WRITEV)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_writev(context, out, handle, buffers)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_writev(context, out, handle, buffers)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded = result_value;
-                let payload = NetWritevReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    NetWritevReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native = value;
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
 /// Native export wrappers for net bindings.
-#[unsafe(export_name = "destack.net.accept")]
-pub unsafe extern "C" fn destack_net_accept(
-    out: *mut resource::SocketHandle,
-    listener: resource::ListenerHandle,
-    flags: AcceptFlags,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &listener, &flags);
-
-        context.check_policy(NET_ACCEPT)?;
-        let world = context.check_and_resolve_world(NET_ACCEPT)?;
-        destack_net_accept_replay(context, world, out, listener, flags)
-    })
-}
-
 #[unsafe(export_name = "destack.net.address.localAddress")]
 pub unsafe extern "C" fn destack_net_address_local_address(
     out: *mut SocketAddress,
@@ -13608,55 +13599,37 @@ pub unsafe extern "C" fn destack_net_address_peer_address(
     })
 }
 
-#[unsafe(export_name = "destack.net.bind")]
-pub unsafe extern "C" fn destack_net_bind(
-    handle: resource::SocketHandle,
-    address: SocketAddress,
+#[unsafe(export_name = "destack.net.interface.interfaceIndex")]
+pub unsafe extern "C" fn destack_net_interface_interface_index(
+    out: *mut u32,
+    name: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&handle, &address);
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &name);
 
-        context.check_policy(NET_BIND)?;
-        let world = context.check_and_resolve_world(NET_BIND)?;
-        destack_net_bind_replay(context, world, handle, address)
+        context.check_policy(NET_INTERFACE_INTERFACE_INDEX)?;
+        let world = context.check_and_resolve_world(NET_INTERFACE_INTERFACE_INDEX)?;
+        destack_net_interface_interface_index_replay(context, world, out, name)
     })
 }
 
-#[unsafe(export_name = "destack.net.close")]
-pub unsafe extern "C" fn destack_net_close(handle: resource::SocketHandle) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = &handle;
-
-        context.check_policy(NET_CLOSE)?;
-        let world = context.check_and_resolve_world(NET_CLOSE)?;
-        destack_net_close_replay(context, world, handle)
-    })
-}
-
-#[unsafe(export_name = "destack.net.closeListener")]
-pub unsafe extern "C" fn destack_net_close_listener(
-    handle: resource::ListenerHandle,
+#[unsafe(export_name = "destack.net.interface.interfaceName")]
+pub unsafe extern "C" fn destack_net_interface_interface_name(
+    out: *mut NativeStringRef,
+    index: u32,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = &handle;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &index);
 
-        context.check_policy(NET_CLOSE_LISTENER)?;
-        let world = context.check_and_resolve_world(NET_CLOSE_LISTENER)?;
-        destack_net_close_listener_replay(context, world, handle)
-    })
-}
-
-#[unsafe(export_name = "destack.net.connect")]
-pub unsafe extern "C" fn destack_net_connect(
-    handle: resource::SocketHandle,
-    address: SocketAddress,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&handle, &address);
-
-        context.check_policy(NET_CONNECT)?;
-        let world = context.check_and_resolve_world(NET_CONNECT)?;
-        destack_net_connect_replay(context, world, handle, address)
+        context.check_policy(NET_INTERFACE_INTERFACE_NAME)?;
+        let world = context.check_and_resolve_world(NET_INTERFACE_INTERFACE_NAME)?;
+        destack_net_interface_interface_name_replay(context, world, out, index)
     })
 }
 
@@ -13676,42 +13649,53 @@ pub unsafe extern "C" fn destack_net_interface_list_interfaces(
     })
 }
 
-#[unsafe(export_name = "destack.net.interfaceIndex")]
-pub unsafe extern "C" fn destack_net_interface_index(
-    out: *mut u32,
-    name: NativeStringRef,
+#[unsafe(export_name = "destack.net.listener.accept")]
+pub unsafe extern "C" fn destack_net_listener_accept(
+    out: *mut resource::SocketHandle,
+    listener: resource::ListenerHandle,
+    flags: AcceptFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &name);
+        let _ = (&out, &listener, &flags);
 
-        context.check_policy(NET_INTERFACE_INDEX)?;
-        let world = context.check_and_resolve_world(NET_INTERFACE_INDEX)?;
-        destack_net_interface_index_replay(context, world, out, name)
+        context.check_policy(NET_LISTENER_ACCEPT)?;
+        let world = context.check_and_resolve_world(NET_LISTENER_ACCEPT)?;
+        destack_net_listener_accept_replay(context, world, out, listener, flags)
     })
 }
 
-#[unsafe(export_name = "destack.net.interfaceName")]
-pub unsafe extern "C" fn destack_net_interface_name(
-    out: *mut NativeStringRef,
-    index: u32,
+#[unsafe(export_name = "destack.net.listener.bind")]
+pub unsafe extern "C" fn destack_net_listener_bind(
+    handle: resource::SocketHandle,
+    address: SocketAddress,
 ) -> RuntimeStatus {
     native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &index);
+        let _ = (&handle, &address);
 
-        context.check_policy(NET_INTERFACE_NAME)?;
-        let world = context.check_and_resolve_world(NET_INTERFACE_NAME)?;
-        destack_net_interface_name_replay(context, world, out, index)
+        context.check_policy(NET_LISTENER_BIND)?;
+        let world = context.check_and_resolve_world(NET_LISTENER_BIND)?;
+        destack_net_listener_bind_replay(context, world, handle, address)
     })
 }
 
-#[unsafe(export_name = "destack.net.listen")]
-pub unsafe extern "C" fn destack_net_listen(
+#[unsafe(export_name = "destack.net.listener.closeListener")]
+pub unsafe extern "C" fn destack_net_listener_close_listener(
+    handle: resource::ListenerHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        context.check_policy(NET_LISTENER_CLOSE_LISTENER)?;
+        let world = context.check_and_resolve_world(NET_LISTENER_CLOSE_LISTENER)?;
+        destack_net_listener_close_listener_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.net.listener.listen")]
+pub unsafe extern "C" fn destack_net_listener_listen(
     out: *mut resource::ListenerHandle,
     address: SocketAddress,
     backlog: u32,
@@ -13722,9 +13706,9 @@ pub unsafe extern "C" fn destack_net_listen(
         }
         let _ = (&out, &address, &backlog);
 
-        context.check_policy(NET_LISTEN)?;
-        let world = context.check_and_resolve_world(NET_LISTEN)?;
-        destack_net_listen_replay(context, world, out, address, backlog)
+        context.check_policy(NET_LISTENER_LISTEN)?;
+        let world = context.check_and_resolve_world(NET_LISTENER_LISTEN)?;
+        destack_net_listener_listen_replay(context, world, out, address, backlog)
     })
 }
 
@@ -14325,140 +14309,8 @@ pub unsafe extern "C" fn destack_net_raw_socket(
     })
 }
 
-#[unsafe(export_name = "destack.net.read")]
-pub unsafe extern "C" fn destack_net_read(
-    out: *mut u64,
-    handle: resource::SocketHandle,
-    buffer: NativeSlice<u8>,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle, &buffer);
-
-        context.check_policy(NET_READ)?;
-        let world = context.check_and_resolve_world(NET_READ)?;
-        destack_net_read_replay(context, world, out, handle, buffer)
-    })
-}
-
-#[unsafe(export_name = "destack.net.readv")]
-pub unsafe extern "C" fn destack_net_readv(
-    out: *mut u64,
-    handle: resource::SocketHandle,
-    buffers: NativeSlice<NativeSlice<u8>>,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle, &buffers);
-
-        context.check_policy(NET_READV)?;
-        let world = context.check_and_resolve_world(NET_READV)?;
-        destack_net_readv_replay(context, world, out, handle, buffers)
-    })
-}
-
-#[unsafe(export_name = "destack.net.recvFrom")]
-pub unsafe extern "C" fn destack_net_recv_from(
-    out: *mut SocketRecvFrom,
-    handle: resource::SocketHandle,
-    buffer: NativeSlice<u8>,
-    recvflags: SocketMessageFlags,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle, &buffer, &recvflags);
-
-        context.check_policy(NET_RECV_FROM)?;
-        let world = context.check_and_resolve_world(NET_RECV_FROM)?;
-        destack_net_recv_from_replay(context, world, out, handle, buffer, recvflags)
-    })
-}
-
-#[unsafe(export_name = "destack.net.recvMmsg")]
-pub unsafe extern "C" fn destack_net_recv_mmsg(
-    out: *mut NativeArray<SocketRecvMessage>,
-    handle: resource::SocketHandle,
-    requests: NativeSlice<SocketRecvBatchRequest>,
-    maxfds: u32,
-    wantcredentials: bool,
-    maxcontrolbytes: u32,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (
-            &out,
-            &handle,
-            &requests,
-            &maxfds,
-            &wantcredentials,
-            &maxcontrolbytes,
-        );
-
-        context.check_policy(NET_RECV_MMSG)?;
-        let world = context.check_and_resolve_world(NET_RECV_MMSG)?;
-        destack_net_recv_mmsg_replay(
-            context,
-            world,
-            out,
-            handle,
-            requests,
-            maxfds,
-            wantcredentials,
-            maxcontrolbytes,
-        )
-    })
-}
-
-#[unsafe(export_name = "destack.net.recvMsg")]
-pub unsafe extern "C" fn destack_net_recv_msg(
-    out: *mut SocketRecvMessage,
-    handle: resource::SocketHandle,
-    buffer: NativeSlice<u8>,
-    recvflags: SocketMessageFlags,
-    maxfds: u32,
-    wantcredentials: bool,
-    maxcontrolbytes: u32,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (
-            &out,
-            &handle,
-            &buffer,
-            &recvflags,
-            &maxfds,
-            &wantcredentials,
-            &maxcontrolbytes,
-        );
-
-        context.check_policy(NET_RECV_MSG)?;
-        let world = context.check_and_resolve_world(NET_RECV_MSG)?;
-        destack_net_recv_msg_replay(
-            context,
-            world,
-            out,
-            handle,
-            buffer,
-            recvflags,
-            maxfds,
-            wantcredentials,
-            maxcontrolbytes,
-        )
-    })
-}
-
-#[unsafe(export_name = "destack.net.resolve.resolve")]
-pub unsafe extern "C" fn destack_net_resolve_resolve(
+#[unsafe(export_name = "destack.net.resolve.lookup")]
+pub unsafe extern "C" fn destack_net_resolve_lookup(
     out: *mut NativeArray<SocketAddress>,
     query: ResolveQuery,
 ) -> RuntimeStatus {
@@ -14468,9 +14320,9 @@ pub unsafe extern "C" fn destack_net_resolve_resolve(
         }
         let _ = (&out, &query);
 
-        context.check_policy(NET_RESOLVE_RESOLVE)?;
-        let world = context.check_and_resolve_world(NET_RESOLVE_RESOLVE)?;
-        destack_net_resolve_resolve_replay(context, world, out, query)
+        context.check_policy(NET_RESOLVE_LOOKUP)?;
+        let world = context.check_and_resolve_world(NET_RESOLVE_LOOKUP)?;
+        destack_net_resolve_lookup_replay(context, world, out, query)
     })
 }
 
@@ -14554,30 +14406,30 @@ pub unsafe extern "C" fn destack_net_reuse_set_reuse_port(
     })
 }
 
-#[unsafe(export_name = "destack.net.routeAdd")]
-pub unsafe extern "C" fn destack_net_route_add(route: RouteEntry) -> RuntimeStatus {
+#[unsafe(export_name = "destack.net.route.routeAdd")]
+pub unsafe extern "C" fn destack_net_route_route_add(route: RouteEntry) -> RuntimeStatus {
     native_call(|context| {
         let _ = &route;
 
-        context.check_policy(NET_ROUTE_ADD)?;
-        let world = context.check_and_resolve_world(NET_ROUTE_ADD)?;
-        destack_net_route_add_replay(context, world, route)
+        context.check_policy(NET_ROUTE_ROUTE_ADD)?;
+        let world = context.check_and_resolve_world(NET_ROUTE_ROUTE_ADD)?;
+        destack_net_route_route_add_replay(context, world, route)
     })
 }
 
-#[unsafe(export_name = "destack.net.routeDelete")]
-pub unsafe extern "C" fn destack_net_route_delete(route: RouteEntry) -> RuntimeStatus {
+#[unsafe(export_name = "destack.net.route.routeDelete")]
+pub unsafe extern "C" fn destack_net_route_route_delete(route: RouteEntry) -> RuntimeStatus {
     native_call(|context| {
         let _ = &route;
 
-        context.check_policy(NET_ROUTE_DELETE)?;
-        let world = context.check_and_resolve_world(NET_ROUTE_DELETE)?;
-        destack_net_route_delete_replay(context, world, route)
+        context.check_policy(NET_ROUTE_ROUTE_DELETE)?;
+        let world = context.check_and_resolve_world(NET_ROUTE_ROUTE_DELETE)?;
+        destack_net_route_route_delete_replay(context, world, route)
     })
 }
 
-#[unsafe(export_name = "destack.net.routeList")]
-pub unsafe extern "C" fn destack_net_route_list(
+#[unsafe(export_name = "destack.net.route.routeList")]
+pub unsafe extern "C" fn destack_net_route_route_list(
     out: *mut NativeArray<RouteEntry>,
     family: SocketFamily,
 ) -> RuntimeStatus {
@@ -14587,98 +14439,39 @@ pub unsafe extern "C" fn destack_net_route_list(
         }
         let _ = (&out, &family);
 
-        context.check_policy(NET_ROUTE_LIST)?;
-        let world = context.check_and_resolve_world(NET_ROUTE_LIST)?;
-        destack_net_route_list_replay(context, world, out, family)
+        context.check_policy(NET_ROUTE_ROUTE_LIST)?;
+        let world = context.check_and_resolve_world(NET_ROUTE_ROUTE_LIST)?;
+        destack_net_route_route_list_replay(context, world, out, family)
     })
 }
 
-#[unsafe(export_name = "destack.net.sendMmsg")]
-pub unsafe extern "C" fn destack_net_send_mmsg(
-    out: *mut u64,
+#[unsafe(export_name = "destack.net.socket.close")]
+pub unsafe extern "C" fn destack_net_socket_close(handle: resource::SocketHandle) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        context.check_policy(NET_SOCKET_CLOSE)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_CLOSE)?;
+        destack_net_socket_close_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.net.socket.connect")]
+pub unsafe extern "C" fn destack_net_socket_connect(
     handle: resource::SocketHandle,
-    messages: NativeSlice<SocketSendBatchEntry>,
+    address: SocketAddress,
 ) -> RuntimeStatus {
     native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle, &messages);
+        let _ = (&handle, &address);
 
-        context.check_policy(NET_SEND_MMSG)?;
-        let world = context.check_and_resolve_world(NET_SEND_MMSG)?;
-        destack_net_send_mmsg_replay(context, world, out, handle, messages)
+        context.check_policy(NET_SOCKET_CONNECT)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_CONNECT)?;
+        destack_net_socket_connect_replay(context, world, handle, address)
     })
 }
 
-#[unsafe(export_name = "destack.net.sendMsg")]
-pub unsafe extern "C" fn destack_net_send_msg(
-    out: *mut u64,
-    handle: resource::SocketHandle,
-    buffer: NativeSlice<u8>,
-    message: SocketSendMessage,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle, &buffer, &message);
-
-        context.check_policy(NET_SEND_MSG)?;
-        let world = context.check_and_resolve_world(NET_SEND_MSG)?;
-        destack_net_send_msg_replay(context, world, out, handle, buffer, message)
-    })
-}
-
-#[unsafe(export_name = "destack.net.sendTo")]
-pub unsafe extern "C" fn destack_net_send_to(
-    out: *mut u64,
-    handle: resource::SocketHandle,
-    buffer: NativeSlice<u8>,
-    message: SocketSendTo,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle, &buffer, &message);
-
-        context.check_policy(NET_SEND_TO)?;
-        let world = context.check_and_resolve_world(NET_SEND_TO)?;
-        destack_net_send_to_replay(context, world, out, handle, buffer, message)
-    })
-}
-
-#[unsafe(export_name = "destack.net.setNonblocking")]
-pub unsafe extern "C" fn destack_net_set_nonblocking(
-    handle: resource::SocketHandle,
-    enabled: bool,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&handle, &enabled);
-
-        context.check_policy(NET_SET_NONBLOCKING)?;
-        let world = context.check_and_resolve_world(NET_SET_NONBLOCKING)?;
-        destack_net_set_nonblocking_replay(context, world, handle, enabled)
-    })
-}
-
-#[unsafe(export_name = "destack.net.shutdown")]
-pub unsafe extern "C" fn destack_net_shutdown(
-    handle: resource::SocketHandle,
-    how: SocketShutdown,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&handle, &how);
-
-        context.check_policy(NET_SHUTDOWN)?;
-        let world = context.check_and_resolve_world(NET_SHUTDOWN)?;
-        destack_net_shutdown_replay(context, world, handle, how)
-    })
-}
-
-#[unsafe(export_name = "destack.net.socket")]
-pub unsafe extern "C" fn destack_net_socket(
+#[unsafe(export_name = "destack.net.socket.open")]
+pub unsafe extern "C" fn destack_net_socket_open(
     out: *mut resource::SocketHandle,
     family: SocketFamily,
     sockettype: SocketType,
@@ -14690,14 +14483,14 @@ pub unsafe extern "C" fn destack_net_socket(
         }
         let _ = (&out, &family, &sockettype, &protocol);
 
-        context.check_policy(NET_SOCKET)?;
-        let world = context.check_and_resolve_world(NET_SOCKET)?;
-        destack_net_socket_replay(context, world, out, family, sockettype, protocol)
+        context.check_policy(NET_SOCKET_OPEN)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_OPEN)?;
+        destack_net_socket_open_replay(context, world, out, family, sockettype, protocol)
     })
 }
 
-#[unsafe(export_name = "destack.net.socketPair")]
-pub unsafe extern "C" fn destack_net_socket_pair(
+#[unsafe(export_name = "destack.net.socket.openPair")]
+pub unsafe extern "C" fn destack_net_socket_open_pair(
     out: *mut SocketPair,
     family: SocketFamily,
     sockettype: SocketType,
@@ -14709,9 +14502,261 @@ pub unsafe extern "C" fn destack_net_socket_pair(
         }
         let _ = (&out, &family, &sockettype, &protocol);
 
-        context.check_policy(NET_SOCKET_PAIR)?;
-        let world = context.check_and_resolve_world(NET_SOCKET_PAIR)?;
-        destack_net_socket_pair_replay(context, world, out, family, sockettype, protocol)
+        context.check_policy(NET_SOCKET_OPEN_PAIR)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_OPEN_PAIR)?;
+        destack_net_socket_open_pair_replay(context, world, out, family, sockettype, protocol)
+    })
+}
+
+#[unsafe(export_name = "destack.net.socket.read")]
+pub unsafe extern "C" fn destack_net_socket_read(
+    out: *mut u64,
+    handle: resource::SocketHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &buffer);
+
+        context.check_policy(NET_SOCKET_READ)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_READ)?;
+        destack_net_socket_read_replay(context, world, out, handle, buffer)
+    })
+}
+
+#[unsafe(export_name = "destack.net.socket.readv")]
+pub unsafe extern "C" fn destack_net_socket_readv(
+    out: *mut u64,
+    handle: resource::SocketHandle,
+    buffers: NativeSlice<NativeSlice<u8>>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &buffers);
+
+        context.check_policy(NET_SOCKET_READV)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_READV)?;
+        destack_net_socket_readv_replay(context, world, out, handle, buffers)
+    })
+}
+
+#[unsafe(export_name = "destack.net.socket.recvFrom")]
+pub unsafe extern "C" fn destack_net_socket_recv_from(
+    out: *mut SocketRecvFrom,
+    handle: resource::SocketHandle,
+    buffer: NativeSlice<u8>,
+    recvflags: SocketMessageFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &buffer, &recvflags);
+
+        context.check_policy(NET_SOCKET_RECV_FROM)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_RECV_FROM)?;
+        destack_net_socket_recv_from_replay(context, world, out, handle, buffer, recvflags)
+    })
+}
+
+#[unsafe(export_name = "destack.net.socket.recvMmsg")]
+pub unsafe extern "C" fn destack_net_socket_recv_mmsg(
+    out: *mut NativeArray<SocketRecvMessage>,
+    handle: resource::SocketHandle,
+    requests: NativeSlice<SocketRecvBatchRequest>,
+    maxfds: u32,
+    wantcredentials: bool,
+    maxcontrolbytes: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (
+            &out,
+            &handle,
+            &requests,
+            &maxfds,
+            &wantcredentials,
+            &maxcontrolbytes,
+        );
+
+        context.check_policy(NET_SOCKET_RECV_MMSG)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_RECV_MMSG)?;
+        destack_net_socket_recv_mmsg_replay(
+            context,
+            world,
+            out,
+            handle,
+            requests,
+            maxfds,
+            wantcredentials,
+            maxcontrolbytes,
+        )
+    })
+}
+
+#[unsafe(export_name = "destack.net.socket.recvMsg")]
+pub unsafe extern "C" fn destack_net_socket_recv_msg(
+    out: *mut SocketRecvMessage,
+    handle: resource::SocketHandle,
+    buffer: NativeSlice<u8>,
+    recvflags: SocketMessageFlags,
+    maxfds: u32,
+    wantcredentials: bool,
+    maxcontrolbytes: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (
+            &out,
+            &handle,
+            &buffer,
+            &recvflags,
+            &maxfds,
+            &wantcredentials,
+            &maxcontrolbytes,
+        );
+
+        context.check_policy(NET_SOCKET_RECV_MSG)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_RECV_MSG)?;
+        destack_net_socket_recv_msg_replay(
+            context,
+            world,
+            out,
+            handle,
+            buffer,
+            recvflags,
+            maxfds,
+            wantcredentials,
+            maxcontrolbytes,
+        )
+    })
+}
+
+#[unsafe(export_name = "destack.net.socket.sendMmsg")]
+pub unsafe extern "C" fn destack_net_socket_send_mmsg(
+    out: *mut u64,
+    handle: resource::SocketHandle,
+    messages: NativeSlice<SocketSendBatchEntry>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &messages);
+
+        context.check_policy(NET_SOCKET_SEND_MMSG)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_SEND_MMSG)?;
+        destack_net_socket_send_mmsg_replay(context, world, out, handle, messages)
+    })
+}
+
+#[unsafe(export_name = "destack.net.socket.sendMsg")]
+pub unsafe extern "C" fn destack_net_socket_send_msg(
+    out: *mut u64,
+    handle: resource::SocketHandle,
+    buffer: NativeSlice<u8>,
+    message: SocketSendMessage,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &buffer, &message);
+
+        context.check_policy(NET_SOCKET_SEND_MSG)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_SEND_MSG)?;
+        destack_net_socket_send_msg_replay(context, world, out, handle, buffer, message)
+    })
+}
+
+#[unsafe(export_name = "destack.net.socket.sendTo")]
+pub unsafe extern "C" fn destack_net_socket_send_to(
+    out: *mut u64,
+    handle: resource::SocketHandle,
+    buffer: NativeSlice<u8>,
+    message: SocketSendTo,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &buffer, &message);
+
+        context.check_policy(NET_SOCKET_SEND_TO)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_SEND_TO)?;
+        destack_net_socket_send_to_replay(context, world, out, handle, buffer, message)
+    })
+}
+
+#[unsafe(export_name = "destack.net.socket.setNonblocking")]
+pub unsafe extern "C" fn destack_net_socket_set_nonblocking(
+    handle: resource::SocketHandle,
+    enabled: bool,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &enabled);
+
+        context.check_policy(NET_SOCKET_SET_NONBLOCKING)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_SET_NONBLOCKING)?;
+        destack_net_socket_set_nonblocking_replay(context, world, handle, enabled)
+    })
+}
+
+#[unsafe(export_name = "destack.net.socket.shutdown")]
+pub unsafe extern "C" fn destack_net_socket_shutdown(
+    handle: resource::SocketHandle,
+    how: SocketShutdown,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &how);
+
+        context.check_policy(NET_SOCKET_SHUTDOWN)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_SHUTDOWN)?;
+        destack_net_socket_shutdown_replay(context, world, handle, how)
+    })
+}
+
+#[unsafe(export_name = "destack.net.socket.write")]
+pub unsafe extern "C" fn destack_net_socket_write(
+    out: *mut u64,
+    handle: resource::SocketHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &buffer);
+
+        context.check_policy(NET_SOCKET_WRITE)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_WRITE)?;
+        destack_net_socket_write_replay(context, world, out, handle, buffer)
+    })
+}
+
+#[unsafe(export_name = "destack.net.socket.writev")]
+pub unsafe extern "C" fn destack_net_socket_writev(
+    out: *mut u64,
+    handle: resource::SocketHandle,
+    buffers: NativeSlice<NativeSlice<u8>>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &buffers);
+
+        context.check_policy(NET_SOCKET_WRITEV)?;
+        let world = context.check_and_resolve_world(NET_SOCKET_WRITEV)?;
+        destack_net_socket_writev_replay(context, world, out, handle, buffers)
     })
 }
 
@@ -15101,8 +15146,8 @@ pub unsafe extern "C" fn destack_net_udp_socket(
     })
 }
 
-#[unsafe(export_name = "destack.net.udsAccept")]
-pub unsafe extern "C" fn destack_net_uds_accept(
+#[unsafe(export_name = "destack.net.uds.udsAccept")]
+pub unsafe extern "C" fn destack_net_uds_uds_accept(
     out: *mut resource::SocketHandle,
     listener: resource::ListenerHandle,
 ) -> RuntimeStatus {
@@ -15112,27 +15157,27 @@ pub unsafe extern "C" fn destack_net_uds_accept(
         }
         let _ = (&out, &listener);
 
-        context.check_policy(NET_UDS_ACCEPT)?;
-        let world = context.check_and_resolve_world(NET_UDS_ACCEPT)?;
-        destack_net_uds_accept_replay(context, world, out, listener)
+        context.check_policy(NET_UDS_UDS_ACCEPT)?;
+        let world = context.check_and_resolve_world(NET_UDS_UDS_ACCEPT)?;
+        destack_net_uds_uds_accept_replay(context, world, out, listener)
     })
 }
 
-#[unsafe(export_name = "destack.net.udsCloseListener")]
-pub unsafe extern "C" fn destack_net_uds_close_listener(
+#[unsafe(export_name = "destack.net.uds.udsCloseListener")]
+pub unsafe extern "C" fn destack_net_uds_uds_close_listener(
     handle: resource::ListenerHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(NET_UDS_CLOSE_LISTENER)?;
-        let world = context.check_and_resolve_world(NET_UDS_CLOSE_LISTENER)?;
-        destack_net_uds_close_listener_replay(context, world, handle)
+        context.check_policy(NET_UDS_UDS_CLOSE_LISTENER)?;
+        let world = context.check_and_resolve_world(NET_UDS_UDS_CLOSE_LISTENER)?;
+        destack_net_uds_uds_close_listener_replay(context, world, handle)
     })
 }
 
-#[unsafe(export_name = "destack.net.udsConnect")]
-pub unsafe extern "C" fn destack_net_uds_connect(
+#[unsafe(export_name = "destack.net.uds.udsConnect")]
+pub unsafe extern "C" fn destack_net_uds_uds_connect(
     out: *mut resource::SocketHandle,
     address: UdsAddress,
 ) -> RuntimeStatus {
@@ -15142,14 +15187,14 @@ pub unsafe extern "C" fn destack_net_uds_connect(
         }
         let _ = (&out, &address);
 
-        context.check_policy(NET_UDS_CONNECT)?;
-        let world = context.check_and_resolve_world(NET_UDS_CONNECT)?;
-        destack_net_uds_connect_replay(context, world, out, address)
+        context.check_policy(NET_UDS_UDS_CONNECT)?;
+        let world = context.check_and_resolve_world(NET_UDS_UDS_CONNECT)?;
+        destack_net_uds_uds_connect_replay(context, world, out, address)
     })
 }
 
-#[unsafe(export_name = "destack.net.udsListen")]
-pub unsafe extern "C" fn destack_net_uds_listen(
+#[unsafe(export_name = "destack.net.uds.udsListen")]
+pub unsafe extern "C" fn destack_net_uds_uds_listen(
     out: *mut resource::ListenerHandle,
     address: UdsAddress,
     backlog: u32,
@@ -15160,14 +15205,14 @@ pub unsafe extern "C" fn destack_net_uds_listen(
         }
         let _ = (&out, &address, &backlog);
 
-        context.check_policy(NET_UDS_LISTEN)?;
-        let world = context.check_and_resolve_world(NET_UDS_LISTEN)?;
-        destack_net_uds_listen_replay(context, world, out, address, backlog)
+        context.check_policy(NET_UDS_UDS_LISTEN)?;
+        let world = context.check_and_resolve_world(NET_UDS_UDS_LISTEN)?;
+        destack_net_uds_uds_listen_replay(context, world, out, address, backlog)
     })
 }
 
-#[unsafe(export_name = "destack.net.udsSocketPair")]
-pub unsafe extern "C" fn destack_net_uds_socket_pair(
+#[unsafe(export_name = "destack.net.uds.udsSocketPair")]
+pub unsafe extern "C" fn destack_net_uds_uds_socket_pair(
     out: *mut SocketPair,
     sockettype: SocketType,
 ) -> RuntimeStatus {
@@ -15177,108 +15222,13 @@ pub unsafe extern "C" fn destack_net_uds_socket_pair(
         }
         let _ = (&out, &sockettype);
 
-        context.check_policy(NET_UDS_SOCKET_PAIR)?;
-        let world = context.check_and_resolve_world(NET_UDS_SOCKET_PAIR)?;
-        destack_net_uds_socket_pair_replay(context, world, out, sockettype)
-    })
-}
-
-#[unsafe(export_name = "destack.net.write")]
-pub unsafe extern "C" fn destack_net_write(
-    out: *mut u64,
-    handle: resource::SocketHandle,
-    buffer: NativeSlice<u8>,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle, &buffer);
-
-        context.check_policy(NET_WRITE)?;
-        let world = context.check_and_resolve_world(NET_WRITE)?;
-        destack_net_write_replay(context, world, out, handle, buffer)
-    })
-}
-
-#[unsafe(export_name = "destack.net.writev")]
-pub unsafe extern "C" fn destack_net_writev(
-    out: *mut u64,
-    handle: resource::SocketHandle,
-    buffers: NativeSlice<NativeSlice<u8>>,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle, &buffers);
-
-        context.check_policy(NET_WRITEV)?;
-        let world = context.check_and_resolve_world(NET_WRITEV)?;
-        destack_net_writev_replay(context, world, out, handle, buffers)
+        context.check_policy(NET_UDS_UDS_SOCKET_PAIR)?;
+        let world = context.check_and_resolve_world(NET_UDS_UDS_SOCKET_PAIR)?;
+        destack_net_uds_uds_socket_pair_replay(context, world, out, sockettype)
     })
 }
 
 /// VM replay implementations for net bindings.
-#[inline]
-fn destack_net_accept_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    listener: resource::ListenerHandle,
-    flags: AcceptFlags,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            NET_ACCEPT,
-            runtime.replay_payload_for(NET_ACCEPT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_net_accept(runtime, context, listener, flags)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_accept(runtime, context, listener, flags)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::SocketHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = NetAcceptReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        NetAcceptReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_net_accept_result(context, result)?;
-    Ok(result)
-}
-
 #[inline]
 fn destack_net_address_local_address_vm_replay(
     runtime: &RuntimeCallContext,
@@ -15424,32 +15374,32 @@ fn destack_net_address_peer_address_vm_replay(
 }
 
 #[inline]
-fn destack_net_bind_vm_replay(
+fn destack_net_interface_interface_index_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::SocketHandle,
-    address: SocketAddressVm,
+    name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_BIND,
-            runtime.replay_payload_for(NET_BIND)?,
+            NET_INTERFACE_INTERFACE_INDEX,
+            runtime.replay_payload_for(NET_INTERFACE_INTERFACE_INDEX)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
-                    platform_vm::destack_net_bind(runtime, context, handle, address)
+                    platform_vm::destack_net_interface_index(runtime, context, name)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_bind(runtime, context, handle, address)
+                    platform_simulated_vm::destack_net_interface_index(runtime, context, name)
                 }
             },
             |context, result| {
                 let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = NetBindReplay {
+                if let Ok(value) = result {
+                    let result_value: u32 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = NetInterfaceInterfaceIndexReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -15458,7 +15408,7 @@ fn destack_net_bind_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetBindReplay { result }
+                        NetInterfaceInterfaceIndexReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -15469,93 +15419,50 @@ fn destack_net_bind_vm_replay(
                 let _ = &context;
                 // replay result
                 match payload.result {
-                    Ok(()) => Ok(()),
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
                     Err(error) => Err(RuntimeError::from(error).boxed()),
                 }
             },
         );
-    let result = encode_destack_net_bind_result(context, result)?;
+    let result = encode_destack_net_interface_interface_index_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_net_close_vm_replay(
+fn destack_net_interface_interface_name_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::SocketHandle,
+    index: u32,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_CLOSE,
-            runtime.replay_payload_for(NET_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_net_close(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = NetCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        NetCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_net_close_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_net_close_listener_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::ListenerHandle,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            NET_CLOSE_LISTENER,
-            runtime.replay_payload_for(NET_CLOSE_LISTENER)?,
+            NET_INTERFACE_INTERFACE_NAME,
+            runtime.replay_payload_for(NET_INTERFACE_INTERFACE_NAME)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
-                    platform_vm::destack_net_close_listener(runtime, context, handle)
+                    platform_vm::destack_net_interface_name(runtime, context, index)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_close_listener(runtime, context, handle)
+                    platform_simulated_vm::destack_net_interface_name(runtime, context, index)
                 }
             },
             |context, result| {
                 let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = NetCloseListenerReplay {
+                if let Ok(value) = result {
+                    let result_value: vm::StringHandle = value.clone();
+                    let result_recorded = {
+                        let result_recorded_ref = context
+                            .string_ref(result_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_ref.as_str().to_string()
+                    };
+                    let payload = NetInterfaceInterfaceNameReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -15564,7 +15471,7 @@ fn destack_net_close_listener_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetCloseListenerReplay { result }
+                        NetInterfaceInterfaceNameReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -15575,67 +15482,16 @@ fn destack_net_close_listener_vm_replay(
                 let _ = &context;
                 // replay result
                 match payload.result {
-                    Ok(()) => Ok(()),
+                    Ok(value) => {
+                        let vm_result_value = context.intern_string(value.as_str());
+                        let vm_result = vm::StringHandle::new(vm_result_value);
+                        Ok(vm_result)
+                    }
                     Err(error) => Err(RuntimeError::from(error).boxed()),
                 }
             },
         );
-    let result = encode_destack_net_close_listener_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_net_connect_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::SocketHandle,
-    address: SocketAddressVm,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            NET_CONNECT,
-            runtime.replay_payload_for(NET_CONNECT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_net_connect(runtime, context, handle, address)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_connect(runtime, context, handle, address)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = NetConnectReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        NetConnectReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_net_connect_result(context, result)?;
+    let result = encode_destack_net_interface_interface_name_result(context, result)?;
     Ok(result)
 }
 
@@ -15798,32 +15654,33 @@ fn destack_net_interface_list_interfaces_vm_replay(
 }
 
 #[inline]
-fn destack_net_interface_index_vm_replay(
+fn destack_net_listener_accept_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    name: vm::StringHandle,
+    listener: resource::ListenerHandle,
+    flags: AcceptFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_INTERFACE_INDEX,
-            runtime.replay_payload_for(NET_INTERFACE_INDEX)?,
+            NET_LISTENER_ACCEPT,
+            runtime.replay_payload_for(NET_LISTENER_ACCEPT)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
-                    platform_vm::destack_net_interface_index(runtime, context, name)
+                    platform_vm::destack_net_accept(runtime, context, listener, flags)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_interface_index(runtime, context, name)
+                    platform_simulated_vm::destack_net_accept(runtime, context, listener, flags)
                 }
             },
             |context, result| {
                 let _ = &context;
                 if let Ok(value) = result {
-                    let result_value: u32 = value.clone();
+                    let result_value: resource::SocketHandle = value.clone();
                     let result_recorded = result_value;
-                    let payload = NetInterfaceIndexReplay {
+                    let payload = NetListenerAcceptReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -15832,7 +15689,7 @@ fn destack_net_interface_index_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetInterfaceIndexReplay { result }
+                        NetListenerAcceptReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -15851,42 +15708,37 @@ fn destack_net_interface_index_vm_replay(
                 }
             },
         );
-    let result = encode_destack_net_interface_index_result(context, result)?;
+    let result = encode_destack_net_listener_accept_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_net_interface_name_vm_replay(
+fn destack_net_listener_bind_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    index: u32,
+    handle: resource::SocketHandle,
+    address: SocketAddressVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_INTERFACE_NAME,
-            runtime.replay_payload_for(NET_INTERFACE_NAME)?,
+            NET_LISTENER_BIND,
+            runtime.replay_payload_for(NET_LISTENER_BIND)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
-                    platform_vm::destack_net_interface_name(runtime, context, index)
+                    platform_vm::destack_net_bind(runtime, context, handle, address)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_interface_name(runtime, context, index)
+                    platform_simulated_vm::destack_net_bind(runtime, context, handle, address)
                 }
             },
             |context, result| {
                 let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: vm::StringHandle = value.clone();
-                    let result_recorded = {
-                        let result_recorded_ref = context
-                            .string_ref(result_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_ref.as_str().to_string()
-                    };
-                    let payload = NetInterfaceNameReplay {
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = NetListenerBindReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -15895,7 +15747,7 @@ fn destack_net_interface_name_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetInterfaceNameReplay { result }
+                        NetListenerBindReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -15906,21 +15758,71 @@ fn destack_net_interface_name_vm_replay(
                 let _ = &context;
                 // replay result
                 match payload.result {
-                    Ok(value) => {
-                        let vm_result_value = context.intern_string(value.as_str());
-                        let vm_result = vm::StringHandle::new(vm_result_value);
-                        Ok(vm_result)
-                    }
+                    Ok(()) => Ok(()),
                     Err(error) => Err(RuntimeError::from(error).boxed()),
                 }
             },
         );
-    let result = encode_destack_net_interface_name_result(context, result)?;
+    let result = encode_destack_net_listener_bind_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_net_listen_vm_replay(
+fn destack_net_listener_close_listener_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::ListenerHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            NET_LISTENER_CLOSE_LISTENER,
+            runtime.replay_payload_for(NET_LISTENER_CLOSE_LISTENER)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_net_close_listener(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_net_close_listener(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = NetListenerCloseListenerReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        NetListenerCloseListenerReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_net_listener_close_listener_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_net_listener_listen_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -15930,8 +15832,8 @@ fn destack_net_listen_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_LISTEN,
-            runtime.replay_payload_for(NET_LISTEN)?,
+            NET_LISTENER_LISTEN,
+            runtime.replay_payload_for(NET_LISTENER_LISTEN)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
@@ -15946,7 +15848,7 @@ fn destack_net_listen_vm_replay(
                 if let Ok(value) = result {
                     let result_value: resource::ListenerHandle = value.clone();
                     let result_recorded = result_value;
-                    let payload = NetListenReplay {
+                    let payload = NetListenerListenReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -15955,7 +15857,7 @@ fn destack_net_listen_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetListenReplay { result }
+                        NetListenerListenReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -15974,7 +15876,7 @@ fn destack_net_listen_vm_replay(
                 }
             },
         );
-    let result = encode_destack_net_listen_result(context, result)?;
+    let result = encode_destack_net_listener_listen_result(context, result)?;
     Ok(result)
 }
 
@@ -18191,825 +18093,7 @@ fn destack_net_raw_socket_vm_replay(
 }
 
 #[inline]
-fn destack_net_read_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::SocketHandle,
-    buffer: VmSlice<u8>,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            NET_READ,
-            runtime.replay_payload_for(NET_READ)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_net_read(runtime, context, handle, buffer)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_read(runtime, context, handle, buffer)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = NetReadReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        NetReadReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_net_read_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_net_readv_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::SocketHandle,
-    buffers: VmSlice<VmSlice<u8>>,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            NET_READV,
-            runtime.replay_payload_for(NET_READV)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_net_readv(runtime, context, handle, buffers)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_readv(runtime, context, handle, buffers)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = NetReadvReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        NetReadvReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_net_readv_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_net_recv_from_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::SocketHandle,
-    buffer: VmSlice<u8>,
-    recvflags: SocketMessageFlags,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            NET_RECV_FROM,
-            runtime.replay_payload_for(NET_RECV_FROM)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_net_recv_from(runtime, context, handle, buffer, recvflags)
-                }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_recv_from(
-                    runtime, context, handle, buffer, recvflags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: SocketRecvFromVm = value.clone();
-                    let result_recorded_bytes = result_value.bytes;
-                    let result_recorded_address_family = result_value.address.family;
-                    let result_recorded_address_length = result_value.address.length;
-                    let result_recorded_address_bytes =
-                        result_value.address.bytes.read_bytes(context)?;
-                    let result_recorded_address = SocketAddressReplayRecord {
-                        family: result_recorded_address_family,
-                        length: result_recorded_address_length,
-                        bytes: result_recorded_address_bytes,
-                    };
-                    let result_recorded_recv_flags = result_value.recv_flags;
-                    let result_recorded = SocketRecvFromReplayRecord {
-                        bytes: result_recorded_bytes,
-                        address: result_recorded_address,
-                        recv_flags: result_recorded_recv_flags,
-                    };
-                    let payload = NetRecvFromReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        NetRecvFromReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_bytes = value.bytes;
-                        let vm_result_address_family = value.address.family;
-                        let vm_result_address_length = value.address.length;
-                        let vm_result_address_bytes =
-                            VmArray::from_bytes(context, value.address.bytes.as_slice());
-                        let vm_result_address = SocketAddressVm {
-                            family: vm_result_address_family,
-                            length: vm_result_address_length,
-                            bytes: vm_result_address_bytes,
-                        };
-                        let vm_result_recv_flags = value.recv_flags;
-                        let vm_result = SocketRecvFromVm {
-                            bytes: vm_result_bytes,
-                            address: vm_result_address,
-                            recv_flags: vm_result_recv_flags,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_net_recv_from_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_net_recv_mmsg_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::SocketHandle,
-    requests: VmSlice<SocketRecvBatchRequestVm>,
-    maxfds: u32,
-    wantcredentials: bool,
-    maxcontrolbytes: u32,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            NET_RECV_MMSG,
-            runtime.replay_payload_for(NET_RECV_MMSG)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_net_recv_mmsg(
-                    runtime,
-                    context,
-                    handle,
-                    requests,
-                    maxfds,
-                    wantcredentials,
-                    maxcontrolbytes,
-                ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_recv_mmsg(
-                    runtime,
-                    context,
-                    handle,
-                    requests,
-                    maxfds,
-                    wantcredentials,
-                    maxcontrolbytes,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<SocketRecvMessageVm> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item = {
-                            if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_type(
-                                        "result_recorded_item",
-                                        "item",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let slots = context
-                                .aggregate_slots(result_recorded_item_value)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 10 {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item",
-                                        "expected 10 fields",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let result_recorded_item_bytes =
-                                decode_uint64(slots[0], "result_recorded_item_bytes", "bytes")?;
-                            let result_recorded_item_has_address = decode_bool(
-                                slots[1],
-                                "result_recorded_item_has_address",
-                                "hasAddress",
-                            )?;
-                            let result_recorded_item_address = {
-                                if slots[2].tag() != vm::ValueTag::Aggregate {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_type(
-                                            "result_recorded_item_address",
-                                            "address",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                                let slots = context
-                                    .aggregate_slots(slots[2])
-                                    .map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 3 {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_value(
-                                            "result_recorded_item_address",
-                                            "expected 3 fields",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                                let result_recorded_item_address_family = decode_uint16(
-                                    slots[0],
-                                    "result_recorded_item_address_family",
-                                    "family",
-                                )?;
-                                let result_recorded_item_address_length = decode_uint32(
-                                    slots[1],
-                                    "result_recorded_item_address_length",
-                                    "length",
-                                )?;
-                                let result_recorded_item_address_bytes = decode_array::<u8>(
-                                    context,
-                                    slots[2],
-                                    "result_recorded_item_address_bytes",
-                                    "bytes",
-                                )?;
-                                SocketAddressVm {
-                                    family: result_recorded_item_address_family,
-                                    length: result_recorded_item_address_length,
-                                    bytes: result_recorded_item_address_bytes,
-                                }
-                            };
-                            let result_recorded_item_recv_flags_inner = decode_uint32(
-                                slots[3],
-                                "result_recorded_item_recv_flags_inner",
-                                "recvFlags",
-                            )?;
-                            let result_recorded_item_recv_flags =
-                                SocketMessageFlags(result_recorded_item_recv_flags_inner);
-                            let result_recorded_item_payload_truncated = decode_bool(
-                                slots[4],
-                                "result_recorded_item_payload_truncated",
-                                "payloadTruncated",
-                            )?;
-                            let result_recorded_item_control_truncated = decode_bool(
-                                slots[5],
-                                "result_recorded_item_control_truncated",
-                                "controlTruncated",
-                            )?;
-                            let result_recorded_item_control_inner = decode_array::<u8>(
-                                context,
-                                slots[6],
-                                "result_recorded_item_control_inner",
-                                "control",
-                            )?;
-                            let result_recorded_item_control =
-                                platform_net::SocketControlBufferAbi::<platform_abi::VmAbi>(
-                                    result_recorded_item_control_inner,
-                                );
-                            let result_recorded_item_fds =
-                                decode_array::<resource::TransferredHandle>(
-                                    context,
-                                    slots[7],
-                                    "result_recorded_item_fds",
-                                    "fds",
-                                )?;
-                            let result_recorded_item_has_credentials = decode_bool(
-                                slots[8],
-                                "result_recorded_item_has_credentials",
-                                "hasCredentials",
-                            )?;
-                            let result_recorded_item_credentials = {
-                                if slots[9].tag() != vm::ValueTag::Aggregate {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_type(
-                                            "result_recorded_item_credentials",
-                                            "credentials",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                                let slots = context
-                                    .aggregate_slots(slots[9])
-                                    .map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 3 {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_value(
-                                            "result_recorded_item_credentials",
-                                            "expected 3 fields",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                                let result_recorded_item_credentials_pid = decode_uint32(
-                                    slots[0],
-                                    "result_recorded_item_credentials_pid",
-                                    "pid",
-                                )?;
-                                let result_recorded_item_credentials_uid = decode_uint32(
-                                    slots[1],
-                                    "result_recorded_item_credentials_uid",
-                                    "uid",
-                                )?;
-                                let result_recorded_item_credentials_gid = decode_uint32(
-                                    slots[2],
-                                    "result_recorded_item_credentials_gid",
-                                    "gid",
-                                )?;
-                                SocketCredentialsVm {
-                                    pid: result_recorded_item_credentials_pid,
-                                    uid: result_recorded_item_credentials_uid,
-                                    gid: result_recorded_item_credentials_gid,
-                                }
-                            };
-                            SocketRecvMessageVm {
-                                bytes: result_recorded_item_bytes,
-                                has_address: result_recorded_item_has_address,
-                                address: result_recorded_item_address,
-                                recv_flags: result_recorded_item_recv_flags,
-                                payload_truncated: result_recorded_item_payload_truncated,
-                                control_truncated: result_recorded_item_control_truncated,
-                                control: result_recorded_item_control,
-                                fds: result_recorded_item_fds,
-                                has_credentials: result_recorded_item_has_credentials,
-                                credentials: result_recorded_item_credentials,
-                            }
-                        };
-                        let result_recorded_item_recorded_bytes = result_recorded_item.bytes;
-                        let result_recorded_item_recorded_has_address =
-                            result_recorded_item.has_address;
-                        let result_recorded_item_recorded_address_family =
-                            result_recorded_item.address.family;
-                        let result_recorded_item_recorded_address_length =
-                            result_recorded_item.address.length;
-                        let result_recorded_item_recorded_address_bytes =
-                            result_recorded_item.address.bytes.read_bytes(context)?;
-                        let result_recorded_item_recorded_address = SocketAddressReplayRecord {
-                            family: result_recorded_item_recorded_address_family,
-                            length: result_recorded_item_recorded_address_length,
-                            bytes: result_recorded_item_recorded_address_bytes,
-                        };
-                        let result_recorded_item_recorded_recv_flags =
-                            result_recorded_item.recv_flags;
-                        let result_recorded_item_recorded_payload_truncated =
-                            result_recorded_item.payload_truncated;
-                        let result_recorded_item_recorded_control_truncated =
-                            result_recorded_item.control_truncated;
-                        let result_recorded_item_recorded_control_inner =
-                            result_recorded_item.control.0.read_bytes(context)?;
-                        let result_recorded_item_recorded_control =
-                            result_recorded_item_recorded_control_inner;
-                        let result_recorded_item_recorded_fds_raw =
-                            result_recorded_item.fds.raw_values(context)?;
-                        let mut result_recorded_item_recorded_fds =
-                            Vec::with_capacity(result_recorded_item_recorded_fds_raw.len());
-                        for result_recorded_item_recorded_fds_item_value in
-                            result_recorded_item_recorded_fds_raw
-                        {
-                            let result_recorded_item_recorded_fds_item_inner_inner = decode_uint64(
-                                result_recorded_item_recorded_fds_item_value,
-                                "result_recorded_item_recorded_fds_item_inner_inner",
-                                "item",
-                            )?;
-                            let result_recorded_item_recorded_fds_item_inner = resource::ResourceId(
-                                result_recorded_item_recorded_fds_item_inner_inner,
-                            );
-                            let result_recorded_item_recorded_fds_item =
-                                resource::TransferredHandle(
-                                    result_recorded_item_recorded_fds_item_inner,
-                                );
-                            let result_recorded_item_recorded_fds_item_recorded =
-                                result_recorded_item_recorded_fds_item;
-                            result_recorded_item_recorded_fds
-                                .push(result_recorded_item_recorded_fds_item_recorded);
-                        }
-                        let result_recorded_item_recorded_has_credentials =
-                            result_recorded_item.has_credentials;
-                        let result_recorded_item_recorded_credentials_pid =
-                            result_recorded_item.credentials.pid;
-                        let result_recorded_item_recorded_credentials_uid =
-                            result_recorded_item.credentials.uid;
-                        let result_recorded_item_recorded_credentials_gid =
-                            result_recorded_item.credentials.gid;
-                        let result_recorded_item_recorded_credentials = SocketCredentials {
-                            pid: result_recorded_item_recorded_credentials_pid,
-                            uid: result_recorded_item_recorded_credentials_uid,
-                            gid: result_recorded_item_recorded_credentials_gid,
-                        };
-                        let result_recorded_item_recorded = SocketRecvMessageReplayRecord {
-                            bytes: result_recorded_item_recorded_bytes,
-                            has_address: result_recorded_item_recorded_has_address,
-                            address: result_recorded_item_recorded_address,
-                            recv_flags: result_recorded_item_recorded_recv_flags,
-                            payload_truncated: result_recorded_item_recorded_payload_truncated,
-                            control_truncated: result_recorded_item_recorded_control_truncated,
-                            control: result_recorded_item_recorded_control,
-                            fds: result_recorded_item_recorded_fds,
-                            has_credentials: result_recorded_item_recorded_has_credentials,
-                            credentials: result_recorded_item_recorded_credentials,
-                        };
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = NetRecvMmsgReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        NetRecvMmsgReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item = vm_result_item.clone();
-                            let vm_result_item_value_bytes = vm_result_item.bytes;
-                            let vm_result_item_value_has_address = vm_result_item.has_address;
-                            let vm_result_item_value_address_family = vm_result_item.address.family;
-                            let vm_result_item_value_address_length = vm_result_item.address.length;
-                            let vm_result_item_value_address_bytes = VmArray::from_bytes(
-                                context,
-                                vm_result_item.address.bytes.as_slice(),
-                            );
-                            let vm_result_item_value_address = SocketAddressVm {
-                                family: vm_result_item_value_address_family,
-                                length: vm_result_item_value_address_length,
-                                bytes: vm_result_item_value_address_bytes,
-                            };
-                            let vm_result_item_value_recv_flags = vm_result_item.recv_flags;
-                            let vm_result_item_value_payload_truncated =
-                                vm_result_item.payload_truncated;
-                            let vm_result_item_value_control_truncated =
-                                vm_result_item.control_truncated;
-                            let vm_result_item_value_control_inner =
-                                VmArray::from_bytes(context, vm_result_item.control.as_slice());
-                            let vm_result_item_value_control =
-                                platform_net::SocketControlBufferAbi::<platform_abi::VmAbi>(
-                                    vm_result_item_value_control_inner,
-                                );
-                            let mut vm_result_item_value_fds_values =
-                                Vec::with_capacity(vm_result_item.fds.len());
-                            for vm_result_item_value_fds_item in vm_result_item.fds.iter() {
-                                let vm_result_item_value_fds_item = *vm_result_item_value_fds_item;
-                                let vm_result_item_value_fds_item_value =
-                                    vm_result_item_value_fds_item;
-                                vm_result_item_value_fds_values
-                                    .push(vm_result_item_value_fds_item_value);
-                            }
-                            let vm_result_item_value_fds =
-                                VmArray::from_values(context, &vm_result_item_value_fds_values)?;
-                            let vm_result_item_value_has_credentials =
-                                vm_result_item.has_credentials;
-                            let vm_result_item_value_credentials_pid =
-                                vm_result_item.credentials.pid;
-                            let vm_result_item_value_credentials_uid =
-                                vm_result_item.credentials.uid;
-                            let vm_result_item_value_credentials_gid =
-                                vm_result_item.credentials.gid;
-                            let vm_result_item_value_credentials = SocketCredentialsVm {
-                                pid: vm_result_item_value_credentials_pid,
-                                uid: vm_result_item_value_credentials_uid,
-                                gid: vm_result_item_value_credentials_gid,
-                            };
-                            let vm_result_item_value = SocketRecvMessageVm {
-                                bytes: vm_result_item_value_bytes,
-                                has_address: vm_result_item_value_has_address,
-                                address: vm_result_item_value_address,
-                                recv_flags: vm_result_item_value_recv_flags,
-                                payload_truncated: vm_result_item_value_payload_truncated,
-                                control_truncated: vm_result_item_value_control_truncated,
-                                control: vm_result_item_value_control,
-                                fds: vm_result_item_value_fds,
-                                has_credentials: vm_result_item_value_has_credentials,
-                                credentials: vm_result_item_value_credentials,
-                            };
-                            let vm_result_item_value_encoded = {
-                                let field_0 = vm::Value::uint(vm_result_item_value.bytes, 64);
-                                let field_1 = vm::Value::bool(vm_result_item_value.has_address);
-                                let field_2 = {
-                                    let field_0 = vm::Value::uint(
-                                        vm_result_item_value.address.family as u64,
-                                        16,
-                                    );
-                                    let field_1 = vm::Value::uint(
-                                        vm_result_item_value.address.length as u64,
-                                        32,
-                                    );
-                                    let field_2 =
-                                        vm_result_item_value.address.bytes.to_value(context);
-                                    context.allocate_aggregate(vec![field_0, field_1, field_2])
-                                };
-                                let field_3 =
-                                    vm::Value::uint(vm_result_item_value.recv_flags.0 as u64, 32);
-                                let field_4 =
-                                    vm::Value::bool(vm_result_item_value.payload_truncated);
-                                let field_5 =
-                                    vm::Value::bool(vm_result_item_value.control_truncated);
-                                let field_6 = vm_result_item_value.control.0.to_value(context);
-                                let field_7 = vm_result_item_value.fds.to_value(context);
-                                let field_8 = vm::Value::bool(vm_result_item_value.has_credentials);
-                                let field_9 = {
-                                    let field_0 = vm::Value::uint(
-                                        vm_result_item_value.credentials.pid as u64,
-                                        32,
-                                    );
-                                    let field_1 = vm::Value::uint(
-                                        vm_result_item_value.credentials.uid as u64,
-                                        32,
-                                    );
-                                    let field_2 = vm::Value::uint(
-                                        vm_result_item_value.credentials.gid as u64,
-                                        32,
-                                    );
-                                    context.allocate_aggregate(vec![field_0, field_1, field_2])
-                                };
-                                context.allocate_aggregate(vec![
-                                    field_0, field_1, field_2, field_3, field_4, field_5, field_6,
-                                    field_7, field_8, field_9,
-                                ])
-                            };
-                            vm_result_values.push(vm_result_item_value_encoded);
-                        }
-                        let vm_result_data = context.allocate_raw_values(vm_result_values);
-                        let vm_result: VmArray<SocketRecvMessageVm> = VmArray {
-                            data: vm_result_data,
-                            len: value.len() as u32,
-                            capacity: value.len() as u32,
-                            _marker: std::marker::PhantomData,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_net_recv_mmsg_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_net_recv_msg_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::SocketHandle,
-    buffer: VmSlice<u8>,
-    recvflags: SocketMessageFlags,
-    maxfds: u32,
-    wantcredentials: bool,
-    maxcontrolbytes: u32,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            NET_RECV_MSG,
-            runtime.replay_payload_for(NET_RECV_MSG)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_net_recv_msg(
-                    runtime,
-                    context,
-                    handle,
-                    buffer,
-                    recvflags,
-                    maxfds,
-                    wantcredentials,
-                    maxcontrolbytes,
-                ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_recv_msg(
-                    runtime,
-                    context,
-                    handle,
-                    buffer,
-                    recvflags,
-                    maxfds,
-                    wantcredentials,
-                    maxcontrolbytes,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: SocketRecvMessageVm = value.clone();
-                    let result_recorded_bytes = result_value.bytes;
-                    let result_recorded_has_address = result_value.has_address;
-                    let result_recorded_address_family = result_value.address.family;
-                    let result_recorded_address_length = result_value.address.length;
-                    let result_recorded_address_bytes =
-                        result_value.address.bytes.read_bytes(context)?;
-                    let result_recorded_address = SocketAddressReplayRecord {
-                        family: result_recorded_address_family,
-                        length: result_recorded_address_length,
-                        bytes: result_recorded_address_bytes,
-                    };
-                    let result_recorded_recv_flags = result_value.recv_flags;
-                    let result_recorded_payload_truncated = result_value.payload_truncated;
-                    let result_recorded_control_truncated = result_value.control_truncated;
-                    let result_recorded_control_inner =
-                        result_value.control.0.read_bytes(context)?;
-                    let result_recorded_control = result_recorded_control_inner;
-                    let result_recorded_fds_raw = result_value.fds.raw_values(context)?;
-                    let mut result_recorded_fds = Vec::with_capacity(result_recorded_fds_raw.len());
-                    for result_recorded_fds_item_value in result_recorded_fds_raw {
-                        let result_recorded_fds_item_inner_inner = decode_uint64(
-                            result_recorded_fds_item_value,
-                            "result_recorded_fds_item_inner_inner",
-                            "item",
-                        )?;
-                        let result_recorded_fds_item_inner =
-                            resource::ResourceId(result_recorded_fds_item_inner_inner);
-                        let result_recorded_fds_item =
-                            resource::TransferredHandle(result_recorded_fds_item_inner);
-                        let result_recorded_fds_item_recorded = result_recorded_fds_item;
-                        result_recorded_fds.push(result_recorded_fds_item_recorded);
-                    }
-                    let result_recorded_has_credentials = result_value.has_credentials;
-                    let result_recorded_credentials_pid = result_value.credentials.pid;
-                    let result_recorded_credentials_uid = result_value.credentials.uid;
-                    let result_recorded_credentials_gid = result_value.credentials.gid;
-                    let result_recorded_credentials = SocketCredentials {
-                        pid: result_recorded_credentials_pid,
-                        uid: result_recorded_credentials_uid,
-                        gid: result_recorded_credentials_gid,
-                    };
-                    let result_recorded = SocketRecvMessageReplayRecord {
-                        bytes: result_recorded_bytes,
-                        has_address: result_recorded_has_address,
-                        address: result_recorded_address,
-                        recv_flags: result_recorded_recv_flags,
-                        payload_truncated: result_recorded_payload_truncated,
-                        control_truncated: result_recorded_control_truncated,
-                        control: result_recorded_control,
-                        fds: result_recorded_fds,
-                        has_credentials: result_recorded_has_credentials,
-                        credentials: result_recorded_credentials,
-                    };
-                    let payload = NetRecvMsgReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        NetRecvMsgReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_bytes = value.bytes;
-                        let vm_result_has_address = value.has_address;
-                        let vm_result_address_family = value.address.family;
-                        let vm_result_address_length = value.address.length;
-                        let vm_result_address_bytes =
-                            VmArray::from_bytes(context, value.address.bytes.as_slice());
-                        let vm_result_address = SocketAddressVm {
-                            family: vm_result_address_family,
-                            length: vm_result_address_length,
-                            bytes: vm_result_address_bytes,
-                        };
-                        let vm_result_recv_flags = value.recv_flags;
-                        let vm_result_payload_truncated = value.payload_truncated;
-                        let vm_result_control_truncated = value.control_truncated;
-                        let vm_result_control_inner =
-                            VmArray::from_bytes(context, value.control.as_slice());
-                        let vm_result_control = platform_net::SocketControlBufferAbi::<
-                            platform_abi::VmAbi,
-                        >(vm_result_control_inner);
-                        let mut vm_result_fds_values = Vec::with_capacity(value.fds.len());
-                        for vm_result_fds_item in value.fds.iter() {
-                            let vm_result_fds_item = *vm_result_fds_item;
-                            let vm_result_fds_item_value = vm_result_fds_item;
-                            vm_result_fds_values.push(vm_result_fds_item_value);
-                        }
-                        let vm_result_fds = VmArray::from_values(context, &vm_result_fds_values)?;
-                        let vm_result_has_credentials = value.has_credentials;
-                        let vm_result_credentials_pid = value.credentials.pid;
-                        let vm_result_credentials_uid = value.credentials.uid;
-                        let vm_result_credentials_gid = value.credentials.gid;
-                        let vm_result_credentials = SocketCredentialsVm {
-                            pid: vm_result_credentials_pid,
-                            uid: vm_result_credentials_uid,
-                            gid: vm_result_credentials_gid,
-                        };
-                        let vm_result = SocketRecvMessageVm {
-                            bytes: vm_result_bytes,
-                            has_address: vm_result_has_address,
-                            address: vm_result_address,
-                            recv_flags: vm_result_recv_flags,
-                            payload_truncated: vm_result_payload_truncated,
-                            control_truncated: vm_result_control_truncated,
-                            control: vm_result_control,
-                            fds: vm_result_fds,
-                            has_credentials: vm_result_has_credentials,
-                            credentials: vm_result_credentials,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_net_recv_msg_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_net_resolve_resolve_vm_replay(
+fn destack_net_resolve_lookup_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -19018,8 +18102,8 @@ fn destack_net_resolve_resolve_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_RESOLVE_RESOLVE,
-            runtime.replay_payload_for(NET_RESOLVE_RESOLVE)?,
+            NET_RESOLVE_LOOKUP,
+            runtime.replay_payload_for(NET_RESOLVE_LOOKUP)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_net_resolve(runtime, context, query),
@@ -19083,7 +18167,7 @@ fn destack_net_resolve_resolve_vm_replay(
                         };
                         result_recorded.push(result_recorded_item_recorded);
                     }
-                    let payload = NetResolveResolveReplay {
+                    let payload = NetResolveLookupReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -19092,7 +18176,7 @@ fn destack_net_resolve_resolve_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetResolveResolveReplay { result }
+                        NetResolveLookupReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -19139,7 +18223,7 @@ fn destack_net_resolve_resolve_vm_replay(
                 }
             },
         );
-    let result = encode_destack_net_resolve_resolve_result(context, result)?;
+    let result = encode_destack_net_resolve_lookup_result(context, result)?;
     Ok(result)
 }
 
@@ -19510,7 +18594,7 @@ fn destack_net_reuse_set_reuse_port_vm_replay(
 }
 
 #[inline]
-fn destack_net_route_add_vm_replay(
+fn destack_net_route_route_add_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -19519,8 +18603,8 @@ fn destack_net_route_add_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_ROUTE_ADD,
-            runtime.replay_payload_for(NET_ROUTE_ADD)?,
+            NET_ROUTE_ROUTE_ADD,
+            runtime.replay_payload_for(NET_ROUTE_ROUTE_ADD)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_net_route_add(runtime, context, route),
@@ -19532,7 +18616,7 @@ fn destack_net_route_add_vm_replay(
                 let _ = &context;
                 if let Ok(()) = result {
                     let result_recorded = ();
-                    let payload = NetRouteAddReplay {
+                    let payload = NetRouteRouteAddReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -19541,7 +18625,7 @@ fn destack_net_route_add_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetRouteAddReplay { result }
+                        NetRouteRouteAddReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -19557,12 +18641,12 @@ fn destack_net_route_add_vm_replay(
                 }
             },
         );
-    let result = encode_destack_net_route_add_result(context, result)?;
+    let result = encode_destack_net_route_route_add_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_net_route_delete_vm_replay(
+fn destack_net_route_route_delete_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -19571,8 +18655,8 @@ fn destack_net_route_delete_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_ROUTE_DELETE,
-            runtime.replay_payload_for(NET_ROUTE_DELETE)?,
+            NET_ROUTE_ROUTE_DELETE,
+            runtime.replay_payload_for(NET_ROUTE_ROUTE_DELETE)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
@@ -19586,7 +18670,7 @@ fn destack_net_route_delete_vm_replay(
                 let _ = &context;
                 if let Ok(()) = result {
                     let result_recorded = ();
-                    let payload = NetRouteDeleteReplay {
+                    let payload = NetRouteRouteDeleteReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -19595,7 +18679,7 @@ fn destack_net_route_delete_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetRouteDeleteReplay { result }
+                        NetRouteRouteDeleteReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -19611,12 +18695,12 @@ fn destack_net_route_delete_vm_replay(
                 }
             },
         );
-    let result = encode_destack_net_route_delete_result(context, result)?;
+    let result = encode_destack_net_route_route_delete_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_net_route_list_vm_replay(
+fn destack_net_route_route_list_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -19625,8 +18709,8 @@ fn destack_net_route_list_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_ROUTE_LIST,
-            runtime.replay_payload_for(NET_ROUTE_LIST)?,
+            NET_ROUTE_ROUTE_LIST,
+            runtime.replay_payload_for(NET_ROUTE_ROUTE_LIST)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_net_route_list(runtime, context, family),
@@ -19851,7 +18935,7 @@ fn destack_net_route_list_vm_replay(
                         };
                         result_recorded.push(result_recorded_item_recorded);
                     }
-                    let payload = NetRouteListReplay {
+                    let payload = NetRouteRouteListReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -19860,7 +18944,7 @@ fn destack_net_route_list_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetRouteListReplay { result }
+                        NetRouteRouteListReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -19972,216 +19056,34 @@ fn destack_net_route_list_vm_replay(
                 }
             },
         );
-    let result = encode_destack_net_route_list_result(context, result)?;
+    let result = encode_destack_net_route_route_list_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_net_send_mmsg_vm_replay(
+fn destack_net_socket_close_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
-    messages: VmSlice<SocketSendBatchEntryVm>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_SEND_MMSG,
-            runtime.replay_payload_for(NET_SEND_MMSG)?,
+            NET_SOCKET_CLOSE,
+            runtime.replay_payload_for(NET_SOCKET_CLOSE)?,
             context,
             |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_net_send_mmsg(runtime, context, handle, messages)
-                }
+                RuntimeWorld::Host => platform_vm::destack_net_close(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_send_mmsg(runtime, context, handle, messages)
+                    platform_simulated_vm::destack_net_close(runtime, context, handle)
                 }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = NetSendMmsgReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        NetSendMmsgReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_net_send_mmsg_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_net_send_msg_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::SocketHandle,
-    buffer: VmSlice<u8>,
-    message: SocketSendMessageVm,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            NET_SEND_MSG,
-            runtime.replay_payload_for(NET_SEND_MSG)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_net_send_msg(runtime, context, handle, buffer, message)
-                }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_send_msg(
-                    runtime, context, handle, buffer, message,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = NetSendMsgReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        NetSendMsgReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_net_send_msg_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_net_send_to_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::SocketHandle,
-    buffer: VmSlice<u8>,
-    message: SocketSendToVm,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            NET_SEND_TO,
-            runtime.replay_payload_for(NET_SEND_TO)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_net_send_to(runtime, context, handle, buffer, message)
-                }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_send_to(
-                    runtime, context, handle, buffer, message,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = NetSendToReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        NetSendToReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_net_send_to_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_net_set_nonblocking_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::SocketHandle,
-    enabled: bool,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            NET_SET_NONBLOCKING,
-            runtime.replay_payload_for(NET_SET_NONBLOCKING)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_net_set_nonblocking(runtime, context, handle, enabled)
-                }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_nonblocking(
-                    runtime, context, handle, enabled,
-                ),
             },
             |context, result| {
                 let _ = &context;
                 if let Ok(()) = result {
                     let result_recorded = ();
-                    let payload = NetSetNonblockingReplay {
+                    let payload = NetSocketCloseReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -20190,7 +19092,7 @@ fn destack_net_set_nonblocking_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetSetNonblockingReplay { result }
+                        NetSocketCloseReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -20206,37 +19108,37 @@ fn destack_net_set_nonblocking_vm_replay(
                 }
             },
         );
-    let result = encode_destack_net_set_nonblocking_result(context, result)?;
+    let result = encode_destack_net_socket_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_net_shutdown_vm_replay(
+fn destack_net_socket_connect_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
-    how: SocketShutdown,
+    address: SocketAddressVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_SHUTDOWN,
-            runtime.replay_payload_for(NET_SHUTDOWN)?,
+            NET_SOCKET_CONNECT,
+            runtime.replay_payload_for(NET_SOCKET_CONNECT)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
-                    platform_vm::destack_net_shutdown(runtime, context, handle, how)
+                    platform_vm::destack_net_connect(runtime, context, handle, address)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_shutdown(runtime, context, handle, how)
+                    platform_simulated_vm::destack_net_connect(runtime, context, handle, address)
                 }
             },
             |context, result| {
                 let _ = &context;
                 if let Ok(()) = result {
                     let result_recorded = ();
-                    let payload = NetShutdownReplay {
+                    let payload = NetSocketConnectReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -20245,7 +19147,7 @@ fn destack_net_shutdown_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetShutdownReplay { result }
+                        NetSocketConnectReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -20261,12 +19163,12 @@ fn destack_net_shutdown_vm_replay(
                 }
             },
         );
-    let result = encode_destack_net_shutdown_result(context, result)?;
+    let result = encode_destack_net_socket_connect_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_net_socket_vm_replay(
+fn destack_net_socket_open_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -20277,8 +19179,8 @@ fn destack_net_socket_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_SOCKET,
-            runtime.replay_payload_for(NET_SOCKET)?,
+            NET_SOCKET_OPEN,
+            runtime.replay_payload_for(NET_SOCKET_OPEN)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
@@ -20293,7 +19195,7 @@ fn destack_net_socket_vm_replay(
                 if let Ok(value) = result {
                     let result_value: resource::SocketHandle = value.clone();
                     let result_recorded = result_value;
-                    let payload = NetSocketReplay {
+                    let payload = NetSocketOpenReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -20302,7 +19204,7 @@ fn destack_net_socket_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetSocketReplay { result }
+                        NetSocketOpenReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -20321,12 +19223,12 @@ fn destack_net_socket_vm_replay(
                 }
             },
         );
-    let result = encode_destack_net_socket_result(context, result)?;
+    let result = encode_destack_net_socket_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_net_socket_pair_vm_replay(
+fn destack_net_socket_open_pair_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -20337,8 +19239,8 @@ fn destack_net_socket_pair_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_SOCKET_PAIR,
-            runtime.replay_payload_for(NET_SOCKET_PAIR)?,
+            NET_SOCKET_OPEN_PAIR,
+            runtime.replay_payload_for(NET_SOCKET_OPEN_PAIR)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_net_socket_pair(
@@ -20358,7 +19260,7 @@ fn destack_net_socket_pair_vm_replay(
                         first: result_recorded_first,
                         second: result_recorded_second,
                     };
-                    let payload = NetSocketPairReplay {
+                    let payload = NetSocketOpenPairReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -20367,7 +19269,7 @@ fn destack_net_socket_pair_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetSocketPairReplay { result }
+                        NetSocketOpenPairReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -20391,7 +19293,1232 @@ fn destack_net_socket_pair_vm_replay(
                 }
             },
         );
-    let result = encode_destack_net_socket_pair_result(context, result)?;
+    let result = encode_destack_net_socket_open_pair_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_net_socket_read_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::SocketHandle,
+    buffer: VmSlice<u8>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            NET_SOCKET_READ,
+            runtime.replay_payload_for(NET_SOCKET_READ)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_net_read(runtime, context, handle, buffer)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_net_read(runtime, context, handle, buffer)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: u64 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = NetSocketReadReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        NetSocketReadReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_net_socket_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_net_socket_readv_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::SocketHandle,
+    buffers: VmSlice<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            NET_SOCKET_READV,
+            runtime.replay_payload_for(NET_SOCKET_READV)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_net_readv(runtime, context, handle, buffers)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_net_readv(runtime, context, handle, buffers)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: u64 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = NetSocketReadvReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        NetSocketReadvReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_net_socket_readv_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_net_socket_recv_from_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::SocketHandle,
+    buffer: VmSlice<u8>,
+    recvflags: SocketMessageFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            NET_SOCKET_RECV_FROM,
+            runtime.replay_payload_for(NET_SOCKET_RECV_FROM)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_net_recv_from(runtime, context, handle, buffer, recvflags)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_recv_from(
+                    runtime, context, handle, buffer, recvflags,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: SocketRecvFromVm = value.clone();
+                    let result_recorded_bytes = result_value.bytes;
+                    let result_recorded_address_family = result_value.address.family;
+                    let result_recorded_address_length = result_value.address.length;
+                    let result_recorded_address_bytes =
+                        result_value.address.bytes.read_bytes(context)?;
+                    let result_recorded_address = SocketAddressReplayRecord {
+                        family: result_recorded_address_family,
+                        length: result_recorded_address_length,
+                        bytes: result_recorded_address_bytes,
+                    };
+                    let result_recorded_recv_flags = result_value.recv_flags;
+                    let result_recorded = SocketRecvFromReplayRecord {
+                        bytes: result_recorded_bytes,
+                        address: result_recorded_address,
+                        recv_flags: result_recorded_recv_flags,
+                    };
+                    let payload = NetSocketRecvFromReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        NetSocketRecvFromReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_bytes = value.bytes;
+                        let vm_result_address_family = value.address.family;
+                        let vm_result_address_length = value.address.length;
+                        let vm_result_address_bytes =
+                            VmArray::from_bytes(context, value.address.bytes.as_slice());
+                        let vm_result_address = SocketAddressVm {
+                            family: vm_result_address_family,
+                            length: vm_result_address_length,
+                            bytes: vm_result_address_bytes,
+                        };
+                        let vm_result_recv_flags = value.recv_flags;
+                        let vm_result = SocketRecvFromVm {
+                            bytes: vm_result_bytes,
+                            address: vm_result_address,
+                            recv_flags: vm_result_recv_flags,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_net_socket_recv_from_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_net_socket_recv_mmsg_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::SocketHandle,
+    requests: VmSlice<SocketRecvBatchRequestVm>,
+    maxfds: u32,
+    wantcredentials: bool,
+    maxcontrolbytes: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            NET_SOCKET_RECV_MMSG,
+            runtime.replay_payload_for(NET_SOCKET_RECV_MMSG)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_net_recv_mmsg(
+                    runtime,
+                    context,
+                    handle,
+                    requests,
+                    maxfds,
+                    wantcredentials,
+                    maxcontrolbytes,
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_recv_mmsg(
+                    runtime,
+                    context,
+                    handle,
+                    requests,
+                    maxfds,
+                    wantcredentials,
+                    maxcontrolbytes,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: VmArray<SocketRecvMessageVm> = value.clone();
+                    let result_recorded_raw = result_value.raw_values(context)?;
+                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                    for result_recorded_item_value in result_recorded_raw {
+                        let result_recorded_item = {
+                            if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_type(
+                                        "result_recorded_item",
+                                        "item",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let slots = context
+                                .aggregate_slots(result_recorded_item_value)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots.len() != 10 {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_item",
+                                        "expected 10 fields",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let result_recorded_item_bytes =
+                                decode_uint64(slots[0], "result_recorded_item_bytes", "bytes")?;
+                            let result_recorded_item_has_address = decode_bool(
+                                slots[1],
+                                "result_recorded_item_has_address",
+                                "hasAddress",
+                            )?;
+                            let result_recorded_item_address = {
+                                if slots[2].tag() != vm::ValueTag::Aggregate {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_type(
+                                            "result_recorded_item_address",
+                                            "address",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
+                                let slots = context
+                                    .aggregate_slots(slots[2])
+                                    .map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 3 {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_value(
+                                            "result_recorded_item_address",
+                                            "expected 3 fields",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
+                                let result_recorded_item_address_family = decode_uint16(
+                                    slots[0],
+                                    "result_recorded_item_address_family",
+                                    "family",
+                                )?;
+                                let result_recorded_item_address_length = decode_uint32(
+                                    slots[1],
+                                    "result_recorded_item_address_length",
+                                    "length",
+                                )?;
+                                let result_recorded_item_address_bytes = decode_array::<u8>(
+                                    context,
+                                    slots[2],
+                                    "result_recorded_item_address_bytes",
+                                    "bytes",
+                                )?;
+                                SocketAddressVm {
+                                    family: result_recorded_item_address_family,
+                                    length: result_recorded_item_address_length,
+                                    bytes: result_recorded_item_address_bytes,
+                                }
+                            };
+                            let result_recorded_item_recv_flags_inner = decode_uint32(
+                                slots[3],
+                                "result_recorded_item_recv_flags_inner",
+                                "recvFlags",
+                            )?;
+                            let result_recorded_item_recv_flags =
+                                SocketMessageFlags(result_recorded_item_recv_flags_inner);
+                            let result_recorded_item_payload_truncated = decode_bool(
+                                slots[4],
+                                "result_recorded_item_payload_truncated",
+                                "payloadTruncated",
+                            )?;
+                            let result_recorded_item_control_truncated = decode_bool(
+                                slots[5],
+                                "result_recorded_item_control_truncated",
+                                "controlTruncated",
+                            )?;
+                            let result_recorded_item_control_inner = decode_array::<u8>(
+                                context,
+                                slots[6],
+                                "result_recorded_item_control_inner",
+                                "control",
+                            )?;
+                            let result_recorded_item_control =
+                                platform_net::SocketControlBufferAbi::<platform_abi::VmAbi>(
+                                    result_recorded_item_control_inner,
+                                );
+                            let result_recorded_item_fds =
+                                decode_array::<resource::TransferredHandle>(
+                                    context,
+                                    slots[7],
+                                    "result_recorded_item_fds",
+                                    "fds",
+                                )?;
+                            let result_recorded_item_has_credentials = decode_bool(
+                                slots[8],
+                                "result_recorded_item_has_credentials",
+                                "hasCredentials",
+                            )?;
+                            let result_recorded_item_credentials = {
+                                if slots[9].tag() != vm::ValueTag::Aggregate {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_type(
+                                            "result_recorded_item_credentials",
+                                            "credentials",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
+                                let slots = context
+                                    .aggregate_slots(slots[9])
+                                    .map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 3 {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_value(
+                                            "result_recorded_item_credentials",
+                                            "expected 3 fields",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
+                                let result_recorded_item_credentials_pid = decode_uint32(
+                                    slots[0],
+                                    "result_recorded_item_credentials_pid",
+                                    "pid",
+                                )?;
+                                let result_recorded_item_credentials_uid = decode_uint32(
+                                    slots[1],
+                                    "result_recorded_item_credentials_uid",
+                                    "uid",
+                                )?;
+                                let result_recorded_item_credentials_gid = decode_uint32(
+                                    slots[2],
+                                    "result_recorded_item_credentials_gid",
+                                    "gid",
+                                )?;
+                                SocketCredentialsVm {
+                                    pid: result_recorded_item_credentials_pid,
+                                    uid: result_recorded_item_credentials_uid,
+                                    gid: result_recorded_item_credentials_gid,
+                                }
+                            };
+                            SocketRecvMessageVm {
+                                bytes: result_recorded_item_bytes,
+                                has_address: result_recorded_item_has_address,
+                                address: result_recorded_item_address,
+                                recv_flags: result_recorded_item_recv_flags,
+                                payload_truncated: result_recorded_item_payload_truncated,
+                                control_truncated: result_recorded_item_control_truncated,
+                                control: result_recorded_item_control,
+                                fds: result_recorded_item_fds,
+                                has_credentials: result_recorded_item_has_credentials,
+                                credentials: result_recorded_item_credentials,
+                            }
+                        };
+                        let result_recorded_item_recorded_bytes = result_recorded_item.bytes;
+                        let result_recorded_item_recorded_has_address =
+                            result_recorded_item.has_address;
+                        let result_recorded_item_recorded_address_family =
+                            result_recorded_item.address.family;
+                        let result_recorded_item_recorded_address_length =
+                            result_recorded_item.address.length;
+                        let result_recorded_item_recorded_address_bytes =
+                            result_recorded_item.address.bytes.read_bytes(context)?;
+                        let result_recorded_item_recorded_address = SocketAddressReplayRecord {
+                            family: result_recorded_item_recorded_address_family,
+                            length: result_recorded_item_recorded_address_length,
+                            bytes: result_recorded_item_recorded_address_bytes,
+                        };
+                        let result_recorded_item_recorded_recv_flags =
+                            result_recorded_item.recv_flags;
+                        let result_recorded_item_recorded_payload_truncated =
+                            result_recorded_item.payload_truncated;
+                        let result_recorded_item_recorded_control_truncated =
+                            result_recorded_item.control_truncated;
+                        let result_recorded_item_recorded_control_inner =
+                            result_recorded_item.control.0.read_bytes(context)?;
+                        let result_recorded_item_recorded_control =
+                            result_recorded_item_recorded_control_inner;
+                        let result_recorded_item_recorded_fds_raw =
+                            result_recorded_item.fds.raw_values(context)?;
+                        let mut result_recorded_item_recorded_fds =
+                            Vec::with_capacity(result_recorded_item_recorded_fds_raw.len());
+                        for result_recorded_item_recorded_fds_item_value in
+                            result_recorded_item_recorded_fds_raw
+                        {
+                            let result_recorded_item_recorded_fds_item_inner_inner = decode_uint64(
+                                result_recorded_item_recorded_fds_item_value,
+                                "result_recorded_item_recorded_fds_item_inner_inner",
+                                "item",
+                            )?;
+                            let result_recorded_item_recorded_fds_item_inner = resource::ResourceId(
+                                result_recorded_item_recorded_fds_item_inner_inner,
+                            );
+                            let result_recorded_item_recorded_fds_item =
+                                resource::TransferredHandle(
+                                    result_recorded_item_recorded_fds_item_inner,
+                                );
+                            let result_recorded_item_recorded_fds_item_recorded =
+                                result_recorded_item_recorded_fds_item;
+                            result_recorded_item_recorded_fds
+                                .push(result_recorded_item_recorded_fds_item_recorded);
+                        }
+                        let result_recorded_item_recorded_has_credentials =
+                            result_recorded_item.has_credentials;
+                        let result_recorded_item_recorded_credentials_pid =
+                            result_recorded_item.credentials.pid;
+                        let result_recorded_item_recorded_credentials_uid =
+                            result_recorded_item.credentials.uid;
+                        let result_recorded_item_recorded_credentials_gid =
+                            result_recorded_item.credentials.gid;
+                        let result_recorded_item_recorded_credentials = SocketCredentials {
+                            pid: result_recorded_item_recorded_credentials_pid,
+                            uid: result_recorded_item_recorded_credentials_uid,
+                            gid: result_recorded_item_recorded_credentials_gid,
+                        };
+                        let result_recorded_item_recorded = SocketRecvMessageReplayRecord {
+                            bytes: result_recorded_item_recorded_bytes,
+                            has_address: result_recorded_item_recorded_has_address,
+                            address: result_recorded_item_recorded_address,
+                            recv_flags: result_recorded_item_recorded_recv_flags,
+                            payload_truncated: result_recorded_item_recorded_payload_truncated,
+                            control_truncated: result_recorded_item_recorded_control_truncated,
+                            control: result_recorded_item_recorded_control,
+                            fds: result_recorded_item_recorded_fds,
+                            has_credentials: result_recorded_item_recorded_has_credentials,
+                            credentials: result_recorded_item_recorded_credentials,
+                        };
+                        result_recorded.push(result_recorded_item_recorded);
+                    }
+                    let payload = NetSocketRecvMmsgReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        NetSocketRecvMmsgReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let mut vm_result_values = Vec::with_capacity(value.len());
+                        for vm_result_item in value.iter() {
+                            let vm_result_item = vm_result_item.clone();
+                            let vm_result_item_value_bytes = vm_result_item.bytes;
+                            let vm_result_item_value_has_address = vm_result_item.has_address;
+                            let vm_result_item_value_address_family = vm_result_item.address.family;
+                            let vm_result_item_value_address_length = vm_result_item.address.length;
+                            let vm_result_item_value_address_bytes = VmArray::from_bytes(
+                                context,
+                                vm_result_item.address.bytes.as_slice(),
+                            );
+                            let vm_result_item_value_address = SocketAddressVm {
+                                family: vm_result_item_value_address_family,
+                                length: vm_result_item_value_address_length,
+                                bytes: vm_result_item_value_address_bytes,
+                            };
+                            let vm_result_item_value_recv_flags = vm_result_item.recv_flags;
+                            let vm_result_item_value_payload_truncated =
+                                vm_result_item.payload_truncated;
+                            let vm_result_item_value_control_truncated =
+                                vm_result_item.control_truncated;
+                            let vm_result_item_value_control_inner =
+                                VmArray::from_bytes(context, vm_result_item.control.as_slice());
+                            let vm_result_item_value_control =
+                                platform_net::SocketControlBufferAbi::<platform_abi::VmAbi>(
+                                    vm_result_item_value_control_inner,
+                                );
+                            let mut vm_result_item_value_fds_values =
+                                Vec::with_capacity(vm_result_item.fds.len());
+                            for vm_result_item_value_fds_item in vm_result_item.fds.iter() {
+                                let vm_result_item_value_fds_item = *vm_result_item_value_fds_item;
+                                let vm_result_item_value_fds_item_value =
+                                    vm_result_item_value_fds_item;
+                                vm_result_item_value_fds_values
+                                    .push(vm_result_item_value_fds_item_value);
+                            }
+                            let vm_result_item_value_fds =
+                                VmArray::from_values(context, &vm_result_item_value_fds_values)?;
+                            let vm_result_item_value_has_credentials =
+                                vm_result_item.has_credentials;
+                            let vm_result_item_value_credentials_pid =
+                                vm_result_item.credentials.pid;
+                            let vm_result_item_value_credentials_uid =
+                                vm_result_item.credentials.uid;
+                            let vm_result_item_value_credentials_gid =
+                                vm_result_item.credentials.gid;
+                            let vm_result_item_value_credentials = SocketCredentialsVm {
+                                pid: vm_result_item_value_credentials_pid,
+                                uid: vm_result_item_value_credentials_uid,
+                                gid: vm_result_item_value_credentials_gid,
+                            };
+                            let vm_result_item_value = SocketRecvMessageVm {
+                                bytes: vm_result_item_value_bytes,
+                                has_address: vm_result_item_value_has_address,
+                                address: vm_result_item_value_address,
+                                recv_flags: vm_result_item_value_recv_flags,
+                                payload_truncated: vm_result_item_value_payload_truncated,
+                                control_truncated: vm_result_item_value_control_truncated,
+                                control: vm_result_item_value_control,
+                                fds: vm_result_item_value_fds,
+                                has_credentials: vm_result_item_value_has_credentials,
+                                credentials: vm_result_item_value_credentials,
+                            };
+                            let vm_result_item_value_encoded = {
+                                let field_0 = vm::Value::uint(vm_result_item_value.bytes, 64);
+                                let field_1 = vm::Value::bool(vm_result_item_value.has_address);
+                                let field_2 = {
+                                    let field_0 = vm::Value::uint(
+                                        vm_result_item_value.address.family as u64,
+                                        16,
+                                    );
+                                    let field_1 = vm::Value::uint(
+                                        vm_result_item_value.address.length as u64,
+                                        32,
+                                    );
+                                    let field_2 =
+                                        vm_result_item_value.address.bytes.to_value(context);
+                                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                                };
+                                let field_3 =
+                                    vm::Value::uint(vm_result_item_value.recv_flags.0 as u64, 32);
+                                let field_4 =
+                                    vm::Value::bool(vm_result_item_value.payload_truncated);
+                                let field_5 =
+                                    vm::Value::bool(vm_result_item_value.control_truncated);
+                                let field_6 = vm_result_item_value.control.0.to_value(context);
+                                let field_7 = vm_result_item_value.fds.to_value(context);
+                                let field_8 = vm::Value::bool(vm_result_item_value.has_credentials);
+                                let field_9 = {
+                                    let field_0 = vm::Value::uint(
+                                        vm_result_item_value.credentials.pid as u64,
+                                        32,
+                                    );
+                                    let field_1 = vm::Value::uint(
+                                        vm_result_item_value.credentials.uid as u64,
+                                        32,
+                                    );
+                                    let field_2 = vm::Value::uint(
+                                        vm_result_item_value.credentials.gid as u64,
+                                        32,
+                                    );
+                                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                                };
+                                context.allocate_aggregate(vec![
+                                    field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+                                    field_7, field_8, field_9,
+                                ])
+                            };
+                            vm_result_values.push(vm_result_item_value_encoded);
+                        }
+                        let vm_result_data = context.allocate_raw_values(vm_result_values);
+                        let vm_result: VmArray<SocketRecvMessageVm> = VmArray {
+                            data: vm_result_data,
+                            len: value.len() as u32,
+                            capacity: value.len() as u32,
+                            _marker: std::marker::PhantomData,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_net_socket_recv_mmsg_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_net_socket_recv_msg_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::SocketHandle,
+    buffer: VmSlice<u8>,
+    recvflags: SocketMessageFlags,
+    maxfds: u32,
+    wantcredentials: bool,
+    maxcontrolbytes: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            NET_SOCKET_RECV_MSG,
+            runtime.replay_payload_for(NET_SOCKET_RECV_MSG)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_net_recv_msg(
+                    runtime,
+                    context,
+                    handle,
+                    buffer,
+                    recvflags,
+                    maxfds,
+                    wantcredentials,
+                    maxcontrolbytes,
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_recv_msg(
+                    runtime,
+                    context,
+                    handle,
+                    buffer,
+                    recvflags,
+                    maxfds,
+                    wantcredentials,
+                    maxcontrolbytes,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: SocketRecvMessageVm = value.clone();
+                    let result_recorded_bytes = result_value.bytes;
+                    let result_recorded_has_address = result_value.has_address;
+                    let result_recorded_address_family = result_value.address.family;
+                    let result_recorded_address_length = result_value.address.length;
+                    let result_recorded_address_bytes =
+                        result_value.address.bytes.read_bytes(context)?;
+                    let result_recorded_address = SocketAddressReplayRecord {
+                        family: result_recorded_address_family,
+                        length: result_recorded_address_length,
+                        bytes: result_recorded_address_bytes,
+                    };
+                    let result_recorded_recv_flags = result_value.recv_flags;
+                    let result_recorded_payload_truncated = result_value.payload_truncated;
+                    let result_recorded_control_truncated = result_value.control_truncated;
+                    let result_recorded_control_inner =
+                        result_value.control.0.read_bytes(context)?;
+                    let result_recorded_control = result_recorded_control_inner;
+                    let result_recorded_fds_raw = result_value.fds.raw_values(context)?;
+                    let mut result_recorded_fds = Vec::with_capacity(result_recorded_fds_raw.len());
+                    for result_recorded_fds_item_value in result_recorded_fds_raw {
+                        let result_recorded_fds_item_inner_inner = decode_uint64(
+                            result_recorded_fds_item_value,
+                            "result_recorded_fds_item_inner_inner",
+                            "item",
+                        )?;
+                        let result_recorded_fds_item_inner =
+                            resource::ResourceId(result_recorded_fds_item_inner_inner);
+                        let result_recorded_fds_item =
+                            resource::TransferredHandle(result_recorded_fds_item_inner);
+                        let result_recorded_fds_item_recorded = result_recorded_fds_item;
+                        result_recorded_fds.push(result_recorded_fds_item_recorded);
+                    }
+                    let result_recorded_has_credentials = result_value.has_credentials;
+                    let result_recorded_credentials_pid = result_value.credentials.pid;
+                    let result_recorded_credentials_uid = result_value.credentials.uid;
+                    let result_recorded_credentials_gid = result_value.credentials.gid;
+                    let result_recorded_credentials = SocketCredentials {
+                        pid: result_recorded_credentials_pid,
+                        uid: result_recorded_credentials_uid,
+                        gid: result_recorded_credentials_gid,
+                    };
+                    let result_recorded = SocketRecvMessageReplayRecord {
+                        bytes: result_recorded_bytes,
+                        has_address: result_recorded_has_address,
+                        address: result_recorded_address,
+                        recv_flags: result_recorded_recv_flags,
+                        payload_truncated: result_recorded_payload_truncated,
+                        control_truncated: result_recorded_control_truncated,
+                        control: result_recorded_control,
+                        fds: result_recorded_fds,
+                        has_credentials: result_recorded_has_credentials,
+                        credentials: result_recorded_credentials,
+                    };
+                    let payload = NetSocketRecvMsgReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        NetSocketRecvMsgReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_bytes = value.bytes;
+                        let vm_result_has_address = value.has_address;
+                        let vm_result_address_family = value.address.family;
+                        let vm_result_address_length = value.address.length;
+                        let vm_result_address_bytes =
+                            VmArray::from_bytes(context, value.address.bytes.as_slice());
+                        let vm_result_address = SocketAddressVm {
+                            family: vm_result_address_family,
+                            length: vm_result_address_length,
+                            bytes: vm_result_address_bytes,
+                        };
+                        let vm_result_recv_flags = value.recv_flags;
+                        let vm_result_payload_truncated = value.payload_truncated;
+                        let vm_result_control_truncated = value.control_truncated;
+                        let vm_result_control_inner =
+                            VmArray::from_bytes(context, value.control.as_slice());
+                        let vm_result_control = platform_net::SocketControlBufferAbi::<
+                            platform_abi::VmAbi,
+                        >(vm_result_control_inner);
+                        let mut vm_result_fds_values = Vec::with_capacity(value.fds.len());
+                        for vm_result_fds_item in value.fds.iter() {
+                            let vm_result_fds_item = *vm_result_fds_item;
+                            let vm_result_fds_item_value = vm_result_fds_item;
+                            vm_result_fds_values.push(vm_result_fds_item_value);
+                        }
+                        let vm_result_fds = VmArray::from_values(context, &vm_result_fds_values)?;
+                        let vm_result_has_credentials = value.has_credentials;
+                        let vm_result_credentials_pid = value.credentials.pid;
+                        let vm_result_credentials_uid = value.credentials.uid;
+                        let vm_result_credentials_gid = value.credentials.gid;
+                        let vm_result_credentials = SocketCredentialsVm {
+                            pid: vm_result_credentials_pid,
+                            uid: vm_result_credentials_uid,
+                            gid: vm_result_credentials_gid,
+                        };
+                        let vm_result = SocketRecvMessageVm {
+                            bytes: vm_result_bytes,
+                            has_address: vm_result_has_address,
+                            address: vm_result_address,
+                            recv_flags: vm_result_recv_flags,
+                            payload_truncated: vm_result_payload_truncated,
+                            control_truncated: vm_result_control_truncated,
+                            control: vm_result_control,
+                            fds: vm_result_fds,
+                            has_credentials: vm_result_has_credentials,
+                            credentials: vm_result_credentials,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_net_socket_recv_msg_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_net_socket_send_mmsg_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::SocketHandle,
+    messages: VmSlice<SocketSendBatchEntryVm>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            NET_SOCKET_SEND_MMSG,
+            runtime.replay_payload_for(NET_SOCKET_SEND_MMSG)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_net_send_mmsg(runtime, context, handle, messages)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_net_send_mmsg(runtime, context, handle, messages)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: u64 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = NetSocketSendMmsgReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        NetSocketSendMmsgReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_net_socket_send_mmsg_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_net_socket_send_msg_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::SocketHandle,
+    buffer: VmSlice<u8>,
+    message: SocketSendMessageVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            NET_SOCKET_SEND_MSG,
+            runtime.replay_payload_for(NET_SOCKET_SEND_MSG)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_net_send_msg(runtime, context, handle, buffer, message)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_send_msg(
+                    runtime, context, handle, buffer, message,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: u64 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = NetSocketSendMsgReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        NetSocketSendMsgReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_net_socket_send_msg_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_net_socket_send_to_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::SocketHandle,
+    buffer: VmSlice<u8>,
+    message: SocketSendToVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            NET_SOCKET_SEND_TO,
+            runtime.replay_payload_for(NET_SOCKET_SEND_TO)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_net_send_to(runtime, context, handle, buffer, message)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_send_to(
+                    runtime, context, handle, buffer, message,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: u64 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = NetSocketSendToReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        NetSocketSendToReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_net_socket_send_to_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_net_socket_set_nonblocking_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::SocketHandle,
+    enabled: bool,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            NET_SOCKET_SET_NONBLOCKING,
+            runtime.replay_payload_for(NET_SOCKET_SET_NONBLOCKING)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_net_set_nonblocking(runtime, context, handle, enabled)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_nonblocking(
+                    runtime, context, handle, enabled,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = NetSocketSetNonblockingReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        NetSocketSetNonblockingReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_net_socket_set_nonblocking_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_net_socket_shutdown_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::SocketHandle,
+    how: SocketShutdown,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            NET_SOCKET_SHUTDOWN,
+            runtime.replay_payload_for(NET_SOCKET_SHUTDOWN)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_net_shutdown(runtime, context, handle, how)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_net_shutdown(runtime, context, handle, how)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = NetSocketShutdownReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        NetSocketShutdownReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_net_socket_shutdown_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_net_socket_write_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::SocketHandle,
+    buffer: VmSlice<u8>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            NET_SOCKET_WRITE,
+            runtime.replay_payload_for(NET_SOCKET_WRITE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_net_write(runtime, context, handle, buffer)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_net_write(runtime, context, handle, buffer)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: u64 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = NetSocketWriteReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        NetSocketWriteReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_net_socket_write_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_net_socket_writev_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::SocketHandle,
+    buffers: VmSlice<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            NET_SOCKET_WRITEV,
+            runtime.replay_payload_for(NET_SOCKET_WRITEV)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_net_writev(runtime, context, handle, buffers)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_net_writev(runtime, context, handle, buffers)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: u64 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = NetSocketWritevReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        NetSocketWritevReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_net_socket_writev_result(context, result)?;
     Ok(result)
 }
 
@@ -21919,7 +22046,7 @@ fn destack_net_udp_socket_vm_replay(
 }
 
 #[inline]
-fn destack_net_uds_accept_vm_replay(
+fn destack_net_uds_uds_accept_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -21928,8 +22055,8 @@ fn destack_net_uds_accept_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_UDS_ACCEPT,
-            runtime.replay_payload_for(NET_UDS_ACCEPT)?,
+            NET_UDS_UDS_ACCEPT,
+            runtime.replay_payload_for(NET_UDS_UDS_ACCEPT)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
@@ -21944,7 +22071,7 @@ fn destack_net_uds_accept_vm_replay(
                 if let Ok(value) = result {
                     let result_value: resource::SocketHandle = value.clone();
                     let result_recorded = result_value;
-                    let payload = NetUdsAcceptReplay {
+                    let payload = NetUdsUdsAcceptReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -21953,7 +22080,7 @@ fn destack_net_uds_accept_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetUdsAcceptReplay { result }
+                        NetUdsUdsAcceptReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -21972,12 +22099,12 @@ fn destack_net_uds_accept_vm_replay(
                 }
             },
         );
-    let result = encode_destack_net_uds_accept_result(context, result)?;
+    let result = encode_destack_net_uds_uds_accept_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_net_uds_close_listener_vm_replay(
+fn destack_net_uds_uds_close_listener_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -21986,8 +22113,8 @@ fn destack_net_uds_close_listener_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_UDS_CLOSE_LISTENER,
-            runtime.replay_payload_for(NET_UDS_CLOSE_LISTENER)?,
+            NET_UDS_UDS_CLOSE_LISTENER,
+            runtime.replay_payload_for(NET_UDS_UDS_CLOSE_LISTENER)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
@@ -22001,7 +22128,7 @@ fn destack_net_uds_close_listener_vm_replay(
                 let _ = &context;
                 if let Ok(()) = result {
                     let result_recorded = ();
-                    let payload = NetUdsCloseListenerReplay {
+                    let payload = NetUdsUdsCloseListenerReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -22010,7 +22137,7 @@ fn destack_net_uds_close_listener_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetUdsCloseListenerReplay { result }
+                        NetUdsUdsCloseListenerReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -22026,12 +22153,12 @@ fn destack_net_uds_close_listener_vm_replay(
                 }
             },
         );
-    let result = encode_destack_net_uds_close_listener_result(context, result)?;
+    let result = encode_destack_net_uds_uds_close_listener_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_net_uds_connect_vm_replay(
+fn destack_net_uds_uds_connect_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -22040,8 +22167,8 @@ fn destack_net_uds_connect_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_UDS_CONNECT,
-            runtime.replay_payload_for(NET_UDS_CONNECT)?,
+            NET_UDS_UDS_CONNECT,
+            runtime.replay_payload_for(NET_UDS_UDS_CONNECT)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
@@ -22056,7 +22183,7 @@ fn destack_net_uds_connect_vm_replay(
                 if let Ok(value) = result {
                     let result_value: resource::SocketHandle = value.clone();
                     let result_recorded = result_value;
-                    let payload = NetUdsConnectReplay {
+                    let payload = NetUdsUdsConnectReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -22065,7 +22192,7 @@ fn destack_net_uds_connect_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetUdsConnectReplay { result }
+                        NetUdsUdsConnectReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -22084,12 +22211,12 @@ fn destack_net_uds_connect_vm_replay(
                 }
             },
         );
-    let result = encode_destack_net_uds_connect_result(context, result)?;
+    let result = encode_destack_net_uds_uds_connect_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_net_uds_listen_vm_replay(
+fn destack_net_uds_uds_listen_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -22099,8 +22226,8 @@ fn destack_net_uds_listen_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_UDS_LISTEN,
-            runtime.replay_payload_for(NET_UDS_LISTEN)?,
+            NET_UDS_UDS_LISTEN,
+            runtime.replay_payload_for(NET_UDS_UDS_LISTEN)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
@@ -22115,7 +22242,7 @@ fn destack_net_uds_listen_vm_replay(
                 if let Ok(value) = result {
                     let result_value: resource::ListenerHandle = value.clone();
                     let result_recorded = result_value;
-                    let payload = NetUdsListenReplay {
+                    let payload = NetUdsUdsListenReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -22124,7 +22251,7 @@ fn destack_net_uds_listen_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetUdsListenReplay { result }
+                        NetUdsUdsListenReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -22143,12 +22270,12 @@ fn destack_net_uds_listen_vm_replay(
                 }
             },
         );
-    let result = encode_destack_net_uds_listen_result(context, result)?;
+    let result = encode_destack_net_uds_uds_listen_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_net_uds_socket_pair_vm_replay(
+fn destack_net_uds_uds_socket_pair_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -22157,8 +22284,8 @@ fn destack_net_uds_socket_pair_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            NET_UDS_SOCKET_PAIR,
-            runtime.replay_payload_for(NET_UDS_SOCKET_PAIR)?,
+            NET_UDS_UDS_SOCKET_PAIR,
+            runtime.replay_payload_for(NET_UDS_UDS_SOCKET_PAIR)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
@@ -22178,7 +22305,7 @@ fn destack_net_uds_socket_pair_vm_replay(
                         first: result_recorded_first,
                         second: result_recorded_second,
                     };
-                    let payload = NetUdsSocketPairReplay {
+                    let payload = NetUdsUdsSocketPairReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -22187,7 +22314,7 @@ fn destack_net_uds_socket_pair_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        NetUdsSocketPairReplay { result }
+                        NetUdsUdsSocketPairReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -22211,144 +22338,12 @@ fn destack_net_uds_socket_pair_vm_replay(
                 }
             },
         );
-    let result = encode_destack_net_uds_socket_pair_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_net_write_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::SocketHandle,
-    buffer: VmSlice<u8>,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            NET_WRITE,
-            runtime.replay_payload_for(NET_WRITE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_net_write(runtime, context, handle, buffer)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_write(runtime, context, handle, buffer)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = NetWriteReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        NetWriteReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_net_write_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_net_writev_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::SocketHandle,
-    buffers: VmSlice<VmSlice<u8>>,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            NET_WRITEV,
-            runtime.replay_payload_for(NET_WRITEV)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_net_writev(runtime, context, handle, buffers)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_writev(runtime, context, handle, buffers)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = NetWritevReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        NetWritevReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_net_writev_result(context, result)?;
+    let result = encode_destack_net_uds_uds_socket_pair_result(context, result)?;
     Ok(result)
 }
 
 /// Register VM bindings for net.
 pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
-    {
-        binding!(registry, isolate, NET_ACCEPT, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (listener, flags) = decode_destack_net_accept_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(NET_ACCEPT)?;
-                let world = runtime.check_and_resolve_world(NET_ACCEPT)?;
-                destack_net_accept_vm_replay(runtime, context, world, listener, flags)
-            })
-            .map_err(Into::into)
-        });
-    }
     {
         binding!(
             registry,
@@ -22388,65 +22383,42 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         );
     }
     {
-        binding!(registry, isolate, NET_BIND, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle, address) = decode_destack_net_bind_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(NET_BIND)?;
-                let world = runtime.check_and_resolve_world(NET_BIND)?;
-                destack_net_bind_vm_replay(runtime, context, world, handle, address)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, NET_CLOSE, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle,) = decode_destack_net_close_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(NET_CLOSE)?;
-                let world = runtime.check_and_resolve_world(NET_CLOSE)?;
-                destack_net_close_vm_replay(runtime, context, world, handle)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
         binding!(
             registry,
             isolate,
-            NET_CLOSE_LISTENER,
+            NET_INTERFACE_INTERFACE_INDEX,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (handle,) = decode_destack_net_close_listener_args(context, args)?;
+                    let (name,) = decode_destack_net_interface_interface_index_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(NET_CLOSE_LISTENER)?;
-                    let world = runtime.check_and_resolve_world(NET_CLOSE_LISTENER)?;
-                    destack_net_close_listener_vm_replay(runtime, context, world, handle)
+                    runtime.check_policy(NET_INTERFACE_INTERFACE_INDEX)?;
+                    let world = runtime.check_and_resolve_world(NET_INTERFACE_INTERFACE_INDEX)?;
+                    destack_net_interface_interface_index_vm_replay(runtime, context, world, name)
                 })
                 .map_err(Into::into)
             }
         );
     }
     {
-        binding!(registry, isolate, NET_CONNECT, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle, address) = decode_destack_net_connect_args(context, args)?;
+        binding!(
+            registry,
+            isolate,
+            NET_INTERFACE_INTERFACE_NAME,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (index,) = decode_destack_net_interface_interface_name_args(context, args)?;
 
-                // execute binding
-                runtime.check_policy(NET_CONNECT)?;
-                let world = runtime.check_and_resolve_world(NET_CONNECT)?;
-                destack_net_connect_vm_replay(runtime, context, world, handle, address)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    runtime.check_policy(NET_INTERFACE_INTERFACE_NAME)?;
+                    let world = runtime.check_and_resolve_world(NET_INTERFACE_INTERFACE_NAME)?;
+                    destack_net_interface_interface_name_vm_replay(runtime, context, world, index)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
         binding!(
@@ -22468,16 +22440,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         binding!(
             registry,
             isolate,
-            NET_INTERFACE_INDEX,
+            NET_LISTENER_ACCEPT,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (name,) = decode_destack_net_interface_index_args(context, args)?;
+                    let (listener, flags) = decode_destack_net_listener_accept_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(NET_INTERFACE_INDEX)?;
-                    let world = runtime.check_and_resolve_world(NET_INTERFACE_INDEX)?;
-                    destack_net_interface_index_vm_replay(runtime, context, world, name)
+                    runtime.check_policy(NET_LISTENER_ACCEPT)?;
+                    let world = runtime.check_and_resolve_world(NET_LISTENER_ACCEPT)?;
+                    destack_net_listener_accept_vm_replay(runtime, context, world, listener, flags)
                 })
                 .map_err(Into::into)
             }
@@ -22487,34 +22459,59 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         binding!(
             registry,
             isolate,
-            NET_INTERFACE_NAME,
+            NET_LISTENER_BIND,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (index,) = decode_destack_net_interface_name_args(context, args)?;
+                    let (handle, address) = decode_destack_net_listener_bind_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(NET_INTERFACE_NAME)?;
-                    let world = runtime.check_and_resolve_world(NET_INTERFACE_NAME)?;
-                    destack_net_interface_name_vm_replay(runtime, context, world, index)
+                    runtime.check_policy(NET_LISTENER_BIND)?;
+                    let world = runtime.check_and_resolve_world(NET_LISTENER_BIND)?;
+                    destack_net_listener_bind_vm_replay(runtime, context, world, handle, address)
                 })
                 .map_err(Into::into)
             }
         );
     }
     {
-        binding!(registry, isolate, NET_LISTEN, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (address, backlog) = decode_destack_net_listen_args(context, args)?;
+        binding!(
+            registry,
+            isolate,
+            NET_LISTENER_CLOSE_LISTENER,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_net_listener_close_listener_args(context, args)?;
 
-                // execute binding
-                runtime.check_policy(NET_LISTEN)?;
-                let world = runtime.check_and_resolve_world(NET_LISTEN)?;
-                destack_net_listen_vm_replay(runtime, context, world, address, backlog)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    runtime.check_policy(NET_LISTENER_CLOSE_LISTENER)?;
+                    let world = runtime.check_and_resolve_world(NET_LISTENER_CLOSE_LISTENER)?;
+                    destack_net_listener_close_listener_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            NET_LISTENER_LISTEN,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (address, backlog) =
+                        decode_destack_net_listener_listen_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(NET_LISTENER_LISTEN)?;
+                    let world = runtime.check_and_resolve_world(NET_LISTENER_LISTEN)?;
+                    destack_net_listener_listen_vm_replay(runtime, context, world, address, backlog)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
         binding!(
@@ -23313,110 +23310,19 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         });
     }
     {
-        binding!(registry, isolate, NET_READ, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle, buffer) = decode_destack_net_read_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(NET_READ)?;
-                let world = runtime.check_and_resolve_world(NET_READ)?;
-                destack_net_read_vm_replay(runtime, context, world, handle, buffer)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, NET_READV, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle, buffers) = decode_destack_net_readv_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(NET_READV)?;
-                let world = runtime.check_and_resolve_world(NET_READV)?;
-                destack_net_readv_vm_replay(runtime, context, world, handle, buffers)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, NET_RECV_FROM, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle, buffer, recvflags) = decode_destack_net_recv_from_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(NET_RECV_FROM)?;
-                let world = runtime.check_and_resolve_world(NET_RECV_FROM)?;
-                destack_net_recv_from_vm_replay(runtime, context, world, handle, buffer, recvflags)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, NET_RECV_MMSG, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle, requests, maxfds, wantcredentials, maxcontrolbytes) =
-                    decode_destack_net_recv_mmsg_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(NET_RECV_MMSG)?;
-                let world = runtime.check_and_resolve_world(NET_RECV_MMSG)?;
-                destack_net_recv_mmsg_vm_replay(
-                    runtime,
-                    context,
-                    world,
-                    handle,
-                    requests,
-                    maxfds,
-                    wantcredentials,
-                    maxcontrolbytes,
-                )
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, NET_RECV_MSG, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle, buffer, recvflags, maxfds, wantcredentials, maxcontrolbytes) =
-                    decode_destack_net_recv_msg_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(NET_RECV_MSG)?;
-                let world = runtime.check_and_resolve_world(NET_RECV_MSG)?;
-                destack_net_recv_msg_vm_replay(
-                    runtime,
-                    context,
-                    world,
-                    handle,
-                    buffer,
-                    recvflags,
-                    maxfds,
-                    wantcredentials,
-                    maxcontrolbytes,
-                )
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
         binding!(
             registry,
             isolate,
-            NET_RESOLVE_RESOLVE,
+            NET_RESOLVE_LOOKUP,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (query,) = decode_destack_net_resolve_resolve_args(context, args)?;
+                    let (query,) = decode_destack_net_resolve_lookup_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(NET_RESOLVE_RESOLVE)?;
-                    let world = runtime.check_and_resolve_world(NET_RESOLVE_RESOLVE)?;
-                    destack_net_resolve_resolve_vm_replay(runtime, context, world, query)
+                    runtime.check_policy(NET_RESOLVE_LOOKUP)?;
+                    let world = runtime.check_and_resolve_world(NET_RESOLVE_LOOKUP)?;
+                    destack_net_resolve_lookup_vm_replay(runtime, context, world, query)
                 })
                 .map_err(Into::into)
             }
@@ -23527,85 +23433,72 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         );
     }
     {
-        binding!(registry, isolate, NET_ROUTE_ADD, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (route,) = decode_destack_net_route_add_args(context, args)?;
+        binding!(
+            registry,
+            isolate,
+            NET_ROUTE_ROUTE_ADD,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (route,) = decode_destack_net_route_route_add_args(context, args)?;
 
-                // execute binding
-                runtime.check_policy(NET_ROUTE_ADD)?;
-                let world = runtime.check_and_resolve_world(NET_ROUTE_ADD)?;
-                destack_net_route_add_vm_replay(runtime, context, world, route)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    runtime.check_policy(NET_ROUTE_ROUTE_ADD)?;
+                    let world = runtime.check_and_resolve_world(NET_ROUTE_ROUTE_ADD)?;
+                    destack_net_route_route_add_vm_replay(runtime, context, world, route)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, NET_ROUTE_DELETE, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (route,) = decode_destack_net_route_delete_args(context, args)?;
+        binding!(
+            registry,
+            isolate,
+            NET_ROUTE_ROUTE_DELETE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (route,) = decode_destack_net_route_route_delete_args(context, args)?;
 
-                // execute binding
-                runtime.check_policy(NET_ROUTE_DELETE)?;
-                let world = runtime.check_and_resolve_world(NET_ROUTE_DELETE)?;
-                destack_net_route_delete_vm_replay(runtime, context, world, route)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    runtime.check_policy(NET_ROUTE_ROUTE_DELETE)?;
+                    let world = runtime.check_and_resolve_world(NET_ROUTE_ROUTE_DELETE)?;
+                    destack_net_route_route_delete_vm_replay(runtime, context, world, route)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, NET_ROUTE_LIST, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (family,) = decode_destack_net_route_list_args(context, args)?;
+        binding!(
+            registry,
+            isolate,
+            NET_ROUTE_ROUTE_LIST,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (family,) = decode_destack_net_route_route_list_args(context, args)?;
 
-                // execute binding
-                runtime.check_policy(NET_ROUTE_LIST)?;
-                let world = runtime.check_and_resolve_world(NET_ROUTE_LIST)?;
-                destack_net_route_list_vm_replay(runtime, context, world, family)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    runtime.check_policy(NET_ROUTE_ROUTE_LIST)?;
+                    let world = runtime.check_and_resolve_world(NET_ROUTE_ROUTE_LIST)?;
+                    destack_net_route_route_list_vm_replay(runtime, context, world, family)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, NET_SEND_MMSG, move |context, args| {
+        binding!(registry, isolate, NET_SOCKET_CLOSE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // decode args
-                let (handle, messages) = decode_destack_net_send_mmsg_args(context, args)?;
+                let (handle,) = decode_destack_net_socket_close_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(NET_SEND_MMSG)?;
-                let world = runtime.check_and_resolve_world(NET_SEND_MMSG)?;
-                destack_net_send_mmsg_vm_replay(runtime, context, world, handle, messages)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, NET_SEND_MSG, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle, buffer, message) = decode_destack_net_send_msg_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(NET_SEND_MSG)?;
-                let world = runtime.check_and_resolve_world(NET_SEND_MSG)?;
-                destack_net_send_msg_vm_replay(runtime, context, world, handle, buffer, message)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, NET_SEND_TO, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle, buffer, message) = decode_destack_net_send_to_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(NET_SEND_TO)?;
-                let world = runtime.check_and_resolve_world(NET_SEND_TO)?;
-                destack_net_send_to_vm_replay(runtime, context, world, handle, buffer, message)
+                runtime.check_policy(NET_SOCKET_CLOSE)?;
+                let world = runtime.check_and_resolve_world(NET_SOCKET_CLOSE)?;
+                destack_net_socket_close_vm_replay(runtime, context, world, handle)
             })
             .map_err(Into::into)
         });
@@ -23614,65 +23507,308 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         binding!(
             registry,
             isolate,
-            NET_SET_NONBLOCKING,
+            NET_SOCKET_CONNECT,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (handle, enabled) = decode_destack_net_set_nonblocking_args(context, args)?;
+                    let (handle, address) = decode_destack_net_socket_connect_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(NET_SET_NONBLOCKING)?;
-                    let world = runtime.check_and_resolve_world(NET_SET_NONBLOCKING)?;
-                    destack_net_set_nonblocking_vm_replay(runtime, context, world, handle, enabled)
+                    runtime.check_policy(NET_SOCKET_CONNECT)?;
+                    let world = runtime.check_and_resolve_world(NET_SOCKET_CONNECT)?;
+                    destack_net_socket_connect_vm_replay(runtime, context, world, handle, address)
                 })
                 .map_err(Into::into)
             }
         );
     }
     {
-        binding!(registry, isolate, NET_SHUTDOWN, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle, how) = decode_destack_net_shutdown_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(NET_SHUTDOWN)?;
-                let world = runtime.check_and_resolve_world(NET_SHUTDOWN)?;
-                destack_net_shutdown_vm_replay(runtime, context, world, handle, how)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, NET_SOCKET, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (family, sockettype, protocol) = decode_destack_net_socket_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(NET_SOCKET)?;
-                let world = runtime.check_and_resolve_world(NET_SOCKET)?;
-                destack_net_socket_vm_replay(runtime, context, world, family, sockettype, protocol)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, NET_SOCKET_PAIR, move |context, args| {
+        binding!(registry, isolate, NET_SOCKET_OPEN, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // decode args
                 let (family, sockettype, protocol) =
-                    decode_destack_net_socket_pair_args(context, args)?;
+                    decode_destack_net_socket_open_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(NET_SOCKET_PAIR)?;
-                let world = runtime.check_and_resolve_world(NET_SOCKET_PAIR)?;
-                destack_net_socket_pair_vm_replay(
+                runtime.check_policy(NET_SOCKET_OPEN)?;
+                let world = runtime.check_and_resolve_world(NET_SOCKET_OPEN)?;
+                destack_net_socket_open_vm_replay(
                     runtime, context, world, family, sockettype, protocol,
                 )
             })
             .map_err(Into::into)
         });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            NET_SOCKET_OPEN_PAIR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (family, sockettype, protocol) =
+                        decode_destack_net_socket_open_pair_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(NET_SOCKET_OPEN_PAIR)?;
+                    let world = runtime.check_and_resolve_world(NET_SOCKET_OPEN_PAIR)?;
+                    destack_net_socket_open_pair_vm_replay(
+                        runtime, context, world, family, sockettype, protocol,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, NET_SOCKET_READ, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (handle, buffer) = decode_destack_net_socket_read_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(NET_SOCKET_READ)?;
+                let world = runtime.check_and_resolve_world(NET_SOCKET_READ)?;
+                destack_net_socket_read_vm_replay(runtime, context, world, handle, buffer)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, NET_SOCKET_READV, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (handle, buffers) = decode_destack_net_socket_readv_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(NET_SOCKET_READV)?;
+                let world = runtime.check_and_resolve_world(NET_SOCKET_READV)?;
+                destack_net_socket_readv_vm_replay(runtime, context, world, handle, buffers)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            NET_SOCKET_RECV_FROM,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, buffer, recvflags) =
+                        decode_destack_net_socket_recv_from_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(NET_SOCKET_RECV_FROM)?;
+                    let world = runtime.check_and_resolve_world(NET_SOCKET_RECV_FROM)?;
+                    destack_net_socket_recv_from_vm_replay(
+                        runtime, context, world, handle, buffer, recvflags,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            NET_SOCKET_RECV_MMSG,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, requests, maxfds, wantcredentials, maxcontrolbytes) =
+                        decode_destack_net_socket_recv_mmsg_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(NET_SOCKET_RECV_MMSG)?;
+                    let world = runtime.check_and_resolve_world(NET_SOCKET_RECV_MMSG)?;
+                    destack_net_socket_recv_mmsg_vm_replay(
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        requests,
+                        maxfds,
+                        wantcredentials,
+                        maxcontrolbytes,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            NET_SOCKET_RECV_MSG,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, buffer, recvflags, maxfds, wantcredentials, maxcontrolbytes) =
+                        decode_destack_net_socket_recv_msg_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(NET_SOCKET_RECV_MSG)?;
+                    let world = runtime.check_and_resolve_world(NET_SOCKET_RECV_MSG)?;
+                    destack_net_socket_recv_msg_vm_replay(
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        buffer,
+                        recvflags,
+                        maxfds,
+                        wantcredentials,
+                        maxcontrolbytes,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            NET_SOCKET_SEND_MMSG,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, messages) =
+                        decode_destack_net_socket_send_mmsg_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(NET_SOCKET_SEND_MMSG)?;
+                    let world = runtime.check_and_resolve_world(NET_SOCKET_SEND_MMSG)?;
+                    destack_net_socket_send_mmsg_vm_replay(
+                        runtime, context, world, handle, messages,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            NET_SOCKET_SEND_MSG,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, buffer, message) =
+                        decode_destack_net_socket_send_msg_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(NET_SOCKET_SEND_MSG)?;
+                    let world = runtime.check_and_resolve_world(NET_SOCKET_SEND_MSG)?;
+                    destack_net_socket_send_msg_vm_replay(
+                        runtime, context, world, handle, buffer, message,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            NET_SOCKET_SEND_TO,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, buffer, message) =
+                        decode_destack_net_socket_send_to_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(NET_SOCKET_SEND_TO)?;
+                    let world = runtime.check_and_resolve_world(NET_SOCKET_SEND_TO)?;
+                    destack_net_socket_send_to_vm_replay(
+                        runtime, context, world, handle, buffer, message,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            NET_SOCKET_SET_NONBLOCKING,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, enabled) =
+                        decode_destack_net_socket_set_nonblocking_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(NET_SOCKET_SET_NONBLOCKING)?;
+                    let world = runtime.check_and_resolve_world(NET_SOCKET_SET_NONBLOCKING)?;
+                    destack_net_socket_set_nonblocking_vm_replay(
+                        runtime, context, world, handle, enabled,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            NET_SOCKET_SHUTDOWN,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, how) = decode_destack_net_socket_shutdown_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(NET_SOCKET_SHUTDOWN)?;
+                    let world = runtime.check_and_resolve_world(NET_SOCKET_SHUTDOWN)?;
+                    destack_net_socket_shutdown_vm_replay(runtime, context, world, handle, how)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, NET_SOCKET_WRITE, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (handle, buffer) = decode_destack_net_socket_write_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(NET_SOCKET_WRITE)?;
+                let world = runtime.check_and_resolve_world(NET_SOCKET_WRITE)?;
+                destack_net_socket_write_vm_replay(runtime, context, world, handle, buffer)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            NET_SOCKET_WRITEV,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, buffers) = decode_destack_net_socket_writev_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(NET_SOCKET_WRITEV)?;
+                    let world = runtime.check_and_resolve_world(NET_SOCKET_WRITEV)?;
+                    destack_net_socket_writev_vm_replay(runtime, context, world, handle, buffers)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
         binding!(
@@ -24218,112 +24354,99 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         });
     }
     {
-        binding!(registry, isolate, NET_UDS_ACCEPT, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (listener,) = decode_destack_net_uds_accept_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(NET_UDS_ACCEPT)?;
-                let world = runtime.check_and_resolve_world(NET_UDS_ACCEPT)?;
-                destack_net_uds_accept_vm_replay(runtime, context, world, listener)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
         binding!(
             registry,
             isolate,
-            NET_UDS_CLOSE_LISTENER,
+            NET_UDS_UDS_ACCEPT,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (handle,) = decode_destack_net_uds_close_listener_args(context, args)?;
+                    let (listener,) = decode_destack_net_uds_uds_accept_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(NET_UDS_CLOSE_LISTENER)?;
-                    let world = runtime.check_and_resolve_world(NET_UDS_CLOSE_LISTENER)?;
-                    destack_net_uds_close_listener_vm_replay(runtime, context, world, handle)
+                    runtime.check_policy(NET_UDS_UDS_ACCEPT)?;
+                    let world = runtime.check_and_resolve_world(NET_UDS_UDS_ACCEPT)?;
+                    destack_net_uds_uds_accept_vm_replay(runtime, context, world, listener)
                 })
                 .map_err(Into::into)
             }
         );
     }
     {
-        binding!(registry, isolate, NET_UDS_CONNECT, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (address,) = decode_destack_net_uds_connect_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(NET_UDS_CONNECT)?;
-                let world = runtime.check_and_resolve_world(NET_UDS_CONNECT)?;
-                destack_net_uds_connect_vm_replay(runtime, context, world, address)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, NET_UDS_LISTEN, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (address, backlog) = decode_destack_net_uds_listen_args(context, args)?;
-
-                // execute binding
-                runtime.check_policy(NET_UDS_LISTEN)?;
-                let world = runtime.check_and_resolve_world(NET_UDS_LISTEN)?;
-                destack_net_uds_listen_vm_replay(runtime, context, world, address, backlog)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
         binding!(
             registry,
             isolate,
-            NET_UDS_SOCKET_PAIR,
+            NET_UDS_UDS_CLOSE_LISTENER,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (sockettype,) = decode_destack_net_uds_socket_pair_args(context, args)?;
+                    let (handle,) = decode_destack_net_uds_uds_close_listener_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(NET_UDS_SOCKET_PAIR)?;
-                    let world = runtime.check_and_resolve_world(NET_UDS_SOCKET_PAIR)?;
-                    destack_net_uds_socket_pair_vm_replay(runtime, context, world, sockettype)
+                    runtime.check_policy(NET_UDS_UDS_CLOSE_LISTENER)?;
+                    let world = runtime.check_and_resolve_world(NET_UDS_UDS_CLOSE_LISTENER)?;
+                    destack_net_uds_uds_close_listener_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
             }
         );
     }
     {
-        binding!(registry, isolate, NET_WRITE, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle, buffer) = decode_destack_net_write_args(context, args)?;
+        binding!(
+            registry,
+            isolate,
+            NET_UDS_UDS_CONNECT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (address,) = decode_destack_net_uds_uds_connect_args(context, args)?;
 
-                // execute binding
-                runtime.check_policy(NET_WRITE)?;
-                let world = runtime.check_and_resolve_world(NET_WRITE)?;
-                destack_net_write_vm_replay(runtime, context, world, handle, buffer)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    runtime.check_policy(NET_UDS_UDS_CONNECT)?;
+                    let world = runtime.check_and_resolve_world(NET_UDS_UDS_CONNECT)?;
+                    destack_net_uds_uds_connect_vm_replay(runtime, context, world, address)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
-        binding!(registry, isolate, NET_WRITEV, move |context, args| {
-            with_runtime_call_context(|runtime| {
-                // decode args
-                let (handle, buffers) = decode_destack_net_writev_args(context, args)?;
+        binding!(
+            registry,
+            isolate,
+            NET_UDS_UDS_LISTEN,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (address, backlog) = decode_destack_net_uds_uds_listen_args(context, args)?;
 
-                // execute binding
-                runtime.check_policy(NET_WRITEV)?;
-                let world = runtime.check_and_resolve_world(NET_WRITEV)?;
-                destack_net_writev_vm_replay(runtime, context, world, handle, buffers)
-            })
-            .map_err(Into::into)
-        });
+                    // execute binding
+                    runtime.check_policy(NET_UDS_UDS_LISTEN)?;
+                    let world = runtime.check_and_resolve_world(NET_UDS_UDS_LISTEN)?;
+                    destack_net_uds_uds_listen_vm_replay(runtime, context, world, address, backlog)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            NET_UDS_UDS_SOCKET_PAIR,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (sockettype,) = decode_destack_net_uds_uds_socket_pair_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(NET_UDS_UDS_SOCKET_PAIR)?;
+                    let world = runtime.check_and_resolve_world(NET_UDS_UDS_SOCKET_PAIR)?;
+                    destack_net_uds_uds_socket_pair_vm_replay(runtime, context, world, sockettype)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
 }
 

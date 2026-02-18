@@ -16,8 +16,8 @@ use crate::runtime::RuntimeCallContext;
 /// Key lifetime is explicit and must be released with delete.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses pthread TLS keys on Unix, TlsAlloc on Windows, and wasi TLS support where available.
+/// Unix and Windows.
+/// Uses pthread TLS keys on Unix and TlsAlloc on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -61,8 +61,8 @@ pub(crate) unsafe fn destack_thread_local_create(
 /// Existing per-thread values become invalid after deletion.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses pthread TLS key deletion on Unix, TlsFree on Windows, and wasi TLS support where available.
+/// Unix and Windows.
+/// Uses pthread TLS key deletion on Unix and TlsFree on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -99,8 +99,8 @@ pub(crate) unsafe fn destack_thread_local_delete(
 /// Value interpretation is caller-defined and ABI-dependent.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses pthread TLS storage on Unix, TlsGetValue on Windows, and wasi TLS support where available.
+/// Unix and Windows.
+/// Uses pthread TLS storage on Unix and TlsGetValue on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -153,8 +153,8 @@ pub(crate) unsafe fn destack_thread_local_get(
 /// Value interpretation is caller-defined and ABI-dependent.
 ///
 /// # Platform
-/// Unix, Windows, and Wasi.
-/// Uses pthread TLS storage on Unix, TlsSetValue on Windows, and wasi TLS support where available.
+/// Unix and Windows.
+/// Uses pthread TLS storage on Unix and TlsSetValue on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

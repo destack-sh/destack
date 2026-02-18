@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(clippy::type_complexity)]
 
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -44,49 +45,6 @@ impl<'call> NetHarnessContext<'call> {
     /// Return one standardized value payload for VM and native variants.
     pub(crate) fn harness_value_vm<Native, Vm>(&self, vm: Vm) -> HarnessValue<Native, Vm> {
         HarnessValue::Vm(vm)
-    }
-
-    /// Accept a new connection from a listener.
-    ///
-    /// Accept the next pending connection from the listener queue.
-    /// Accept flags and queued-connection ordering follow host kernel semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses accept4/accept on Unix and accept/AcceptEx on Windows.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.accept`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_net_accept(
-        &mut self,
-        listener: resource::ListenerHandle,
-        flags: AcceptFlags,
-    ) -> RuntimeResult<resource::SocketHandle> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = net_vm::destack_net_accept(self.call_context, context, listener, flags)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<resource::SocketHandle>::uninit();
-                unsafe {
-                    net_native::destack_net_accept(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        listener,
-                        flags,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
-        }
     }
 
     /// Read the local socket address as raw bytes.
@@ -164,164 +122,6 @@ impl<'call> NetHarnessContext<'call> {
                         out.as_mut_ptr(),
                         handle,
                     )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
-    /// Bind an existing socket to a raw address.
-    ///
-    /// Bind an existing socket descriptor to the specified local address.
-    /// Address validation and reuse checks are enforced by the host kernel.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses bind(2) on Unix and bind on Windows.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.listen`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_net_bind(
-        &mut self,
-        handle: resource::SocketHandle,
-        address: HarnessValue<SocketAddress, SocketAddressVm>,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let address = address.into_vm("address")?;
-                net_vm::destack_net_bind(self.call_context, context, handle, address)
-            }
-            None => {
-                let address = address.into_native("address")?;
-                unsafe { net_native::destack_net_bind(self.call_context, handle, address) }
-            }
-        }
-    }
-
-    /// Close a socket handle.
-    ///
-    /// Close the target socket descriptor.
-    /// Close-on-pending-I/O behavior follows host kernel socket semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses close(2) on Unix and closesocket on Windows.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.close`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_net_close(
-        &mut self,
-        handle: resource::SocketHandle,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => net_vm::destack_net_close(self.call_context, context, handle),
-            None => unsafe { net_native::destack_net_close(self.call_context, handle) },
-        }
-    }
-
-    /// Close a listener handle.
-    ///
-    /// Close a listener socket descriptor.
-    /// Pending accepts are interrupted according to host kernel semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses close(2) on Unix and closesocket on Windows.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.close`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_net_close_listener(
-        &mut self,
-        handle: resource::ListenerHandle,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => net_vm::destack_net_close_listener(self.call_context, context, handle),
-            None => unsafe { net_native::destack_net_close_listener(self.call_context, handle) },
-        }
-    }
-
-    /// Connect to a remote socket address.
-    ///
-    /// Connect the socket to a specific remote endpoint.
-    /// Handshake progress and connection failure conditions follow host kernel connect semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses connect(2) on Unix and connect/WSAConnect on Windows.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.connect`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_net_connect(
-        &mut self,
-        handle: resource::SocketHandle,
-        address: HarnessValue<SocketAddress, SocketAddressVm>,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let address = address.into_vm("address")?;
-                net_vm::destack_net_connect(self.call_context, context, handle, address)
-            }
-            None => {
-                let address = address.into_native("address")?;
-                unsafe { net_native::destack_net_connect(self.call_context, handle, address) }
-            }
-        }
-    }
-
-    /// List network interfaces with addresses and flags.
-    ///
-    /// Enumerates host interfaces and returns their current address records.
-    /// Results are snapshots and may become stale immediately after the call.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses getifaddrs on Unix and iphlpapi adapter enumeration on Windows.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netTimedOut, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.interface`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_net_list_interfaces(
-        &mut self,
-    ) -> RuntimeResult<HarnessValue<NativeArray<NetInterface>, VmArray<NetInterfaceVm>>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = net_vm::destack_net_list_interfaces(self.call_context, context)?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<NativeArray<NetInterface>>::uninit();
-                unsafe {
-                    net_native::destack_net_list_interfaces(self.call_context, out.as_mut_ptr())?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -410,6 +210,146 @@ impl<'call> NetHarnessContext<'call> {
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
             }
+        }
+    }
+
+    /// List network interfaces with addresses and flags.
+    ///
+    /// Enumerates host interfaces and returns their current address records.
+    /// Results are snapshots and may become stale immediately after the call.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses getifaddrs on Unix and iphlpapi adapter enumeration on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netTimedOut, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.interface`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_net_list_interfaces(
+        &mut self,
+    ) -> RuntimeResult<HarnessValue<NativeArray<NetInterface>, VmArray<NetInterfaceVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = net_vm::destack_net_list_interfaces(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<NetInterface>>::uninit();
+                unsafe {
+                    net_native::destack_net_list_interfaces(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Accept a new connection from a listener.
+    ///
+    /// Accept the next pending connection from the listener queue.
+    /// Accept flags and queued-connection ordering follow host kernel semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses accept4/accept on Unix and accept/AcceptEx on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.accept`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_net_accept(
+        &mut self,
+        listener: resource::ListenerHandle,
+        flags: AcceptFlags,
+    ) -> RuntimeResult<resource::SocketHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = net_vm::destack_net_accept(self.call_context, context, listener, flags)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::SocketHandle>::uninit();
+                unsafe {
+                    net_native::destack_net_accept(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        listener,
+                        flags,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Bind an existing socket to a raw address.
+    ///
+    /// Bind an existing socket descriptor to the specified local address.
+    /// Address validation and reuse checks are enforced by the host kernel.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses bind(2) on Unix and bind on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.listen`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_net_bind(
+        &mut self,
+        handle: resource::SocketHandle,
+        address: HarnessValue<SocketAddress, SocketAddressVm>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let address = address.into_vm("address")?;
+                net_vm::destack_net_bind(self.call_context, context, handle, address)
+            }
+            None => {
+                let address = address.into_native("address")?;
+                unsafe { net_native::destack_net_bind(self.call_context, handle, address) }
+            }
+        }
+    }
+
+    /// Close a listener handle.
+    ///
+    /// Close a listener socket descriptor.
+    /// Pending accepts are interrupted according to host kernel semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses close(2) on Unix and closesocket on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.close`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_net_close_listener(
+        &mut self,
+        handle: resource::ListenerHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => net_vm::destack_net_close_listener(self.call_context, context, handle),
+            None => unsafe { net_native::destack_net_close_listener(self.call_context, handle) },
         }
     }
 
@@ -1895,274 +1835,6 @@ impl<'call> NetHarnessContext<'call> {
         }
     }
 
-    /// Read from a socket into the provided slice.
-    ///
-    /// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses read(2)/recv(2) on Unix and recv on Windows.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.connect`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_net_read(
-        &mut self,
-        handle: resource::SocketHandle,
-        buffer: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
-    ) -> RuntimeResult<u64> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let buffer = buffer.into_vm("buffer")?;
-                let out = net_vm::destack_net_read(self.call_context, context, handle, buffer)?;
-                Ok(out)
-            }
-            None => {
-                let buffer = buffer.into_native("buffer")?;
-                let mut out = std::mem::MaybeUninit::<u64>::uninit();
-                unsafe {
-                    net_native::destack_net_read(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        buffer,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
-        }
-    }
-
-    /// Read into multiple buffers.
-    ///
-    /// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses readv(2)/recvmsg(2) on Unix and WSARecv on Windows.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.connect`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_net_readv(
-        &mut self,
-        handle: resource::SocketHandle,
-        buffers: HarnessValue<NativeSlice<NativeSlice<u8>>, VmSlice<VmSlice<u8>>>,
-    ) -> RuntimeResult<u64> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let buffers = buffers.into_vm("buffers")?;
-                let out = net_vm::destack_net_readv(self.call_context, context, handle, buffers)?;
-                Ok(out)
-            }
-            None => {
-                let buffers = buffers.into_native("buffers")?;
-                let mut out = std::mem::MaybeUninit::<u64>::uninit();
-                unsafe {
-                    net_native::destack_net_readv(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        buffers,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
-        }
-    }
-
-    /// Receive a packet from a remote socket address.
-    ///
-    /// Receive one datagram and source address from a datagram socket.
-    /// Source address decoding and flag reporting follow host kernel recvfrom semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses recvfrom(2) on Unix and recvfrom on Windows.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.udp`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_net_recv_from(
-        &mut self,
-        handle: resource::SocketHandle,
-        buffer: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
-        recvflags: SocketMessageFlags,
-    ) -> RuntimeResult<HarnessValue<SocketRecvFrom, SocketRecvFromVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let buffer = buffer.into_vm("buffer")?;
-                let out = net_vm::destack_net_recv_from(
-                    self.call_context,
-                    context,
-                    handle,
-                    buffer,
-                    recvflags,
-                )?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let buffer = buffer.into_native("buffer")?;
-                let mut out = std::mem::MaybeUninit::<SocketRecvFrom>::uninit();
-                unsafe {
-                    net_native::destack_net_recv_from(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        buffer,
-                        recvflags,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
-    /// Receive multiple datagrams.
-    ///
-    /// Receive multiple datagrams via host kernel APIs with per-message metadata and ancillary extraction.
-    /// Caller controls descriptor and control payload extraction limits through `maxFds` and `maxControlBytes`.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses recvmmsg(2) on linux and runtime loop fallback on other targets.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.udp`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_net_recv_mmsg(
-        &mut self,
-        handle: resource::SocketHandle,
-        requests: HarnessValue<
-            NativeSlice<SocketRecvBatchRequest>,
-            VmSlice<SocketRecvBatchRequestVm>,
-        >,
-        maxfds: u32,
-        wantcredentials: bool,
-        maxcontrolbytes: u32,
-    ) -> RuntimeResult<HarnessValue<NativeArray<SocketRecvMessage>, VmArray<SocketRecvMessageVm>>>
-    {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let requests = requests.into_vm("requests")?;
-                let out = net_vm::destack_net_recv_mmsg(
-                    self.call_context,
-                    context,
-                    handle,
-                    requests,
-                    maxfds,
-                    wantcredentials,
-                    maxcontrolbytes,
-                )?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let requests = requests.into_native("requests")?;
-                let mut out = std::mem::MaybeUninit::<NativeArray<SocketRecvMessage>>::uninit();
-                unsafe {
-                    net_native::destack_net_recv_mmsg(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        requests,
-                        maxfds,
-                        wantcredentials,
-                        maxcontrolbytes,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
-    /// Receive a message with ancillary data.
-    ///
-    /// Receive a message with ancillary data via host kernel APIs.
-    /// Caller controls descriptor and control payload extraction limits through `maxFds` and `maxControlBytes`.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses recvmsg(2) on Unix and WSARecvMsg on Windows where available.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_net_recv_msg(
-        &mut self,
-        handle: resource::SocketHandle,
-        buffer: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
-        recvflags: SocketMessageFlags,
-        maxfds: u32,
-        wantcredentials: bool,
-        maxcontrolbytes: u32,
-    ) -> RuntimeResult<HarnessValue<SocketRecvMessage, SocketRecvMessageVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let buffer = buffer.into_vm("buffer")?;
-                let out = net_vm::destack_net_recv_msg(
-                    self.call_context,
-                    context,
-                    handle,
-                    buffer,
-                    recvflags,
-                    maxfds,
-                    wantcredentials,
-                    maxcontrolbytes,
-                )?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let buffer = buffer.into_native("buffer")?;
-                let mut out = std::mem::MaybeUninit::<SocketRecvMessage>::uninit();
-                unsafe {
-                    net_native::destack_net_recv_msg(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        buffer,
-                        recvflags,
-                        maxfds,
-                        wantcredentials,
-                        maxcontrolbytes,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
     /// Resolve a host and service query into raw socket addresses.
     ///
     /// Resolve the requested host and service to one or more socket addresses.
@@ -2502,6 +2174,437 @@ impl<'call> NetHarnessContext<'call> {
         }
     }
 
+    /// Close a socket handle.
+    ///
+    /// Close the target socket descriptor.
+    /// Close-on-pending-I/O behavior follows host kernel socket semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses close(2) on Unix and closesocket on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.close`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_net_close(
+        &mut self,
+        handle: resource::SocketHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => net_vm::destack_net_close(self.call_context, context, handle),
+            None => unsafe { net_native::destack_net_close(self.call_context, handle) },
+        }
+    }
+
+    /// Connect to a remote socket address.
+    ///
+    /// Connect the socket to a specific remote endpoint.
+    /// Handshake progress and connection failure conditions follow host kernel connect semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses connect(2) on Unix and connect/WSAConnect on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.connect`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_net_connect(
+        &mut self,
+        handle: resource::SocketHandle,
+        address: HarnessValue<SocketAddress, SocketAddressVm>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let address = address.into_vm("address")?;
+                net_vm::destack_net_connect(self.call_context, context, handle, address)
+            }
+            None => {
+                let address = address.into_native("address")?;
+                unsafe { net_native::destack_net_connect(self.call_context, handle, address) }
+            }
+        }
+    }
+
+    /// Create a socket from a native family, type, and protocol.
+    ///
+    /// Allocate a new socket endpoint with the requested family, type, and protocol number.
+    /// Protocol defaults and socket limits are determined by the host kernel.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses socket(2) on Unix and WSASocketW on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_net_socket(
+        &mut self,
+        family: SocketFamily,
+        sockettype: SocketType,
+        protocol: SocketProtocol,
+    ) -> RuntimeResult<resource::SocketHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = net_vm::destack_net_socket(
+                    self.call_context,
+                    context,
+                    family,
+                    sockettype,
+                    protocol,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::SocketHandle>::uninit();
+                unsafe {
+                    net_native::destack_net_socket(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        family,
+                        sockettype,
+                        protocol,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Create a connected socket pair.
+    ///
+    /// Allocate two already-connected peer sockets for local full-duplex communication.
+    /// Pair creation semantics and descriptor inheritance follow host kernel behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses socketpair(2) on Unix and loopback-pair emulation on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.connect`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_net_socket_pair(
+        &mut self,
+        family: SocketFamily,
+        sockettype: SocketType,
+        protocol: SocketProtocol,
+    ) -> RuntimeResult<HarnessValue<SocketPair, SocketPairVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = net_vm::destack_net_socket_pair(
+                    self.call_context,
+                    context,
+                    family,
+                    sockettype,
+                    protocol,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<SocketPair>::uninit();
+                unsafe {
+                    net_native::destack_net_socket_pair(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        family,
+                        sockettype,
+                        protocol,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read from a socket into the provided slice.
+    ///
+    /// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
+    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses read(2)/recv(2) on Unix and recv on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.connect`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_net_read(
+        &mut self,
+        handle: resource::SocketHandle,
+        buffer: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<u64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let buffer = buffer.into_vm("buffer")?;
+                let out = net_vm::destack_net_read(self.call_context, context, handle, buffer)?;
+                Ok(out)
+            }
+            None => {
+                let buffer = buffer.into_native("buffer")?;
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                unsafe {
+                    net_native::destack_net_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        buffer,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Read into multiple buffers.
+    ///
+    /// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
+    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses readv(2)/recvmsg(2) on Unix and WSARecv on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.connect`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_net_readv(
+        &mut self,
+        handle: resource::SocketHandle,
+        buffers: HarnessValue<NativeSlice<NativeSlice<u8>>, VmSlice<VmSlice<u8>>>,
+    ) -> RuntimeResult<u64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let buffers = buffers.into_vm("buffers")?;
+                let out = net_vm::destack_net_readv(self.call_context, context, handle, buffers)?;
+                Ok(out)
+            }
+            None => {
+                let buffers = buffers.into_native("buffers")?;
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                unsafe {
+                    net_native::destack_net_readv(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        buffers,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Receive a packet from a remote socket address.
+    ///
+    /// Receive one datagram and source address from a datagram socket.
+    /// Source address decoding and flag reporting follow host kernel recvfrom semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses recvfrom(2) on Unix and recvfrom on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.udp`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_net_recv_from(
+        &mut self,
+        handle: resource::SocketHandle,
+        buffer: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+        recvflags: SocketMessageFlags,
+    ) -> RuntimeResult<HarnessValue<SocketRecvFrom, SocketRecvFromVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let buffer = buffer.into_vm("buffer")?;
+                let out = net_vm::destack_net_recv_from(
+                    self.call_context,
+                    context,
+                    handle,
+                    buffer,
+                    recvflags,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let buffer = buffer.into_native("buffer")?;
+                let mut out = std::mem::MaybeUninit::<SocketRecvFrom>::uninit();
+                unsafe {
+                    net_native::destack_net_recv_from(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        buffer,
+                        recvflags,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Receive multiple datagrams.
+    ///
+    /// Receive multiple datagrams via host kernel APIs with per-message metadata and ancillary extraction.
+    /// Caller controls descriptor and control payload extraction limits through `maxFds` and `maxControlBytes`.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses recvmmsg(2) on linux and runtime loop fallback on other targets.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.udp`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_net_recv_mmsg(
+        &mut self,
+        handle: resource::SocketHandle,
+        requests: HarnessValue<
+            NativeSlice<SocketRecvBatchRequest>,
+            VmSlice<SocketRecvBatchRequestVm>,
+        >,
+        maxfds: u32,
+        wantcredentials: bool,
+        maxcontrolbytes: u32,
+    ) -> RuntimeResult<HarnessValue<NativeArray<SocketRecvMessage>, VmArray<SocketRecvMessageVm>>>
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let requests = requests.into_vm("requests")?;
+                let out = net_vm::destack_net_recv_mmsg(
+                    self.call_context,
+                    context,
+                    handle,
+                    requests,
+                    maxfds,
+                    wantcredentials,
+                    maxcontrolbytes,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let requests = requests.into_native("requests")?;
+                let mut out = std::mem::MaybeUninit::<NativeArray<SocketRecvMessage>>::uninit();
+                unsafe {
+                    net_native::destack_net_recv_mmsg(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        requests,
+                        maxfds,
+                        wantcredentials,
+                        maxcontrolbytes,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Receive a message with ancillary data.
+    ///
+    /// Receive a message with ancillary data via host kernel APIs.
+    /// Caller controls descriptor and control payload extraction limits through `maxFds` and `maxControlBytes`.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses recvmsg(2) on Unix and WSARecvMsg on Windows where available.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_net_recv_msg(
+        &mut self,
+        handle: resource::SocketHandle,
+        buffer: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+        recvflags: SocketMessageFlags,
+        maxfds: u32,
+        wantcredentials: bool,
+        maxcontrolbytes: u32,
+    ) -> RuntimeResult<HarnessValue<SocketRecvMessage, SocketRecvMessageVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let buffer = buffer.into_vm("buffer")?;
+                let out = net_vm::destack_net_recv_msg(
+                    self.call_context,
+                    context,
+                    handle,
+                    buffer,
+                    recvflags,
+                    maxfds,
+                    wantcredentials,
+                    maxcontrolbytes,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let buffer = buffer.into_native("buffer")?;
+                let mut out = std::mem::MaybeUninit::<SocketRecvMessage>::uninit();
+                unsafe {
+                    net_native::destack_net_recv_msg(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        buffer,
+                        recvflags,
+                        maxfds,
+                        wantcredentials,
+                        maxcontrolbytes,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Send multiple datagrams.
     ///
     /// Send multiple datagrams via host kernel APIs with per-message metadata and address control.
@@ -2718,65 +2821,14 @@ impl<'call> NetHarnessContext<'call> {
         }
     }
 
-    /// Create a socket from a native family, type, and protocol.
+    /// Write to a socket from the provided slice.
     ///
-    /// Allocate a new socket endpoint with the requested family, type, and protocol number.
-    /// Protocol defaults and socket limits are determined by the host kernel.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses socket(2) on Unix and WSASocketW on Windows.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_net_socket(
-        &mut self,
-        family: SocketFamily,
-        sockettype: SocketType,
-        protocol: SocketProtocol,
-    ) -> RuntimeResult<resource::SocketHandle> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = net_vm::destack_net_socket(
-                    self.call_context,
-                    context,
-                    family,
-                    sockettype,
-                    protocol,
-                )?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<resource::SocketHandle>::uninit();
-                unsafe {
-                    net_native::destack_net_socket(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        family,
-                        sockettype,
-                        protocol,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
-        }
-    }
-
-    /// Create a connected socket pair.
-    ///
-    /// Allocate two already-connected peer sockets for local full-duplex communication.
-    /// Pair creation semantics and descriptor inheritance follow host kernel behavior.
+    /// Write data directly from caller provided buffers to the target descriptor using native transfer semantics.
+    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses socketpair(2) on Unix and loopback-pair emulation on Windows.
+    /// Uses write(2)/send(2) on Unix and send on Windows.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
@@ -2786,36 +2838,75 @@ impl<'call> NetHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_net_socket_pair(
+    pub(crate) fn destack_net_write(
         &mut self,
-        family: SocketFamily,
-        sockettype: SocketType,
-        protocol: SocketProtocol,
-    ) -> RuntimeResult<HarnessValue<SocketPair, SocketPairVm>> {
+        handle: resource::SocketHandle,
+        buffer: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<u64> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = net_vm::destack_net_socket_pair(
-                    self.call_context,
-                    context,
-                    family,
-                    sockettype,
-                    protocol,
-                )?;
-                Ok(HarnessValue::Vm(out))
+                let buffer = buffer.into_vm("buffer")?;
+                let out = net_vm::destack_net_write(self.call_context, context, handle, buffer)?;
+                Ok(out)
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<SocketPair>::uninit();
+                let buffer = buffer.into_native("buffer")?;
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
                 unsafe {
-                    net_native::destack_net_socket_pair(
+                    net_native::destack_net_write(
                         self.call_context,
                         out.as_mut_ptr(),
-                        family,
-                        sockettype,
-                        protocol,
+                        handle,
+                        buffer,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
+                Ok(out)
+            }
+        }
+    }
+
+    /// Write from multiple buffers.
+    ///
+    /// Write data directly from caller provided buffers to the target descriptor using native transfer semantics.
+    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses writev(2)/sendmsg(2) on Unix and WSASend on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.connect`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_net_writev(
+        &mut self,
+        handle: resource::SocketHandle,
+        buffers: HarnessValue<NativeSlice<NativeSlice<u8>>, VmSlice<VmSlice<u8>>>,
+    ) -> RuntimeResult<u64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let buffers = buffers.into_vm("buffers")?;
+                let out = net_vm::destack_net_writev(self.call_context, context, handle, buffers)?;
+                Ok(out)
+            }
+            None => {
+                let buffers = buffers.into_native("buffers")?;
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                unsafe {
+                    net_native::destack_net_writev(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        buffers,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
             }
         }
     }
@@ -4085,96 +4176,6 @@ impl<'call> NetHarnessContext<'call> {
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
-    /// Write to a socket from the provided slice.
-    ///
-    /// Write data directly from caller provided buffers to the target descriptor using native transfer semantics.
-    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses write(2)/send(2) on Unix and send on Windows.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.connect`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_net_write(
-        &mut self,
-        handle: resource::SocketHandle,
-        buffer: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
-    ) -> RuntimeResult<u64> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let buffer = buffer.into_vm("buffer")?;
-                let out = net_vm::destack_net_write(self.call_context, context, handle, buffer)?;
-                Ok(out)
-            }
-            None => {
-                let buffer = buffer.into_native("buffer")?;
-                let mut out = std::mem::MaybeUninit::<u64>::uninit();
-                unsafe {
-                    net_native::destack_net_write(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        buffer,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
-        }
-    }
-
-    /// Write from multiple buffers.
-    ///
-    /// Write data directly from caller provided buffers to the target descriptor using native transfer semantics.
-    /// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses writev(2)/sendmsg(2) on Unix and WSASend on Windows.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.connect`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_net_writev(
-        &mut self,
-        handle: resource::SocketHandle,
-        buffers: HarnessValue<NativeSlice<NativeSlice<u8>>, VmSlice<VmSlice<u8>>>,
-    ) -> RuntimeResult<u64> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let buffers = buffers.into_vm("buffers")?;
-                let out = net_vm::destack_net_writev(self.call_context, context, handle, buffers)?;
-                Ok(out)
-            }
-            None => {
-                let buffers = buffers.into_native("buffers")?;
-                let mut out = std::mem::MaybeUninit::<u64>::uninit();
-                unsafe {
-                    net_native::destack_net_writev(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        buffers,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
             }
         }
     }

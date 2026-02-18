@@ -182,7 +182,7 @@ pub(crate) unsafe fn destack_process_execat(
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
         let _ = (directory_fd, path, arguments, environment, flags);
-        Err(RuntimeError::from(PlatformError::not_supported("destack.process.exec.execat")).boxed())
+        Err(RuntimeError::from(PlatformError::not_supported("destack.process.exec.pathat")).boxed())
     }
 }
 

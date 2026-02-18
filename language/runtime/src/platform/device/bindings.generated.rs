@@ -111,9 +111,9 @@ fn decode_array<T>(
     VmArray::<T>::from_value(context, value, name, expected)
 }
 
-/// Decode arguments for destack.device.control.control.
+/// Decode arguments for destack.device.control.request.
 #[inline]
-fn decode_destack_device_control_control_args(
+fn decode_destack_device_control_request_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
@@ -159,9 +159,9 @@ fn decode_destack_device_control_control_args(
     Ok((handle, operation, input, output))
 }
 
-/// Encode the result for destack.device.control.control.
+/// Encode the result for destack.device.control.request.
 #[inline]
-fn encode_destack_device_control_control_result(
+fn encode_destack_device_control_request_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
@@ -299,9 +299,9 @@ fn encode_destack_device_io_write_result(
     result.map(|value| vm::Value::uint(value, 64))
 }
 
-/// Replay payload for destack.device.control.control.
+/// Replay payload for destack.device.control.request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct DeviceControlControlReplay {
+struct DeviceControlRequestReplay {
     /// Replay result payload.
     pub result: Result<u64, PlatformError>,
 }
@@ -334,9 +334,9 @@ struct DeviceIoWriteReplay {
     pub result: Result<u64, PlatformError>,
 }
 
-/// Binding descriptor for destack.device.control.control.
-pub const DEVICE_CONTROL_CONTROL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.device.control.control",
+/// Binding descriptor for destack.device.control.request.
+pub const DEVICE_CONTROL_REQUEST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.control.request",
     "export function control(handle: DeviceHandle, operation: DeviceControlOperation, input: Slice<uint8>, output: Slice<uint8>): Result<uint64, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
@@ -410,7 +410,7 @@ pub const DEVICE_IO_WRITE: BindingDescriptor = BindingDescriptor::external_with_
 
 /// Binding descriptors for device.
 pub const BINDINGS: &[BindingDescriptor] = &[
-    DEVICE_CONTROL_CONTROL,
+    DEVICE_CONTROL_REQUEST,
     DEVICE_IO_CLOSE,
     DEVICE_IO_OPEN,
     DEVICE_IO_READ,
@@ -422,9 +422,9 @@ pub const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "device",
     bindings: &[
         NativeBinding::new(
-            DEVICE_CONTROL_CONTROL,
-            "destack.device.control.control",
-            destack_device_control_control as *const (),
+            DEVICE_CONTROL_REQUEST,
+            "destack.device.control.request",
+            destack_device_control_request as *const (),
         ),
         NativeBinding::new(
             DEVICE_IO_CLOSE,
@@ -451,7 +451,7 @@ pub const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 
 /// Native replay implementations for device bindings.
 #[inline]
-fn destack_device_control_control_replay(
+fn destack_device_control_request_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut u64,
@@ -463,8 +463,8 @@ fn destack_device_control_control_replay(
     let _ = (&handle, &operation, &input, &output);
 
     context.replay().run_binding_with_payload_policy(
-        DEVICE_CONTROL_CONTROL,
-        context.replay_payload_for(DEVICE_CONTROL_CONTROL)?,
+        DEVICE_CONTROL_REQUEST,
+        context.replay_payload_for(DEVICE_CONTROL_REQUEST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_control(
@@ -486,7 +486,7 @@ fn destack_device_control_control_replay(
                     *out
                 };
                 let result_recorded = result_value;
-                let payload = DeviceControlControlReplay {
+                let payload = DeviceControlRequestReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -495,7 +495,7 @@ fn destack_device_control_control_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    DeviceControlControlReplay { result }
+                    DeviceControlRequestReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -752,8 +752,8 @@ fn destack_device_io_write_replay(
 }
 
 /// Native export wrappers for device bindings.
-#[unsafe(export_name = "destack.device.control.control")]
-pub unsafe extern "C" fn destack_device_control_control(
+#[unsafe(export_name = "destack.device.control.request")]
+pub unsafe extern "C" fn destack_device_control_request(
     out: *mut u64,
     handle: resource::DeviceHandle,
     operation: DeviceControlOperation,
@@ -766,9 +766,9 @@ pub unsafe extern "C" fn destack_device_control_control(
         }
         let _ = (&out, &handle, &operation, &input, &output);
 
-        context.check_policy(DEVICE_CONTROL_CONTROL)?;
-        let world = context.check_and_resolve_world(DEVICE_CONTROL_CONTROL)?;
-        destack_device_control_control_replay(context, world, out, handle, operation, input, output)
+        context.check_policy(DEVICE_CONTROL_REQUEST)?;
+        let world = context.check_and_resolve_world(DEVICE_CONTROL_REQUEST)?;
+        destack_device_control_request_replay(context, world, out, handle, operation, input, output)
     })
 }
 
@@ -840,7 +840,7 @@ pub unsafe extern "C" fn destack_device_io_write(
 
 /// VM replay implementations for device bindings.
 #[inline]
-fn destack_device_control_control_vm_replay(
+fn destack_device_control_request_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -852,8 +852,8 @@ fn destack_device_control_control_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            DEVICE_CONTROL_CONTROL,
-            runtime.replay_payload_for(DEVICE_CONTROL_CONTROL)?,
+            DEVICE_CONTROL_REQUEST,
+            runtime.replay_payload_for(DEVICE_CONTROL_REQUEST)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_device_control(
@@ -868,7 +868,7 @@ fn destack_device_control_control_vm_replay(
                 if let Ok(value) = result {
                     let result_value: u64 = value.clone();
                     let result_recorded = result_value;
-                    let payload = DeviceControlControlReplay {
+                    let payload = DeviceControlRequestReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -877,7 +877,7 @@ fn destack_device_control_control_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        DeviceControlControlReplay { result }
+                        DeviceControlRequestReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -896,7 +896,7 @@ fn destack_device_control_control_vm_replay(
                 }
             },
         );
-    let result = encode_destack_device_control_control_result(context, result)?;
+    let result = encode_destack_device_control_request_result(context, result)?;
     Ok(result)
 }
 
@@ -1136,17 +1136,17 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
         binding!(
             registry,
             isolate,
-            DEVICE_CONTROL_CONTROL,
+            DEVICE_CONTROL_REQUEST,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
                     let (handle, operation, input, output) =
-                        decode_destack_device_control_control_args(context, args)?;
+                        decode_destack_device_control_request_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(DEVICE_CONTROL_CONTROL)?;
-                    let world = runtime.check_and_resolve_world(DEVICE_CONTROL_CONTROL)?;
-                    destack_device_control_control_vm_replay(
+                    runtime.check_policy(DEVICE_CONTROL_REQUEST)?;
+                    let world = runtime.check_and_resolve_world(DEVICE_CONTROL_REQUEST)?;
+                    destack_device_control_request_vm_replay(
                         runtime, context, world, handle, operation, input, output,
                     )
                 })

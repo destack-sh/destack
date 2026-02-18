@@ -80,8 +80,13 @@ enum InflightData {
 impl IoUringProactor {
     /// Create a new io_uring proactor instance.
     pub fn new() -> RuntimeResult<Self> {
+        Self::with_entries(DEFAULT_QUEUE_DEPTH)
+    }
+
+    /// Create a new io_uring proactor instance with one explicit queue depth.
+    pub fn with_entries(entries: u32) -> RuntimeResult<Self> {
         // initialize io_uring
-        let ring = IoUring::new(DEFAULT_QUEUE_DEPTH).map_err(|error| {
+        let ring = IoUring::new(entries).map_err(|error| {
             let errno = error.raw_os_error();
             let code = errno.and_then(io_error_code_from_errno);
             RuntimeError::from(PlatformError::io_with(

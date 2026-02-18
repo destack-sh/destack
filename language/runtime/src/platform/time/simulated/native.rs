@@ -14,7 +14,7 @@ use crate::platform::time::{ClockId, ClockInfo, SleepClock};
 /// Metadata is normalized by runtime policy across host operating systems.
 ///
 /// # Platform
-/// Runtime-integrated clock available on Unix, Windows, and Wasi targets.
+/// Runtime-integrated clock available on Unix and Windows targets.
 /// Uses runtime clock registry metadata and host clock probes.
 ///
 /// # Errors
@@ -42,7 +42,7 @@ pub(crate) unsafe fn destack_time_clock_info(
 /// Resolution and origin are platform-specific.
 ///
 /// # Platform
-/// Runtime-integrated clock available on Unix, Windows, and Wasi targets.
+/// Runtime-integrated clock available on Unix and Windows targets.
 /// Uses clock_gettime(CLOCK_MONOTONIC) on Unix and QueryPerformanceCounter on Windows.
 ///
 /// # Errors
@@ -69,7 +69,7 @@ pub(crate) unsafe fn destack_time_mono_ns(
 /// Clock identifier support varies by host and runtime configuration.
 ///
 /// # Platform
-/// Runtime-integrated clock available on Unix, Windows, and Wasi targets.
+/// Runtime-integrated clock available on Unix and Windows targets.
 /// Uses host clock APIs selected by clock identifier and runtime policy.
 ///
 /// # Errors
@@ -157,7 +157,7 @@ pub(crate) unsafe fn destack_time_thread_cpu_ns(
 /// Epoch choice and leap-second behavior follow the active runtime time policy.
 ///
 /// # Platform
-/// Runtime-integrated clock available on Unix, Windows, and Wasi targets.
+/// Runtime-integrated clock available on Unix and Windows targets.
 /// Uses clock_gettime(CLOCK_REALTIME) on Unix and GetSystemTimePreciseAsFileTime on Windows.
 ///
 /// # Errors
@@ -184,7 +184,7 @@ pub(crate) unsafe fn destack_time_wall_ns(
 /// Wakeup precision depends on host timer granularity and scheduler latency.
 ///
 /// # Platform
-/// Runtime-integrated sleep available on Unix, Windows, and Wasi targets.
+/// Runtime-integrated sleep available on Unix and Windows targets.
 /// Uses nanosleep(2) on Unix and waitable timers or Sleep on Windows.
 ///
 /// # Errors
@@ -211,7 +211,7 @@ pub(crate) unsafe fn destack_time_sleep_ns(
 /// Wakeup precision depends on host timer granularity and scheduler latency.
 ///
 /// # Platform
-/// Runtime-integrated sleep available on Unix, Windows, and Wasi targets.
+/// Runtime-integrated sleep available on Unix and Windows targets.
 /// Uses host sleep primitives selected by runtime for the requested clock domain.
 ///
 /// # Errors
@@ -239,7 +239,7 @@ pub(crate) unsafe fn destack_time_sleep_on_ns(
 /// Deadline interpretation follows runtime wall-clock policy.
 ///
 /// # Platform
-/// Runtime-integrated sleep available on Unix, Windows, and Wasi targets.
+/// Runtime-integrated sleep available on Unix and Windows targets.
 /// Uses clock_nanosleep on Unix when available and waitable deadline timers on Windows.
 ///
 /// # Errors
@@ -266,7 +266,7 @@ pub(crate) unsafe fn destack_time_sleep_until_ns(
 /// Deadline interpretation follows runtime policy and host clock behavior.
 ///
 /// # Platform
-/// Runtime-integrated sleep available on Unix, Windows, and Wasi targets.
+/// Runtime-integrated sleep available on Unix and Windows targets.
 /// Uses host deadline sleep primitives selected by runtime for the requested clock domain.
 ///
 /// # Errors

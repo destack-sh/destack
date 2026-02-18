@@ -11,7 +11,7 @@ use crate::runtime::RuntimeCallContext;
 pub(crate) const WAIT_FOREVER: u64 = u64::MAX;
 
 /// Canonical resource kind for thread-domain runtime resources.
-const THREAD_RESOURCE_KIND: ResourceKind = ResourceKind::Unknown;
+const THREAD_RESOURCE_KIND: ResourceKind = ResourceKind::Thread;
 
 /// Produce one invalid-handle error.
 pub(crate) fn invalid_handle_error(field: &str, kind: &str) -> Box<RuntimeError> {

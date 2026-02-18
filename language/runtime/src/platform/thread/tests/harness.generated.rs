@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(clippy::type_complexity)]
 
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -35,8 +36,8 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Key lifetime is explicit and must be released with delete.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses pthread TLS keys on Unix, TlsAlloc on Windows, and wasi TLS support where available.
+    /// Unix and Windows.
+    /// Uses pthread TLS keys on Unix and TlsAlloc on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -74,8 +75,8 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Existing per-thread values become invalid after deletion.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses pthread TLS key deletion on Unix, TlsFree on Windows, and wasi TLS support where available.
+    /// Unix and Windows.
+    /// Uses pthread TLS key deletion on Unix and TlsFree on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -103,8 +104,8 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Value interpretation is caller-defined and ABI-dependent.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses pthread TLS storage on Unix, TlsGetValue on Windows, and wasi TLS support where available.
+    /// Unix and Windows.
+    /// Uses pthread TLS storage on Unix and TlsGetValue on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -144,8 +145,8 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Value interpretation is caller-defined and ABI-dependent.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses pthread TLS storage on Unix, TlsSetValue on Windows, and wasi TLS support where available.
+    /// Unix and Windows.
+    /// Uses pthread TLS storage on Unix and TlsSetValue on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -324,7 +325,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Detached thread lifecycle and cleanup are host-managed.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses pthread_detach on Unix and handle-release semantics on Windows.
     ///
     /// # Errors
@@ -351,8 +352,8 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Join behavior follows host thread lifecycle rules.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses pthread_join on Unix, WaitForSingleObject plus exit code on Windows, and wasi equivalents where available.
+    /// Unix and Windows.
+    /// Uses pthread_join on Unix and WaitForSingleObject plus exit code on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -392,8 +393,8 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Entry dispatch and argument passing are runtime ABI contracts.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses pthread_create on Unix, CreateThread on Windows, and wasi thread support when available.
+    /// Unix and Windows.
+    /// Uses pthread_create on Unix and CreateThread on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -641,7 +642,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Condition variable association with mutexes is validated on wait calls.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses pthread condition variables on Unix and condition variable APIs on Windows.
     ///
     /// # Errors
@@ -683,7 +684,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Wake ordering and runnable scheduling follow host synchronization semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host condition-variable broadcast primitives.
     ///
     /// # Errors
@@ -714,7 +715,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Waiter selection order follows host synchronization semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host condition-variable notify primitives.
     ///
     /// # Errors
@@ -745,7 +746,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Mutex is reacquired before returning from wait according to host semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host condition-variable wait primitives.
     ///
     /// # Errors
@@ -787,8 +788,8 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Mutex ownership and recursion behavior follow host primitive configuration.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses pthread mutexes on Unix, SRW or critical section primitives on Windows, and wasi mutex support where available.
+    /// Unix and Windows.
+    /// Uses pthread mutexes on Unix and SRW or critical section primitives on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -829,7 +830,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Wait ordering and fairness follow host synchronization semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host mutex wait primitives.
     ///
     /// # Errors
@@ -861,7 +862,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Wakeup behavior for waiters follows host synchronization semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host mutex unlock primitives.
     ///
     /// # Errors
@@ -892,7 +893,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Reader and writer preference is host-primitive defined.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses pthread rwlock on Unix and SRW lock abstractions on Windows.
     ///
     /// # Errors
@@ -934,7 +935,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Read acquisition ordering follows host synchronization semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host rwlock read-lock primitives.
     ///
     /// # Errors
@@ -969,7 +970,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Wakeup behavior for waiters follows host synchronization semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host rwlock unlock primitives.
     ///
     /// # Errors
@@ -1000,7 +1001,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Write acquisition ordering follows host synchronization semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host rwlock write-lock primitives.
     ///
     /// # Errors
@@ -1039,7 +1040,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Semaphore bounds and fairness follow host primitive semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses semaphores or equivalent host synchronization primitives.
     ///
     /// # Errors
@@ -1090,7 +1091,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Wake behavior follows host semaphore primitives.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host semaphore post primitives.
     ///
     /// # Errors
@@ -1122,7 +1123,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Wake ordering follows host scheduler behavior.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host semaphore wait primitives.
     ///
     /// # Errors

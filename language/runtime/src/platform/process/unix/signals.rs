@@ -199,7 +199,7 @@ pub(crate) unsafe fn destack_process_signal_subscribe(
         .boxed());
     }
 
-    let entry = resource::ResourceEntry::new(resource::ResourceKind::Unknown)
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::Signal)
         .with_label("process.signal.subscription")
         .with_payload(core_process::SignalSubscription {
             signals: vec![signal],

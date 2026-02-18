@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(clippy::type_complexity)]
 
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -39,7 +40,7 @@ impl<'call> RandomHarnessContext<'call> {
     /// Entropy quality and blocking behavior follow host kernel guarantees.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi where host entropy APIs are available.
+    /// Unix and Windows where host entropy APIs are available.
     /// Uses getrandom(2) or getentropy on Unix and BCryptGenRandom on Windows.
     ///
     /// # Errors
@@ -72,7 +73,7 @@ impl<'call> RandomHarnessContext<'call> {
     /// Fails with `ioWouldBlock` when the host source requires blocking.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi where host entropy APIs are available.
+    /// Unix and Windows where host entropy APIs are available.
     /// Uses nonblocking host entropy APIs when available and runtime fallbacks otherwise.
     ///
     /// # Errors
@@ -105,7 +106,7 @@ impl<'call> RandomHarnessContext<'call> {
     /// Metadata values are normalized across host operating systems.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi where host entropy APIs are available.
+    /// Unix and Windows where host entropy APIs are available.
     /// Uses runtime source selection metadata.
     ///
     /// # Errors
@@ -131,6 +132,40 @@ impl<'call> RandomHarnessContext<'call> {
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Allocate a deterministic random stream identifier.
+    ///
+    /// Create one runtime-managed deterministic PRNG stream.
+    /// Stream seeding follows runtime determinism and replay policy.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime deterministic PRNG state.
+    ///
+    /// # Errors
+    /// Returns randomUnavailable, notSupported.
+    ///
+    /// # Security
+    /// Requires `random.deterministic`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_random_stream(&mut self) -> RuntimeResult<RandomStream> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = random_vm::destack_random_stream(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<RandomStream>::uninit();
+                unsafe {
+                    random_native::destack_random_stream(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
             }
         }
     }
@@ -471,40 +506,6 @@ impl<'call> RandomHarnessContext<'call> {
                         out.as_mut_ptr(),
                         parent,
                     )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
-        }
-    }
-
-    /// Allocate a deterministic random stream identifier.
-    ///
-    /// Create one runtime-managed deterministic PRNG stream.
-    /// Stream seeding follows runtime determinism and replay policy.
-    ///
-    /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
-    /// Uses runtime deterministic PRNG state.
-    ///
-    /// # Errors
-    /// Returns randomUnavailable, notSupported.
-    ///
-    /// # Security
-    /// Requires `random.deterministic`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_random_stream(&mut self) -> RuntimeResult<RandomStream> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = random_vm::destack_random_stream(self.call_context, context)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<RandomStream>::uninit();
-                unsafe {
-                    random_native::destack_random_stream(self.call_context, out.as_mut_ptr())?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)

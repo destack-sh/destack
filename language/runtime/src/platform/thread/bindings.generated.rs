@@ -338,9 +338,9 @@ fn encode_destack_thread_spawn_join_result(
     result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
-/// Decode arguments for destack.thread.spawn.spawn.
+/// Decode arguments for destack.thread.spawn.start.
 #[inline]
-fn decode_destack_thread_spawn_spawn_args(
+fn decode_destack_thread_spawn_start_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, u64, ThreadOptionsVm)> {
@@ -377,9 +377,9 @@ fn decode_destack_thread_spawn_spawn_args(
     Ok((entry, argument, options))
 }
 
-/// Encode the result for destack.thread.spawn.spawn.
+/// Encode the result for destack.thread.spawn.start.
 #[inline]
-fn encode_destack_thread_spawn_spawn_result(
+fn encode_destack_thread_spawn_start_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ThreadHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -841,7 +841,6 @@ pub const THREAD_LOCAL_CREATE: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -868,7 +867,6 @@ pub const THREAD_LOCAL_DELETE: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -895,7 +893,6 @@ pub const THREAD_LOCAL_GET: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -922,7 +919,6 @@ pub const THREAD_LOCAL_SET: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -1025,7 +1021,6 @@ pub const THREAD_SPAWN_DETACH: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -1052,13 +1047,12 @@ pub const THREAD_SPAWN_JOIN: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
-/// Binding descriptor for destack.thread.spawn.spawn.
-pub const THREAD_SPAWN_SPAWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.thread.spawn.spawn",
+/// Binding descriptor for destack.thread.spawn.start.
+pub const THREAD_SPAWN_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.spawn.start",
     "export function spawn(entry: string, argument: uint64, options: ThreadOptions): Result<ThreadHandle, PlatformError>",
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
@@ -1066,7 +1060,7 @@ pub const THREAD_SPAWN_SPAWN: BindingDescriptor = BindingDescriptor::external_wi
     BindingScope::Os,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.addressWait.
 pub const THREAD_SYNC_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1179,7 +1173,6 @@ pub const THREAD_SYNC_COND_VAR_CREATE: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -1206,7 +1199,6 @@ pub const THREAD_SYNC_COND_VAR_NOTIFY_ALL: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -1233,7 +1225,6 @@ pub const THREAD_SYNC_COND_VAR_NOTIFY_ONE: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -1247,7 +1238,7 @@ pub const THREAD_SYNC_COND_VAR_WAIT: BindingDescriptor = BindingDescriptor::exte
     BindingScope::Os,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.mutexCreate.
 pub const THREAD_SYNC_MUTEX_CREATE: BindingDescriptor =
@@ -1272,7 +1263,6 @@ pub const THREAD_SYNC_MUTEX_CREATE: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -1286,7 +1276,7 @@ pub const THREAD_SYNC_MUTEX_LOCK: BindingDescriptor = BindingDescriptor::externa
     BindingScope::Os,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.mutexUnlock.
 pub const THREAD_SYNC_MUTEX_UNLOCK: BindingDescriptor =
@@ -1311,7 +1301,6 @@ pub const THREAD_SYNC_MUTEX_UNLOCK: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -1338,7 +1327,6 @@ pub const THREAD_SYNC_RWLOCK_CREATE: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -1352,7 +1340,7 @@ pub const THREAD_SYNC_RWLOCK_READ_LOCK: BindingDescriptor = BindingDescriptor::e
     BindingScope::Os,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.rwlockUnlock.
 pub const THREAD_SYNC_RWLOCK_UNLOCK: BindingDescriptor =
@@ -1377,7 +1365,6 @@ pub const THREAD_SYNC_RWLOCK_UNLOCK: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -1391,7 +1378,7 @@ pub const THREAD_SYNC_RWLOCK_WRITE_LOCK: BindingDescriptor = BindingDescriptor::
     BindingScope::Os,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.semaphoreCreate.
 pub const THREAD_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1403,7 +1390,7 @@ pub const THREAD_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::e
     BindingScope::Os,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.semaphorePost.
 pub const THREAD_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1415,7 +1402,7 @@ pub const THREAD_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::ext
     BindingScope::Os,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.semaphoreWait.
 pub const THREAD_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1427,7 +1414,7 @@ pub const THREAD_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::ext
     BindingScope::Os,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptors for thread.
 pub const BINDINGS: &[BindingDescriptor] = &[
@@ -1441,7 +1428,7 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     THREAD_PRIORITY_SET_PRIORITY,
     THREAD_SPAWN_DETACH,
     THREAD_SPAWN_JOIN,
-    THREAD_SPAWN_SPAWN,
+    THREAD_SPAWN_START,
     THREAD_SYNC_ADDRESS_WAIT,
     THREAD_SYNC_ADDRESS_WAKE_ALL,
     THREAD_SYNC_ADDRESS_WAKE_ONE,
@@ -1518,9 +1505,9 @@ pub const THREAD_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_thread_spawn_join as *const (),
         ),
         NativeBinding::new(
-            THREAD_SPAWN_SPAWN,
-            "destack.thread.spawn.spawn",
-            destack_thread_spawn_spawn as *const (),
+            THREAD_SPAWN_START,
+            "destack.thread.spawn.start",
+            destack_thread_spawn_start as *const (),
         ),
         NativeBinding::new(
             THREAD_SYNC_ADDRESS_WAIT,
@@ -1869,8 +1856,8 @@ pub unsafe extern "C" fn destack_thread_spawn_join(
     })
 }
 
-#[unsafe(export_name = "destack.thread.spawn.spawn")]
-pub unsafe extern "C" fn destack_thread_spawn_spawn(
+#[unsafe(export_name = "destack.thread.spawn.start")]
+pub unsafe extern "C" fn destack_thread_spawn_start(
     out: *mut resource::ThreadHandle,
     entry: NativeStringRef,
     argument: u64,
@@ -1883,8 +1870,8 @@ pub unsafe extern "C" fn destack_thread_spawn_spawn(
         let _ = (&out, &entry, &argument, &options);
 
         {
-            context.check_policy(THREAD_SPAWN_SPAWN)?;
-            let world = context.check_and_resolve_world(THREAD_SPAWN_SPAWN)?;
+            context.check_policy(THREAD_SPAWN_START)?;
+            let world = context.check_and_resolve_world(THREAD_SPAWN_START)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_spawn(context, out, entry, argument, options)
@@ -2689,17 +2676,17 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
         binding!(
             registry,
             isolate,
-            THREAD_SPAWN_SPAWN,
+            THREAD_SPAWN_START,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
                     let (entry, argument, options) =
-                        decode_destack_thread_spawn_spawn_args(context, args)?;
+                        decode_destack_thread_spawn_start_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(THREAD_SPAWN_SPAWN)?;
-                        let world = runtime.check_and_resolve_world(THREAD_SPAWN_SPAWN)?;
+                        runtime.check_policy(THREAD_SPAWN_START)?;
+                        let world = runtime.check_and_resolve_world(THREAD_SPAWN_START)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_spawn(
                                 runtime, context, entry, argument, options,
@@ -2709,7 +2696,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             ),
                         }
                     };
-                    encode_destack_thread_spawn_spawn_result(context, result)
+                    encode_destack_thread_spawn_start_result(context, result)
                 })
                 .map_err(Into::into)
             }

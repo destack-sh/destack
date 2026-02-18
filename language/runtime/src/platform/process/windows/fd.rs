@@ -678,7 +678,7 @@ pub(crate) unsafe fn destack_process_process_fd_open(
     }
 
     let process_handle = open_process_fd_handle(pid)?;
-    let entry = resource::ResourceEntry::new(resource::ResourceKind::Process)
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::ProcessFd)
         .with_label("process.fd")
         .with_payload(core_process::ProcessFdBinding { pid })
         .with_handle(process_handle as _)
@@ -870,7 +870,7 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
     }
 
     let signals = unsafe { signals.as_slice()? }.to_vec();
-    let entry = resource::ResourceEntry::new(resource::ResourceKind::Unknown)
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::SignalFd)
         .with_label("process.signal.fd")
         .with_payload(core_process::SignalFdBinding { signals });
     let resource_id = context.runtime().resources.insert(entry);

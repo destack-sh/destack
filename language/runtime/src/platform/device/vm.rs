@@ -33,7 +33,7 @@ pub(crate) fn destack_device_control(
 ) -> RuntimeResult<u64> {
     let _ = (handle, operation, input, output);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.control.control is not available in the VM yet",
+        "destack.device.control.request is not available in the VM yet",
     ))
     .boxed())
 }

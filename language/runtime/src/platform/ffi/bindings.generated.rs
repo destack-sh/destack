@@ -127,9 +127,9 @@ fn decode_array<T>(
     VmArray::<T>::from_value(context, value, name, expected)
 }
 
-/// Decode arguments for destack.ffi.call.call.
+/// Decode arguments for destack.ffi.call.invoke.
 #[inline]
-fn decode_destack_ffi_call_call_args(
+fn decode_destack_ffi_call_invoke_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SymbolHandle, u32, u32, VmSlice<u8>, u32)> {
@@ -148,9 +148,9 @@ fn decode_destack_ffi_call_call_args(
     Ok((symbol, abi, flags, arguments, resultsize))
 }
 
-/// Encode the result for destack.ffi.call.call.
+/// Encode the result for destack.ffi.call.invoke.
 #[inline]
-fn encode_destack_ffi_call_call_result(
+fn encode_destack_ffi_call_invoke_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
@@ -325,9 +325,9 @@ fn encode_destack_ffi_symbol_lookup_result(
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Binding descriptor for destack.ffi.call.call.
-pub const FFI_CALL_CALL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.ffi.call.call",
+/// Binding descriptor for destack.ffi.call.invoke.
+pub const FFI_CALL_INVOKE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ffi.call.invoke",
     "export function call(symbol: SymbolHandle, abi: uint32, flags: uint32, arguments: Slice<uint8>, resultSize: uint32): Result<Slice<uint8>, PlatformError>",
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
@@ -335,7 +335,7 @@ pub const FFI_CALL_CALL: BindingDescriptor = BindingDescriptor::external_with_re
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ffi.library.close.
 pub const FFI_LIBRARY_CLOSE: BindingDescriptor =
@@ -410,7 +410,6 @@ pub const FFI_POINTER_ADDRESS: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -435,7 +434,6 @@ pub const FFI_POINTER_FROM_ADDRESS: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "wasi",
         "windows",
     ]);
 
@@ -479,7 +477,7 @@ pub const FFI_SYMBOL_LOOKUP: BindingDescriptor = BindingDescriptor::external_wit
 
 /// Binding descriptors for ffi.
 pub const BINDINGS: &[BindingDescriptor] = &[
-    FFI_CALL_CALL,
+    FFI_CALL_INVOKE,
     FFI_LIBRARY_CLOSE,
     FFI_LIBRARY_OPEN,
     FFI_POINTER_ADDRESS,
@@ -493,9 +491,9 @@ pub const FFI_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "ffi",
     bindings: &[
         NativeBinding::new(
-            FFI_CALL_CALL,
-            "destack.ffi.call.call",
-            destack_ffi_call_call as *const (),
+            FFI_CALL_INVOKE,
+            "destack.ffi.call.invoke",
+            destack_ffi_call_invoke as *const (),
         ),
         NativeBinding::new(
             FFI_LIBRARY_CLOSE,
@@ -531,8 +529,8 @@ pub const FFI_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 };
 
 /// Native export wrappers for ffi bindings.
-#[unsafe(export_name = "destack.ffi.call.call")]
-pub unsafe extern "C" fn destack_ffi_call_call(
+#[unsafe(export_name = "destack.ffi.call.invoke")]
+pub unsafe extern "C" fn destack_ffi_call_invoke(
     out: *mut NativeSlice<u8>,
     symbol: resource::SymbolHandle,
     abi: u32,
@@ -547,7 +545,7 @@ pub unsafe extern "C" fn destack_ffi_call_call(
         let _ = (&out, &symbol, &abi, &flags, &arguments, &resultsize);
 
         {
-            context.check_policy(FFI_CALL_CALL)?;
+            context.check_policy(FFI_CALL_INVOKE)?;
             unsafe {
                 platform_runtime_native::destack_ffi_call(
                     context, out, symbol, abi, flags, arguments, resultsize,
@@ -692,20 +690,20 @@ pub unsafe extern "C" fn destack_ffi_symbol_lookup(
 /// Register VM bindings for ffi.
 pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
-        binding!(registry, isolate, FFI_CALL_CALL, move |context, args| {
+        binding!(registry, isolate, FFI_CALL_INVOKE, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // decode args
                 let (symbol, abi, flags, arguments, resultsize) =
-                    decode_destack_ffi_call_call_args(context, args)?;
+                    decode_destack_ffi_call_invoke_args(context, args)?;
 
                 // execute binding
                 let result = {
-                    runtime.check_policy(FFI_CALL_CALL)?;
+                    runtime.check_policy(FFI_CALL_INVOKE)?;
                     platform_runtime_vm::destack_ffi_call(
                         runtime, context, symbol, abi, flags, arguments, resultsize,
                     )
                 };
-                encode_destack_ffi_call_call_result(context, result)
+                encode_destack_ffi_call_invoke_result(context, result)
             })
             .map_err(Into::into)
         });

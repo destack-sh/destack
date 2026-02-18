@@ -1,4 +1,5 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
+use std::str::FromStr;
 
 use destack_base::StringPool;
 use destack_builtin::LanguageSymbol;
@@ -6,7 +7,7 @@ use destack_dir::{
     self as dir, Annotation, Argument, Declaration, Expression, GlobalSymbolId, ScalarLiteral,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Program};
+use destack_workspace::{Platform, ProfileId, Program};
 
 use super::format::{
     binding_type_symbols, collect_binding_params, collect_binding_return, format_declared_signature,
@@ -139,23 +140,35 @@ pub(crate) fn collect_platform_bindings(
         let tree = dir.tree.read();
         let types = dir.types.read();
         let symbols = dir.symbols.read();
+        let mut seen_declarations = HashSet::new();
 
         // scan expressions for binding declarations
         for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
-            // load binding decorator payload
+            // resolve the declaration referenced by the expression
+            let declaration_id = declaration_from_expression(&tree, expression_id, expression);
+            let Some(declaration_id) = declaration_id else {
+                continue;
+            };
+            if !seen_declarations.insert(declaration_id.id) {
+                continue;
+            }
+
+            // load binding decorator payload from expression or declaration annotations
             let binding = binding_decorator_value(
                 &tree,
                 expression_id.into_any(),
                 strings,
                 binding_decorator_symbol,
-            );
+            )
+            .or_else(|| {
+                binding_decorator_value(
+                    &tree,
+                    declaration_id.into_any(),
+                    strings,
+                    binding_decorator_symbol,
+                )
+            });
             let Some(binding) = binding else {
-                continue;
-            };
-
-            // resolve the declaration referenced by the expression
-            let declaration_id = declaration_from_expression(&tree, expression_id, expression);
-            let Some(declaration_id) = declaration_id else {
                 continue;
             };
 
@@ -472,6 +485,9 @@ fn decorator_binding_argument(
         let argument = tree.get::<Argument>(*argument_id);
         let value_id = argument.value();
         extern_name = scalar_string_literal(tree, value_id, strings);
+        if let Some(extern_name) = extern_name.as_ref() {
+            validate_binding_extern_name(extern_name);
+        }
     }
 
     let argument = tree.get::<Argument>(arguments[1]);
@@ -523,7 +539,7 @@ fn parse_effect_spec(
     let mut replay = None;
     let mut log = None;
     let mut payload = None;
-    let mut requires = Vec::new();
+    let mut capabilities = Vec::new();
     let mut host_platforms = Vec::new();
     let mut scope = None;
     let mut blocking = None;
@@ -541,8 +557,8 @@ fn parse_effect_spec(
             continue;
         };
         match key.as_str() {
-            "requires" => {
-                requires = parse_requires_list(tree, *value_id, strings);
+            "capabilities" => {
+                capabilities = parse_capabilities_list(tree, *value_id, strings);
             }
             "platforms" => {
                 host_platforms = parse_host_platforms_list(tree, *value_id, strings);
@@ -617,14 +633,14 @@ fn parse_effect_spec(
     {
         panic!("@binding payload requires a recordable external effect");
     }
-    if requires.is_empty() {
-        panic!("@binding requires at least one capability");
+    if capabilities.is_empty() {
+        panic!("@binding capabilities must include at least one capability");
     }
 
     BindingEffectSpec {
         effect_class,
         replay_payload,
-        requires,
+        requires: capabilities,
         host_platforms,
         scope,
         blocking,
@@ -709,7 +725,7 @@ fn parse_replay_payload(value: Option<&str>) -> ReplayPayload {
 }
 
 /// Parse required platform capabilities from a decorator value.
-fn parse_requires_list(
+fn parse_capabilities_list(
     tree: &dir::NodeTree,
     value_id: dir::LocalNodeId<Expression>,
     strings: &StringPool,
@@ -726,7 +742,7 @@ fn parse_requires_list(
             elements
         }
         _ => {
-            panic!("@binding requires must be a string or an array of strings");
+            panic!("@binding capabilities must be a string or an array of strings");
         }
     };
 
@@ -736,7 +752,7 @@ fn parse_requires_list(
         let argument = tree.get::<Argument>(*argument_id);
         let capability_id = argument.value();
         let capability = scalar_string_literal(tree, capability_id, strings).unwrap_or_else(|| {
-            panic!("@binding requires must contain only string literals");
+            panic!("@binding capabilities must contain only string literals");
         });
         validate_capability_name(&capability);
         parsed.push(capability);
@@ -746,24 +762,6 @@ fn parse_requires_list(
     let unique = parsed.into_iter().collect::<BTreeSet<_>>();
     unique.into_iter().collect()
 }
-
-/// Canonical host platforms covered by the `unix` alias.
-const UNIX_HOST_PLATFORMS: &[&str] = &[
-    "android",
-    "dragonfly",
-    "freebsd",
-    "haiku",
-    "illumos",
-    "ios",
-    "linux",
-    "macos",
-    "netbsd",
-    "openbsd",
-    "solaris",
-];
-
-/// Canonical host platforms covered by the `bsd` alias.
-const BSD_HOST_PLATFORMS: &[&str] = &["dragonfly", "freebsd", "netbsd", "openbsd"];
 
 /// Parse host platforms from a decorator value.
 fn parse_host_platforms_list(
@@ -810,72 +808,117 @@ fn parse_host_platform_name(name: &str, parsed: &mut BTreeSet<String>) {
         panic!("@binding platforms names cannot be empty");
     }
 
-    // normalize canonical host platform names and aliases
-    match normalized.as_str() {
-        "win" | "win32" => {
-            parsed.insert("windows".to_string());
-        }
-        "darwin" | "mac" => {
-            parsed.insert("macos".to_string());
-        }
-        "bare-metal" => {
-            parsed.insert("baremetal".to_string());
-        }
-        "windows" | "android" | "dragonfly" | "freebsd" | "haiku" | "illumos" | "ios" | "linux"
-        | "macos" | "netbsd" | "openbsd" | "solaris" | "fuchsia" | "redox" | "hermit" | "wasi"
-        | "emscripten" | "baremetal" | "web" | "universal" => {
-            parsed.insert(normalized);
-        }
-        "unix" => {
-            append_host_platform_alias(parsed, UNIX_HOST_PLATFORMS);
-        }
-        "bsd" => {
-            append_host_platform_alias(parsed, BSD_HOST_PLATFORMS);
-        }
-        _ => {
-            panic!("unsupported @binding platforms value {name}");
-        }
+    if normalized == "unix" {
+        append_unix_platform_selector(parsed);
+        return;
     }
+
+    if normalized == "bsd" {
+        append_bsd_platform_selector(parsed);
+        return;
+    }
+
+    // parse the platform selector through the target platform enum
+    let platform = Platform::from_str(&normalized)
+        .unwrap_or_else(|_| panic!("unsupported @binding platforms value {name}"));
+
+    // require canonical tags only: aliases are rejected with a correction
+    let canonical = platform.canonical_tag();
+    if canonical != normalized {
+        panic!("unsupported @binding platforms value {name}: use canonical tag {canonical}");
+    }
+
+    parsed.insert(canonical.to_string());
 }
 
-/// Append all host platforms covered by one alias.
-fn append_host_platform_alias(parsed: &mut BTreeSet<String>, alias: &[&str]) {
-    for platform in alias {
-        parsed.insert((*platform).to_string());
-    }
+/// Append all canonical Unix host platform tags.
+fn append_unix_platform_selector(parsed: &mut BTreeSet<String>) {
+    parsed.insert(Platform::MacOS.canonical_tag().to_string());
+    parsed.insert(Platform::Linux.canonical_tag().to_string());
+    parsed.insert(Platform::FreeBsd.canonical_tag().to_string());
+    parsed.insert(Platform::OpenBsd.canonical_tag().to_string());
+    parsed.insert(Platform::NetBsd.canonical_tag().to_string());
+    parsed.insert(Platform::DragonFly.canonical_tag().to_string());
+    parsed.insert(Platform::Solaris.canonical_tag().to_string());
+    parsed.insert(Platform::Illumos.canonical_tag().to_string());
+    parsed.insert(Platform::Haiku.canonical_tag().to_string());
+    parsed.insert(Platform::IOS.canonical_tag().to_string());
+    parsed.insert(Platform::Android.canonical_tag().to_string());
+}
+
+/// Append all canonical BSD host platform tags.
+fn append_bsd_platform_selector(parsed: &mut BTreeSet<String>) {
+    parsed.insert(Platform::FreeBsd.canonical_tag().to_string());
+    parsed.insert(Platform::OpenBsd.canonical_tag().to_string());
+    parsed.insert(Platform::NetBsd.canonical_tag().to_string());
+    parsed.insert(Platform::DragonFly.canonical_tag().to_string());
 }
 
 /// Validate one capability name in canonical dotted form.
 fn validate_capability_name(capability: &str) {
     if capability.trim().is_empty() {
-        panic!("@binding requires capability names cannot be empty");
+        panic!("@binding capability names cannot be empty");
     }
 
     let segments = capability.split('.').collect::<Vec<_>>();
     if segments.len() < 2 {
-        panic!("@binding requires capability names must use dotted hierarchy");
+        panic!("@binding capability names must use dotted hierarchy");
     }
 
     for segment in segments {
         if segment.is_empty() {
-            panic!("@binding requires capability names cannot contain empty segments");
+            panic!("@binding capability names cannot contain empty segments");
         }
 
         let mut chars = segment.chars();
         let Some(first) = chars.next() else {
-            panic!("@binding requires capability names cannot contain empty segments");
+            panic!("@binding capability names cannot contain empty segments");
         };
         if !first.is_ascii_lowercase() {
-            panic!("@binding requires capability segments must start with lowercase letters");
+            panic!("@binding capability segments must start with lowercase letters");
         }
 
         for character in chars {
-            if character.is_ascii_alphanumeric() || character == '_' {
+            if character.is_ascii_alphanumeric() {
                 continue;
             }
-            panic!(
-                "@binding requires capability names support only alphanumeric and underscore characters"
-            );
+            panic!("@binding capability names support only alphanumeric characters");
+        }
+    }
+}
+
+/// Validate one binding extern name in canonical dotted form.
+fn validate_binding_extern_name(extern_name: &str) {
+    if extern_name.trim().is_empty() {
+        panic!("@binding id cannot be empty");
+    }
+
+    let segments = extern_name.split('.').collect::<Vec<_>>();
+    if segments.len() < 4 {
+        panic!("@binding id must include at least 4 dotted segments");
+    }
+    if segments[0] != "destack" {
+        panic!("@binding id must start with destack");
+    }
+
+    for segment in segments {
+        if segment.is_empty() {
+            panic!("@binding id cannot contain empty segments");
+        }
+
+        let mut chars = segment.chars();
+        let Some(first) = chars.next() else {
+            panic!("@binding id cannot contain empty segments");
+        };
+        if !first.is_ascii_lowercase() {
+            panic!("@binding id segments must start with lowercase letters");
+        }
+
+        for character in chars {
+            if character.is_ascii_alphanumeric() {
+                continue;
+            }
+            panic!("@binding id segments support only alphanumeric characters");
         }
     }
 }

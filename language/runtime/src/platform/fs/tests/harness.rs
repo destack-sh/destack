@@ -6,6 +6,8 @@ mod generated;
 #[allow(unused_imports)]
 pub(crate) use generated::*;
 
+type ByteSlicesValue = HarnessValue<NativeSlice<NativeSlice<u8>>, VmSlice<VmSlice<u8>>>;
+
 impl<'call> FsHarnessContext<'call> {
     /// Return the VM context if available.
     #[allow(clippy::mut_from_ref)]
@@ -225,10 +227,7 @@ impl<'call> FsHarnessContext<'call> {
     }
 
     /// Build one backend-specific nested byte-slice value.
-    pub(crate) fn bytes_slices_value(
-        &self,
-        buffers: &[&[u8]],
-    ) -> RuntimeResult<HarnessValue<NativeSlice<NativeSlice<u8>>, VmSlice<VmSlice<u8>>>> {
+    pub(crate) fn bytes_slices_value(&self, buffers: &[&[u8]]) -> RuntimeResult<ByteSlicesValue> {
         match self.vm_context_mut() {
             Some(context) => {
                 let vm_buffers = buffers
@@ -253,7 +252,7 @@ impl<'call> FsHarnessContext<'call> {
     pub(crate) fn mutable_bytes_slices_value(
         &self,
         buffers: &mut [Vec<u8>],
-    ) -> RuntimeResult<HarnessValue<NativeSlice<NativeSlice<u8>>, VmSlice<VmSlice<u8>>>> {
+    ) -> RuntimeResult<ByteSlicesValue> {
         match self.vm_context_mut() {
             Some(context) => {
                 let vm_buffers = buffers
@@ -431,8 +430,7 @@ impl<'call> FsHarnessContext<'call> {
                     if allowed.contains(&code) {
                         if self.is_privileged_test_mode() && self.is_permission_denied_code(code) {
                             panic!(
-                                "permission-denied error {:?} is not allowed when DESTACK_TEST_PRIVILEGED=1 (allowed {:?})",
-                                code, allowed,
+                                "permission-denied error {code:?} is not allowed when DESTACK_TEST_PRIVILEGED=1 (allowed {allowed:?})",
                             );
                         }
 
@@ -483,7 +481,7 @@ impl<'call> FsHarnessContext<'call> {
 
                 let mut handle = ListenerHandle(ResourceId(0));
                 let status = unsafe {
-                    core_net::destack_net_listen(&mut handle, address.address(), backlog)
+                    core_net::destack_net_listener_listen(&mut handle, address.address(), backlog)
                 };
                 self.status_ok(status, "listen")?;
 
@@ -502,7 +500,8 @@ impl<'call> FsHarnessContext<'call> {
             }
             None => {
                 let mut handle = SocketHandle(ResourceId(0));
-                let status = unsafe { core_net::destack_net_accept(&mut handle, listener, flags) };
+                let status =
+                    unsafe { core_net::destack_net_listener_accept(&mut handle, listener, flags) };
                 self.status_ok(status, "accept")?;
 
                 Ok(handle)
@@ -546,12 +545,12 @@ impl<'call> FsHarnessContext<'call> {
                     socket_address_native_from_host_port(self.call_context, host, port, family)?;
                 let mut handle = SocketHandle(ResourceId(0));
                 let socket_status = unsafe {
-                    core_net::destack_net_socket(&mut handle, family, socket_type, protocol)
+                    core_net::destack_net_socket_open(&mut handle, family, socket_type, protocol)
                 };
                 self.status_ok(socket_status, "connect socket")?;
 
                 let connect_status =
-                    unsafe { core_net::destack_net_connect(handle, address.address()) };
+                    unsafe { core_net::destack_net_socket_connect(handle, address.address()) };
                 self.status_ok(connect_status, "connect")?;
 
                 Ok(handle)
@@ -567,7 +566,7 @@ impl<'call> FsHarnessContext<'call> {
                 platform_net_vm::destack_net_close_listener(self.call_context, context, handle)
             }
             None => {
-                let status = unsafe { core_net::destack_net_close_listener(handle) };
+                let status = unsafe { core_net::destack_net_listener_close_listener(handle) };
                 self.status_ok(status, "close_listener")
             }
         }
@@ -579,7 +578,7 @@ impl<'call> FsHarnessContext<'call> {
         match self.vm_context_mut() {
             Some(context) => platform_net_vm::destack_net_close(self.call_context, context, handle),
             None => {
-                let status = unsafe { core_net::destack_net_close(handle) };
+                let status = unsafe { core_net::destack_net_socket_close(handle) };
                 self.status_ok(status, "close_socket")
             }
         }
@@ -618,7 +617,7 @@ impl<'call> FsHarnessContext<'call> {
             None => {
                 let slice = native_slice_mut(buffer);
                 let mut out = 0_u64;
-                let status = unsafe { core_net::destack_net_read(&mut out, handle, slice) };
+                let status = unsafe { core_net::destack_net_socket_read(&mut out, handle, slice) };
                 self.status_ok(status, "socket_read")?;
 
                 Ok(out)

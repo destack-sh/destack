@@ -2339,7 +2339,7 @@ pub(crate) fn destack_fs_stat(
     _context: &mut vm::ExternalCallContext<'_>,
     _path: OsPathVm,
 ) -> RuntimeResult<StatVm> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.stat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.path")).boxed())
 }
 
 /// Stat a file relative to a directory handle.
@@ -2367,7 +2367,7 @@ pub(crate) fn destack_fs_statat(
     flags: AtFlags,
 ) -> RuntimeResult<StatVm> {
     let _ = (dir, path, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.statat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.pathat")).boxed())
 }
 
 /// Stat a filesystem.
@@ -2392,7 +2392,7 @@ pub(crate) fn destack_fs_statfs(
     _context: &mut vm::ExternalCallContext<'_>,
     _path: OsPathVm,
 ) -> RuntimeResult<StatFsVm> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.statfs")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.pathfs")).boxed())
 }
 
 /// Stat a path with statx semantics.
@@ -2421,7 +2421,7 @@ pub(crate) fn destack_fs_statx(
     mask: StatxMask,
 ) -> RuntimeResult<StatxVm> {
     let _ = (dir, path, flags, mask);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.statx")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.pathx")).boxed())
 }
 
 /// Start watching a path and return a watch handle.
