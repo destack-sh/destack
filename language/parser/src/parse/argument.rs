@@ -9,13 +9,6 @@ use destack_source::NodeSpanType;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
-/// Parsed parameter head in either pattern or name form.
-type ParameterPatternOrName = (
-    Option<LocalNodeId<Pattern>>,
-    Option<StringId>,
-    Option<destack_source::Span>,
-);
-
 impl Parser {
     /// Return true when the next token can start a member name.
     pub(crate) fn next_token_starts_member_name(&mut self) -> bool {
@@ -605,7 +598,13 @@ impl Parser {
     }
 
     /// Eat either a parameter pattern or a parameter name.
-    fn eat_parameter_pattern_or_name(&mut self) -> ParseResult<ParameterPatternOrName> {
+    fn eat_parameter_pattern_or_name(
+        &mut self,
+    ) -> ParseResult<(
+        Option<LocalNodeId<Pattern>>,
+        Option<StringId>,
+        Option<destack_source::Span>,
+    )> {
         // pattern
         if matches!(
             self.peek_token_type(),
@@ -1360,7 +1359,7 @@ impl Parser {
     /// are only valid in nested tuple literals, not at the top level.
     #[inline]
     fn eat_static_type_arguments_body(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
-        let mut arguments: Vec<LocalNodeId<Argument>> = Vec::new();
+        let mut arguments = smallvec::SmallVec::<[LocalNodeId<Argument>; 4]>::new();
         self.eat_newlines_maybe()?;
 
         while self.has_more_tokens() {
@@ -1399,7 +1398,7 @@ impl Parser {
             }
         }
 
-        Ok(arguments)
+        Ok(arguments.into_vec())
     }
 
     /// Eat static arguments (including the `<` and `>` tokens).
@@ -1504,7 +1503,7 @@ impl Parser {
         &mut self,
         terminator: TokenType,
     ) -> ParseResult<Vec<LocalNodeId<Argument>>> {
-        let mut arguments: Vec<LocalNodeId<Argument>> = Vec::new();
+        let mut arguments = smallvec::SmallVec::<[LocalNodeId<Argument>; 4]>::new();
         self.eat_newlines_maybe()?;
         while self.has_more_tokens() {
             let cursor = self.sync_to_scanner_cursor();
@@ -1524,7 +1523,7 @@ impl Parser {
                 break;
             }
         }
-        Ok(arguments)
+        Ok(arguments.into_vec())
     }
 
     /// Eat an argument list (including named). May be comma or newline separated.
@@ -1541,7 +1540,7 @@ impl Parser {
         &mut self,
         terminator: TokenType,
     ) -> ParseResult<Vec<LocalNodeId<Argument>>> {
-        let mut arguments: Vec<LocalNodeId<Argument>> = Vec::new();
+        let mut arguments = smallvec::SmallVec::<[LocalNodeId<Argument>; 4]>::new();
         self.eat_newlines_maybe()?;
         while self.has_more_tokens() {
             let cursor = self.sync_to_scanner_cursor();
@@ -1561,7 +1560,7 @@ impl Parser {
                 break;
             }
         }
-        Ok(arguments)
+        Ok(arguments.into_vec())
     }
 }
 

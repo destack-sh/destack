@@ -44,6 +44,46 @@ struct SimpleParenthesizedLambdaHint {
 }
 
 impl Parser {
+    /// Parse a block with temporary parser options.
+    #[inline]
+    fn eat_block_with_options(
+        &mut self,
+        options: ParserOptions,
+    ) -> ParseResult<LocalNodeId<destack_ast::Block>> {
+        if self.options == options {
+            return self.eat_block();
+        }
+
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.with_options_calls += 1;
+        }
+
+        let old_options = self.swap_options(options);
+        let result = self.eat_block();
+        self.restore_options(old_options);
+        result
+    }
+
+    /// Parse function parameters with temporary parser options.
+    #[inline]
+    fn eat_parameters_body_with_options(
+        &mut self,
+        options: ParserOptions,
+    ) -> ParseResult<Vec<LocalNodeId<Parameter>>> {
+        if self.options == options {
+            return self.eat_parameters_body();
+        }
+
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.with_options_calls += 1;
+        }
+
+        let old_options = self.swap_options(options);
+        let result = self.eat_parameters_body();
+        self.restore_options(old_options);
+        result
+    }
+
     /// Return true when the fast lambda path can be used.
     fn can_use_simple_lambda_fast_path(
         &self,
@@ -70,7 +110,7 @@ impl Parser {
                 .in_before_block()
                 .not_in_decorator();
             options.set_allow_sequence_expression(true);
-            let block_id = self.with_options(options, |parser| parser.eat_block())?;
+            let block_id = self.eat_block_with_options(options)?;
             let body = self
                 .tree
                 .insert(Expression::Block(block_id), self.get_span_from(body_start));
@@ -427,6 +467,102 @@ impl Parser {
         Ok(Some(function_id))
     }
 
+    /// Try to parse a parenthesized lambda value without entering full function parsing.
+    fn try_eat_parenthesized_lambda_value(
+        &mut self,
+        start: &ParserMark,
+        descriptor: &DeclarationDescriptor,
+        expect_maybe: bool,
+        expect_body: bool,
+        hint: Option<SimpleParenthesizedLambdaHint>,
+    ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
+        // only parse value lambdas without declaration modifiers
+        if !self.can_use_simple_lambda_fast_path(descriptor, expect_maybe, expect_body) {
+            return Ok(None);
+        }
+
+        // require a parenthesized head
+        if !self.peek_is(TokenType::OpenParenthesis) {
+            return Ok(None);
+        }
+
+        // require an arrow or return type marker after the parenthesized head
+        let open_index = self.pos_index();
+        let follow_token_type = if let Some(hint) = hint {
+            if hint.close_index <= open_index {
+                return Ok(None);
+            }
+            hint.follow_token_type
+        } else {
+            let Some(close_index) = self.matching_pair_or_lex(open_index) else {
+                return Ok(None);
+            };
+            if close_index <= open_index {
+                return Ok(None);
+            }
+            let follow_index = self.next_non_newline_index_from(close_index + 1);
+            self.token_type_at(follow_index)
+        };
+        if !matches!(
+            follow_token_type,
+            TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon
+        ) {
+            return Ok(None);
+        }
+
+        // dynamic parameters
+        self.eat_token(TokenType::OpenParenthesis)?;
+        self.eat_newlines_maybe()?;
+        let parameter_options = self.options.with_generator(false).with_forbid_yield(false);
+        let dynamic_parameters = if self.peek_is(TokenType::CloseParenthesis) {
+            vec![]
+        } else {
+            self.eat_parameters_body_with_options(parameter_options)?
+        };
+        self.eat_newlines_maybe()?;
+        self.eat_token(TokenType::CloseParenthesis)?;
+
+        // explicit lambda return type
+        let (return_type, return_type_span) = if self.has_lambda_return_type_marker() {
+            let type_start = self.mark_span();
+            self.eat_newlines_maybe()?;
+            self.eat_token(TokenType::Colon)?;
+            self.eat_newlines_maybe()?;
+
+            let mut return_type_options = self.options.nested().in_type();
+            if self.options.is_in_type_conditional_right() {
+                return_type_options = return_type_options.in_type_conditional_right();
+            }
+            if self.options.is_in_static() {
+                return_type_options = return_type_options.in_static();
+            }
+            return_type_options = return_type_options.in_arrow_return_type();
+            let return_type = self.eat_expression(return_type_options)?;
+            let return_type_span = self.get_span_from(&type_start);
+
+            (Some(return_type), Some(return_type_span))
+        } else {
+            (None, None)
+        };
+
+        // body
+        self.eat_arrow()?;
+        self.eat_newlines_maybe()?;
+        let body_start = self.mark_span();
+        let body = self.eat_simple_lambda_body(&body_start)?;
+
+        let function_id = self.build_simple_lambda_declaration(
+            start,
+            descriptor,
+            dynamic_parameters,
+            return_type,
+            return_type_span,
+            body,
+        );
+
+        Ok(Some(function_id))
+    }
+
     /// Try to parse a simple `identifier => body` lambda with minimal branching.
     fn try_eat_simple_identifier_lambda(
         &mut self,
@@ -590,6 +726,16 @@ impl Parser {
             )? {
                 return Ok(function_id);
             }
+
+            if let Some(function_id) = self.try_eat_parenthesized_lambda_value(
+                start,
+                &descriptor,
+                expect_maybe,
+                expect_body,
+                simple_parenthesized_hint,
+            )? {
+                return Ok(function_id);
+            }
         } else if self.peek_is(TokenType::Identifier)
             && matches!(
                 self.peek_next_token_type(),
@@ -719,7 +865,7 @@ impl Parser {
                         .options
                         .with_generator(is_generator)
                         .with_forbid_yield(is_generator);
-                    self.with_options(parameter_options, |parser| parser.eat_parameters_body())?
+                    self.eat_parameters_body_with_options(parameter_options)?
                 };
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseParenthesis)?;
@@ -849,7 +995,7 @@ impl Parser {
                 options.set_allow_sequence_expression(true);
                 options.set_forbid_await(options.is_forbid_await() && !is_async);
                 let body_start = self.mark_span();
-                let block_id = self.with_options(options, |parser| parser.eat_block())?;
+                let block_id = self.eat_block_with_options(options)?;
                 let body = self
                     .tree
                     .insert(Expression::Block(block_id), self.get_span_from(&body_start));
@@ -873,7 +1019,7 @@ impl Parser {
                     // block bodies are delimited, so sequence expressions stay local
                     options.set_allow_sequence_expression(true);
                     options.set_forbid_await(options.is_forbid_await() && !is_async);
-                    let block_id = self.with_options(options, |parser| parser.eat_block())?;
+                    let block_id = self.eat_block_with_options(options)?;
                     self.tree
                         .insert(Expression::Block(block_id), self.get_span_from(&body_start))
                 } else {
@@ -972,10 +1118,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, Asynchrony, BinaryOperator, Comment, CommentStyle, Declaration,
-        DeclarationDescriptor, Expression, FunctionCardinality, FunctionKind, FunctionMode,
-        IntType, Parameter, ScalarLiteral, TypeLiteral, VarianceModifier, WhereClause,
-        YieldCardinality,
+        Argument, Asynchrony, BinaryOperator, CommentStyle, Declaration, DeclarationDescriptor,
+        Expression, FunctionCardinality, FunctionKind, FunctionMode, IntType, Parameter,
+        ScalarLiteral, TypeLiteral, VarianceModifier, WhereClause, YieldCardinality,
     };
 
     use destack_source::LanguageType;
@@ -1882,10 +2027,7 @@ function onResolve(
             assert!(annotations.is_empty());
         });
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Star);
-            assert_string!(parser, *string, " lambda-head");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Star, " lambda-head");
     }
 
     #[test]
@@ -1905,10 +2047,7 @@ function onResolve(
             });
         });
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "lambda-body");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "lambda-body");
     }
 
     /// Reject direct calls on unparenthesized arrow functions.

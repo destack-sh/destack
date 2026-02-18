@@ -6,9 +6,9 @@ use destack_ast::{
     normalize_comment_payload,
 };
 use destack_source::{NodeSearchMode, Span};
-use rustc_hash::FxHashMap;
 
 const NO_TOKEN_INDEX: u32 = u32::MAX;
+const NO_OWNER_NODE_ID: u32 = u32::MAX;
 
 #[derive(Debug)]
 struct TokenNeighborIndex {
@@ -19,15 +19,22 @@ struct TokenNeighborIndex {
 
 #[derive(Debug)]
 struct DocumentationOwnerIndex {
-    owner_start_by_token: FxHashMap<u32, u32>,
+    owner_start_by_token: Vec<u32>,
 }
 
 impl DocumentationOwnerIndex {
     #[inline]
     fn owner_start(&self, token_index: usize) -> Option<u32> {
-        self.owner_start_by_token
-            .get(&(token_index as u32))
+        let owner_id = self
+            .owner_start_by_token
+            .get(token_index)
             .copied()
+            .unwrap_or(NO_OWNER_NODE_ID);
+        if owner_id == NO_OWNER_NODE_ID {
+            None
+        } else {
+            Some(owner_id)
+        }
     }
 }
 
@@ -45,7 +52,6 @@ struct PendingCommentTriviaRecord {
     span: Span,
     boundary: TriviaBoundary,
     directive: CommentDirective,
-    string: Option<StringId>,
     style: CommentStyle,
 }
 
@@ -83,7 +89,13 @@ impl Parser {
         }
 
         // borrow token arrays directly for one sweep emission
-        let (semantic_tokens, side_tokens, side_owner_token_indexes, comment_side_token_indexes) = {
+        let (
+            semantic_tokens,
+            side_tokens,
+            leading_side_start_indexes,
+            leading_side_end_indexes,
+            comment_side_token_indexes,
+        ) = {
             let _collect_tokens_timing =
                 self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_COLLECT_TOKENS);
             let semantic_tokens_len = self.token_stream.tokens().len();
@@ -93,9 +105,13 @@ impl Parser {
             }
             let semantic_tokens_ptr = self.token_stream.tokens().as_ptr();
             let side_tokens_ptr = self.token_stream.side_tokens().as_ptr();
-            let side_owner_token_indexes_ptr =
-                self.token_stream.side_owner_token_indexes().as_ptr();
-            let side_owner_token_indexes_len = self.token_stream.side_owner_token_indexes().len();
+            let leading_side_start_indexes_ptr =
+                self.token_stream.leading_side_start_indexes().as_ptr();
+            let leading_side_start_indexes_len =
+                self.token_stream.leading_side_start_indexes().len();
+            let leading_side_end_indexes_ptr =
+                self.token_stream.leading_side_end_indexes().as_ptr();
+            let leading_side_end_indexes_len = self.token_stream.leading_side_end_indexes().len();
             let comment_side_token_indexes_ptr =
                 self.token_stream.comment_side_token_indexes().as_ptr();
             let comment_side_token_indexes_len =
@@ -108,8 +124,12 @@ impl Parser {
                     std::slice::from_raw_parts(semantic_tokens_ptr, semantic_tokens_len),
                     std::slice::from_raw_parts(side_tokens_ptr, side_tokens_len),
                     std::slice::from_raw_parts(
-                        side_owner_token_indexes_ptr,
-                        side_owner_token_indexes_len,
+                        leading_side_start_indexes_ptr,
+                        leading_side_start_indexes_len,
+                    ),
+                    std::slice::from_raw_parts(
+                        leading_side_end_indexes_ptr,
+                        leading_side_end_indexes_len,
                     ),
                     std::slice::from_raw_parts(
                         comment_side_token_indexes_ptr,
@@ -118,8 +138,14 @@ impl Parser {
                 )
             }
         };
+        let comment_owner_token_indexes = Self::collect_comment_owner_token_indexes(
+            leading_side_start_indexes,
+            leading_side_end_indexes,
+            comment_side_token_indexes,
+            semantic_tokens.len(),
+        );
 
-        // build lightweight seam indexes
+        // build seam indexes
         let neighbor_index = {
             let _collect_wrappers_timing =
                 self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_COLLECT_WRAPPERS);
@@ -128,8 +154,8 @@ impl Parser {
         let documentation_target_token_indexes = self.collect_documentation_target_token_indexes(
             &semantic_tokens,
             &side_tokens,
-            &side_owner_token_indexes,
             &comment_side_token_indexes,
+            &comment_owner_token_indexes,
             &neighbor_index,
         );
         let documentation_owner_index = {
@@ -149,8 +175,8 @@ impl Parser {
             self.emit_comment_and_documentation_trivia(
                 &semantic_tokens,
                 &side_tokens,
-                &side_owner_token_indexes,
                 &comment_side_token_indexes,
+                &comment_owner_token_indexes,
                 &neighbor_index,
                 &documentation_owner_index,
             )
@@ -187,8 +213,8 @@ impl Parser {
         &mut self,
         semantic_tokens: &[TokenSpan],
         side_tokens: &[TokenSpan],
-        side_owner_token_indexes: &[u32],
         comment_side_token_indexes: &[u32],
+        comment_owner_token_indexes: &[u32],
         neighbor_index: &TokenNeighborIndex,
         documentation_owner_index: &DocumentationOwnerIndex,
     ) -> bool {
@@ -201,16 +227,19 @@ impl Parser {
             let _scan_timing =
                 self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE_SCAN);
 
-            for &comment_side_index in comment_side_token_indexes {
+            for (comment_offset, &comment_side_index) in
+                comment_side_token_indexes.iter().enumerate()
+            {
                 let side_index = comment_side_index as usize;
                 debug_assert!(side_index < side_tokens.len());
-                debug_assert!(side_index < side_owner_token_indexes.len());
                 // safety: comment side indexes are emitted from the same side token stream
                 let token = unsafe { *side_tokens.get_unchecked(side_index) };
 
                 // normalize token seams from lexer side-owner indexes
-                // safety: owner index storage is parallel to side token storage
-                let side_owner = unsafe { *side_owner_token_indexes.get_unchecked(side_index) };
+                let side_owner = comment_owner_token_indexes
+                    .get(comment_offset)
+                    .copied()
+                    .unwrap_or(NO_TOKEN_INDEX);
                 let boundary_index = if side_owner == NO_TOKEN_INDEX {
                     semantic_tokens.len()
                 } else {
@@ -306,23 +335,10 @@ impl Parser {
                 } else {
                     CommentStyle::Star
                 };
-                let debug_string = {
-                    #[cfg(debug_assertions)]
-                    {
-                        let cleaned_text = normalize_comment_payload(raw_text);
-                        Some(self.strings.intern(cleaned_text.as_ref()))
-                    }
-
-                    #[cfg(not(debug_assertions))]
-                    {
-                        None
-                    }
-                };
                 pending_comment_trivia.push(PendingCommentTriviaRecord {
                     span: token.span,
                     boundary,
                     directive,
-                    string: debug_string,
                     style,
                 });
             }
@@ -355,7 +371,6 @@ impl Parser {
             for pending in pending_comment_trivia {
                 let comment_id = self.tree.insert(
                     Comment {
-                        string: pending.string,
                         style: pending.style,
                     },
                     pending.span,
@@ -380,34 +395,28 @@ impl Parser {
         semantic_tokens: &[TokenSpan],
         documentation_target_token_indexes: &[u32],
     ) -> DocumentationOwnerIndex {
-        let mut owner_start_by_token = FxHashMap::<u32, u32>::with_capacity_and_hasher(
-            documentation_target_token_indexes.len(),
-            Default::default(),
-        );
+        let mut owner_start_by_token = vec![NO_OWNER_NODE_ID; semantic_tokens.len()];
         if semantic_tokens.is_empty() || documentation_target_token_indexes.is_empty() {
             return DocumentationOwnerIndex {
                 owner_start_by_token,
             };
         }
 
-        let mut token_index_by_start = FxHashMap::<u32, u32>::with_capacity_and_hasher(
-            documentation_target_token_indexes.len(),
-            Default::default(),
-        );
+        let mut target_token_starts =
+            Vec::<(u32, u32)>::with_capacity(documentation_target_token_indexes.len());
         for &token_index in documentation_target_token_indexes {
             let token_index = token_index as usize;
             let Some(token) = semantic_tokens.get(token_index).copied() else {
                 continue;
             };
-            if !Self::is_attachable_semantic_token(token.token.ty)
-                || token_index_by_start.contains_key(&token.span.start)
-            {
+            if !Self::is_attachable_semantic_token(token.token.ty) {
                 continue;
             }
-            token_index_by_start
-                .entry(token.span.start)
-                .or_insert(token_index as u32);
+
+            target_token_starts.push((token.span.start, token_index as u32));
         }
+        target_token_starts.sort_unstable_by_key(|(token_start, _)| *token_start);
+        target_token_starts.dedup_by_key(|(token_start, _)| *token_start);
 
         let node_count = self.tree.next_id();
         for node_id in 0..node_count {
@@ -416,23 +425,25 @@ impl Parser {
             }
 
             let owner_span = self.tree.get_span_by_id(node_id);
-            let Some(&token_index) = token_index_by_start.get(&owner_span.start) else {
+            let Ok(found_index) = target_token_starts
+                .binary_search_by_key(&owner_span.start, |(token_start, _)| *token_start)
+            else {
                 continue;
             };
-            let token_index = token_index as usize;
+            let token_index = target_token_starts[found_index].1 as usize;
             let token_span = semantic_tokens[token_index].span;
             if owner_span.end < token_span.end {
                 continue;
             }
 
-            let token_index_u32 = token_index as u32;
-            if let Some(current_owner) = owner_start_by_token.get(&token_index_u32).copied()
+            let current_owner = owner_start_by_token[token_index];
+            if current_owner != NO_OWNER_NODE_ID
                 && !self.documentation_owner_is_better(node_id, current_owner)
             {
                 continue;
             }
 
-            owner_start_by_token.insert(token_index_u32, node_id);
+            owner_start_by_token[token_index] = node_id;
         }
 
         DocumentationOwnerIndex {
@@ -445,14 +456,14 @@ impl Parser {
         &self,
         semantic_tokens: &[TokenSpan],
         side_tokens: &[TokenSpan],
-        side_owner_token_indexes: &[u32],
         comment_side_token_indexes: &[u32],
+        comment_owner_token_indexes: &[u32],
         neighbor_index: &TokenNeighborIndex,
     ) -> Vec<u32> {
         let mut target_token_indexes =
             Vec::<u32>::with_capacity(comment_side_token_indexes.len() / 8);
 
-        for &comment_side_index in comment_side_token_indexes {
+        for (comment_offset, &comment_side_index) in comment_side_token_indexes.iter().enumerate() {
             let side_index = comment_side_index as usize;
             let token = side_tokens[side_index];
             if !Self::is_documentation_token(token.token.ty) {
@@ -464,7 +475,10 @@ impl Parser {
                 continue;
             }
 
-            let side_owner = side_owner_token_indexes[side_index];
+            let side_owner = comment_owner_token_indexes
+                .get(comment_offset)
+                .copied()
+                .unwrap_or(NO_TOKEN_INDEX);
             let boundary_index = if side_owner == NO_TOKEN_INDEX {
                 semantic_tokens.len()
             } else {
@@ -494,6 +508,57 @@ impl Parser {
         target_token_indexes.sort_unstable();
         target_token_indexes.dedup();
         target_token_indexes
+    }
+
+    /// Resolve owner semantic token indexes for sorted comment side token indexes.
+    fn collect_comment_owner_token_indexes(
+        leading_side_start_indexes: &[u32],
+        leading_side_end_indexes: &[u32],
+        comment_side_token_indexes: &[u32],
+        semantic_tokens_len: usize,
+    ) -> Vec<u32> {
+        if comment_side_token_indexes.is_empty() {
+            return Vec::new();
+        }
+
+        let mut owners = Vec::with_capacity(comment_side_token_indexes.len());
+        let mut owner_token_index = 0usize;
+        for &comment_side_index in comment_side_token_indexes {
+            let side_index = comment_side_index as usize;
+
+            while owner_token_index < semantic_tokens_len {
+                let side_end = leading_side_end_indexes
+                    .get(owner_token_index)
+                    .copied()
+                    .unwrap_or(0) as usize;
+                if side_end > side_index {
+                    break;
+                }
+                owner_token_index += 1;
+            }
+
+            if owner_token_index >= semantic_tokens_len {
+                owners.push(NO_TOKEN_INDEX);
+                continue;
+            }
+
+            let side_start = leading_side_start_indexes
+                .get(owner_token_index)
+                .copied()
+                .unwrap_or(0) as usize;
+            let side_end = leading_side_end_indexes
+                .get(owner_token_index)
+                .copied()
+                .unwrap_or(0) as usize;
+            let owner = if side_start <= side_index && side_index < side_end {
+                owner_token_index as u32
+            } else {
+                NO_TOKEN_INDEX
+            };
+            owners.push(owner);
+        }
+
+        owners
     }
 
     /// Emit blank trivia records from newline runs in semantic tokens.
@@ -627,6 +692,7 @@ impl Parser {
         // direct seam owner: use the precomputed owner that starts at the following token
         if let Some(token_after) = token_after {
             if let Some(owner_id) = documentation_owner_index.owner_start(token_after) {
+                let owner_id = self.normalize_documentation_owner(owner_id);
                 let owner_id =
                     self.normalize_documentation_target(owner_id, token_after, semantic_tokens);
                 return Some(owner_id);
@@ -637,13 +703,16 @@ impl Parser {
         if let Some(token_after) = token_after {
             let owner_token = semantic_tokens[token_after];
             if let Some(owner) = self.fallback_prefix_owner_for_token(owner_token) {
+                let owner = self.normalize_documentation_owner(owner);
+                let owner =
+                    self.normalize_documentation_target(owner, token_after, semantic_tokens);
                 return Some(owner);
             }
         }
 
         // side token owner fallback: resolve from the doc token span itself
         if let Some(owner) = self.fallback_prefix_owner_for_token(token) {
-            return Some(owner);
+            return Some(self.normalize_documentation_owner(owner));
         }
 
         // trivia-only fallback: attach to stable anchor expression
@@ -676,6 +745,26 @@ impl Parser {
         }
 
         candidate_id < current_id
+    }
+
+    /// Normalize one documentation owner to the semantic declaration node when available.
+    fn normalize_documentation_owner(&self, owner_id: u32) -> u32 {
+        let mut current_id = owner_id;
+
+        loop {
+            if self.tree.get_node_type(current_id) != NodeType::Expression {
+                return current_id;
+            }
+
+            let expression_id = LocalNodeId::<Expression>::new(current_id);
+            match self.tree.get(expression_id) {
+                Expression::Declaration(declaration_id) => return declaration_id.id,
+                Expression::Statement(inner_expression_id) => {
+                    current_id = inner_expression_id.id;
+                }
+                _ => return current_id,
+            }
+        }
     }
 
     /// Skip forward separators so docs bind to the real expression owner token.

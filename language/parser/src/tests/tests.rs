@@ -141,3 +141,17 @@ macro_rules! assert_expression_path {
         }
     }};
 }
+
+/// Assert one comment trivia entry by style and normalized source payload.
+#[macro_export]
+macro_rules! assert_comment_trivia {
+    ($parser:expr, $index:expr, $expected_style:expr, $expected_text:expr) => {{
+        let trivia = &$parser.tree.comment_trivia()[$index];
+        let comment = $parser.tree.get::<destack_ast::Comment>(trivia.comment);
+        assert_eq!(comment.style, $expected_style, "expected comment style");
+
+        let source = $parser.file.span_str(trivia.span);
+        let got = destack_ast::normalize_comment_payload(source);
+        assert_eq!(got.as_ref(), $expected_text, "expected comment text");
+    }};
+}

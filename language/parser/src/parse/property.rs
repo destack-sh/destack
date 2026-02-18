@@ -1216,9 +1216,9 @@ impl Parser {
 mod tests {
     use destack_ast::{
         AbstractionModifier, Argument, Asynchrony, BinaryOperator, BindingAnchor, BindingKind,
-        Block, Comment, CommentStyle, Declaration, DeclarationKind, Expression,
-        FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Member, Name, Parameter,
-        Property, ScalarLiteral, TypeLiteral, TypePredicateSubject, Visibility,
+        Block, CommentStyle, Declaration, DeclarationKind, Expression, FunctionAbstraction,
+        FunctionKind, FunctionMode, IntType, Key, Member, Name, Parameter, Property, ScalarLiteral,
+        TypeLiteral, TypePredicateSubject, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1504,10 +1504,7 @@ port2 = {
             });
         });
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { style, string } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "method-body");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "method-body");
     }
 
     #[test]
@@ -1995,13 +1992,7 @@ foo(): string;"#,
             });
         });
         assert_eq!(parser.tree.comment_trivia().len(), 2);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "first-tail");
-        });
-        assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "second-tail");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "first-tail");
+        crate::assert_comment_trivia!(parser, 1, CommentStyle::Slash, "second-tail");
     }
 }

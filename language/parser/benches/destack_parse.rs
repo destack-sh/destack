@@ -323,7 +323,7 @@ fn resolve_single_file_path(workspace_root: &Path) -> PathBuf {
     }
 
     // fall back to a representative builtin file
-    workspace_root.join("language/builtin/lib/dom/index.d.ds")
+    workspace_root.join("language/builtin/lib/dom/index.d.ts")
 }
 
 /// Load a single source file for benchmarking.

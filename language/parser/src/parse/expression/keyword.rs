@@ -3,7 +3,7 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Asynchrony, Declaration, DeclarationDescriptor, DependencyMode, EnumKind, Expression, Keyword,
-    LocalNodeId, OperatorPrecedence, TokenType, TypeKind,
+    LocalNodeId, OperatorPrecedence, TokenType, TypeKind, TypeLiteral,
 };
 
 use super::common::{DECLARATION_START_TOKENS, is_type_relation_keyword};
@@ -671,6 +671,15 @@ impl Parser {
                     self.tree
                         .insert(Expression::Super, self.get_span_from(start)),
                 ))
+            }
+            // null literal
+            Keyword::Null => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                self.bump(); // eat null
+                Ok(Some(self.tree.insert(
+                    Expression::TypeLiteral(TypeLiteral::Null),
+                    self.get_span_from(start),
+                )))
             }
             // new expression
             Keyword::New if !self.options.is_in_type() => {
