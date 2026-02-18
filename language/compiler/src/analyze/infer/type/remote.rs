@@ -40,7 +40,7 @@ impl Compiler {
             module,
             profile,
             remote_module_id,
-            AnalyzeReadStage::Infer,
+            AnalyzeReadStage::Export,
             |remote_module, remote_tree, remote_symbols| {
                 let remote_dir = remote_module.dir(profile);
                 let mut remote_types = remote_dir.types.write();
