@@ -66,8 +66,8 @@ declare namespace crypto {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["crypto.store.read"],
-            platforms: ["unix", "windows"],
+            capabilities: ["crypto.store.read"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -96,8 +96,8 @@ declare namespace crypto {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["crypto.store.read"],
-            platforms: ["unix", "windows"],
+            capabilities: ["crypto.store.read"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -126,8 +126,8 @@ declare namespace crypto {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["crypto.store.read"],
-            platforms: ["unix", "windows"],
+            capabilities: ["crypto.store.read"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -159,8 +159,8 @@ declare namespace crypto {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["crypto.store.read"],
-            platforms: ["unix", "windows"],
+            capabilities: ["crypto.store.read"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },

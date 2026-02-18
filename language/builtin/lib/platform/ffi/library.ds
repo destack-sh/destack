@@ -26,8 +26,8 @@ declare namespace ffi {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["ffi.load"],
-            platforms: ["unix", "windows"],
+            capabilities: ["ffi.load"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -56,8 +56,8 @@ declare namespace ffi {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["ffi.load"],
-            platforms: ["unix", "windows"],
+            capabilities: ["ffi.load"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },

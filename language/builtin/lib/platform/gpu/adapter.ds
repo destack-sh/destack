@@ -96,8 +96,8 @@ declare namespace gpu {
     @binding("destack.gpu.adapter.list", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.adapter"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.adapter"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -123,8 +123,8 @@ declare namespace gpu {
     @binding("destack.gpu.adapter.open", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.adapter"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.adapter"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -150,8 +150,8 @@ declare namespace gpu {
     @binding("destack.gpu.adapter.info", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.adapter"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.adapter"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -177,8 +177,8 @@ declare namespace gpu {
     @binding("destack.gpu.adapter.close", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.adapter"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.adapter"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })

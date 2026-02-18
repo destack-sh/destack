@@ -49,8 +49,8 @@ declare namespace audio {
     @binding("destack.audio.stream.open", {
         effect: "external",
         replay: "recordable",
-        requires: ["audio.playback"],
-        platforms: ["unix", "windows"],
+        capabilities: ["audio.playback"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -79,8 +79,8 @@ declare namespace audio {
     @binding("destack.audio.stream.close", {
         effect: "external",
         replay: "recordable",
-        requires: ["audio.playback"],
-        platforms: ["unix", "windows"],
+        capabilities: ["audio.playback"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -106,8 +106,8 @@ declare namespace audio {
     @binding("destack.audio.stream.start", {
         effect: "external",
         replay: "recordable",
-        requires: ["audio.playback"],
-        platforms: ["unix", "windows"],
+        capabilities: ["audio.playback"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -133,8 +133,8 @@ declare namespace audio {
     @binding("destack.audio.stream.stop", {
         effect: "external",
         replay: "recordable",
-        requires: ["audio.playback"],
-        platforms: ["unix", "windows"],
+        capabilities: ["audio.playback"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -160,8 +160,8 @@ declare namespace audio {
     @binding("destack.audio.stream.state", {
         effect: "external",
         replay: "recordable",
-        requires: ["audio.control"],
-        platforms: ["unix", "windows"],
+        capabilities: ["audio.control"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -187,8 +187,8 @@ declare namespace audio {
     @binding("destack.audio.stream.write", {
         effect: "external",
         replay: "recordable",
-        requires: ["audio.playback"],
-        platforms: ["unix", "windows"],
+        capabilities: ["audio.playback"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -214,8 +214,8 @@ declare namespace audio {
     @binding("destack.audio.stream.read", {
         effect: "external",
         replay: "recordable",
-        requires: ["audio.capture"],
-        platforms: ["unix", "windows"],
+        capabilities: ["audio.capture"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })

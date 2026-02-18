@@ -57,8 +57,8 @@ declare namespace security {
         {
             effect: "deterministic",
             replay: "nonrecordable",
-            requires: ["security.restrict"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["security.restrict"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -87,8 +87,8 @@ declare namespace security {
         {
             effect: "deterministic",
             replay: "nonrecordable",
-            requires: ["security.restrict"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["security.restrict"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -120,8 +120,8 @@ declare namespace security {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["security.filter"],
-            platforms: ["unix", "windows"],
+            capabilities: ["security.filter"],
+            platforms: ["windows", "unix"],
             scope: "hybrid",
             blocking: "sometimes",
         },

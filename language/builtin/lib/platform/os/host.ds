@@ -20,8 +20,8 @@ declare namespace os {
     /// Identity fields are sourced from host kernel and runtime normalization rules.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses uname and hostname APIs on Unix, version and hostname APIs on Windows, and wasi host metadata.
+    /// Unix and Windows.
+    /// Uses uname and hostname APIs on Unix and version and hostname APIs on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -36,8 +36,8 @@ declare namespace os {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["os.hostname", "os.sysinfo"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["os.hostname", "os.sysinfo"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },

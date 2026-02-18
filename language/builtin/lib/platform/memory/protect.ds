@@ -28,12 +28,12 @@ declare namespace memory {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.memory.protect.protect",
+        "destack.memory.protect.protectRange",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["memory.protect"],
-            platforms: ["unix", "windows"],
+            capabilities: ["memory.protect"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -62,8 +62,8 @@ declare namespace memory {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["memory.protect"],
-            platforms: ["unix", "windows"],
+            capabilities: ["memory.protect"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -92,8 +92,8 @@ declare namespace memory {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["memory.execute"],
-            platforms: ["unix", "windows"],
+            capabilities: ["memory.execute"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -122,8 +122,8 @@ declare namespace memory {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["memory.execute"],
-            platforms: ["unix", "windows"],
+            capabilities: ["memory.execute"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -152,8 +152,8 @@ declare namespace memory {
         {
             effect: "deterministic",
             replay: "nonrecordable",
-            requires: ["memory.execute"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["memory.execute"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },

@@ -106,7 +106,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.socket", { effect: "external", replay: "recordable", requires: ["net.raw"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.socket", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "unix"], scope: "os", blocking: "sometimes" })
     export function rawSocket(family: SocketFamily, protocol: int32): Result<SocketHandle, PlatformError>;
 
     /// Enable or disable IP header inclusion on a raw socket.
@@ -126,7 +126,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.setHeaderIncluded", { effect: "external", replay: "recordable", requires: ["net.raw"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.setHeaderIncluded", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "unix"], scope: "os", blocking: "sometimes" })
     export function rawSetHeaderIncluded(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>;
 
     /// Open a packet capture or inject endpoint.
@@ -146,7 +146,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetOpen", { effect: "external", replay: "recordable", requires: ["net.raw"], platforms: ["linux", "bsd", "windows"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.packetOpen", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "os", blocking: "sometimes" })
     export function packetOpen(options: PacketCaptureOptions): Result<SocketHandle, PlatformError>;
 
     /// Receive one packet from a packet endpoint.
@@ -166,7 +166,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetReceive", { effect: "external", replay: "recordable", requires: ["net.raw"], platforms: ["linux", "bsd", "windows"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.packetReceive", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "os", blocking: "sometimes" })
     export function packetReceive(
         handle: SocketHandle,
         payload: Slice<uint8>,
@@ -189,7 +189,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetSend", { effect: "external", replay: "recordable", requires: ["net.raw"], platforms: ["linux", "bsd", "windows"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.packetSend", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "os", blocking: "sometimes" })
     export function packetSend(
         handle: SocketHandle,
         payload: Slice<uint8>,
@@ -212,7 +212,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetSetTimestampMode", { effect: "external", replay: "recordable", requires: ["net.raw"], platforms: ["linux", "bsd", "windows"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.packetSetTimestampMode", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "os", blocking: "sometimes" })
     export function packetSetTimestampMode(
         handle: SocketHandle,
         mode: PacketTimestampMode,
@@ -235,7 +235,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetSetFilter", { effect: "external", replay: "recordable", requires: ["net.raw"], platforms: ["linux", "bsd", "windows"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.packetSetFilter", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "os", blocking: "sometimes" })
     export function packetSetFilter(
         handle: SocketHandle,
         filterProgram: Slice<uint8>,
@@ -258,7 +258,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetClearFilter", { effect: "external", replay: "recordable", requires: ["net.raw"], platforms: ["linux", "bsd", "windows"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.packetClearFilter", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "os", blocking: "sometimes" })
     export function packetClearFilter(handle: SocketHandle): Result<void, PlatformError>;
 
     /// Set packet fanout on a packet endpoint.
@@ -278,7 +278,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetSetFanout", { effect: "external", replay: "recordable", requires: ["net.raw"], platforms: ["linux", "bsd", "windows"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.packetSetFanout", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "os", blocking: "sometimes" })
     export function packetSetFanout(
         handle: SocketHandle,
         options: PacketFanoutOptions,
@@ -301,7 +301,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetClearFanout", { effect: "external", replay: "recordable", requires: ["net.raw"], platforms: ["linux", "bsd", "windows"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.packetClearFanout", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "os", blocking: "sometimes" })
     export function packetClearFanout(handle: SocketHandle): Result<void, PlatformError>;
 
     /// Configure one packet rx ring for zero-copy capture.
@@ -321,7 +321,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetSetRxRing", { effect: "external", replay: "recordable", requires: ["net.raw"], platforms: ["linux", "bsd", "windows"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.packetSetRxRing", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "os", blocking: "sometimes" })
     export function packetSetRxRing(
         handle: SocketHandle,
         options: PacketRingOptions,
@@ -344,7 +344,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetSetTxRing", { effect: "external", replay: "recordable", requires: ["net.raw"], platforms: ["linux", "bsd", "windows"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.packetSetTxRing", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "os", blocking: "sometimes" })
     export function packetSetTxRing(
         handle: SocketHandle,
         options: PacketRingOptions,
@@ -367,7 +367,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetClearRing", { effect: "external", replay: "recordable", requires: ["net.raw"], platforms: ["linux", "bsd", "windows"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.packetClearRing", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "os", blocking: "sometimes" })
     export function packetClearRing(handle: SocketHandle): Result<void, PlatformError>;
 
     /// Read packet capture statistics from one endpoint.
@@ -387,7 +387,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetStats", { effect: "external", replay: "recordable", requires: ["net.raw"], platforms: ["linux", "bsd", "windows"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.raw.packetStats", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "os", blocking: "sometimes" })
     export function packetStats(
         handle: SocketHandle,
     ): Result<PacketCaptureStats, PlatformError>;

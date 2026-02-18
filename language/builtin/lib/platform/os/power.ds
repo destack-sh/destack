@@ -34,8 +34,8 @@ declare namespace os {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["os.power"],
-            platforms: ["unix", "windows"],
+            capabilities: ["os.power"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -64,8 +64,8 @@ declare namespace os {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["os.power"],
-            platforms: ["unix", "windows"],
+            capabilities: ["os.power"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },

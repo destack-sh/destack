@@ -37,8 +37,8 @@ declare namespace os {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["os.mount"],
-            platforms: ["unix", "windows"],
+            capabilities: ["os.mount"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -67,8 +67,8 @@ declare namespace os {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["os.mount"],
-            platforms: ["unix", "windows"],
+            capabilities: ["os.mount"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -103,8 +103,8 @@ declare namespace os {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["os.mount"],
-            platforms: ["unix", "windows"],
+            capabilities: ["os.mount"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },

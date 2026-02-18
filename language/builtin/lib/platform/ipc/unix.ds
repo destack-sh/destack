@@ -46,7 +46,7 @@ declare namespace ipc {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["ipc.unix", "ipc.fdPass"],
+            capabilities: ["ipc.unix", "ipc.fdPass"],
             platforms: ["unix"],
             scope: "os",
             blocking: "sometimes",
@@ -80,7 +80,7 @@ declare namespace ipc {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["ipc.unix", "ipc.fdPass"],
+            capabilities: ["ipc.unix", "ipc.fdPass"],
             platforms: ["unix"],
             scope: "os",
             blocking: "sometimes",

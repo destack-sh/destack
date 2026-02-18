@@ -25,8 +25,8 @@ declare namespace security {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["security.sandbox"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["security.sandbox"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -55,8 +55,8 @@ declare namespace security {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["security.sandbox"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["security.sandbox"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },

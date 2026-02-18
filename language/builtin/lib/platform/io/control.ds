@@ -52,8 +52,8 @@ declare namespace io {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["io.control"],
-            platforms: ["unix", "windows"],
+            capabilities: ["io.control"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -87,8 +87,8 @@ declare namespace io {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["io.control"],
-            platforms: ["unix", "windows"],
+            capabilities: ["io.control"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },

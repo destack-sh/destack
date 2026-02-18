@@ -8,8 +8,8 @@ declare namespace process {
     /// Exit code interpretation is host-defined and propagated to the parent process.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses _exit(2) or exit(3) on Unix, ExitProcess on Windows, and proc_exit on Wasi.
+    /// Unix and Windows.
+    /// Uses _exit(2) or exit(3) on Unix and ExitProcess on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -20,12 +20,12 @@ declare namespace process {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.exit.exit",
+        "destack.process.exit.terminate",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.run"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["process.run"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "never",
         },

@@ -109,8 +109,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.encoderOpen", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.queue"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.queue"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -139,8 +139,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.encoderClose", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.queue"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.queue"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -166,8 +166,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.encoderFinish", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.queue"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.queue"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -193,8 +193,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.computePassBegin", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.compute"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.compute"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -220,8 +220,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.computePassEnd", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.compute"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.compute"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -247,8 +247,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.renderPassBegin", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.render"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.render"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -277,8 +277,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.renderPassEnd", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.render"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.render"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -304,8 +304,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.bindComputePipeline", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.compute"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.compute"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -334,8 +334,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.bindRenderPipeline", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.render"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.render"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -364,8 +364,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.dispatch", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.compute"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.compute"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -396,8 +396,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.draw", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.render"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.render"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -429,8 +429,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.drawIndexed", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.render"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.render"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -463,8 +463,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.copyBuffer", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -497,8 +497,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.copyTextureToTexture", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -529,8 +529,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.copyTextureToBuffer", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -561,8 +561,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.copyBufferToTexture", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -593,8 +593,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.queueSubmit", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.queue"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.queue"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -624,8 +624,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.queueWriteBuffer", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.queue", "gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.queue", "gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -658,8 +658,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.queueWriteTexture", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.queue", "gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.queue", "gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -691,8 +691,8 @@ declare namespace gpu {
     @binding("destack.gpu.command.queueWaitIdle", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.queue"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.queue"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })

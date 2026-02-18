@@ -35,8 +35,8 @@ declare namespace process {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.run"],
-            platforms: ["unix", "windows"],
+            capabilities: ["process.run"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "never",
         },
@@ -67,8 +67,8 @@ declare namespace process {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.run"],
-            platforms: ["unix", "windows"],
+            capabilities: ["process.run"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "never",
         },

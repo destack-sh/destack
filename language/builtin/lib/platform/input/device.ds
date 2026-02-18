@@ -42,11 +42,11 @@ declare namespace input {
     /// Device ordering and hotplug visibility follow host input subsystem semantics.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses evdev or libinput or HID managers on Unix-like hosts and raw input or HID APIs on Windows.
+    /// Linux and Windows.
+    /// Uses evdev device-node enumeration on Linux and console-input availability checks on Windows.
     ///
     /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData.
     ///
     /// # Security
     /// Requires `input.read`.
@@ -56,8 +56,8 @@ declare namespace input {
     @binding("destack.input.device.list", {
         effect: "external",
         replay: "recordable",
-        requires: ["input.read"],
-        platforms: ["unix", "windows"],
+        capabilities: ["input.read"],
+        platforms: ["windows", "linux"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -69,11 +69,11 @@ declare namespace input {
     /// Exclusive-grab behavior and permission checks are host-defined.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses device node open on Unix-like hosts and raw-input registration or handle open on Windows.
+    /// Linux and Windows.
+    /// Uses device-node open on Linux and duplicated console-input handles on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock.
     ///
     /// # Security
     /// Requires `input.read`.
@@ -83,8 +83,8 @@ declare namespace input {
     @binding("destack.input.device.open", {
         effect: "external",
         replay: "recordable",
-        requires: ["input.read"],
-        platforms: ["unix", "windows"],
+        capabilities: ["input.read"],
+        platforms: ["windows", "linux"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -96,11 +96,11 @@ declare namespace input {
     /// Pending unread events are discarded according to host backend behavior.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses close(2) on Unix-like hosts and handle close on Windows.
+    /// Linux and Windows.
+    /// Uses close(2) on Linux and CloseHandle on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock.
     ///
     /// # Security
     /// Requires `input.read`.
@@ -110,8 +110,8 @@ declare namespace input {
     @binding("destack.input.device.close", {
         effect: "external",
         replay: "recordable",
-        requires: ["input.read"],
-        platforms: ["unix", "windows"],
+        capabilities: ["input.read"],
+        platforms: ["windows", "linux"],
         scope: "os",
         blocking: "sometimes",
     })

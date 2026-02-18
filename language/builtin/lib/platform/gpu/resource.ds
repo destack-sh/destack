@@ -80,8 +80,8 @@ declare namespace gpu {
     @binding("destack.gpu.resource.bufferCreate", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -110,8 +110,8 @@ declare namespace gpu {
     @binding("destack.gpu.resource.bufferDestroy", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -137,8 +137,8 @@ declare namespace gpu {
     @binding("destack.gpu.resource.bufferWrite", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -168,8 +168,8 @@ declare namespace gpu {
     @binding("destack.gpu.resource.bufferRead", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -199,8 +199,8 @@ declare namespace gpu {
     @binding("destack.gpu.resource.memoryMap", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -230,8 +230,8 @@ declare namespace gpu {
     @binding("destack.gpu.resource.memoryUnmap", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -257,8 +257,8 @@ declare namespace gpu {
     @binding("destack.gpu.resource.textureCreate", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -287,8 +287,8 @@ declare namespace gpu {
     @binding("destack.gpu.resource.textureDestroy", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -314,8 +314,8 @@ declare namespace gpu {
     @binding("destack.gpu.resource.samplerCreate", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -344,8 +344,8 @@ declare namespace gpu {
     @binding("destack.gpu.resource.samplerDestroy", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.memory"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })

@@ -37,8 +37,8 @@ declare namespace tty {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["tty.mode"],
-            platforms: ["unix", "windows"],
+            capabilities: ["tty.mode"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -67,8 +67,8 @@ declare namespace tty {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["tty.mode"],
-            platforms: ["unix", "windows"],
+            capabilities: ["tty.mode"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
