@@ -117,10 +117,6 @@ pub enum CommentStyle {
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Comment {
-    /// The normalized comment payload when materialized.
-    ///
-    /// `None` means payload is derived lazily from source span.
-    pub string: Option<StringId>,
     /// The style of the comment.
     pub style: CommentStyle,
 }

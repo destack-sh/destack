@@ -1239,6 +1239,7 @@ fn resolve_comment_seam_owner(
 }
 
 /// Resolve one comment trivia target owner and position from token seams.
+/// FUGU #Cleanup: clean up the unholy formatter trivia attachment
 fn resolve_formatter_comment_trivia_attachment(
     file: &File,
     tree: &NodeTree,
@@ -1584,30 +1585,35 @@ fn resolve_formatter_comment_trivia_attachment(
         return (Some(target_node), AnnotationPosition::LinePostfixBoundary);
     }
 
-    // line comments after `satisfies` stay on the full satisfies expression
-    if token_before_is_satisfies
-        && !has_leading_newline
-        && has_trailing_newline
-        && comment_is_line
-        && let Some(target_node) = resolve_comment_seam_owner(&context, &mut state).or(left_owner)
+    // line comments after `satisfies` only move to rhs prefixes for multi-argument type paths
+    if token_before_is_satisfies && !has_leading_newline && has_trailing_newline && comment_is_line
     {
-        if tree.get_node_type(target_node) == NodeType::Expression {
-            let expression_id = LocalNodeId::<Expression>::new(target_node);
-            if let Expression::TypeBinary {
-                left,
-                operator: ast::TypeBinaryOperator::Satisfies,
-                ..
-            } = tree.get(expression_id)
-                && matches!(tree.get(*left), Expression::ObjectExpression { .. })
-                && let Some(right_target) = right_owner
-            {
-                let right_target = normalize_formatter_trivia_target_owner(tree, right_target);
-                return (Some(right_target), AnnotationPosition::LinePrefix);
+        if let Some(right_target) = right_owner {
+            let mut prefix_target = None;
+
+            if tree.get_node_type(right_target) == NodeType::Expression {
+                let right_expression = LocalNodeId::<Expression>::new(right_target);
+                if matches!(
+                    tree.get(right_expression),
+                    Expression::Path {
+                        static_arguments: Some(static_arguments),
+                        ..
+                    } if static_arguments.len() > 1
+                ) {
+                    prefix_target = Some(right_target);
+                }
+            }
+
+            if let Some(prefix_target) = prefix_target {
+                let prefix_target = normalize_formatter_trivia_target_owner(tree, prefix_target);
+                return (Some(prefix_target), AnnotationPosition::LinePrefix);
             }
         }
 
-        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        return (Some(target_node), AnnotationPosition::LinePostfixBoundary);
+        if let Some(target_node) = resolve_comment_seam_owner(&context, &mut state).or(left_owner) {
+            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+            return (Some(target_node), AnnotationPosition::LinePostfixBoundary);
+        }
     }
 
     // line comments after `<` in satisfies rhs type arguments stay with the rhs type
@@ -2105,6 +2111,10 @@ fn resolve_formatter_blank_trivia_attachment(
         });
 
     let token_after_is_at = token_after_span.is_some_and(|token| token.token.ty == TokenType::At);
+    let token_after_is_semicolon =
+        token_after_span.is_some_and(|token| token.token.ty == TokenType::Semicolon);
+    let token_after_is_close_brace =
+        token_after_span.is_some_and(|token| token.token.ty == TokenType::CloseBrace);
     let token_after_is_open_parenthesis =
         token_after_span.is_some_and(|token| token.token.ty == TokenType::OpenParenthesis);
     let token_before_is_open_parenthesis =
@@ -2128,6 +2138,11 @@ fn resolve_formatter_blank_trivia_attachment(
     if seam_has_line_comment
         && !token_before_span.is_some_and(|token| token.token.ty == TokenType::Assign)
     {
+        return (None, AnnotationPosition::BlockInfix);
+    }
+
+    // blank seams before semicolons or closing braces are formatting noise
+    if token_after_is_semicolon || token_after_is_close_brace {
         return (None, AnnotationPosition::BlockInfix);
     }
 
@@ -2310,7 +2325,6 @@ fn build_formatter_annotation_projection(
     Vec<FormatterAnnotationEntry>,
     Vec<SmallVec<[LocalNodeId<Annotation>; 4]>>,
 ) {
-    let debug_trivia_attachment = std::env::var("DESTACK_DEBUG_TRIVIA_ATTACH").is_ok();
     let node_count = tree.next_id() as usize;
     let mut entries = Vec::new();
     let mut by_node_id = vec![SmallVec::new(); node_count];
@@ -2358,63 +2372,6 @@ fn build_formatter_annotation_projection(
             parents,
         );
 
-        if debug_trivia_attachment {
-            let before_text = decode_token_index(trivia.boundary.token_before)
-                .and_then(|index| tokens.get(index).copied())
-                .map_or_else(
-                    || "<none>".to_string(),
-                    |token| format!("{:?}:{}", token.token.ty, file.span_str(token.span)),
-                );
-            let after_text = decode_token_index(trivia.boundary.token_after)
-                .and_then(|index| tokens.get(index).copied())
-                .map_or_else(
-                    || "<none>".to_string(),
-                    |token| format!("{:?}:{}", token.token.ty, file.span_str(token.span)),
-                );
-            let target_text = target_id.map_or_else(
-                || "<none>".to_string(),
-                |id| {
-                    let node_type = tree.get_node_type(id);
-                    if node_type == NodeType::Expression {
-                        let expression_id = LocalNodeId::<Expression>::new(id);
-                        return format!("{}:{:?}:{:?}", id, node_type, tree.get(expression_id));
-                    }
-                    if node_type == NodeType::Declaration {
-                        let declaration_id = LocalNodeId::<Declaration>::new(id);
-                        return format!("{}:{:?}:{:?}", id, node_type, tree.get(declaration_id));
-                    }
-                    if node_type == NodeType::Block {
-                        let block_id = LocalNodeId::<Block>::new(id);
-                        return format!("{}:{:?}:{:?}", id, node_type, tree.get(block_id));
-                    }
-
-                    format!("{}:{:?}", id, node_type)
-                },
-            );
-            let seam_owner_text = decode_token_index(trivia.boundary.token_before)
-                .and_then(|before_index| tokens.get(before_index).copied())
-                .zip(
-                    decode_token_index(trivia.boundary.token_after)
-                        .and_then(|after_index| tokens.get(after_index).copied()),
-                )
-                .and_then(|(before_token, after_token)| {
-                    find_smallest_owner_enclosing_range(
-                        tree,
-                        before_token.span.start,
-                        after_token.span.end,
-                    )
-                })
-                .map_or_else(
-                    || "<none>".to_string(),
-                    |owner| format!("{}:{:?}", owner, tree.get_node_type(owner)),
-                );
-            let comment_text = file.span_str(trivia.span);
-            eprintln!(
-                "trivia-attach: comment={:?} before={} after={} target={} seam_owner={} position={:?}",
-                comment_text, before_text, after_text, target_text, seam_owner_text, position
-            );
-        }
-
         let Some(target_id) = target_id else {
             continue;
         };
@@ -2443,35 +2400,7 @@ fn build_formatter_annotation_projection(
             &seam_index,
             parents,
         );
-        if debug_trivia_attachment {
-            let before_text = decode_token_index(trivia.boundary.token_before)
-                .and_then(|index| tokens.get(index).copied())
-                .map_or_else(
-                    || "<none>".to_string(),
-                    |token| format!("{:?}:{}", token.token.ty, file.span_str(token.span)),
-                );
-            let after_text = decode_token_index(trivia.boundary.token_after)
-                .and_then(|index| tokens.get(index).copied())
-                .map_or_else(
-                    || "<none>".to_string(),
-                    |token| format!("{:?}:{}", token.token.ty, file.span_str(token.span)),
-                );
-            let target_text = target_id.map_or_else(
-                || "<none>".to_string(),
-                |id| {
-                    let node_type = tree.get_node_type(id);
-                    if node_type == NodeType::Expression {
-                        let expression_id = LocalNodeId::<Expression>::new(id);
-                        return format!("{}:{:?}:{:?}", id, node_type, tree.get(expression_id));
-                    }
-                    format!("{}:{:?}", id, node_type)
-                },
-            );
-            eprintln!(
-                "blank-attach: before={} after={} target={} position={:?}",
-                before_text, after_text, target_text, position
-            );
-        }
+
         let Some(target_id) = target_id else {
             continue;
         };
@@ -3056,11 +2985,6 @@ impl<'a> DestackFormatContext<'a> {
     /// Get one normalized comment payload string.
     #[inline]
     pub fn get_comment_text(&self, comment_id: LocalNodeId<Comment>) -> Cow<'a, str> {
-        let comment = self.tree.get(comment_id);
-        if let Some(string_id) = comment.string {
-            return Cow::Borrowed(self.strings.get(string_id));
-        }
-
         let comment_source = self.get_span_str(self.get_span(comment_id));
         normalize_comment_payload(comment_source)
     }

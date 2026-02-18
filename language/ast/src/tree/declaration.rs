@@ -36,7 +36,7 @@ pub enum DeclarationAbstraction {
 }
 
 /// The descriptor data for a declaration.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
 pub struct DeclarationDescriptor {
     /// The kind of declaration.
     pub kind: DeclarationKind,

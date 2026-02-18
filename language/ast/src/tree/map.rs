@@ -38,6 +38,14 @@ impl NodeParentIndex {
         let node_count = tree.node_type_by_node_id.len();
         let mut visitor = ParentIndexBuilderVisitor::new(node_count);
         for (parent_id, node_type) in tree.node_type_by_node_id.iter().enumerate() {
+            // leaf trivia nodes cannot own children, so skip empty walks
+            if matches!(
+                node_type,
+                NodeType::Blank | NodeType::Doc | NodeType::Comment
+            ) {
+                continue;
+            }
+
             visitor.set_current_parent(parent_id as u32);
             walk_any(&mut visitor, tree, *node_type, parent_id as u32);
         }

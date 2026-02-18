@@ -1048,12 +1048,7 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
         node_id: LocalNodeId<Comment>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let string = if let Some(string_id) = self.string {
-            std::borrow::Cow::Borrowed(f.context().strings.get(string_id))
-        } else {
-            let source = f.context().get_span_str(f.context().get_span(node_id));
-            destack_ast::normalize_comment_payload(source)
-        };
+        let string = f.context().get_comment_text(node_id);
         let is_multi_line = string.contains('\n');
         match self.style {
             CommentStyle::Star => {

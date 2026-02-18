@@ -464,16 +464,6 @@ pub(crate) fn argument_has_line_comment_annotation(
         .has_line_comment
 }
 
-/// Return whether an argument has slash comments in prefix annotation positions.
-pub(crate) fn argument_has_prefix_line_comment_annotation(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    context
-        .argument_annotation_profile(argument_id)
-        .has_prefix_line_comment
-}
-
 /// Return whether an argument is an inline closure-cast object argument.
 pub(crate) fn argument_is_inline_closure_cast_object(
     context: &DestackFormatContext<'_>,

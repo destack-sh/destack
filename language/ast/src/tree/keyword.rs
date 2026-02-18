@@ -108,6 +108,8 @@ pub enum Keyword {
     Typeof,
     /// Void type.
     Void,
+    /// Null literal.
+    Null,
     /// Keyof expression.
     Keyof,
     /// Infer expression.
@@ -286,6 +288,7 @@ impl Keyword {
             Keyword::Where => "where",
             Keyword::Typeof => "typeof",
             Keyword::Void => "void",
+            Keyword::Null => "null",
             Keyword::Keyof => "keyof",
             Keyword::Infer => "infer",
             Keyword::Any => "any",
@@ -393,6 +396,7 @@ impl FromStr for Keyword {
             "where" => Ok(Keyword::Where),
             "typeof" => Ok(Keyword::Typeof),
             "void" => Ok(Keyword::Void),
+            "null" => Ok(Keyword::Null),
             "keyof" => Ok(Keyword::Keyof),
             "infer" => Ok(Keyword::Infer),
             "any" => Ok(Keyword::Any),
