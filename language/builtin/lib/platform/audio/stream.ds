@@ -7,8 +7,6 @@ import { AudioChannelLayout, AudioSampleFormat } from "./device.ds";
 export enum AudioStreamTransferMode {
     /// Runtime pushes packets to the host stream.
     Push = 1,
-    /// Runtime pulls packets from the host stream.
-    Pull = 2,
 }
 
 /// Stream run-state selector.
@@ -494,6 +492,7 @@ declare namespace audio {
     ///
     /// Submit one packet of interleaved audio frames for one target presentation timestamp.
     /// Scheduling precision depends on host backend timing guarantees.
+    /// This is one optional scheduling lane and can return `notSupported` when unavailable.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -503,14 +502,14 @@ declare namespace audio {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `audio.playback`.
+    /// Requires `audio.playback.schedule`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.audio.stream.writeAt", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["audio.playback"],
+        capabilities: ["audio.playback.schedule"],
         platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",

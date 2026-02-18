@@ -30,8 +30,6 @@ export enum AudioBackend {
     AAudio = 6,
     /// OpenSL ES backend.
     OpenSLES = 7,
-    /// Web Audio backend.
-    WebAudio = 8,
     /// Null backend for tests and simulation.
     Null = 255,
 }
