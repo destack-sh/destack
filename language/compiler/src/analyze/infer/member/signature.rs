@@ -29,7 +29,7 @@ impl Compiler {
         // rewrite owner scoped associated aliases after substitution
         let member_ty_id = if let Some(member_symbol) = member_symbol {
             if let Some(owner_symbol) =
-                self.owner_symbol_for_member_symbol(module, profile, member_symbol, symbols)
+                self.query_owner_symbol_for_member_symbol(module, profile, member_symbol, symbols)?
             {
                 self.rewrite_associated_aliases_for_owner(
                     module,
@@ -202,7 +202,7 @@ impl Compiler {
         let Type::Function {
             asynchrony,
             cardinality,
-            mut static_parameters,
+            static_parameters,
             this_parameter,
             dynamic_parameters,
             return_type,
@@ -216,26 +216,24 @@ impl Compiler {
             });
         };
 
-        // recover missing static parameter placeholders from source signatures
         if static_parameters.is_empty() {
-            let source_id = types.get_type_source(signature_ty_id);
-            if let Ok(member_id) = source_id.try_into_typed::<Member>() {
-                let member = tree.get(member_id);
-                if let Member::Method { signature, .. } = member
-                    && signature.generics.as_ref().is_some()
-                {
-                    static_parameters = self.static_parameter_placeholders_for_signature(
-                        module, signature, tree, types,
-                    );
-                }
-            } else if let Ok(declaration_id) = source_id.try_into_typed::<Declaration>() {
-                let declaration = tree.get(declaration_id);
-                if let Declaration::Function { signature, .. } = declaration
-                    && signature.generics.as_ref().is_some()
-                {
-                    static_parameters = self.static_parameter_placeholders_for_signature(
-                        module, signature, tree, types,
-                    );
+            if let Some(member_symbol) = member_symbol {
+                let parameter_symbols = self
+                    .collect_static_parameter_symbols(
+                        module,
+                        member_symbol,
+                        profile,
+                        tree,
+                        symbols,
+                        types,
+                    )
+                    .unwrap_or_default();
+                if !parameter_symbols.is_empty() {
+                    return Err(AnalyzeError::Internal {
+                        message: format!(
+                            "missing signature static parameters for generic member {member_symbol:?}"
+                        ),
+                    });
                 }
             }
         }

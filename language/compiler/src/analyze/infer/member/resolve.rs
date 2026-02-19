@@ -223,6 +223,7 @@ impl Compiler {
                 receiver_id,
                 receiver_id,
                 *member_key,
+                Some(StaticMemberSymbolKind::AssociatedComptimeConst),
                 tree,
                 symbols,
                 types,
@@ -424,17 +425,53 @@ impl Compiler {
                 }
                 resolved
             }
-            Type::Reference { symbol, .. } => self.resolve_member_symbol_for_symbol(
-                module,
-                *symbol,
-                member_key,
-                lookup_mode,
-                profile,
-                tree,
-                symbols,
-                types,
-                visited,
-            )?,
+            Type::Reference { symbol, .. } => {
+                let resolved = self.resolve_member_symbol_for_symbol(
+                    module,
+                    *symbol,
+                    member_key,
+                    lookup_mode,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                )?;
+                if resolved.is_some() {
+                    resolved
+                } else if self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
+                {
+                    if let Some(constraint_type_id) =
+                        types.get_static_parameter_constraint_type(*symbol)
+                    {
+                        let constraint_type = types.get_type(constraint_type_id).clone();
+                        if let Type::Reference {
+                            symbol: constraint_symbol,
+                            ..
+                        } = constraint_type
+                            && constraint_symbol == *symbol
+                        {
+                            None
+                        } else {
+                            self.resolve_member_symbol_for_type(
+                                module,
+                                &constraint_type,
+                                member_key,
+                                profile,
+                                tree,
+                                symbols,
+                                types,
+                                visited,
+                                allow_implicit,
+                            )?
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
             _ => None,
         };
 

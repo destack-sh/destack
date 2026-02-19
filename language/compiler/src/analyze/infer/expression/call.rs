@@ -349,7 +349,7 @@ impl Compiler {
         infer: &mut InferTable,
     ) -> AnalyzeResult<Option<ResolvedSignature>> {
         let Type::Function {
-            mut static_parameters,
+            static_parameters,
             dynamic_parameters,
             return_type,
             ..
@@ -358,26 +358,26 @@ impl Compiler {
             return Ok(None);
         };
 
-        // recover missing static parameters from the signature node when possible
-        if static_parameters.is_empty() {
-            let source_id = types.get_type_source(signature_ty_id);
-            if let Ok(member_id) = source_id.try_into_typed::<Member>() {
-                let member = tree.get(member_id);
-                if let Member::Method { signature, .. } = member
-                    && signature.generics.as_ref().is_some()
-                {
-                    static_parameters = self.static_parameter_placeholders_for_signature(
-                        module, signature, tree, types,
-                    );
-                }
-            } else if let Ok(declaration_id) = source_id.try_into_typed::<Declaration>() {
-                let declaration = tree.get(declaration_id);
-                if let Declaration::Function { signature, .. } = declaration
-                    && signature.generics.as_ref().is_some()
-                {
-                    static_parameters = self.static_parameter_placeholders_for_signature(
-                        module, signature, tree, types,
-                    );
+        let has_explicit_static_arguments =
+            static_arguments.is_some_and(|static_arguments| !static_arguments.is_empty());
+        if has_explicit_static_arguments && static_parameters.is_empty() {
+            if let Some(callee_symbol) = callee_symbol {
+                let parameter_symbols = self
+                    .collect_static_parameter_symbols(
+                        module,
+                        callee_symbol,
+                        profile,
+                        tree,
+                        symbols,
+                        types,
+                    )
+                    .unwrap_or_default();
+                if !parameter_symbols.is_empty() {
+                    return Err(AnalyzeError::Internal {
+                        message: format!(
+                            "missing signature static parameters for generic callable {callee_symbol:?}"
+                        ),
+                    });
                 }
             }
         }
@@ -4180,6 +4180,14 @@ impl Compiler {
                     &mut has_value_substitution,
                     types,
                 );
+            } else if static_parameter.kind == StaticParameterKind::Type
+                && let StaticArgument::Evaluated {
+                    value: StaticExpression::Type { ty },
+                    ..
+                } = &resolved_argument
+            {
+                substitutions.insert(static_parameter.symbol, *ty);
+                bound_substitutions.insert(static_parameter.symbol, *ty);
             }
 
             resolved_arguments.push(resolved_argument);

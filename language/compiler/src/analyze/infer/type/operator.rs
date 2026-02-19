@@ -674,53 +674,8 @@ impl Compiler {
                 types.get_type(right_ty_id).clone()
             }
             TypeBinaryOperator::Satisfies => {
-                // unwrap Type::Value when comparing against type expressions
-                let target_ty_id = match types.get_type(right_ty_id) {
-                    Type::Value { value } => *value,
-                    _ => right_ty_id,
-                };
-                let actual_ty_id = match types.get_type(left_ty_id) {
-                    Type::Value { value } => *value,
-                    _ => left_ty_id,
-                };
-                let resolved_target = self.materialize_infer_type_for_check(
-                    module,
-                    profile,
-                    symbols,
-                    target_ty_id,
-                    infer,
-                    types,
-                    options,
-                );
-                let resolved_actual = self.materialize_infer_type_for_check(
-                    module,
-                    profile,
-                    symbols,
-                    actual_ty_id,
-                    infer,
-                    types,
-                    options,
-                );
-
-                // check if left type satisfies (is assignable to) right type
-                if self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
-                    resolved_target,
-                    resolved_actual,
-                    types,
-                    options,
-                ) == Assignability::NotAssignable
-                {
-                    self.error(AnalyzeError::UnsatisfiedType {
-                        node: expression_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(profile)),
-                        expected_ty: resolved_target.into_global(module.id),
-                        actual_ty: resolved_actual.into_global(module.id),
-                    });
-                }
+                // satisfies diagnostics run after inference convergence
+                let _ = (module, profile, symbols, infer, options, expression_id);
                 // satisfies returns the original (left) type, not the asserted type
                 types.get_type(left_ty_id).clone()
             }

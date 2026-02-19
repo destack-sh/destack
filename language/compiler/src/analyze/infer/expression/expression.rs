@@ -5,7 +5,7 @@ use super::declaration::DeclaratorConstraint;
 
 use crate::analyze::common::{
     CanonicalSymbolMode, ConstContext, ContextualTypingMode, LiteralFreshness, RelationMode,
-    StaticSubstitutionEnvironment, WideningMode,
+    StaticSubstitutionEnvironment, TypeRewriteCache, WideningMode,
 };
 use crate::timing::tags;
 use crate::{
@@ -194,92 +194,6 @@ impl Compiler {
         }
 
         false
-    }
-
-    /// Materialize static parameters for a signature from source declarations when omitted.
-    fn materialize_signature_static_parameters_from_source(
-        &self,
-        module: &Module,
-        signature_ty_id: LocalTypeId,
-        tree: &NodeTree,
-        types: &mut TypeTable,
-    ) -> Vec<LocalTypeId> {
-        // read the type source for the signature
-        let source_id = types.get_type_source(signature_ty_id);
-
-        // check member signatures first
-        if let Ok(member_id) = source_id.try_into_typed::<Member>() {
-            let member = tree.get(member_id);
-            if let Member::Method { signature, .. } = member
-                && signature.generics.as_ref().is_some()
-            {
-                let placeholders = self
-                    .static_parameter_placeholders_for_signature(module, signature, tree, types);
-                self.set_static_parameters_for_signature_type(
-                    signature_ty_id,
-                    &placeholders,
-                    types,
-                );
-                return placeholders;
-            }
-        }
-
-        // check function declarations
-        if let Ok(declaration_id) = source_id.try_into_typed::<Declaration>() {
-            let declaration = tree.get(declaration_id);
-            if let Declaration::Function { signature, .. } = declaration
-                && signature.generics.as_ref().is_some()
-            {
-                let placeholders = self
-                    .static_parameter_placeholders_for_signature(module, signature, tree, types);
-                self.set_static_parameters_for_signature_type(
-                    signature_ty_id,
-                    &placeholders,
-                    types,
-                );
-                return placeholders;
-            }
-        }
-
-        Vec::new()
-    }
-
-    /// Store recovered static parameters for a signature type when missing.
-    fn set_static_parameters_for_signature_type(
-        &self,
-        signature_ty_id: LocalTypeId,
-        placeholders: &[LocalTypeId],
-        types: &mut TypeTable,
-    ) {
-        if placeholders.is_empty() {
-            return;
-        }
-
-        let Type::Function {
-            asynchrony,
-            cardinality,
-            static_parameters,
-            this_parameter,
-            dynamic_parameters,
-            return_type,
-        } = types.get_type(signature_ty_id).clone()
-        else {
-            return;
-        };
-
-        if !static_parameters.is_empty() {
-            return;
-        }
-
-        let updated = Type::Function {
-            asynchrony,
-            cardinality,
-            static_parameters: placeholders.to_vec(),
-            this_parameter,
-            dynamic_parameters,
-            return_type,
-        };
-        types.update_type(signature_ty_id, updated);
     }
 
     /// Infer optional chain receiver metadata when a maybe wrapper is present.
@@ -864,6 +778,57 @@ impl Compiler {
         }
     }
 
+    /// Instantiate one inferred expression type from infer-local instance obligations.
+    #[allow(clippy::too_many_arguments)]
+    fn instantiate_inferred_type_from_node_instance_obligation(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        type_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        infer: &InferTable,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        let node_id = expression_id.into_global_any(module.id);
+        let Some((instance_symbol, instance_arguments)) =
+            self.query_instance_symbol_arguments_for_node_infer(node_id, infer, types)
+        else {
+            return type_id;
+        };
+
+        let substitutions = self.build_type_parameter_substitutions_for_symbol(
+            module,
+            profile,
+            instance_symbol,
+            expression_id.into_any(),
+            &instance_arguments,
+            tree,
+            symbols,
+            types,
+        );
+        if substitutions.is_empty() {
+            return type_id;
+        }
+
+        let mut materialize_cache = TypeRewriteCache::new();
+        let mut substitution_cache = HashMap::new();
+        self.instantiate_type_with_substitutions(
+            module,
+            profile,
+            expression_id.into_any(),
+            None,
+            type_id,
+            &substitutions,
+            tree,
+            symbols,
+            types,
+            &mut materialize_cache,
+            &mut substitution_cache,
+        )
+    }
+
     /// Infer an (expression) body with flow aware typing.
     pub fn infer_body(
         &self,
@@ -1275,6 +1240,7 @@ impl Compiler {
                             infer,
                             ctx,
                         )?;
+                        types.set_inferred_type(right.into_global_any(module.id), right_ty_id);
                         let mut left_ctx = ctx
                             .fork()
                             .with_expected_type(Some(right_ty_id))
@@ -1288,6 +1254,17 @@ impl Compiler {
                             infer,
                             &mut left_ctx,
                         )?;
+                        let left_ty_id = self
+                            .instantiate_inferred_type_from_node_instance_obligation(
+                                module,
+                                ctx.profile,
+                                *left,
+                                left_ty_id,
+                                tree,
+                                symbols,
+                                infer,
+                                types,
+                            );
                         (left_ty_id, right_ty_id)
                     }
                     _ => {
@@ -1677,7 +1654,7 @@ impl Compiler {
         let Type::Function {
             asynchrony,
             cardinality,
-            mut static_parameters,
+            static_parameters,
             this_parameter,
             dynamic_parameters,
             return_type,
@@ -1705,14 +1682,26 @@ impl Compiler {
             }
         }
 
-        // recover static parameters when they are missing from the signature type
-        if static_parameters.is_empty() {
-            static_parameters = self.materialize_signature_static_parameters_from_source(
-                module,
-                signature_ty_id,
-                tree,
-                types,
-            );
+        if static_parameters.is_empty()
+            && let Some(owner_symbol) = owner_symbol
+        {
+            let owner_parameter_symbols = self
+                .collect_static_parameter_symbols(
+                    module,
+                    owner_symbol,
+                    ctx.profile,
+                    tree,
+                    symbols,
+                    types,
+                )
+                .unwrap_or_default();
+            if !owner_parameter_symbols.is_empty() {
+                return Err(AnalyzeError::Internal {
+                    message: format!(
+                        "missing signature static parameters for generic owner {owner_symbol:?}"
+                    ),
+                });
+            }
         }
 
         let resolved = self.resolve_function_signature(
@@ -4971,7 +4960,7 @@ impl Compiler {
         let Type::Function {
             asynchrony,
             cardinality,
-            mut static_parameters,
+            static_parameters,
             this_parameter,
             dynamic_parameters,
             return_type,
@@ -4986,14 +4975,24 @@ impl Compiler {
             return Ok(base_ty_id);
         };
 
-        // recover static parameters when they are missing from the signature type
         if static_parameters.is_empty() {
-            static_parameters = self.materialize_signature_static_parameters_from_source(
-                module,
-                signature_ty_id,
-                tree,
-                types,
-            );
+            let owner_parameter_symbols = self
+                .collect_static_parameter_symbols(
+                    module,
+                    canonical_symbol,
+                    ctx.profile,
+                    tree,
+                    symbols,
+                    types,
+                )
+                .unwrap_or_default();
+            if !owner_parameter_symbols.is_empty() {
+                return Err(AnalyzeError::Internal {
+                    message: format!(
+                        "missing signature static parameters for generic owner {canonical_symbol:?}"
+                    ),
+                });
+            }
         }
 
         let resolved = self.resolve_function_signature(

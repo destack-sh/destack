@@ -457,37 +457,39 @@ impl Compiler {
             )
         };
 
-        // defer associated comptime projection errors until post infer convergence
-        if self.projection_is_unresolved_associated_comptime_value(
-            module,
-            ctx.profile,
-            receiver.receiver_id,
-            lookup.member_symbol,
-            resolved_member_ty_id,
-            tree,
-            symbols,
-            types,
-        ) {
-            infer.push_deferred_associated_comptime_projection(
-                DeferredAssociatedComptimeProjection {
+        // register associated comptime obligations until post infer convergence
+        if let Some(member_symbol) = lookup.member_symbol
+            && self.projection_requires_associated_comptime_obligation(
+                module,
+                ctx.profile,
+                member_symbol,
+                lookup.receiver_context.has_static_arguments,
+                tree,
+                symbols,
+            )?
+        {
+            let obligation_is_unresolved = self.projection_obligation_is_unresolved(
+                module,
+                ctx.profile,
+                resolved_member_ty_id,
+                &lookup.substitutions,
+                symbols,
+                types,
+            );
+            infer.push_associated_comptime_projection_obligation(
+                AssociatedComptimeProjectionObligation {
                     expression_id,
-                    receiver_id: receiver.receiver_id,
-                    member_symbol: lookup.member_symbol,
+                    member_symbol,
                     member_type_id: resolved_member_ty_id,
+                    substitutions: lookup.substitutions.clone(),
                 },
             );
 
-            // use a provisional declared member type to avoid cascading diagnostics
-            resolved_member_ty_id = self
-                .provisional_type_for_unresolved_associated_comptime_projection(
-                    module,
-                    ctx.profile,
-                    lookup.member_symbol,
-                    resolved_member_ty_id,
-                    tree,
-                    symbols,
-                    types,
-                );
+            if obligation_is_unresolved {
+                // unresolved projections are semantically invalid in value space
+                // keep the local expression type as error to suppress cascades
+                resolved_member_ty_id = types.insert_type_from(Type::Error, expression_id);
+            }
         }
 
         Ok(resolved_member_ty_id)
