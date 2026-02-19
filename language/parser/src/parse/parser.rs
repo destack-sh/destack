@@ -109,38 +109,38 @@ pub struct ParserSpeculationStats {
     pub rewind_calls: u64,
     /// The number of parser restores with tree rollback.
     pub restore_calls: u64,
-    /// The number of statement keyword fast-path calls.
-    pub statement_keyword_fast_calls: u64,
-    /// The number of statement keyword fast-path prefilter rejections.
-    pub statement_keyword_fast_prefilter_rejects: u64,
-    /// The number of statement keyword fast-path keyword rejections.
-    pub statement_keyword_fast_keyword_rejects: u64,
+    /// The number of statement keyword dispatch calls.
+    pub statement_keyword_dispatch_calls: u64,
+    /// The number of statement keyword dispatch prefilter rejections.
+    pub statement_keyword_dispatch_prefilter_rejects: u64,
+    /// The number of statement keyword dispatch keyword rejections.
+    pub statement_keyword_dispatch_keyword_rejects: u64,
     /// The number of direct statement keyword hits.
-    pub statement_keyword_fast_direct_hits: u64,
+    pub statement_keyword_dispatch_direct_hits: u64,
     /// The number of direct statement keyword misses.
-    pub statement_keyword_fast_direct_misses: u64,
+    pub statement_keyword_dispatch_direct_misses: u64,
     /// The number of fallback keyword parser hits.
-    pub statement_keyword_fast_fallback_hits: u64,
+    pub statement_keyword_dispatch_fallback_hits: u64,
     /// The number of fallback keyword parser misses.
-    pub statement_keyword_fast_fallback_misses: u64,
-    /// The number of parenthesized expression fast-path calls.
-    pub parenthesized_expression_fast_calls: u64,
-    /// The number of parenthesized expression fast-path hits.
-    pub parenthesized_expression_fast_hits: u64,
-    /// The number of parenthesized expression fast-path misses.
-    pub parenthesized_expression_fast_misses: u64,
-    /// The number of simple parenthesized lambda fast-path calls.
-    pub simple_parenthesized_lambda_calls: u64,
-    /// The number of simple parenthesized lambda fast-path hits.
-    pub simple_parenthesized_lambda_hits: u64,
-    /// The number of simple parenthesized lambda fast-path misses.
-    pub simple_parenthesized_lambda_misses: u64,
-    /// The number of simple identifier lambda fast-path calls.
-    pub simple_identifier_lambda_calls: u64,
-    /// The number of simple identifier lambda fast-path hits.
-    pub simple_identifier_lambda_hits: u64,
-    /// The number of simple identifier lambda fast-path misses.
-    pub simple_identifier_lambda_misses: u64,
+    pub statement_keyword_dispatch_fallback_misses: u64,
+    /// The number of parenthesized expression plain-path calls.
+    pub parenthesized_expression_plain_calls: u64,
+    /// The number of parenthesized expression plain-path hits.
+    pub parenthesized_expression_plain_hits: u64,
+    /// The number of parenthesized expression plain-path misses.
+    pub parenthesized_expression_plain_misses: u64,
+    /// The number of plain parenthesized lambda calls.
+    pub parenthesized_lambda_plain_calls: u64,
+    /// The number of plain parenthesized lambda hits.
+    pub parenthesized_lambda_plain_hits: u64,
+    /// The number of plain parenthesized lambda misses.
+    pub parenthesized_lambda_plain_misses: u64,
+    /// The number of plain identifier lambda calls.
+    pub identifier_lambda_plain_calls: u64,
+    /// The number of plain identifier lambda hits.
+    pub identifier_lambda_plain_hits: u64,
+    /// The number of plain identifier lambda misses.
+    pub identifier_lambda_plain_misses: u64,
     /// The number of async keyword speculative attempts.
     pub async_keyword_speculative_attempts: u64,
     /// The number of async keyword speculative successes.
@@ -1103,7 +1103,7 @@ impl Parser {
 
     /// Return cursor information for the first non-newline token from a start index.
     #[inline]
-    pub(crate) fn non_newline_cursor_from(&mut self, start: usize) -> NonNewlineTokenCursor {
+    pub(crate) fn scanner_cursor_from(&mut self, start: usize) -> NonNewlineTokenCursor {
         // split tokens are parser local and do not exist in token stream cursors
         if self.has_active_split() {
             let index = self.first_non_newline_index_from(start);
@@ -1127,7 +1127,7 @@ impl Parser {
             token_type,
             skipped_newline_count,
             has_line_break_before,
-        } = self.token_stream.non_newline_cursor_from(start);
+        } = self.token_stream.scanner_cursor_from(start);
 
         NonNewlineTokenCursor {
             index,
@@ -1139,14 +1139,14 @@ impl Parser {
 
     /// Return scanner-style cursor information at the current parser position.
     #[inline]
-    pub(crate) fn peek_scanner_cursor(&mut self) -> NonNewlineTokenCursor {
-        self.peek_current_scanner_facts().1
+    pub(crate) fn current_scanner_cursor(&mut self) -> NonNewlineTokenCursor {
+        self.peek_scanner_facts().1
     }
 
     /// Advance to the current scanner cursor and return it.
     #[inline]
-    pub(crate) fn sync_to_scanner_cursor(&mut self) -> NonNewlineTokenCursor {
-        let cursor = self.peek_scanner_cursor();
+    pub(crate) fn advance_to_scanner_cursor(&mut self) -> NonNewlineTokenCursor {
+        let cursor = self.current_scanner_cursor();
         if cursor.index != self.scanner.pos() {
             self.advance_to(cursor.index);
         }
@@ -1300,7 +1300,7 @@ impl Parser {
 
     /// Return current scanner token facts for the parser position.
     #[inline]
-    fn peek_current_scanner_facts(&mut self) -> (TokenType, NonNewlineTokenCursor) {
+    fn peek_scanner_facts(&mut self) -> (TokenType, NonNewlineTokenCursor) {
         let pos = self.scanner.pos();
         if let Some((cached_pos, token_type, cursor)) = self.scanner.current_scanner_cache
             && cached_pos == pos
@@ -1326,7 +1326,7 @@ impl Parser {
                 has_line_break_before: self.line_terminator_before_index(pos),
             }
         } else {
-            self.non_newline_cursor_from(pos)
+            self.scanner_cursor_from(pos)
         };
 
         self.scanner.current_scanner_cache = Some((pos, current_raw_token_type, current_cursor));
@@ -1456,7 +1456,7 @@ impl Parser {
 
         let next_raw_index = self.index_for_next();
         let next_raw_token_type = self.token_type_at(next_raw_index);
-        let next_cursor = self.non_newline_cursor_from(next_raw_index);
+        let next_cursor = self.scanner_cursor_from(next_raw_index);
         let scanner_lookahead = ScannerLookahead {
             next_raw_token_type,
             next_cursor,
@@ -1841,7 +1841,7 @@ impl Parser {
     /// Peek the next token type, defaulting to End at EOF.
     #[inline]
     pub fn peek_token_type(&mut self) -> TokenType {
-        self.peek_current_scanner_facts().0
+        self.peek_scanner_facts().0
     }
 
     /// Peek the next token type, skipping an active split token.

@@ -20,12 +20,12 @@ pub static FUNCTION_MODIFIERS: [Keyword; 7] = [
     Keyword::New,
 ];
 
-/// Maximum token budget for simple parenthesized lambda heads.
-const SIMPLE_PARENTHESIZED_LAMBDA_MAX_TOKENS: usize = 24;
+/// Maximum token budget for plain parenthesized lambda heads.
+const PLAIN_PARENTHESIZED_LAMBDA_MAX_TOKENS: usize = 24;
 
-/// The simple head shapes accepted by the parenthesized lambda fast path.
+/// The plain head shapes accepted by the parenthesized lambda path.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum SimpleParenthesizedLambdaHeadShape {
+enum ParenthesizedLambdaHeadShape {
     /// No dynamic parameters: `()`.
     Empty,
     /// One named parameter: `(value)` or `(value: Type)`.
@@ -37,7 +37,7 @@ enum SimpleParenthesizedLambdaHeadShape {
 
 /// Precomputed follow facts for a parenthesized lambda head.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct SimpleParenthesizedLambdaHint {
+struct ParenthesizedLambdaHint {
     /// The matching close parenthesis token index.
     close_index: usize,
     /// The token type that follows the close parenthesis.
@@ -86,8 +86,8 @@ impl Parser {
         result
     }
 
-    /// Return true when the fast lambda path can be used.
-    fn can_use_simple_lambda_fast_path(
+    /// Return true when the plain lambda path can be used.
+    fn can_parse_plain_lambda(
         &self,
         descriptor: &DeclarationDescriptor,
         expect_maybe: bool,
@@ -101,7 +101,7 @@ impl Parser {
     }
 
     /// Parse a lambda body after the arrow.
-    fn eat_simple_lambda_body(
+    fn eat_plain_lambda_body(
         &mut self,
         body_start: &ParserMark,
     ) -> ParseResult<LocalNodeId<Expression>> {
@@ -124,8 +124,8 @@ impl Parser {
         }
     }
 
-    /// Build a simple lambda declaration from parsed parameters and body.
-    fn build_simple_lambda_declaration(
+    /// Build a plain lambda declaration from parsed parameters and body.
+    fn build_plain_lambda_declaration(
         &mut self,
         start: &ParserMark,
         descriptor: &DeclarationDescriptor,
@@ -163,21 +163,21 @@ impl Parser {
         function_id
     }
 
-    /// Classify a parenthesized lambda head for the simple fast path.
-    fn classify_simple_parenthesized_lambda_head(
+    /// Classify a parenthesized lambda head for the plain path.
+    fn classify_plain_parenthesized_lambda_head(
         &mut self,
         open_index: usize,
         close_index: usize,
-    ) -> Option<SimpleParenthesizedLambdaHeadShape> {
+    ) -> Option<ParenthesizedLambdaHeadShape> {
         let tokens = self.tokens();
         let head_tokens = tokens.get(open_index + 1..close_index)?;
 
-        // common simple heads: (), (x), (x: T)
+        // common plain heads: (), (x), (x: T)
         if head_tokens.is_empty() {
-            return Some(SimpleParenthesizedLambdaHeadShape::Empty);
+            return Some(ParenthesizedLambdaHeadShape::Empty);
         }
         if head_tokens.len() == 1 && head_tokens[0].token.ty == TokenType::Identifier {
-            return Some(SimpleParenthesizedLambdaHeadShape::Named {
+            return Some(ParenthesizedLambdaHeadShape::Named {
                 has_type_annotation: false,
             });
         }
@@ -189,12 +189,12 @@ impl Parser {
                 TokenType::Identifier | TokenType::Literal
             )
         {
-            return Some(SimpleParenthesizedLambdaHeadShape::Named {
+            return Some(ParenthesizedLambdaHeadShape::Named {
                 has_type_annotation: true,
             });
         }
 
-        // track the simple head state
+        // track the plain head state
         let mut has_parameter = false;
         let mut has_type_annotation = false;
         let mut has_type_tokens = false;
@@ -287,30 +287,30 @@ impl Parser {
                 return None;
             }
 
-            return Some(SimpleParenthesizedLambdaHeadShape::Named {
+            return Some(ParenthesizedLambdaHeadShape::Named {
                 has_type_annotation,
             });
         }
 
-        Some(SimpleParenthesizedLambdaHeadShape::Empty)
+        Some(ParenthesizedLambdaHeadShape::Empty)
     }
 
-    /// Try to parse simple `() => body`, `(identifier) => body`, or `(identifier: Type) => body` lambdas.
-    fn try_eat_simple_parenthesized_lambda(
+    /// Try to parse plain `() => body`, `(identifier) => body`, or `(identifier: Type) => body` lambdas.
+    fn try_eat_plain_parenthesized_lambda(
         &mut self,
         start: &ParserMark,
         descriptor: &DeclarationDescriptor,
         expect_maybe: bool,
         expect_body: bool,
-        hint: Option<SimpleParenthesizedLambdaHint>,
+        hint: Option<ParenthesizedLambdaHint>,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.simple_parenthesized_lambda_calls += 1;
+            speculation_stats.parenthesized_lambda_plain_calls += 1;
         }
         // only parse value lambdas without declaration modifiers
-        if !self.can_use_simple_lambda_fast_path(descriptor, expect_maybe, expect_body) {
+        if !self.can_parse_plain_lambda(descriptor, expect_maybe, expect_body) {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.simple_parenthesized_lambda_misses += 1;
+                speculation_stats.parenthesized_lambda_plain_misses += 1;
             }
             return Ok(None);
         }
@@ -318,7 +318,7 @@ impl Parser {
         // require a parenthesized head
         if !self.peek_is(TokenType::OpenParenthesis) {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.simple_parenthesized_lambda_misses += 1;
+                speculation_stats.parenthesized_lambda_plain_misses += 1;
             }
             return Ok(None);
         }
@@ -330,7 +330,7 @@ impl Parser {
         } else {
             let Some(close_index) = self.matching_pair_or_lex(open_index) else {
                 if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                    speculation_stats.simple_parenthesized_lambda_misses += 1;
+                    speculation_stats.parenthesized_lambda_plain_misses += 1;
                 }
                 return Ok(None);
             };
@@ -340,14 +340,14 @@ impl Parser {
         };
         if close_index <= open_index {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.simple_parenthesized_lambda_misses += 1;
+                speculation_stats.parenthesized_lambda_plain_misses += 1;
             }
             return Ok(None);
         }
         let token_count_inside = close_index.saturating_sub(open_index + 1);
-        if token_count_inside > SIMPLE_PARENTHESIZED_LAMBDA_MAX_TOKENS {
+        if token_count_inside > PLAIN_PARENTHESIZED_LAMBDA_MAX_TOKENS {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.simple_parenthesized_lambda_misses += 1;
+                speculation_stats.parenthesized_lambda_plain_misses += 1;
             }
             return Ok(None);
         }
@@ -358,17 +358,17 @@ impl Parser {
             TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon
         ) {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.simple_parenthesized_lambda_misses += 1;
+                speculation_stats.parenthesized_lambda_plain_misses += 1;
             }
             return Ok(None);
         }
 
         // classify the head shape
         let Some(head_shape) =
-            self.classify_simple_parenthesized_lambda_head(open_index, close_index)
+            self.classify_plain_parenthesized_lambda_head(open_index, close_index)
         else {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.simple_parenthesized_lambda_misses += 1;
+                speculation_stats.parenthesized_lambda_plain_misses += 1;
             }
             return Ok(None);
         };
@@ -377,7 +377,7 @@ impl Parser {
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
         let mut dynamic_parameters = Vec::with_capacity(1);
-        if let SimpleParenthesizedLambdaHeadShape::Named {
+        if let ParenthesizedLambdaHeadShape::Named {
             has_type_annotation,
         } = head_shape
         {
@@ -451,9 +451,9 @@ impl Parser {
         self.eat_arrow()?;
         self.eat_newlines_maybe()?;
         let body_start = self.mark_span();
-        let body = self.eat_simple_lambda_body(&body_start)?;
+        let body = self.eat_plain_lambda_body(&body_start)?;
 
-        let function_id = self.build_simple_lambda_declaration(
+        let function_id = self.build_plain_lambda_declaration(
             start,
             descriptor,
             dynamic_parameters,
@@ -463,7 +463,7 @@ impl Parser {
         );
 
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.simple_parenthesized_lambda_hits += 1;
+            speculation_stats.parenthesized_lambda_plain_hits += 1;
         }
 
         Ok(Some(function_id))
@@ -476,10 +476,10 @@ impl Parser {
         descriptor: &DeclarationDescriptor,
         expect_maybe: bool,
         expect_body: bool,
-        hint: Option<SimpleParenthesizedLambdaHint>,
+        hint: Option<ParenthesizedLambdaHint>,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
         // only parse value lambdas without declaration modifiers
-        if !self.can_use_simple_lambda_fast_path(descriptor, expect_maybe, expect_body) {
+        if !self.can_parse_plain_lambda(descriptor, expect_maybe, expect_body) {
             return Ok(None);
         }
 
@@ -551,9 +551,9 @@ impl Parser {
         self.eat_arrow()?;
         self.eat_newlines_maybe()?;
         let body_start = self.mark_span();
-        let body = self.eat_simple_lambda_body(&body_start)?;
+        let body = self.eat_plain_lambda_body(&body_start)?;
 
-        let function_id = self.build_simple_lambda_declaration(
+        let function_id = self.build_plain_lambda_declaration(
             start,
             descriptor,
             dynamic_parameters,
@@ -565,8 +565,8 @@ impl Parser {
         Ok(Some(function_id))
     }
 
-    /// Try to parse a simple `identifier => body` lambda with minimal branching.
-    fn try_eat_simple_identifier_lambda(
+    /// Try to parse a plain `identifier => body` lambda with minimal branching.
+    fn try_eat_plain_identifier_lambda(
         &mut self,
         start: &ParserMark,
         descriptor: &DeclarationDescriptor,
@@ -574,13 +574,13 @@ impl Parser {
         expect_body: bool,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.simple_identifier_lambda_calls += 1;
+            speculation_stats.identifier_lambda_plain_calls += 1;
         }
 
         // only parse value lambdas without declaration modifiers
-        if !self.can_use_simple_lambda_fast_path(descriptor, expect_maybe, expect_body) {
+        if !self.can_parse_plain_lambda(descriptor, expect_maybe, expect_body) {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.simple_identifier_lambda_misses += 1;
+                speculation_stats.identifier_lambda_plain_misses += 1;
             }
             return Ok(None);
         }
@@ -593,7 +593,7 @@ impl Parser {
             )
         {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.simple_identifier_lambda_misses += 1;
+                speculation_stats.identifier_lambda_plain_misses += 1;
             }
             return Ok(None);
         }
@@ -614,10 +614,10 @@ impl Parser {
         self.eat_arrow()?;
         self.eat_newlines_maybe()?;
         let body_start = self.mark_span();
-        let body = self.eat_simple_lambda_body(&body_start)?;
+        let body = self.eat_plain_lambda_body(&body_start)?;
 
         // build the declaration
-        let function_id = self.build_simple_lambda_declaration(
+        let function_id = self.build_plain_lambda_declaration(
             start,
             descriptor,
             vec![parameter_id],
@@ -627,7 +627,7 @@ impl Parser {
         );
 
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.simple_identifier_lambda_hits += 1;
+            speculation_stats.identifier_lambda_plain_hits += 1;
         }
 
         Ok(Some(function_id))
@@ -699,7 +699,7 @@ impl Parser {
         close_index: usize,
         follow_token_type: TokenType,
     ) -> ParseResult<LocalNodeId<Declaration>> {
-        let hint = Some(SimpleParenthesizedLambdaHint {
+        let hint = Some(ParenthesizedLambdaHint {
             close_index,
             follow_token_type,
         });
@@ -713,18 +713,18 @@ impl Parser {
         mut descriptor: DeclarationDescriptor,
         expect_maybe: bool,
         expect_body: bool,
-        simple_parenthesized_hint: Option<SimpleParenthesizedLambdaHint>,
+        plain_parenthesized_hint: Option<ParenthesizedLambdaHint>,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         let _timing = self.timing_scope(tags::PARSE_FUNCTION);
 
-        // parse simple lambda heads only when the token shape matches
+        // parse plain lambda heads only when the token shape matches
         if self.peek_is(TokenType::OpenParenthesis) {
-            if let Some(function_id) = self.try_eat_simple_parenthesized_lambda(
+            if let Some(function_id) = self.try_eat_plain_parenthesized_lambda(
                 start,
                 &descriptor,
                 expect_maybe,
                 expect_body,
-                simple_parenthesized_hint,
+                plain_parenthesized_hint,
             )? {
                 return Ok(function_id);
             }
@@ -734,7 +734,7 @@ impl Parser {
                 &descriptor,
                 expect_maybe,
                 expect_body,
-                simple_parenthesized_hint,
+                plain_parenthesized_hint,
             )? {
                 return Ok(function_id);
             }
@@ -743,12 +743,8 @@ impl Parser {
                 self.peek_next_token_type(),
                 TokenType::Arrow | TokenType::ArrowWide
             )
-            && let Some(function_id) = self.try_eat_simple_identifier_lambda(
-                start,
-                &descriptor,
-                expect_maybe,
-                expect_body,
-            )?
+            && let Some(function_id) =
+                self.try_eat_plain_identifier_lambda(start, &descriptor, expect_maybe, expect_body)?
         {
             return Ok(function_id);
         }
@@ -874,7 +870,7 @@ impl Parser {
 
                 dynamic_parameters
             }
-            // simple no-parentheses `x => y` lambda value
+            // plain no-parentheses `x => y` lambda value
             else {
                 if is_generator && self.is_keyword(Keyword::Yield) {
                     return Err(ParseError::unexpected(self.peek()?.span));
@@ -1163,7 +1159,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_simple_parenthesized_lambda_with_newlines() {
+    fn test_parse_plain_parenthesized_lambda_with_newlines() {
         let mut test = TestParser::new("(\nvalue\n) => value");
         let mut parser = test.prepare();
 
@@ -1187,7 +1183,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_simple_parenthesized_typed_lambda() {
+    fn test_parse_plain_parenthesized_typed_lambda() {
         let mut test = TestParser::new("(value: number) => value");
         let mut parser = test.prepare();
 

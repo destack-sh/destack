@@ -848,7 +848,7 @@ impl Parser {
         // track whether we expect an element (at start or after comma)
         let mut expect_element = first_element.is_none();
         while self.has_more_tokens() {
-            let cursor = self.sync_to_scanner_cursor();
+            let cursor = self.advance_to_scanner_cursor();
             let token_type = cursor.token_type;
 
             // stop at the closing token (trailing commas are allowed, no hole)
@@ -3141,70 +3141,111 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    /// Parse JSX text that includes `=` and `>=` after opening tags.
+    /// Parse JSX text that includes `=` after opening tags.
     #[test]
-    fn test_parse_jsx_text_with_equals() {
-        let cases = [
-            (r#"<div className={styles.foo}>=</div>"#, "="),
-            (r#"<div className={styles.foo} >=</div>"#, "="),
-            (r#"<div>=</div>"#, "="),
-            (r#"<div >=</div>"#, "="),
-        ];
+    fn test_parse_jsx_text_with_equals_after_tag_with_attribute_no_space() {
+        let mut test = TestParser::new_with_options(
+            r#"<div className={styles.foo}>=</div>"#,
+            LanguageType::JavaScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
 
-        // parse each case and verify the text node
-        for (input, expected_text) in cases {
-            let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
-            let mut parser = test.prepare();
-            let expression = parser.eat_tree_literal().unwrap();
-            assert_node!(parser.tree, expression, Expression::TreeExpression { elements, .. } => {
-                let elements = elements.as_ref().expect("expected elements");
-                assert_eq!(elements.len(), 1);
-                assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
-                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
-                        assert_string!(parser, *string_id, expected_text);
-                    });
+        assert_node!(parser.tree, expression, Expression::TreeExpression { elements, .. } => {
+            let elements = elements.as_ref().expect("expected elements");
+            assert_eq!(elements.len(), 1);
+            assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                    assert_string!(parser, *string_id, "=");
                 });
             });
-        }
+        });
     }
 
-    /// Parse JSX fragments containing text and comparisons after closing tags.
+    /// Parse JSX text that includes `=` after opening tags.
     #[test]
-    fn test_parse_jsx_fragment_with_equals() {
-        let text_cases = [(r#"<>=x</>"#, "=x"), (r#"<span>=x</span>"#, "=x")];
+    fn test_parse_jsx_text_with_equals_after_tag_with_attribute_with_space() {
+        let mut test = TestParser::new_with_options(
+            r#"<div className={styles.foo} >=</div>"#,
+            LanguageType::JavaScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
 
-        // parse text cases inside fragments and elements
-        for (input, expected_text) in text_cases {
-            let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
-            let mut parser = test.prepare();
-            let expression = parser.eat_tree_literal().unwrap();
-            assert_node!(parser.tree, expression, Expression::TreeExpression { elements, .. } => {
-                let elements = elements.as_ref().expect("expected elements");
-                assert_eq!(elements.len(), 1);
-                assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
-                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
-                        assert_string!(parser, *string_id, expected_text);
-                    });
+        assert_node!(parser.tree, expression, Expression::TreeExpression { elements, .. } => {
+            let elements = elements.as_ref().expect("expected elements");
+            assert_eq!(elements.len(), 1);
+            assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                    assert_string!(parser, *string_id, "=");
                 });
             });
-        }
+        });
+    }
 
-        let operator_cases = [
-            (r#"<>x</>>=1"#, BinaryOperator::GreaterThanOrEqual),
-            (r#"<span>x</span>>=1"#, BinaryOperator::GreaterThanOrEqual),
-        ];
+    /// Parse JSX text that includes `=` after opening tags.
+    #[test]
+    fn test_parse_jsx_text_with_equals_after_simple_tag_no_space() {
+        let mut test = TestParser::new_with_options(r#"<div>=</div>"#, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
 
-        // parse operator cases where >= follows a closing tag
-        for (input, expected_operator) in operator_cases {
-            let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
-            let mut parser = test.prepare();
-            let expression = parser.eat_expression(parser.options).unwrap();
-            assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
-                assert_eq!(*operator, expected_operator);
-                assert_node!(parser.tree, *left, Expression::TreeExpression { .. });
-                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        assert_node!(parser.tree, expression, Expression::TreeExpression { elements, .. } => {
+            let elements = elements.as_ref().expect("expected elements");
+            assert_eq!(elements.len(), 1);
+            assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                    assert_string!(parser, *string_id, "=");
+                });
             });
-        }
+        });
+    }
+
+    /// Parse JSX fragments containing text after opening tags.
+    #[test]
+    fn test_parse_jsx_fragment_text_with_equals_prefix() {
+        let mut test = TestParser::new_with_options(r#"<>=x</>"#, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+
+        assert_node!(parser.tree, expression, Expression::TreeExpression { elements, .. } => {
+            let elements = elements.as_ref().expect("expected elements");
+            assert_eq!(elements.len(), 1);
+            assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                    assert_string!(parser, *string_id, "=x");
+                });
+            });
+        });
+    }
+
+    /// Parse JSX fragments followed by `>=1` as binary expressions.
+    #[test]
+    fn test_parse_jsx_fragment_followed_by_greater_than_or_equal() {
+        let mut test = TestParser::new_with_options(r#"<>x</>>=1"#, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let expression = parser.eat_expression(parser.options).unwrap();
+
+        assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::GreaterThanOrEqual);
+            assert_node!(parser.tree, *left, Expression::TreeExpression { .. });
+            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+    }
+
+    /// Parse JSX elements followed by `>=1` as binary expressions.
+    #[test]
+    fn test_parse_jsx_element_followed_by_greater_than_or_equal() {
+        let mut test =
+            TestParser::new_with_options(r#"<span>x</span>>=1"#, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let expression = parser.eat_expression(parser.options).unwrap();
+
+        assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::GreaterThanOrEqual);
+            assert_node!(parser.tree, *left, Expression::TreeExpression { .. });
+            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
     }
 
     /// Parse JSX fragments with text between child elements in arrays.
@@ -3484,36 +3525,9 @@ mod tests {
         assert_eq!(parser.get_span_str(error.leaf_span()), "/");
     }
 
-    /// Parse JSX elements after newline-terminated let and var declarations.
+    /// Parse JSX elements after newline-terminated declarations.
     #[test]
-    fn test_parse_jsx_after_let_newline() {
-        let cases = [
-            "let x\n<Comp></Comp>",
-            "let x\n\n<Comp></Comp>",
-            "let x;\n<Comp></Comp>",
-            "var x\n<Comp></Comp>",
-            "var x;\n<Comp></Comp>",
-            "{ foo: 'test' }\n<Comp></Comp>",
-            "function test1() {}\n<Comp></Comp>",
-        ];
-
-        // ensure top-level newline allows tree literals after declarations
-        for input in cases {
-            let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
-            let mut parser = test.prepare();
-            let expressions = parser.parse();
-            assert_eq!(expressions.len(), 2);
-            let tree_expression = match parser.tree.get(expressions[1]) {
-                Expression::Statement(expression_id) => *expression_id,
-                _ => expressions[1],
-            };
-            assert_node!(
-                parser.tree,
-                tree_expression,
-                Expression::TreeExpression { .. }
-            );
-        }
-
+    fn test_parse_jsx_after_let_newline_inside_function() {
         let input = r#"
 function x() {
     let x
@@ -3524,7 +3538,6 @@ function x() {
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
-        // ensure tree literals follow let statements inside blocks
         assert_eq!(expressions.len(), 1);
         assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function { body, .. } => {

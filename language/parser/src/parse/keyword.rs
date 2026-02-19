@@ -34,7 +34,7 @@ impl Parser {
     /// Return true when the token after any leading newlines is the given keyword.
     #[inline]
     pub fn is_keyword_after_newlines(&mut self, keyword: Keyword) -> bool {
-        let cursor = self.peek_scanner_cursor();
+        let cursor = self.current_scanner_cursor();
         self.keyword_is_at(cursor.index, keyword)
     }
 

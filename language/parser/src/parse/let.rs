@@ -257,9 +257,9 @@ impl Parser {
 
         // pattern
         let pattern_id = if self.peek_is(TokenType::Identifier) {
-            // fast path for simple binding patterns
+            // simple path for simple binding patterns
             let next_token_type = self.peek_next_token_type();
-            let can_fast_path = matches!(
+            let can_use_simple_let_path = matches!(
                 next_token_type,
                 TokenType::Colon
                     | TokenType::Assign
@@ -271,7 +271,7 @@ impl Parser {
                     | TokenType::End
                     | TokenType::Newline
             );
-            if can_fast_path {
+            if can_use_simple_let_path {
                 let has_active_split = self.has_active_split();
                 let keyword = if has_active_split {
                     None

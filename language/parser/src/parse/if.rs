@@ -9,7 +9,7 @@ impl Parser {
     fn eat_expression_as_block(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark_span();
 
-        // empty statement in JS/TS
+        // js/ts: empty statement
         if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
             self.bump();
             let block_id = self.tree.insert(
@@ -26,33 +26,78 @@ impl Parser {
             return Ok(expression_id);
         }
 
+        // parse one statement expression in statement mode
         let statement_options = self.options.in_before_block();
         let expression_id = self.with_options(statement_options, |parser| {
-            parser.eat_statement_expression_in_current_options()
+            parser.eat_statement_expression()
         })?;
 
-        // reject declaration statements in single statement contexts
+        // js/ts: reject declarations in single-statement contexts
         if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
             return Err(ParseError::unexpected(self.tree.get_span(expression_id)));
         }
-        if !matches!(self.tree.get(expression_id), Expression::Block { .. })
-            && !matches!(self.tree.get(expression_id), Expression::If { .. })
-        {
-            let block_id = self.tree.insert(
-                Block {
-                    context: BlockContext::Statement,
-                    format: BlockFormat::Implicit,
-                    expressions: vec![expression_id],
-                },
-                self.get_span_from(&start),
-            );
-            let expression_id = self
-                .tree
-                .insert(Expression::Block(block_id), self.get_span_from(&start));
-            Ok(expression_id)
-        } else {
-            Ok(expression_id)
+
+        // keep existing block-like expressions
+        if matches!(
+            self.tree.get(expression_id),
+            Expression::Block { .. } | Expression::If { .. }
+        ) {
+            return Ok(expression_id);
         }
+
+        // wrap a non-block expression into an implicit statement block
+        let block_id = self.tree.insert(
+            Block {
+                context: BlockContext::Statement,
+                format: BlockFormat::Implicit,
+                expressions: vec![expression_id],
+            },
+            self.get_span_from(&start),
+        );
+        let expression_id = self
+            .tree
+            .insert(Expression::Block(block_id), self.get_span_from(&start));
+
+        Ok(expression_id)
+    }
+
+    /// Eat an optional else expression for an if expression.
+    fn eat_if_else_expression_maybe(&mut self) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        // save state so missing else can rewind cleanly
+        let else_mark = self.mark();
+        let else_tree_mark = self.tree.next_id();
+
+        // js/ts: consume optional semicolon separators before else
+        if !self.language.is_destack() {
+            loop {
+                let cursor = self.advance_to_scanner_cursor();
+                if cursor.token_type != TokenType::Semicolon {
+                    break;
+                }
+
+                self.bump();
+            }
+        }
+
+        // align before checking the else keyword
+        self.advance_to_scanner_cursor();
+
+        // no else: restore speculative state
+        if !self.is_keyword(Keyword::Else) {
+            self.restore(else_mark, else_tree_mark);
+            return Ok(None);
+        }
+
+        // else keyword
+        self.eat_keyword(Keyword::Else)?;
+        self.eat_newlines_maybe()?;
+
+        // else body
+        let else_options = self.options.in_statement_position();
+        let else_expression_id =
+            self.with_options(else_options, |parser| parser.eat_expression_as_block())?;
+
+        Ok(Some(else_expression_id))
     }
 
     /// Parse an if / else expression.
@@ -120,25 +165,14 @@ impl Parser {
         let then_expression_id =
             self.with_options(then_options, |parser| parser.eat_expression_as_block())?;
 
-        // allow semicolons between then and else branches in JS/TS
+        // consume a trailing then-statement semicolon in JS/TS
         if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
-            self.bump(); // eat semicolon
+            self.bump();
             self.eat_newlines_maybe()?;
         }
 
-        // if / else if / else node
-        let else_expression_id = if self.is_keyword_after_newlines(Keyword::Else) {
-            self.eat_newlines_maybe()?;
-            self.eat_keyword(Keyword::Else)?;
-            self.eat_newlines_maybe()?;
-            let else_options = self.options.in_statement_position();
-            let else_expression_id =
-                self.with_options(else_options, |parser| parser.eat_expression_as_block())?;
-
-            Some(else_expression_id)
-        } else {
-            None
-        };
+        // optional else branch
+        let else_expression_id = self.eat_if_else_expression_maybe()?;
 
         // if ...
         let if_node = Expression::If {
@@ -794,5 +828,35 @@ else
 
         assert_eq!(parser.tree.comment_trivia().len(), 1);
         crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "else-boundary");
+    }
+
+    #[test]
+    fn test_parse_if_else_after_then_semicolon_with_leading_boundary_comment() {
+        let input = "if (foo) a = b;\n/* foo */ else foo.split;";
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
+            assert!(else_expression.is_some());
+        });
+    }
+
+    #[test]
+    fn test_parse_if_else_after_then_semicolon_with_trailing_boundary_comment() {
+        let input = "if (foo) a = b;\nelse /* foo */ foo.split;";
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
+            assert!(else_expression.is_some());
+        });
     }
 }

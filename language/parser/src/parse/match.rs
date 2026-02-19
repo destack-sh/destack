@@ -81,7 +81,7 @@ impl Parser {
         let mut has_default_case = false;
         while self.has_more_tokens() {
             // normalize cursor to the next non newline token
-            let cursor = self.sync_to_scanner_cursor();
+            let cursor = self.advance_to_scanner_cursor();
             let token_type = cursor.token_type;
 
             // stop on closing brace

@@ -541,7 +541,7 @@ impl TokenStream {
             && self.tokens.is_empty()
             && self.side_tokens.is_empty()
         {
-            self.lex_to_end_fast_non_tree();
+            self.lex_to_end_non_tree();
             return;
         }
 
@@ -779,19 +779,19 @@ impl TokenStream {
 
     /// Return cursor information for the first non-newline token from a start index.
     #[inline]
-    pub fn non_newline_cursor_from(&mut self, start: usize) -> TokenStreamCursor {
+    pub fn scanner_cursor_from(&mut self, start: usize) -> TokenStreamCursor {
         // hot fast path: full token stream is already materialized
         if self.is_finished {
-            return self.non_newline_cursor_from_cached(start);
+            return self.scanner_cursor_from_cached(start);
         }
 
         self.ensure_token(start);
-        self.non_newline_cursor_from_materialized(start)
+        self.scanner_cursor_from_materialized(start)
     }
 
     /// Return cursor information for the first non-newline token from a start index.
     #[inline]
-    fn non_newline_cursor_from_cached(&self, start: usize) -> TokenStreamCursor {
+    fn scanner_cursor_from_cached(&self, start: usize) -> TokenStreamCursor {
         let len = self.tokens.len();
         if start >= len {
             return TokenStreamCursor {
@@ -847,7 +847,7 @@ impl TokenStream {
 
     /// Return cursor information for the first non-newline token from a start index.
     #[inline]
-    fn non_newline_cursor_from_materialized(&mut self, start: usize) -> TokenStreamCursor {
+    fn scanner_cursor_from_materialized(&mut self, start: usize) -> TokenStreamCursor {
         let len = self.tokens.len();
         if start >= len {
             return TokenStreamCursor {
@@ -952,7 +952,7 @@ impl TokenStream {
     }
 
     /// Lex all tokens in a single pass for non tree literal sources.
-    fn lex_to_end_fast_non_tree(&mut self) {
+    fn lex_to_end_non_tree(&mut self) {
         while !self.is_finished {
             self.lex_one();
         }

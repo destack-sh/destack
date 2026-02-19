@@ -82,7 +82,7 @@ impl Parser {
             return Ok(());
         }
 
-        self.sync_to_scanner_cursor();
+        self.advance_to_scanner_cursor();
 
         Ok(())
     }

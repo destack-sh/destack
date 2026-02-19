@@ -445,7 +445,7 @@ impl Parser {
     /// Peek an infix operator after any newlines.
     #[inline]
     pub fn peek_infix_operator_after_newlines_maybe(&mut self) -> Option<(InfixOperator, u8)> {
-        let cursor = self.non_newline_cursor_from(self.pos_index().saturating_add(1));
+        let cursor = self.scanner_cursor_from(self.pos_index().saturating_add(1));
         self.peek_infix_operator_at_index_maybe(cursor.index, true)
     }
 

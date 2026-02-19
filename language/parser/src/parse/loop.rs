@@ -60,10 +60,12 @@ impl Parser {
 
         // keyword
         self.eat_keyword(Keyword::For)?;
+        self.eat_newlines_maybe()?;
 
         // asynchrony
         let asynchrony = if self.is_keyword(Keyword::Await) {
             self.bump(); // eat await keyword
+            self.eat_newlines_maybe()?;
             Asynchrony::Async
         } else {
             Asynchrony::Sync
@@ -400,6 +402,40 @@ for (const item in items) {
             });
             // items
             assert_expression_path!(parser, parser.tree.get(*iterator), "items");
+        });
+    }
+
+    #[test]
+    fn test_parse_for_loop_with_line_comment_after_keyword_javascript() {
+        let mut test =
+            TestParser::new_with_options("for // comment\n(;;);", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body } => {
+            assert!(initialization.is_none());
+            assert!(condition.is_none());
+            assert!(increment.is_none());
+            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                assert!(expressions.is_empty());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_for_loop_with_block_comment_after_keyword_javascript() {
+        let mut test =
+            TestParser::new_with_options("for /* comment */(;;);", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body } => {
+            assert!(initialization.is_none());
+            assert!(condition.is_none());
+            assert!(increment.is_none());
+            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                assert!(expressions.is_empty());
+            });
         });
     }
 

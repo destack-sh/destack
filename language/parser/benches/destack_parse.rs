@@ -146,29 +146,29 @@ fn print_parser_speculation_snapshot_once(parser: &Parser, label: &str) {
         stats.with_options_calls, stats.rewind_calls, stats.restore_calls
     );
     eprintln!(
-        "  statement fast: calls={} prefilter_rejects={} keyword_rejects={} direct_hits={} direct_misses={} fallback_hits={} fallback_misses={}",
-        stats.statement_keyword_fast_calls,
-        stats.statement_keyword_fast_prefilter_rejects,
-        stats.statement_keyword_fast_keyword_rejects,
-        stats.statement_keyword_fast_direct_hits,
-        stats.statement_keyword_fast_direct_misses,
-        stats.statement_keyword_fast_fallback_hits,
-        stats.statement_keyword_fast_fallback_misses,
+        "  statement dispatch: calls={} prefilter_rejects={} keyword_rejects={} direct_hits={} direct_misses={} fallback_hits={} fallback_misses={}",
+        stats.statement_keyword_dispatch_calls,
+        stats.statement_keyword_dispatch_prefilter_rejects,
+        stats.statement_keyword_dispatch_keyword_rejects,
+        stats.statement_keyword_dispatch_direct_hits,
+        stats.statement_keyword_dispatch_direct_misses,
+        stats.statement_keyword_dispatch_fallback_hits,
+        stats.statement_keyword_dispatch_fallback_misses,
     );
     eprintln!(
-        "  parenthesized fast: calls={} hits={} misses={}",
-        stats.parenthesized_expression_fast_calls,
-        stats.parenthesized_expression_fast_hits,
-        stats.parenthesized_expression_fast_misses,
+        "  parenthesized plain: calls={} hits={} misses={}",
+        stats.parenthesized_expression_plain_calls,
+        stats.parenthesized_expression_plain_hits,
+        stats.parenthesized_expression_plain_misses,
     );
     eprintln!(
-        "  lambda fast: paren calls={} hits={} misses={} identifier calls={} hits={} misses={}",
-        stats.simple_parenthesized_lambda_calls,
-        stats.simple_parenthesized_lambda_hits,
-        stats.simple_parenthesized_lambda_misses,
-        stats.simple_identifier_lambda_calls,
-        stats.simple_identifier_lambda_hits,
-        stats.simple_identifier_lambda_misses,
+        "  lambda plain: paren calls={} hits={} misses={} identifier calls={} hits={} misses={}",
+        stats.parenthesized_lambda_plain_calls,
+        stats.parenthesized_lambda_plain_hits,
+        stats.parenthesized_lambda_plain_misses,
+        stats.identifier_lambda_plain_calls,
+        stats.identifier_lambda_plain_hits,
+        stats.identifier_lambda_plain_misses,
     );
     eprintln!(
         "  async speculative: attempts={} successes={} rollbacks={}",

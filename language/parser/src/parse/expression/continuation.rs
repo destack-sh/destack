@@ -28,10 +28,15 @@ impl Parser {
         let next_token_type = self.token_type_at(next_token_index);
         let is_postfix_or_assign = UnaryOperator::from_postfix_token(next_token_type).is_some()
             || AssignOperator::from_token(next_token_type).is_some();
+        let starts_lambda_head = matches!(
+            next_token_type,
+            TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon
+        );
 
-        // only postfix and assign continuations force statement termination:
+        // postfix and assign continuations force statement termination:
         // `expr\n(arg).member` remains one continued expression
-        is_postfix_or_assign
+        // lambda-head follows cannot continue a direct call receiver safely
+        is_postfix_or_assign || starts_lambda_head
     }
 
     /// Parse expression continuation operators after a primary expression.
@@ -46,8 +51,9 @@ impl Parser {
             if expression.is_top_level_statement() {
                 let is_lambda_declaration = match expression {
                     Expression::Declaration(declaration_id) => {
+                        let declaration = self.tree.get(*declaration_id);
                         matches!(
-                            self.tree.get(*declaration_id),
+                            declaration,
                             Declaration::Function { signature, .. }
                                 if signature.kind == FunctionKind::Lambda
                         )
@@ -93,7 +99,7 @@ impl Parser {
             // eat all regular postfix operators
             loop {
                 // load scanner state for this postfix step
-                let cursor = self.peek_scanner_cursor();
+                let cursor = self.current_scanner_cursor();
                 let token_type = cursor.token_type;
 
                 if token_type == TokenType::End {
@@ -107,6 +113,13 @@ impl Parser {
                     self.token_type_at(cursor_index.saturating_add(1))
                 } else {
                     TokenType::End
+                };
+                let next_token_type_after_newlines = if token_type == TokenType::Dot {
+                    let next_index =
+                        self.first_non_newline_index_from(cursor_index.saturating_add(1));
+                    self.token_type_at(next_index)
+                } else {
+                    next_token_type
                 };
 
                 // most postfix operators are not allowed across newline tokens
@@ -133,7 +146,7 @@ impl Parser {
                     token_type,
                     TokenType::TemplateString | TokenType::TemplateStringStart
                 );
-                let can_start_postfix_lane = postfix_unary_operator.is_some()
+                let can_enter_postfix_continuation = postfix_unary_operator.is_some()
                     || is_template_start_token
                     || matches!(
                         token_type,
@@ -147,7 +160,7 @@ impl Parser {
                             | TokenType::ShiftLeft
                             | TokenType::Identifier
                     );
-                if !can_start_postfix_lane {
+                if !can_enter_postfix_continuation {
                     break;
                 }
 
@@ -178,15 +191,15 @@ impl Parser {
                     token_type == TokenType::OpenParenthesis && has_line_break_before;
                 let should_terminate_newline_direct_call = has_direct_call_after_newlines
                     && self.newline_direct_call_terminates_statement(cursor_index);
-                let has_indirect_call =
-                    token_type == TokenType::Dot && next_token_type == TokenType::OpenParenthesis;
+                let has_indirect_call = token_type == TokenType::Dot
+                    && next_token_type_after_newlines == TokenType::OpenParenthesis;
                 let can_direct_call = (has_direct_call
                     || has_direct_call_after_newlines && !should_terminate_newline_direct_call)
                     && !is_in_type
                     && !left_is_maybe
                     && !is_in_new_receiver;
 
-                // direct and indirect call dispatch share the same continuation lane
+                // direct and indirect call dispatch share the same continuation path
                 let should_parse_call = (can_direct_call || has_indirect_call) && !is_in_type;
 
                 // unary postfix operations
@@ -229,10 +242,10 @@ impl Parser {
                 }
                 // dot member and private member dispatch via scanner cursor
                 else if token_type == TokenType::Dot
-                    && next_token_type != TokenType::OpenParenthesis
-                    && next_token_type != TokenType::OpenBracket
-                    && next_token_type != TokenType::Maybe
-                    && next_token_type != TokenType::Not
+                    && next_token_type_after_newlines != TokenType::OpenParenthesis
+                    && next_token_type_after_newlines != TokenType::OpenBracket
+                    && next_token_type_after_newlines != TokenType::Maybe
+                    && next_token_type_after_newlines != TokenType::Not
                     && let Some((member_index, is_private_member)) =
                         self.peek_dot_member_target(cursor_index, left_expression_id)
                 {
@@ -289,13 +302,15 @@ impl Parser {
                 }
                 // index (like `[]`)
                 else if token_type == TokenType::OpenBracket && !left_is_maybe
-                    || token_type == TokenType::Dot && next_token_type == TokenType::OpenBracket
+                    || token_type == TokenType::Dot
+                        && next_token_type_after_newlines == TokenType::OpenBracket
                 {
                     if has_pending_newline_tokens {
                         self.advance_to(cursor_index);
                     }
                     let position = if token_type == TokenType::Dot {
                         self.bump(); // eat .
+                        self.eat_newlines_maybe()?;
                         PostfixPosition::Indirect
                     } else {
                         PostfixPosition::Direct
@@ -317,6 +332,7 @@ impl Parser {
                     }
                     let position = if token_type == TokenType::Dot {
                         self.bump(); // eat .
+                        self.eat_newlines_maybe()?;
                         PostfixPosition::Indirect
                     } else {
                         PostfixPosition::Direct
@@ -539,7 +555,7 @@ impl Parser {
             let _timing = self.timing_scope(tags::PARSE_EXPRESSION_INFIX);
             let left_precedence = self.options.left_precedence;
             loop {
-                let cursor = self.peek_scanner_cursor();
+                let cursor = self.current_scanner_cursor();
                 let token_type = cursor.token_type;
                 if token_type == TokenType::End {
                     break;
@@ -666,7 +682,7 @@ impl Parser {
                     right_options.set_in_type_conditional_right(true);
                 }
                 let old_options = self.swap_options(right_options);
-                let right_expression_result = self.eat_expression_in_current_options();
+                let right_expression_result = self.eat_expression_in_scope();
                 self.restore_options(old_options);
                 let right_expression_id = right_expression_result?;
 
@@ -697,7 +713,7 @@ impl Parser {
 
         // value ternary after infix to keep lowest precedence
         // NOTE #Cleanup: having multiple ternary parse locations feels icky (but non-trivial to "fix")
-        let ternary_cursor = self.peek_scanner_cursor();
+        let ternary_cursor = self.current_scanner_cursor();
         if !self.options.is_in_type()
             && self.options.left_precedence.is_none()
             && ternary_cursor.token_type == TokenType::Maybe
@@ -709,7 +725,7 @@ impl Parser {
             self.bump(); // eat ?
 
             // normalize scanner state before parsing the then branch
-            let then_cursor = self.peek_scanner_cursor();
+            let then_cursor = self.current_scanner_cursor();
             if then_cursor.index != self.pos_index() {
                 self.advance_to(then_cursor.index);
             }
@@ -721,14 +737,14 @@ impl Parser {
             let then_expression_id = self.eat_expression_with_options_unchecked(then_options)?;
 
             // consume the ternary separator after scanner normalization
-            let colon_cursor = self.peek_scanner_cursor();
+            let colon_cursor = self.current_scanner_cursor();
             if colon_cursor.index != self.pos_index() {
                 self.advance_to(colon_cursor.index);
             }
             self.eat_colon()?;
 
             // normalize scanner state before parsing the else branch
-            let else_cursor = self.peek_scanner_cursor();
+            let else_cursor = self.current_scanner_cursor();
             if else_cursor.index != self.pos_index() {
                 self.advance_to(else_cursor.index);
             }
@@ -747,7 +763,7 @@ impl Parser {
         }
 
         // sequence expression (comma operator) in JS/TS
-        let sequence_cursor = self.peek_scanner_cursor();
+        let sequence_cursor = self.current_scanner_cursor();
         if !self.options.is_in_type()
             && self.options.left_precedence.is_none()
             && self.options.allows_sequence_expression()
@@ -757,7 +773,7 @@ impl Parser {
             // gather comma-separated expressions into a sequence expression
             let mut expressions = vec![left_expression_id];
             loop {
-                let comma_cursor = self.peek_scanner_cursor();
+                let comma_cursor = self.current_scanner_cursor();
                 if comma_cursor.token_type != TokenType::Comma {
                     break;
                 }
@@ -778,7 +794,7 @@ impl Parser {
         }
 
         // type conditional expression
-        let type_conditional_cursor = self.peek_scanner_cursor();
+        let type_conditional_cursor = self.current_scanner_cursor();
         if self.options.is_in_type() && type_conditional_cursor.token_type == TokenType::Maybe {
             // align cursor at conditional marker and split operands
             if type_conditional_cursor.index != self.pos_index() {
@@ -808,7 +824,7 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.bump(); // eat ?
             self.eat_newlines_maybe()?;
-            let then_cursor = self.peek_scanner_cursor();
+            let then_cursor = self.current_scanner_cursor();
             if then_cursor.index != self.pos_index() {
                 self.advance_to(then_cursor.index);
             }
@@ -819,13 +835,13 @@ impl Parser {
                 .in_ternary_condition();
             let then_expression_id = self.eat_expression_with_options_unchecked(then_options)?;
 
-            let colon_cursor = self.peek_scanner_cursor();
+            let colon_cursor = self.current_scanner_cursor();
             if colon_cursor.index != self.pos_index() {
                 self.advance_to(colon_cursor.index);
             }
             self.eat_colon()?;
             self.eat_newlines_maybe()?;
-            let else_cursor = self.peek_scanner_cursor();
+            let else_cursor = self.current_scanner_cursor();
             if else_cursor.index != self.pos_index() {
                 self.advance_to(else_cursor.index);
             }
