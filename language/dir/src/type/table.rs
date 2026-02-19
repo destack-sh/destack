@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use indexmap::IndexMap;
 
@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Addressability, Arena, EnumBackingType, EnumFieldValue, Extension, GlobalNodeIdAny,
     GlobalSymbolId, Instance, Lineage, LocalExtensionId, LocalInstanceId, LocalLineageId,
-    LocalNodeId, LocalNodeIdAny, LocalResolutionId, LocalTypeId, Node, Resolution, StaticArgument,
-    StaticKey, StaticParameterKind, StringId, SymbolTable, SymbolType, Type, TypeLiteral,
-    VarianceModifier,
+    LocalNodeId, LocalNodeIdAny, LocalResolutionId, LocalTypeId, Node, Resolution,
+    ResolutionCandidate, StaticArgument, StaticKey, StaticParameterKind, StringId, SymbolTable,
+    SymbolType, Type, TypeLiteral, VarianceModifier,
 };
 
 /// Select a normalization cache.
@@ -184,6 +184,8 @@ pub struct TypeTable {
     pub(crate) instances: Arena<Instance>,
     /// The instance used by node ids.
     pub(crate) instance_by_node_id: IndexMap<GlobalNodeIdAny, LocalInstanceId>,
+    /// Candidate instance ids indexed by compact interner key.
+    instance_ids_by_interner_key: HashMap<InstanceInternerKey, Vec<LocalInstanceId>>,
 
     // resolutions (types of members like functions/methods)
     /// The next resolution id to allocate.
@@ -230,6 +232,39 @@ pub enum RuntimeCheckKind {
     UnionTag,
     /// The runtime check compares type identities.
     TypeDescriptor,
+}
+
+/// Remap one resolution candidate instance id when present.
+fn remap_resolution_candidate_instance(
+    candidate: &mut ResolutionCandidate,
+    remap: &HashMap<LocalInstanceId, LocalInstanceId>,
+) {
+    let Some(instance_id) = candidate.instance else {
+        return;
+    };
+    if let Some(remapped) = remap.get(&instance_id) {
+        candidate.instance = Some(*remapped);
+    }
+}
+
+/// Compact index key for instance interning candidates.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+struct InstanceInternerKey {
+    /// The symbol that owns the instance.
+    symbol_id: GlobalSymbolId,
+    /// The number of static arguments.
+    static_argument_count: usize,
+}
+
+/// Build one compact key for instance interning.
+fn instance_interner_key(
+    symbol_id: GlobalSymbolId,
+    static_argument_count: usize,
+) -> InstanceInternerKey {
+    InstanceInternerKey {
+        symbol_id,
+        static_argument_count,
+    }
 }
 
 impl TypeTable {
@@ -285,6 +320,7 @@ impl TypeTable {
             next_instance_id: 0,
             instances: Arena::new(),
             instance_by_node_id: IndexMap::new(),
+            instance_ids_by_interner_key: HashMap::new(),
             // resolutions
             next_resolution_id: 0,
             resolutions: Arena::new(),
@@ -1367,9 +1403,25 @@ impl TypeTable {
 
     /// Insert a new instance.
     pub fn insert_instance(&mut self, instance: Instance) -> LocalInstanceId {
+        let interner_key =
+            instance_interner_key(instance.symbol_id, instance.static_arguments.len());
+
+        // reuse existing exact instances within the compact interner bucket
+        if let Some(candidates) = self.instance_ids_by_interner_key.get(&interner_key) {
+            for candidate_id in candidates {
+                if self.get_instance(*candidate_id) == &instance {
+                    return *candidate_id;
+                }
+            }
+        }
+
         let instance_id = LocalInstanceId::new(self.next_instance_id);
         self.next_instance_id += 1;
         self.instances.allocate(instance);
+        self.instance_ids_by_interner_key
+            .entry(interner_key)
+            .or_default()
+            .push(instance_id);
         instance_id
     }
 
@@ -1410,19 +1462,79 @@ impl TypeTable {
         self.instance_by_node_id.get(&node_id).copied()
     }
 
-    /// Find an existing instance by symbol and static arguments.
-    pub fn find_instance(
+    /// Return candidate instance ids for one compact interner key.
+    pub fn query_instance_interner_candidates(
         &self,
         symbol_id: GlobalSymbolId,
-        static_arguments: &[StaticArgument],
-    ) -> Option<LocalInstanceId> {
+        static_argument_count: usize,
+    ) -> Vec<LocalInstanceId> {
+        let key = instance_interner_key(symbol_id, static_argument_count);
+        self.instance_ids_by_interner_key
+            .get(&key)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// Find one exact instance by full instance shape.
+    pub fn find_instance_exact(&self, expected: &Instance) -> Option<LocalInstanceId> {
         for (index, instance) in self.instances.iter().enumerate() {
-            if instance.symbol_id == symbol_id && instance.static_arguments == static_arguments {
+            if instance == expected {
                 return Some(LocalInstanceId::new(index as u32));
             }
         }
 
         None
+    }
+
+    /// Replace all instances and remap node and resolution instance references.
+    pub fn replace_instances_with_remap(
+        &mut self,
+        instances: Vec<Instance>,
+        remap: &HashMap<LocalInstanceId, LocalInstanceId>,
+    ) {
+        // remap instance facts attached to nodes
+        for instance_id in self.instance_by_node_id.values_mut() {
+            if let Some(remapped) = remap.get(instance_id) {
+                *instance_id = *remapped;
+            }
+        }
+
+        // remap instance facts attached to resolution candidates
+        for resolution_id in 0..self.resolutions.len() {
+            let resolution = self.resolutions.get_mut(resolution_id as u32);
+            match resolution {
+                Resolution::Static { candidate, .. } => {
+                    remap_resolution_candidate_instance(candidate, remap);
+                }
+                Resolution::Dynamic { candidates, .. }
+                | Resolution::Unresolved { candidates, .. } => {
+                    for candidate in candidates {
+                        remap_resolution_candidate_instance(candidate, remap);
+                    }
+                }
+                Resolution::Builtin { .. } => {}
+            }
+        }
+
+        // rebuild the instance arena in canonical id order
+        let mut rebuilt = Arena::with(instances.len());
+        for instance in instances {
+            rebuilt.allocate(instance);
+        }
+
+        self.instances = rebuilt;
+        self.next_instance_id = self.instances.len() as u32;
+        self.instance_ids_by_interner_key.clear();
+
+        for (index, instance) in self.instances.iter().enumerate() {
+            let instance_id = LocalInstanceId::new(index as u32);
+            let interner_key =
+                instance_interner_key(instance.symbol_id, instance.static_arguments.len());
+            self.instance_ids_by_interner_key
+                .entry(interner_key)
+                .or_default()
+                .push(instance_id);
+        }
     }
 
     /// Insert a new resolution.

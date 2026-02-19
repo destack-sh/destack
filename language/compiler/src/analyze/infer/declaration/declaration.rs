@@ -3539,7 +3539,7 @@ impl Compiler {
         let declarator = tree.get(declarator_id);
         let Declarator {
             pattern,
-            ty: _,
+            ty: _ty,
             value,
         } = declarator;
 
@@ -3567,6 +3567,25 @@ impl Compiler {
                 declared_ty_id,
                 types,
             )?;
+
+            // register annotation-level instances on the reference type node
+            if let Some((symbol, static_arguments, source_id)) =
+                self.unwrap_type_symbol(types, declared_ty_id)
+            {
+                let source_node_id = source_id.into_global(module.id);
+                let _ = self.commit_instance_for_reference_type_maybe(
+                    module,
+                    ctx.profile,
+                    source_node_id,
+                    symbol,
+                    static_arguments.as_deref(),
+                    tree,
+                    symbols,
+                    infer,
+                    types,
+                )?;
+            }
+
             // normalize to surface recursive instantiations in declared types
             let _ = self.normalize_type(
                 module,

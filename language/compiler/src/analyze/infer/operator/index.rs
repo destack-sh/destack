@@ -233,8 +233,9 @@ impl Compiler {
                 &resolved,
                 tree,
                 symbols,
+                infer,
                 types,
-            );
+            )?;
             self.error(AnalyzeError::NoOverload {
                 node: expression_id
                     .into_global_any(module.id)
@@ -295,8 +296,9 @@ impl Compiler {
             &resolved,
             tree,
             symbols,
+            infer,
             types,
-        );
+        )?;
 
         // resolve return type
         let value_ty_id = resolved.signature.return_type.unwrap_or_else(|| {
@@ -551,8 +553,9 @@ impl Compiler {
                 &resolved,
                 tree,
                 symbols,
+                infer,
                 types,
-            );
+            )?;
             self.error(AnalyzeError::NoOverload {
                 node: expression_id
                     .into_global_any(module.id)
@@ -648,8 +651,9 @@ impl Compiler {
             &resolved,
             tree,
             symbols,
+            infer,
             types,
-        );
+        )?;
 
         // return void for index assignment
         let ty = Type::TypeLiteral {

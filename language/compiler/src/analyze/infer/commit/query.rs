@@ -1,0 +1,104 @@
+use crate::Compiler;
+use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, InferTable, StaticArgument, TypeTable};
+
+impl Compiler {
+    /// Look up an existing instance id attached to a node.
+    pub(crate) fn query_instance_for_node(
+        &self,
+        node_id: GlobalNodeIdAny,
+        types: &TypeTable,
+    ) -> Option<destack_dir::LocalInstanceId> {
+        types.get_instance_for_node(node_id)
+    }
+
+    /// Look up non-empty instance arguments attached to a node for an optional symbol.
+    pub(crate) fn query_instance_arguments_for_node(
+        &self,
+        node_id: GlobalNodeIdAny,
+        symbol_id: Option<GlobalSymbolId>,
+        types: &TypeTable,
+    ) -> Option<Vec<StaticArgument>> {
+        let instance_id = self.query_instance_for_node(node_id, types)?;
+        let instance = types.get_instance(instance_id);
+
+        if let Some(symbol_id) = symbol_id
+            && instance.symbol_id != symbol_id
+        {
+            return None;
+        }
+        if instance.static_arguments.is_empty() {
+            return None;
+        }
+
+        Some(instance.static_arguments.clone())
+    }
+
+    /// Look up non-empty instance arguments attached to a node in infer state.
+    pub(crate) fn query_instance_arguments_for_node_infer(
+        &self,
+        node_id: GlobalNodeIdAny,
+        symbol_id: Option<GlobalSymbolId>,
+        infer: &InferTable,
+        types: &TypeTable,
+    ) -> Option<Vec<StaticArgument>> {
+        if let Some((_, arguments)) =
+            self.query_instance_commit_obligation_for_node(node_id, symbol_id, infer)
+        {
+            return Some(arguments);
+        }
+
+        self.query_instance_arguments_for_node(node_id, symbol_id, types)
+    }
+
+    /// Look up non-empty instance symbol and arguments attached to a node.
+    pub(crate) fn query_instance_symbol_arguments_for_node(
+        &self,
+        node_id: GlobalNodeIdAny,
+        types: &TypeTable,
+    ) -> Option<(GlobalSymbolId, Vec<StaticArgument>)> {
+        let instance_id = self.query_instance_for_node(node_id, types)?;
+        let instance = types.get_instance(instance_id);
+        if instance.static_arguments.is_empty() {
+            return None;
+        }
+
+        Some((instance.symbol_id, instance.static_arguments.clone()))
+    }
+
+    /// Look up non-empty instance symbol and arguments attached to a node in infer state.
+    pub(crate) fn query_instance_symbol_arguments_for_node_infer(
+        &self,
+        node_id: GlobalNodeIdAny,
+        infer: &InferTable,
+        types: &TypeTable,
+    ) -> Option<(GlobalSymbolId, Vec<StaticArgument>)> {
+        if let Some(instance) = self.query_instance_commit_obligation_for_node(node_id, None, infer)
+        {
+            return Some(instance);
+        }
+
+        self.query_instance_symbol_arguments_for_node(node_id, types)
+    }
+
+    /// Look up one instance-commit obligation attached to a node for an optional symbol.
+    fn query_instance_commit_obligation_for_node(
+        &self,
+        node_id: GlobalNodeIdAny,
+        symbol_id: Option<GlobalSymbolId>,
+        infer: &InferTable,
+    ) -> Option<(GlobalSymbolId, Vec<StaticArgument>)> {
+        let obligation_id = infer.instance_commit_obligation_id_for_node(node_id)?;
+        let obligation = infer.instance_commit_obligation(obligation_id)?;
+
+        if let Some(symbol_id) = symbol_id
+            && obligation.symbol_id != symbol_id
+        {
+            return None;
+        }
+        if obligation.static_arguments.is_empty() {
+            return None;
+        }
+
+        Some((obligation.symbol_id, obligation.static_arguments.clone()))
+    }
+}

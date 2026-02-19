@@ -1,8 +1,8 @@
 use super::member::MemberResolution;
 use crate::Compiler;
 use destack_dir::{
-    DispatchKey, GlobalNodeIdAny, GlobalSymbolId, LocalInstanceId, LocalTypeId, Resolution,
-    ResolutionCandidate, ResolvedSignature, TypeTable,
+    DispatchKey, GlobalNodeIdAny, GlobalSymbolId, LocalInstanceId, LocalResolutionId, LocalTypeId,
+    Resolution, ResolutionCandidate, ResolvedSignature, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -54,7 +54,7 @@ impl Compiler {
         receiver_ty_id: Option<LocalTypeId>,
         candidates: Vec<ResolutionCandidate>,
         types: &mut TypeTable,
-    ) {
+    ) -> LocalResolutionId {
         let resolution = Resolution::Dynamic {
             receiver: receiver_ty_id,
             candidates,
@@ -62,6 +62,7 @@ impl Compiler {
 
         let resolution_id = types.insert_resolution(resolution);
         types.set_resolution_for_node(node_id, resolution_id);
+        resolution_id
     }
 
     /// Commit the resolution for a member lookup.

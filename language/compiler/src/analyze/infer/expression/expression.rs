@@ -1768,12 +1768,13 @@ impl Compiler {
                 )
             });
             if let Some(environment) = environment {
-                let _ = self.commit_instance_for_node_maybe(
+                self.commit_instance_for_node_maybe(
                     expression_id.into_global_any(module.id),
                     owner_symbol,
                     environment,
+                    infer,
                     types,
-                );
+                )?;
             }
         }
 
@@ -5047,12 +5048,13 @@ impl Compiler {
             )
         });
         if let Some(environment) = environment {
-            let _ = self.commit_instance_for_node_maybe(
+            self.commit_instance_for_node_maybe(
                 expression_id.into_global_any(module.id),
                 canonical_symbol,
                 environment,
+                infer,
                 types,
-            );
+            )?;
         }
 
         Ok(instantiated_ty_id)

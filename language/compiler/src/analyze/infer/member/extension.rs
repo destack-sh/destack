@@ -1,4 +1,5 @@
 use super::*;
+use destack_dir::InferTable;
 
 impl Compiler {
     /// Extend substitutions with owner-parameter slots derived from inherited arguments.
@@ -79,8 +80,9 @@ impl Compiler {
         signature_parameter_symbols: &[GlobalSymbolId],
         tree: &NodeTree,
         symbols: &SymbolTable,
+        infer: &mut InferTable,
         types: &mut TypeTable,
-    ) -> Option<destack_dir::LocalInstanceId> {
+    ) -> AnalyzeResult<Option<destack_dir::LocalInstanceId>> {
         let substitutions = self.merge_member_substitutions(inherited, extension_context);
         let base_instance_arguments = self.infer_member_instance_base_arguments(
             &inherited.arguments,
@@ -97,12 +99,16 @@ impl Compiler {
             tree,
             symbols,
             types,
-        )?;
+        );
+        let Some(environment) = environment else {
+            return Ok(None);
+        };
 
         self.commit_instance_for_node_maybe(
             expression_id.into_global_any(module.id),
             member_symbol,
             environment,
+            infer,
             types,
         )
     }

@@ -1470,34 +1470,33 @@ impl Compiler {
         )?;
 
         // register a concrete instance for Map.from<K, V>
-        let map_from_instance_id = if let Some(instance_id) =
-            types.find_instance(map_from_symbol, &record_like.map_static_arguments)
-        {
-            instance_id
-        } else {
-            let parameter_symbols = self
-                .collect_static_parameter_symbols(
-                    module,
-                    map_from_symbol,
-                    profile,
-                    tree,
-                    symbols,
-                    types,
-                )
-                .unwrap_or_default();
-            let instance = Instance::with_environment(
+        let parameter_symbols = self
+            .collect_static_parameter_symbols(
+                module,
                 map_from_symbol,
-                record_like.map_static_arguments.clone(),
-                parameter_symbols,
-                0,
+                profile,
+                tree,
+                symbols,
+                types,
             )
-            .ok_or(ElaborateError::UnsupportedConstruct {
-                node: origin_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
-            })?;
-            types.insert_instance(instance)
-        };
+            .unwrap_or_default();
+        let map_from_instance = Instance::with_environment(
+            map_from_symbol,
+            record_like.map_static_arguments.clone(),
+            parameter_symbols,
+            0,
+        )
+        .map_err(|_| ElaborateError::UnsupportedConstruct {
+            node: origin_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile)),
+        })?;
+        let map_from_instance_id =
+            if let Some(instance_id) = types.find_instance_exact(&map_from_instance) {
+                instance_id
+            } else {
+                types.insert_instance(map_from_instance)
+            };
 
         // build tuple entries for each property
         let mut entry_arguments = Vec::with_capacity(properties.len());
@@ -1755,34 +1754,33 @@ impl Compiler {
         let array_static_arguments = vec![StaticArgument::value(StaticExpression::Type {
             ty: element_type_id,
         })];
-        let from_sized_instance_id = if let Some(instance_id) =
-            types.find_instance(from_sized_symbol, &array_static_arguments)
-        {
-            instance_id
-        } else {
-            let parameter_symbols = self
-                .collect_static_parameter_symbols(
-                    module,
-                    from_sized_symbol,
-                    profile,
-                    tree,
-                    symbols,
-                    types,
-                )
-                .unwrap_or_default();
-            let instance = Instance::with_environment(
+        let parameter_symbols = self
+            .collect_static_parameter_symbols(
+                module,
                 from_sized_symbol,
-                array_static_arguments.clone(),
-                parameter_symbols,
-                0,
+                profile,
+                tree,
+                symbols,
+                types,
             )
-            .ok_or(ElaborateError::UnsupportedConstruct {
-                node: origin_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
-            })?;
-            types.insert_instance(instance)
-        };
+            .unwrap_or_default();
+        let from_sized_instance = Instance::with_environment(
+            from_sized_symbol,
+            array_static_arguments.clone(),
+            parameter_symbols,
+            0,
+        )
+        .map_err(|_| ElaborateError::UnsupportedConstruct {
+            node: origin_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile)),
+        })?;
+        let from_sized_instance_id =
+            if let Some(instance_id) = types.find_instance_exact(&from_sized_instance) {
+                instance_id
+            } else {
+                types.insert_instance(from_sized_instance)
+            };
 
         // build a module reference to Array.fromSized
         let array_name = self

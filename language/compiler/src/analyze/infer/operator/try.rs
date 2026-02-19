@@ -100,6 +100,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    infer,
                     &ctx.options,
                 )?;
 
@@ -234,6 +235,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    infer,
                     &ctx.options,
                 )?;
                 let Some((value_ty_id, error_ty_id)) = payloads else {
@@ -344,6 +346,7 @@ impl Compiler {
             tree,
             symbols,
             types,
+            infer,
             &ctx.options,
         )?;
         let Some((value_ty_id, error_ty_id)) = payloads else {
@@ -400,6 +403,7 @@ impl Compiler {
         receiver_id: LocalNodeIdAny,
         receiver_ty_id: LocalTypeId,
         receiver_ty: &Type,
+        infer: &InferTable,
         options: &AnalyzeOptions,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -412,6 +416,7 @@ impl Compiler {
             receiver_id,
             Some(receiver_ty_id),
             receiver_ty,
+            infer,
             options,
             tree,
             symbols,
@@ -679,6 +684,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &InferTable,
         options: &AnalyzeOptions,
     ) -> AnalyzeResult<Option<(LocalTypeId, LocalTypeId)>> {
         // resolve payloads from receiver static arguments when available
@@ -688,6 +694,7 @@ impl Compiler {
             receiver_id,
             receiver_ty_id,
             receiver_ty,
+            infer,
             options,
             tree,
             symbols,
@@ -858,8 +865,9 @@ impl Compiler {
             &resolved,
             tree,
             symbols,
+            infer,
             types,
-        );
+        )?;
 
         Ok(TryBranchMember {
             resolved,
@@ -1106,6 +1114,7 @@ impl Compiler {
             expression_id.into_any(),
             return_ty_id,
             &return_ty,
+            infer,
             &ctx.options,
             tree,
             symbols,
@@ -1381,6 +1390,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
+                infer,
                 &ctx.options,
             )?;
             let Some((value_ty_id, _error_ty_id)) = payloads else {

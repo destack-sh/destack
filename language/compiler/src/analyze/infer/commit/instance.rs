@@ -1,81 +1,17 @@
 use crate::analyze::common::StaticSubstitutionEnvironment;
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
-    Expression, GlobalNodeIdAny, GlobalSymbolId, Instance, LocalInstanceId, LocalNodeId,
-    LocalTypeId, NodeTree, NodeType, StaticArgument, StaticExpression, SymbolTable, SymbolType,
-    Type, TypeTable,
+    Expression, GlobalNodeIdAny, GlobalSymbolId, InferTable, Instance, InstanceCommitObligation,
+    InstanceCommitObligationId, LocalInstanceId, LocalNodeId, LocalTypeId, NodeTree,
+    StaticArgument, StaticExpression, SymbolTable, SymbolType, Type, TypeTable,
 };
-use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
-/// The lookup result for one `(symbol, static_arguments)` key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum InstanceMatch {
-    /// An exact environment match exists.
-    Exact(LocalInstanceId),
-    /// At least one conflicting environment exists for the same key.
-    Conflict,
-}
+use super::key::InstanceMatch;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Return true when one expression node is a reference-instantiation source.
-    fn expression_is_reference_instance_source(
-        &self,
-        tree: &NodeTree,
-        expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        matches!(
-            tree.get(expression_id),
-            Expression::LocalReference { .. }
-                | Expression::ModuleReference { .. }
-                | Expression::GlobalReference { .. }
-                | Expression::TypeImport { .. }
-                | Expression::Instantiation { .. }
-        )
-    }
-
-    /// Collect candidate node and type pairs for reference-instance registration.
-    fn collect_reference_instance_candidates(
-        &self,
-        module_id: ModuleId,
-        tree: &NodeTree,
-        types: &TypeTable,
-    ) -> Vec<(GlobalNodeIdAny, LocalTypeId)> {
-        let mut candidates = Vec::new();
-        let mut seen_nodes = HashSet::new();
-
-        for (node_id, ty_id) in types
-            .iter_declared_type_ids()
-            .chain(types.iter_inferred_type_ids())
-        {
-            // skip non local node facts
-            if node_id.module_id != module_id {
-                continue;
-            }
-
-            // skip non annotation and non reference-source expression nodes
-            if node_id.local_id.ty == NodeType::Expression {
-                let expression_id = node_id.local_id.into_typed::<Expression>();
-                if !self.expression_is_reference_instance_source(tree, expression_id) {
-                    continue;
-                }
-            } else if node_id.local_id.ty != NodeType::Annotation {
-                continue;
-            }
-
-            // keep one candidate type per node
-            if !seen_nodes.insert(node_id) {
-                continue;
-            }
-
-            candidates.push((node_id, ty_id));
-        }
-
-        candidates
-    }
-
     /// Whether a symbol is instantiable (i.e. can have an instance type).
     pub(crate) fn symbol_is_instantiable(&self, symbol: GlobalSymbolId) -> bool {
         matches!(
@@ -90,135 +26,47 @@ impl Compiler {
         )
     }
 
-    /// Commit instance facts for reference types that carry static arguments.
-    pub(crate) fn commit_reference_instances(
+    /// Commit one node instance for one resolved reference type when arguments are present.
+    pub(crate) fn commit_instance_for_reference_type_maybe(
         &self,
         module: &Module,
         profile: ProfileId,
+        node_id: GlobalNodeIdAny,
+        symbol: GlobalSymbolId,
+        static_arguments: Option<&[StaticArgument]>,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        infer: &mut InferTable,
         types: &mut TypeTable,
-    ) -> AnalyzeResult<()> {
-        let options = self.analyze_context_options_for_module(module.id);
-        let candidates = self.collect_reference_instance_candidates(module.id, tree, types);
-        for (node_id, ty_id) in candidates {
-            let source_id = node_id.local_id;
-
-            // skip non reference types
-            let Some((symbol, static_arguments, _)) = self.unwrap_type_symbol(types, ty_id) else {
-                continue;
-            };
-
-            // skip symbols that cannot be instantiated
-            if !self.symbol_is_instantiable(symbol) {
-                continue;
-            }
-
-            // resolve static arguments and commit one type-instantiation event
-            if let Some(resolved) = self.resolve_type_reference_static_arguments(
-                module,
-                profile,
-                source_id,
-                symbol,
-                static_arguments.as_deref(),
-                false,
-                &options,
-                tree,
-                symbols,
-                types,
-            )? && !resolved.is_empty()
-            {
-                let Some(environment) = self.instance_environment_for_symbol_arguments(
-                    module, profile, symbol, resolved, 0, tree, symbols, types,
-                ) else {
-                    continue;
-                };
-                let _ = self.commit_instance_for_node_maybe(node_id, symbol, environment, types);
-            }
+    ) -> AnalyzeResult<Option<LocalInstanceId>> {
+        // skip non-instantiable symbols
+        if !self.symbol_is_instantiable(symbol) {
+            return Ok(None);
         }
 
-        Ok(())
-    }
-
-    /// Look up an existing instance id for one full canonical environment.
-    fn query_instance_for_symbol_environment(
-        &self,
-        symbol_id: GlobalSymbolId,
-        static_arguments: &[StaticArgument],
-        parameter_symbols: &[GlobalSymbolId],
-        inherited_arity: usize,
-        types: &TypeTable,
-    ) -> Option<InstanceMatch> {
-        let mut saw_conflict = false;
-
-        for (instance_id, instance) in types.iter_instances() {
-            if instance.symbol_id != symbol_id {
-                continue;
-            }
-            if instance.static_arguments != static_arguments {
-                continue;
-            }
-
-            if instance.static_parameter_symbols == parameter_symbols
-                && instance.inherited_static_argument_count == inherited_arity
-            {
-                return Some(InstanceMatch::Exact(instance_id));
-            }
-
-            saw_conflict = true;
+        // skip references without static arguments
+        let Some(static_arguments) = static_arguments else {
+            return Ok(None);
+        };
+        if static_arguments.is_empty() {
+            return Ok(None);
         }
 
-        if saw_conflict {
-            Some(InstanceMatch::Conflict)
-        } else {
-            None
-        }
-    }
+        // compose the full environment in declaration order
+        let Some(environment) = self.instance_environment_for_symbol_arguments(
+            module,
+            profile,
+            symbol,
+            static_arguments.to_vec(),
+            0,
+            tree,
+            symbols,
+            types,
+        ) else {
+            return Ok(None);
+        };
 
-    /// Look up an existing instance id attached to a node.
-    pub(crate) fn query_instance_for_node(
-        &self,
-        node_id: GlobalNodeIdAny,
-        types: &TypeTable,
-    ) -> Option<LocalInstanceId> {
-        types.get_instance_for_node(node_id)
-    }
-
-    /// Look up non-empty instance arguments attached to a node for an optional symbol.
-    pub(crate) fn query_instance_arguments_for_node(
-        &self,
-        node_id: GlobalNodeIdAny,
-        symbol_id: Option<GlobalSymbolId>,
-        types: &TypeTable,
-    ) -> Option<Vec<StaticArgument>> {
-        let instance_id = self.query_instance_for_node(node_id, types)?;
-        let instance = types.get_instance(instance_id);
-
-        if let Some(symbol_id) = symbol_id
-            && instance.symbol_id != symbol_id
-        {
-            return None;
-        }
-        if instance.static_arguments.is_empty() {
-            return None;
-        }
-
-        Some(instance.static_arguments.clone())
-    }
-
-    /// Look up non-empty instance symbol and arguments attached to a node.
-    pub(crate) fn query_instance_symbol_arguments_for_node(
-        &self,
-        node_id: GlobalNodeIdAny,
-        types: &TypeTable,
-    ) -> Option<(GlobalSymbolId, Vec<StaticArgument>)> {
-        let instance_id = self.query_instance_for_node(node_id, types)?;
-        let instance = types.get_instance(instance_id);
-        if instance.static_arguments.is_empty() {
-            return None;
-        }
-
-        Some((instance.symbol_id, instance.static_arguments.clone()))
+        self.commit_instance_for_node_maybe(node_id, symbol, environment, infer, types)
     }
 
     /// Infer base instance arguments for member resolution from inherited or extension context.
@@ -231,72 +79,6 @@ impl Compiler {
             Some(arguments) => arguments.to_vec(),
             None => inherited_arguments.to_vec(),
         }
-    }
-
-    /// Normalize one static argument for canonical instance-key usage.
-    fn canonicalize_instance_argument_for_key(&self, argument: &StaticArgument) -> StaticArgument {
-        match argument {
-            StaticArgument::Unevaluated { node } => StaticArgument::Unevaluated { node: *node },
-            StaticArgument::Evaluated { value, .. } => StaticArgument::Evaluated {
-                name: None,
-                value: value.clone(),
-            },
-        }
-    }
-
-    /// Normalize static arguments for canonical instance-key usage.
-    fn canonicalize_instance_arguments_for_key(
-        &self,
-        static_arguments: Vec<StaticArgument>,
-    ) -> Vec<StaticArgument> {
-        static_arguments
-            .iter()
-            .map(|argument| self.canonicalize_instance_argument_for_key(argument))
-            .collect()
-    }
-
-    /// Canonicalize argument type ids for commit keying when possible.
-    fn canonicalize_instance_argument_types_for_commit_key(
-        &self,
-        static_arguments: Vec<StaticArgument>,
-        types: &mut TypeTable,
-    ) -> Vec<StaticArgument> {
-        static_arguments
-            .into_iter()
-            .map(|argument| match argument {
-                StaticArgument::Evaluated {
-                    value: StaticExpression::Type { ty },
-                    ..
-                } => {
-                    let canonical_ty = match types.get_type(ty).clone() {
-                        Type::TypeLiteral { value } => types.intern_literal_type(ty, value),
-                        _ => ty,
-                    };
-
-                    StaticArgument::Evaluated {
-                        name: None,
-                        value: StaticExpression::Type { ty: canonical_ty },
-                    }
-                }
-                other => other,
-            })
-            .collect()
-    }
-
-    /// Canonicalize one environment for instance commit keying.
-    fn canonicalize_instance_environment_for_commit_key(
-        &self,
-        environment: StaticSubstitutionEnvironment,
-        types: &mut TypeTable,
-    ) -> Option<StaticSubstitutionEnvironment> {
-        let (arguments, parameter_symbols, inherited_arity) = environment.into_parts();
-        let arguments = self.canonicalize_instance_arguments_for_key(arguments);
-        let arguments = self.canonicalize_instance_argument_types_for_commit_key(arguments, types);
-        StaticSubstitutionEnvironment::from_optional_parameter_symbols(
-            arguments,
-            parameter_symbols,
-            inherited_arity,
-        )
     }
 
     /// Query static parameter symbols for one function signature type.
@@ -484,49 +266,96 @@ impl Compiler {
         symbol_id: GlobalSymbolId,
         environment: StaticSubstitutionEnvironment,
         types: &mut TypeTable,
-    ) -> Option<LocalInstanceId> {
+    ) -> AnalyzeResult<LocalInstanceId> {
+        let scope = "commit_instance_for_symbol_environment";
         let environment =
-            self.canonicalize_instance_environment_for_commit_key(environment, types)?;
-        let arguments = environment.arguments().to_vec();
-        let parameter_symbols = environment.complete_parameter_symbols()?;
-        let inherited_arity = environment.inherited_arity();
+            self.normalize_instance_environment_for_commit(scope, symbol_id, environment)?;
 
         match self.query_instance_for_symbol_environment(
             symbol_id,
-            &arguments,
-            &parameter_symbols,
-            inherited_arity,
+            &environment.arguments,
+            &environment.parameter_symbols,
+            environment.inherited_arity,
             types,
         ) {
-            Some(InstanceMatch::Exact(existing)) => {
-                return Some(existing);
-            }
+            Some(InstanceMatch::Exact(existing)) => return Ok(existing),
             Some(InstanceMatch::Conflict) => {
-                return None;
+                return Err(self.internal_analyze_error_for_scope(
+                    scope,
+                    format!(
+                        "conflicting canonical instance environment for symbol {symbol_id:?}: arguments={:?}, parameters={:?}, inherited_arity={}",
+                        environment.arguments,
+                        environment.parameter_symbols,
+                        environment.inherited_arity,
+                    ),
+                ));
             }
             None => {}
         }
 
+        let arguments = environment.arguments;
+        let parameter_symbols = environment.parameter_symbols;
+        let inherited_arity = environment.inherited_arity;
         let instance =
-            Instance::with_environment(symbol_id, arguments, parameter_symbols, inherited_arity)?;
-        Some(types.insert_instance(instance))
+            Instance::with_environment(symbol_id, arguments, parameter_symbols, inherited_arity)
+                .map_err(|error| {
+                    self.internal_analyze_error_for_scope(
+                scope,
+                format!(
+                    "invalid committed instance environment for symbol {symbol_id:?}: {error:?}"
+                ),
+            )
+                })?;
+        Ok(types.insert_instance(instance))
     }
 
-    /// Commit one instance fact for one symbol when arguments are non-empty.
-    pub(crate) fn commit_instance_for_symbol_maybe(
+    /// Commit one instance fact for one symbol and return an obligation when needed.
+    pub(crate) fn commit_instance_for_symbol_maybe_with_obligation(
         &self,
         symbol_id: GlobalSymbolId,
         environment: StaticSubstitutionEnvironment,
+        infer: &mut InferTable,
         types: &mut TypeTable,
-    ) -> Option<LocalInstanceId> {
+    ) -> AnalyzeResult<(Option<LocalInstanceId>, Option<InstanceCommitObligationId>)> {
         if environment.arguments().is_empty() {
-            return None;
+            return Ok((None, None));
         }
         if !environment.is_committable() {
-            return None;
+            return Ok((None, None));
         }
 
-        self.commit_instance_for_symbol_environment(symbol_id, environment, types)
+        let scope = "commit_instance_for_symbol_maybe_with_obligation";
+        let environment =
+            self.normalize_instance_environment_for_commit(scope, symbol_id, environment)?;
+
+        match self.query_instance_for_symbol_environment(
+            symbol_id,
+            &environment.arguments,
+            &environment.parameter_symbols,
+            environment.inherited_arity,
+            types,
+        ) {
+            Some(InstanceMatch::Exact(existing)) => Ok((Some(existing), None)),
+            Some(InstanceMatch::Conflict) => Err(self.internal_analyze_error_for_scope(
+                scope,
+                format!(
+                    "conflicting canonical instance environment for symbol {symbol_id:?}: arguments={:?}, parameters={:?}, inherited_arity={}",
+                    environment.arguments,
+                    environment.parameter_symbols,
+                    environment.inherited_arity,
+                ),
+            )),
+            None => {
+                let obligation = InstanceCommitObligation {
+                    symbol_id,
+                    static_arguments: environment.arguments.clone(),
+                    static_parameter_symbols: environment.parameter_symbols.clone(),
+                    inherited_static_argument_count: environment.inherited_arity,
+                };
+                let obligation_id = infer.upsert_instance_commit_obligation(obligation);
+                Ok((None, Some(obligation_id)))
+            }
+        }
     }
 
     /// Commit one instance fact for one node.
@@ -535,12 +364,45 @@ impl Compiler {
         node_id: GlobalNodeIdAny,
         symbol_id: GlobalSymbolId,
         environment: StaticSubstitutionEnvironment,
+        infer: &mut InferTable,
         types: &mut TypeTable,
-    ) -> Option<LocalInstanceId> {
-        let instance_id =
-            self.commit_instance_for_symbol_environment(symbol_id, environment, types)?;
-        types.set_instance_for_node(node_id, instance_id);
-        Some(instance_id)
+    ) -> AnalyzeResult<Option<LocalInstanceId>> {
+        let scope = "commit_instance_for_node";
+        let environment =
+            self.normalize_instance_environment_for_commit(scope, symbol_id, environment)?;
+
+        match self.query_instance_for_symbol_environment(
+            symbol_id,
+            &environment.arguments,
+            &environment.parameter_symbols,
+            environment.inherited_arity,
+            types,
+        ) {
+            Some(InstanceMatch::Exact(existing)) => {
+                types.set_instance_for_node(node_id, existing);
+                Ok(Some(existing))
+            }
+            Some(InstanceMatch::Conflict) => Err(self.internal_analyze_error_for_scope(
+                scope,
+                format!(
+                    "conflicting canonical instance environment for symbol {symbol_id:?}: arguments={:?}, parameters={:?}, inherited_arity={}",
+                    environment.arguments,
+                    environment.parameter_symbols,
+                    environment.inherited_arity,
+                ),
+            )),
+            None => {
+                let obligation = InstanceCommitObligation {
+                    symbol_id,
+                    static_arguments: environment.arguments.clone(),
+                    static_parameter_symbols: environment.parameter_symbols.clone(),
+                    inherited_static_argument_count: environment.inherited_arity,
+                };
+                let obligation_id = infer.upsert_instance_commit_obligation(obligation);
+                infer.set_instance_commit_obligation_for_node(node_id, obligation_id);
+                Ok(None)
+            }
+        }
     }
 
     /// Commit one instance fact for one node when arguments are non-empty.
@@ -549,42 +411,17 @@ impl Compiler {
         node_id: GlobalNodeIdAny,
         symbol_id: GlobalSymbolId,
         environment: StaticSubstitutionEnvironment,
+        infer: &mut InferTable,
         types: &mut TypeTable,
-    ) -> Option<LocalInstanceId> {
+    ) -> AnalyzeResult<Option<LocalInstanceId>> {
         if environment.arguments().is_empty() {
-            return None;
+            return Ok(None);
         }
         if !environment.is_committable() {
-            return None;
+            return Ok(None);
         }
 
-        self.commit_instance_for_node(node_id, symbol_id, environment, types)
-    }
-
-    /// Commit one instance fact for one node from raw arguments in module context.
-    pub(crate) fn commit_instance_for_node_arguments_maybe_in_module(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        node_id: GlobalNodeIdAny,
-        symbol_id: GlobalSymbolId,
-        static_arguments: Vec<StaticArgument>,
-        inherited_arity: usize,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> Option<LocalInstanceId> {
-        let environment = self.instance_environment_for_symbol_arguments(
-            module,
-            profile,
-            symbol_id,
-            static_arguments,
-            inherited_arity,
-            tree,
-            symbols,
-            types,
-        )?;
-        self.commit_instance_for_node_maybe(node_id, symbol_id, environment, types)
+        self.commit_instance_for_node(node_id, symbol_id, environment, infer, types)
     }
 
     /// Collect instance arguments recorded on a member expression.
@@ -593,11 +430,13 @@ impl Compiler {
         module: &Module,
         member_expression_id: LocalNodeId<Expression>,
         member_symbol: Option<GlobalSymbolId>,
+        infer: &InferTable,
         types: &TypeTable,
     ) -> Option<Vec<StaticArgument>> {
-        self.query_instance_arguments_for_node(
+        self.query_instance_arguments_for_node_infer(
             member_expression_id.into_global_any(module.id),
             member_symbol,
+            infer,
             types,
         )
     }

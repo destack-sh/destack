@@ -6,11 +6,12 @@ use crate::analyze::common::{CanonicalSymbolMode, StaticSubstitutionEnvironment}
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Argument, Constraint, Declaration, DispatchKey, Expression, FunctionKind, FunctionMode,
-    GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferTable, LocalInstanceId, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, ResolutionCandidate,
-    ResolvedSignature, StaticArgument, StaticExpression, StaticKey, StaticParameter,
-    StaticParameterKind, StringId, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+    Argument, Constraint, Declaration, DispatchKey, DynamicResolutionCandidateSlotId, Expression,
+    FunctionKind, FunctionMode, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferTable,
+    LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType,
+    ResolutionCandidate, ResolvedSignature, StaticArgument, StaticExpression, StaticKey,
+    StaticParameter, StaticParameterKind, StringId, SymbolTable, SymbolType, Type, TypeLiteral,
+    TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -1312,6 +1313,7 @@ impl Compiler {
         options: &AnalyzeOptions,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        infer: &InferTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<ResolvedMemberCallTypeContext> {
         // inherit static arguments and substitutions from the receiver
@@ -1321,6 +1323,7 @@ impl Compiler {
             receiver_expression_id.into_any(),
             receiver_ty_id,
             receiver_ty,
+            infer,
             options,
             tree,
             symbols,
@@ -1495,6 +1498,7 @@ impl Compiler {
             context.options,
             context.tree,
             context.symbols,
+            infer,
             types,
         )?;
         let Some(member_ty_id) = resolved_context.member_ty_id else {
@@ -1999,8 +2003,9 @@ impl Compiler {
             resolved_signature,
             tree,
             symbols,
+            infer,
             types,
-        );
+        )?;
 
         Ok(resolved_return_type.unwrap_or_else(|| {
             let ty = Type::TypeLiteral {
@@ -2084,10 +2089,11 @@ impl Compiler {
         resolved_signature: ResolvedSignature,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        infer: &mut InferTable,
         types: &mut TypeTable,
-    ) {
+    ) -> AnalyzeResult<()> {
         // register the instance when the call resolves to a symbol
-        let call_instance_id = call.callee_symbol.and_then(|callee_symbol| {
+        let call_instance_id = if let Some(callee_symbol) = call.callee_symbol {
             if call.call_member_resolution.is_none() {
                 let signature_parameter_symbols =
                     self.query_signature_static_parameter_symbols(signature_ty_id, types);
@@ -2107,44 +2113,53 @@ impl Compiler {
                         symbols,
                         types,
                     )
-                })?;
-
-                return self.commit_instance_for_node_maybe(
-                    expression_id.into_global_any(module.id),
+                });
+                if let Some(environment) = environment {
+                    self.commit_instance_for_node_maybe(
+                        expression_id.into_global_any(module.id),
+                        callee_symbol,
+                        environment,
+                        infer,
+                        types,
+                    )?
+                } else {
+                    None
+                }
+            } else {
+                let signature_parameter_symbols =
+                    self.query_signature_static_parameter_symbols(signature_ty_id, types);
+                let base_instance_arguments = call
+                    .member_instance_arguments
+                    .as_deref()
+                    .or(call.prefilled_static_arguments.as_deref())
+                    .unwrap_or(call.inherited_static_arguments.as_slice());
+                let environment = self.compose_member_instance_environment(
+                    module,
+                    profile,
                     callee_symbol,
-                    environment,
+                    base_instance_arguments,
+                    &call.inherited_substitutions,
+                    &resolved_signature.static_arguments,
+                    &signature_parameter_symbols,
+                    tree,
+                    symbols,
                     types,
                 );
+                if let Some(environment) = environment {
+                    self.commit_instance_for_node_maybe(
+                        expression_id.into_global_any(module.id),
+                        callee_symbol,
+                        environment,
+                        infer,
+                        types,
+                    )?
+                } else {
+                    None
+                }
             }
-
-            let signature_parameter_symbols =
-                self.query_signature_static_parameter_symbols(signature_ty_id, types);
-            let base_instance_arguments = call
-                .member_instance_arguments
-                .as_deref()
-                .or(call.prefilled_static_arguments.as_deref())
-                .unwrap_or(call.inherited_static_arguments.as_slice());
-            let environment = self.compose_member_instance_environment(
-                module,
-                profile,
-                callee_symbol,
-                base_instance_arguments,
-                &call.inherited_substitutions,
-                &resolved_signature.static_arguments,
-                &signature_parameter_symbols,
-                tree,
-                symbols,
-                types,
-            );
-            let environment = environment?;
-
-            self.commit_instance_for_node_maybe(
-                expression_id.into_global_any(module.id),
-                callee_symbol,
-                environment,
-                types,
-            )
-        });
+        } else {
+            None
+        };
 
         // commit member or static resolution metadata
         match (&call.call_member_resolution, call.callee_symbol) {
@@ -2171,6 +2186,8 @@ impl Compiler {
             }
             _ => {}
         }
+
+        Ok(())
     }
 
     /// Infer a non-callable call expression fallback.
@@ -2401,6 +2418,7 @@ impl Compiler {
                 &options,
                 tree,
                 symbols,
+                infer,
                 types,
             )?;
 
@@ -2462,6 +2480,7 @@ impl Compiler {
             member_symbol,
             call_has_static_arguments,
             member_has_static_arguments,
+            infer,
             types,
         );
         Ok(CallExpressionResolution {
@@ -2526,6 +2545,7 @@ impl Compiler {
         options: &AnalyzeOptions,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        infer: &InferTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<(Vec<StaticArgument>, HashMap<GlobalSymbolId, LocalTypeId>)> {
         let inherited = self.resolve_inherited_static_arguments(
@@ -2534,6 +2554,7 @@ impl Compiler {
             receiver_id.into_any(),
             Some(receiver_ty_id),
             receiver_ty,
+            infer,
             options,
             tree,
             symbols,
@@ -2616,6 +2637,7 @@ impl Compiler {
         member_symbol: Option<GlobalSymbolId>,
         call_has_static_arguments: bool,
         member_has_static_arguments: bool,
+        infer: &InferTable,
         types: &TypeTable,
     ) -> Option<Vec<StaticArgument>> {
         if call_has_static_arguments || !member_has_static_arguments {
@@ -2626,6 +2648,7 @@ impl Compiler {
             module,
             member_expression_id,
             member_symbol,
+            infer,
             types,
         )
     }
@@ -2883,8 +2906,9 @@ impl Compiler {
             expression_id,
             context.receiver_ty_id,
             candidates,
+            infer,
             types,
-        );
+        )?;
 
         Ok(Some(return_type_id))
     }
@@ -3112,29 +3136,53 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         receiver_ty_id: LocalTypeId,
         candidates: Vec<UnionMemberCallCandidate>,
+        infer: &mut InferTable,
         types: &mut TypeTable,
-    ) {
-        let resolution_candidates = candidates
-            .into_iter()
-            .map(|candidate| {
-                let instance_id = candidate.instance_environment.and_then(|environment| {
-                    self.commit_instance_for_symbol_maybe(candidate.symbol, environment, types)
-                });
-                ResolutionCandidate {
-                    key: Some(DispatchKey::single(candidate.receiver_ty_id)),
-                    target_symbol: candidate.symbol,
-                    instance: instance_id,
-                    resolved_signature: Some(candidate.signature),
+    ) -> AnalyzeResult<()> {
+        let source_node_id = expression_id.into_global_any(module.id);
+        let mut deferred_candidate_attachments = Vec::new();
+        let mut resolution_candidates = Vec::with_capacity(candidates.len());
+        for (candidate_index, candidate) in candidates.into_iter().enumerate() {
+            let instance_id = if let Some(environment) = candidate.instance_environment {
+                let (instance_id, obligation_id) = self
+                    .commit_instance_for_symbol_maybe_with_obligation(
+                        candidate.symbol,
+                        environment,
+                        infer,
+                        types,
+                    )?;
+                if let Some(obligation_id) = obligation_id {
+                    deferred_candidate_attachments.push((candidate_index, obligation_id));
                 }
-            })
-            .collect();
+                instance_id
+            } else {
+                None
+            };
 
-        self.commit_dynamic_resolution(
-            expression_id.into_global_any(module.id),
+            resolution_candidates.push(ResolutionCandidate {
+                key: Some(DispatchKey::single(candidate.receiver_ty_id)),
+                target_symbol: candidate.symbol,
+                instance: instance_id,
+                resolved_signature: Some(candidate.signature),
+            });
+        }
+
+        let resolution_id = self.commit_dynamic_resolution(
+            source_node_id,
             Some(receiver_ty_id),
             resolution_candidates,
             types,
         );
+        for (candidate_index, obligation_id) in deferred_candidate_attachments {
+            let candidate_slot = DynamicResolutionCandidateSlotId::new(candidate_index as u32);
+            infer.push_instance_commit_obligation_for_resolution_candidate(
+                resolution_id,
+                candidate_slot,
+                obligation_id,
+            );
+        }
+
+        Ok(())
     }
 
     /// Check whether a call expression is an optional chain call target.
@@ -3642,7 +3690,7 @@ impl Compiler {
         let resolved_return_type = resolved_signature.return_type;
 
         // register the constructor instance when static arguments were resolved
-        let constructor_instance_id = target.callee_symbol.and_then(|callee_symbol| {
+        let constructor_instance_id = if let Some(callee_symbol) = target.callee_symbol {
             let environment = self.instance_environment_for_symbol_arguments(
                 module,
                 ctx.profile,
@@ -3652,14 +3700,21 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
-            )?;
-            self.commit_instance_for_node_maybe(
-                expression_id.into_global_any(module.id),
-                callee_symbol,
-                environment,
-                types,
-            )
-        });
+            );
+            if let Some(environment) = environment {
+                self.commit_instance_for_node_maybe(
+                    expression_id.into_global_any(module.id),
+                    callee_symbol,
+                    environment,
+                    infer,
+                    types,
+                )?
+            } else {
+                None
+            }
+        } else {
+            None
+        };
 
         // commit constructor resolution when possible
         if let Some(callee_symbol) = target.callee_symbol {
@@ -4573,6 +4628,7 @@ impl Compiler {
             options,
             tree,
             symbols,
+            infer,
             types,
         )?;
         let has_member = resolved_context.member_ty_id.is_some();
@@ -4653,29 +4709,36 @@ impl Compiler {
         resolved: &ResolvedMemberFunction,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        infer: &mut InferTable,
         types: &mut TypeTable,
-    ) -> Option<LocalInstanceId> {
-        resolved.member_symbol.and_then(|member_symbol| {
-            let environment = self.compose_member_instance_environment(
-                module,
-                profile,
-                member_symbol,
-                &resolved.instance_arguments,
-                &resolved.bound_substitutions,
-                &resolved.signature.static_arguments,
-                &resolved.signature_static_parameter_symbols,
-                tree,
-                symbols,
-                types,
-            )?;
+    ) -> AnalyzeResult<Option<LocalInstanceId>> {
+        let Some(member_symbol) = resolved.member_symbol else {
+            return Ok(None);
+        };
 
-            self.commit_instance_for_node_maybe(
-                expression_id.into_global_any(module.id),
-                member_symbol,
-                environment,
-                types,
-            )
-        })
+        let environment = self.compose_member_instance_environment(
+            module,
+            profile,
+            member_symbol,
+            &resolved.instance_arguments,
+            &resolved.bound_substitutions,
+            &resolved.signature.static_arguments,
+            &resolved.signature_static_parameter_symbols,
+            tree,
+            symbols,
+            types,
+        );
+        let Some(environment) = environment else {
+            return Ok(None);
+        };
+
+        self.commit_instance_for_node_maybe(
+            expression_id.into_global_any(module.id),
+            member_symbol,
+            environment,
+            infer,
+            types,
+        )
     }
 
     /// Commit resolution facts for a member function invocation.
@@ -4690,8 +4753,9 @@ impl Compiler {
         resolved: &ResolvedMemberFunction,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        infer: &mut InferTable,
         types: &mut TypeTable,
-    ) -> Option<LocalInstanceId> {
+    ) -> AnalyzeResult<Option<LocalInstanceId>> {
         let instance_id = self.commit_member_call_instance_id(
             module,
             profile,
@@ -4699,8 +4763,9 @@ impl Compiler {
             resolved,
             tree,
             symbols,
+            infer,
             types,
-        );
+        )?;
 
         // record member resolution
         self.commit_member_resolution(
@@ -4713,6 +4778,6 @@ impl Compiler {
             types,
         );
 
-        instance_id
+        Ok(instance_id)
     }
 }
