@@ -81,11 +81,13 @@ impl PrettierSuite {
 }
 
 /// Infer the parser file type for a prettier fixture path.
-fn infer_prettier_file_type(path: &Path, test_name: &str) -> Option<FileType> {
+fn infer_prettier_file_type(path: &Path, _test_name: &str) -> Option<FileType> {
     let file_type = FileType::from_path(path)?;
 
-    // parse jsx directory .js fixtures in jsx mode
-    if file_type == FileType::JavaScript && test_name.starts_with("jsx/") {
+    // parse `.js` conformance fixtures in jsx-capable mode:
+    // prettier keeps jsx-heavy fixtures under `js/` paths, so plain js mode
+    // can fail on valid fixture inputs like `<Hello />`
+    if file_type == FileType::JavaScript {
         return Some(FileType::JavaScriptXml);
     }
 
@@ -163,8 +165,8 @@ mod tests {
     }
 
     #[test]
-    fn test_infer_prettier_file_type_keeps_js_outside_jsx_directory() {
+    fn test_infer_prettier_file_type_promotes_js_outside_jsx_directory() {
         let file_type = infer_prettier_file_type(Path::new("sample.js"), "js/module/sample.js");
-        assert_eq!(file_type, Some(FileType::JavaScript));
+        assert_eq!(file_type, Some(FileType::JavaScriptXml));
     }
 }
