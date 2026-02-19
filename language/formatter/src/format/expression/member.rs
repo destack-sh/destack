@@ -2,6 +2,49 @@ use super::*;
 use destack_fir::{format_args, write};
 use smallvec::SmallVec;
 
+/// Return whether one member receiver ends with static instantiation arguments.
+fn expression_has_trailing_static_instantiation(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    match tree.get(expression_id) {
+        Expression::Instantiation {
+            static_arguments, ..
+        } => !static_arguments.is_empty(),
+        Expression::Path {
+            static_arguments, ..
+        }
+        | Expression::Member {
+            static_arguments, ..
+        }
+        | Expression::PrivateMember {
+            static_arguments, ..
+        } => static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty()),
+        Expression::Parenthesized { expression } => {
+            expression_has_trailing_static_instantiation(tree, *expression)
+        }
+        _ => false,
+    }
+}
+
+/// Format one member receiver, adding wrapper parentheses when static instantiation tails need grouping.
+fn format_member_receiver<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    receiver_id: LocalNodeId<Expression>,
+    should_wrap_for_static_instantiation: bool,
+) -> FormatResult<()> {
+    if should_wrap_for_static_instantiation {
+        write!(f, [token("(")])?;
+        write_postfix_base_expression(f, receiver_id)?;
+        write!(f, [token(")")])?;
+        return Ok(());
+    }
+
+    write_postfix_base_expression(f, receiver_id)
+}
+
 /// Format a member expression.
 pub(crate) fn format_member_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -28,12 +71,20 @@ pub(crate) fn format_member_expression<'ast>(
                 f.context().tree.get(left),
                 Expression::Call { .. } | Expression::Instantiation { .. }
             );
+            let should_wrap_receiver_for_static_instantiation =
+                expression_has_trailing_static_instantiation(f.context().tree, left);
 
             if is_breakable_member_receiver {
                 write!(
                     f,
                     [group(&format_args![
-                        format_with(|f| write_postfix_base_expression(f, left)),
+                        format_with(|f| {
+                            format_member_receiver(
+                                f,
+                                left,
+                                should_wrap_receiver_for_static_instantiation,
+                            )
+                        }),
                         indent(&format_with(|f| {
                             write!(f, [soft_line_break(), token("."), *name])?;
                             if let Some(static_arguments) = static_arguments {
@@ -44,7 +95,7 @@ pub(crate) fn format_member_expression<'ast>(
                     ])]
                 )?;
             } else {
-                write_postfix_base_expression(f, left)?;
+                format_member_receiver(f, left, should_wrap_receiver_for_static_instantiation)?;
                 write!(f, [token(".")])?;
                 write!(f, [*name])?;
                 if let Some(static_arguments) = static_arguments {
@@ -72,12 +123,20 @@ pub(crate) fn format_member_expression<'ast>(
                 f.context().tree.get(left),
                 Expression::Call { .. } | Expression::Instantiation { .. }
             );
+            let should_wrap_receiver_for_static_instantiation =
+                expression_has_trailing_static_instantiation(f.context().tree, left);
 
             if is_breakable_member_receiver {
                 write!(
                     f,
                     [group(&format_args![
-                        format_with(|f| write_postfix_base_expression(f, left)),
+                        format_with(|f| {
+                            format_member_receiver(
+                                f,
+                                left,
+                                should_wrap_receiver_for_static_instantiation,
+                            )
+                        }),
                         indent(&format_with(|f| {
                             write!(f, [soft_line_break(), token("."), token("#"), *name])?;
                             if let Some(static_arguments) = static_arguments {
@@ -88,7 +147,7 @@ pub(crate) fn format_member_expression<'ast>(
                     ])]
                 )?;
             } else {
-                write_postfix_base_expression(f, left)?;
+                format_member_receiver(f, left, should_wrap_receiver_for_static_instantiation)?;
                 write!(f, [token("."), token("#"), *name])?;
                 if let Some(static_arguments) = static_arguments {
                     format_static_argument_list(f, static_arguments)?;

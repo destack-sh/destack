@@ -6,22 +6,25 @@ use super::owner::{
     find_next_declaration_owner_from_token, find_smallest_owner_enclosing_range,
     normalize_formatter_trivia_target_owner, promote_owner_to_declaration_ancestor,
 };
-use super::seam::{CommentSeamContext, CommentSeamFacts, CommentSeamKeyword};
+use super::seam::{
+    CommentAttachmentDecision, CommentAttachmentOwners, CommentSeamContext, CommentSeamFacts,
+    CommentSeamKeyword,
+};
 
 /// Resolve declaration seam comment rules.
-pub(super) fn resolve_comment_declaration_rules(
+pub(super) fn try_attach_comment_declaration(
     tree: &NodeTree,
     owner_index: &FormatterTriviaOwnerIndex,
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
     facts: &CommentSeamFacts,
-    left_owner: Option<u32>,
-    right_owner: Option<u32>,
-) -> Option<(Option<u32>, AnnotationPosition)> {
+    owners: CommentAttachmentOwners,
+) -> Option<CommentAttachmentDecision> {
+    let left_owner = owners.left;
+    let right_owner = owners.right;
     let token_after = context.token_after;
     let token_before_span = context.token_before_span;
     let token_after_span = context.token_after_span;
-
     let has_leading_newline = facts.has_leading_newline;
     let has_trailing_newline = facts.has_trailing_newline;
     let comment_is_star = facts.comment_is_star;

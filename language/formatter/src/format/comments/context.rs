@@ -4,17 +4,15 @@ use destack_source::File;
 
 use super::index::{FormatterTriviaOwnerIndex, decode_token_index};
 use super::owner::{find_preferred_owner_starting_at, find_smallest_owner_enclosing_token};
-use super::seam::CommentSeamContext;
+use super::seam::{CommentAttachmentOwners, CommentSeamContext};
 
 /// Initial seam context and owner candidates for one comment attachment decision.
 #[derive(Clone, Copy)]
 pub(super) struct CommentAttachmentSetup<'a> {
     /// The seam context used across attachment rules.
     pub(super) context: CommentSeamContext<'a>,
-    /// The nearest left owner candidate.
-    pub(super) left_owner: Option<u32>,
-    /// The nearest right owner candidate.
-    pub(super) right_owner: Option<u32>,
+    /// The nearest left and right owner candidates.
+    pub(super) owners: CommentAttachmentOwners,
 }
 
 /// Build seam context and initial owner candidates.
@@ -94,7 +92,6 @@ pub(super) fn build_comment_attachment_setup<'a>(
 
     CommentAttachmentSetup {
         context,
-        left_owner,
-        right_owner,
+        owners: CommentAttachmentOwners::new(left_owner, right_owner),
     }
 }

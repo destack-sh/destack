@@ -593,6 +593,61 @@ fn test_format_optional_call_keeps_inline_boundary_star_comment() {
     );
 }
 
+/// Optional chains keep short member tails with the optional call that introduces them.
+#[test]
+fn test_format_optional_chain_keeps_short_member_tail_with_optional_call() {
+    assert_format!(
+        "dataSource?.getClient()?.getUser(id)?.profile?.name",
+        "dataSource\n    ?.getClient()\n    ?.getUser(id)?.profile?.name",
+        |p| p.eat_expression(Default::default()),
+        DestackFormatOptions::default_with_line_width(35)
+    );
+}
+
+/// Chains wrap instantiation prefixes before member tails.
+#[test]
+fn test_format_chain_wraps_instantiation_prefix_before_member_tail() {
+    assert_format!(
+        "api.getFactory<number>.name",
+        "(api.getFactory<number>).name",
+        |p| p.eat_expression(Default::default()),
+        DestackFormatOptions::default()
+    );
+}
+
+/// Instantiation prefixes before index tails use relational spacing.
+#[test]
+fn test_format_chain_instantiation_before_index_uses_relational_spacing() {
+    assert_format!(
+        "providers[\"main\"]<Factory>[0]",
+        "providers[\"main\"] < Factory > [0]",
+        |p| p.eat_expression(Default::default()),
+        DestackFormatOptions::default()
+    );
+}
+
+/// Parenthesized instantiation call wrappers can drop when they are redundant.
+#[test]
+fn test_format_parenthesized_instantiation_call_callee_wrapper_drops() {
+    assert_format!(
+        "(makeFactory<number>)(config)",
+        "makeFactory<number>(config)",
+        |p| p.eat_expression(Default::default()),
+        DestackFormatOptions::default()
+    );
+}
+
+/// Single non-interpolated template literal arguments stay inline in chained calls.
+#[test]
+fn test_format_chain_call_keeps_single_template_literal_argument_inline() {
+    assert_format!(
+        "expect(genCode(createVNodeCall(null, \"`div`\", mockProps))).toMatchInlineSnapshot(`\n  `)",
+        "expect(genCode(createVNodeCall(null, \"`div`\", mockProps))).toMatchInlineSnapshot(`\n  `)",
+        |p| p.eat_expression(Default::default()),
+        DestackFormatOptions::default()
+    );
+}
+
 /// Chain planner keeps a short promoted head for call-like argument chains.
 #[test]
 fn test_format_chain_planner_promotes_head_in_call_like_argument() {

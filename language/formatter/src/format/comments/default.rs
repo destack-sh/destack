@@ -7,20 +7,21 @@ use super::owner::{
 };
 use super::rule::normalize_owner_with_shared_end;
 use super::seam::{
-    CommentSeamContext, CommentSeamFacts, CommentSeamKeyword, CommentSeamRuleState,
-    resolve_comment_seam_owner,
+    CommentAttachmentDecision, CommentAttachmentOwners, CommentSeamContext, CommentSeamFacts,
+    CommentSeamKeyword, CommentSeamOwnerCache, resolve_comment_seam_owner,
 };
 
 /// Resolve the default comment trivia rules after specialized seam cases.
-pub(super) fn resolve_formatter_comment_trivia_default(
+pub(super) fn attach_comment_default(
     context: &CommentSeamContext<'_>,
     facts: &CommentSeamFacts,
-    state: &mut CommentSeamRuleState,
-    left_owner: Option<u32>,
-    right_owner: Option<u32>,
-) -> (Option<u32>, AnnotationPosition) {
+    seam_owner_cache: &mut CommentSeamOwnerCache,
+    owners: CommentAttachmentOwners,
+) -> CommentAttachmentDecision {
     let tree = context.tree;
     let parents: &NodeParentIndex = context.parents;
+    let left_owner = owners.left;
+    let right_owner = owners.right;
     let token_before_span = context.token_before_span.map(|token| token.span);
     let token_after_span = context.token_after_span.map(|token| token.span);
     let token_before = context.token_before;
@@ -51,7 +52,8 @@ pub(super) fn resolve_formatter_comment_trivia_default(
     if has_leading_newline
         && token_before_is_open_delimiter
         && token_after_is_less_than
-        && let Some(target_node) = resolve_comment_seam_owner(context, state).or(right_owner)
+        && let Some(target_node) =
+            resolve_comment_seam_owner(context, seam_owner_cache).or(right_owner)
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return (Some(target_node), AnnotationPosition::BlockPrefix);

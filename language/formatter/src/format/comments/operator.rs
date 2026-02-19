@@ -8,20 +8,21 @@ use super::owner::{
     promote_owner_to_satisfies_expression_ancestor,
 };
 use super::seam::{
-    CommentSeamContext, CommentSeamFacts, CommentSeamKeyword, CommentSeamRuleState,
-    resolve_comment_seam_owner,
+    CommentAttachmentDecision, CommentAttachmentOwners, CommentSeamContext, CommentSeamFacts,
+    CommentSeamKeyword, CommentSeamOwnerCache, resolve_comment_seam_owner,
 };
 
 /// Resolve expression operator seam comment rules.
-pub(super) fn resolve_comment_expression_operator_rules(
+pub(super) fn try_attach_comment_expression_operator(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
     facts: &CommentSeamFacts,
-    state: &mut CommentSeamRuleState,
-    left_owner: Option<u32>,
-    right_owner: Option<u32>,
-) -> Option<(Option<u32>, AnnotationPosition)> {
+    seam_owner_cache: &mut CommentSeamOwnerCache,
+    owners: CommentAttachmentOwners,
+) -> Option<CommentAttachmentDecision> {
+    let left_owner = owners.left;
+    let right_owner = owners.right;
     let has_leading_newline = facts.has_leading_newline;
     let has_trailing_newline = facts.has_trailing_newline;
     let comment_is_line = facts.comment_is_line;
@@ -32,6 +33,10 @@ pub(super) fn resolve_comment_expression_operator_rules(
     let token_after_is_as = facts.token_after_is_keyword(CommentSeamKeyword::As);
     let token_after_is_satisfies = facts.token_after_is_keyword(CommentSeamKeyword::Satisfies);
     let token_after_is_const = facts.token_after_is_keyword(CommentSeamKeyword::Const);
+    let token_after_is_elementwise_operator = matches!(
+        facts.token_after_type,
+        Some(TokenType::ElementwiseAnd | TokenType::ElementwiseOr | TokenType::ElementwiseXor)
+    );
 
     let token_before_is_as = facts.token_before_is_keyword(CommentSeamKeyword::As);
     let token_before_is_satisfies = facts.token_before_is_keyword(CommentSeamKeyword::Satisfies);
@@ -40,6 +45,9 @@ pub(super) fn resolve_comment_expression_operator_rules(
         facts.token_before_type,
         Some(TokenType::ElementwiseAnd | TokenType::ElementwiseOr | TokenType::ElementwiseXor)
     );
+    let token_before_is_elementwise_or =
+        matches!(facts.token_before_type, Some(TokenType::ElementwiseOr));
+    let seam_owner = resolve_comment_seam_owner(context, seam_owner_cache);
 
     // seam comments before `as` and `satisfies` stay with the asserted left expression
     if !has_leading_newline
@@ -57,7 +65,7 @@ pub(super) fn resolve_comment_expression_operator_rules(
         && has_trailing_newline
         && token_after_is_maybe
         && comment_is_line
-        && let Some(target_node) = resolve_comment_seam_owner(context, state)
+        && let Some(target_node) = resolve_comment_seam_owner(context, seam_owner_cache)
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return Some((Some(target_node), AnnotationPosition::LinePostfix));
@@ -72,7 +80,18 @@ pub(super) fn resolve_comment_expression_operator_rules(
         && let Some(target_node) = left_owner
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
+        return Some((Some(target_node), AnnotationPosition::LinePostfix));
+    }
+
+    // trailing line comments before type and bitwise separators stay with the left operand
+    if !has_leading_newline
+        && has_trailing_newline
+        && comment_is_line
+        && token_after_is_elementwise_operator
+        && let Some(target_node) = left_owner
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::LinePostfix));
     }
 
     // comments after `as` should resolve to the cast expression seam
@@ -80,7 +99,7 @@ pub(super) fn resolve_comment_expression_operator_rules(
         && !has_leading_newline
         && has_trailing_newline
         && comment_is_line
-        && let Some(target_node) = resolve_comment_seam_owner(context, state)
+        && let Some(target_node) = resolve_comment_seam_owner(context, seam_owner_cache)
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
@@ -111,7 +130,9 @@ pub(super) fn resolve_comment_expression_operator_rules(
             }
         }
 
-        if let Some(target_node) = resolve_comment_seam_owner(context, state).or(left_owner) {
+        if let Some(target_node) =
+            resolve_comment_seam_owner(context, seam_owner_cache).or(left_owner)
+        {
             let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
             return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
         }
@@ -122,7 +143,7 @@ pub(super) fn resolve_comment_expression_operator_rules(
         && !has_leading_newline
         && has_trailing_newline
         && comment_is_line
-        && resolve_comment_seam_owner(context, state)
+        && resolve_comment_seam_owner(context, seam_owner_cache)
             .or(left_owner)
             .and_then(|target_node| {
                 promote_owner_to_satisfies_expression_ancestor(tree, parents, target_node)
@@ -140,8 +161,15 @@ pub(super) fn resolve_comment_expression_operator_rules(
         && !has_leading_newline
         && has_trailing_newline
         && comment_is_line
-        && let Some(target_node) = right_owner
     {
+        if token_before_is_elementwise_or && let Some(target_node) = left_owner.or(seam_owner) {
+            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+            return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
+        }
+
+        let Some(target_node) = right_owner else {
+            return None;
+        };
         let target_node = context
             .token_after_span
             .map(|token| {
@@ -157,7 +185,7 @@ pub(super) fn resolve_comment_expression_operator_rules(
         && token_after_is_const
         && !has_leading_newline
         && comment_is_multiline_star
-        && let Some(target_node) = resolve_comment_seam_owner(context, state)
+        && let Some(target_node) = resolve_comment_seam_owner(context, seam_owner_cache)
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));

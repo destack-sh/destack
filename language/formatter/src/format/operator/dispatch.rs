@@ -216,8 +216,8 @@ pub(crate) fn format_operator_expression<'ast>(
         }
 
         // index
-        Expression::Index { left, .. } => {
-            format_index_or_chain_expression(f, node_id, *left)?;
+        Expression::Index { .. } => {
+            format_index_or_chain_expression(f, node_id)?;
         }
 
         // call
@@ -326,11 +326,8 @@ fn format_member_or_chain_expression<'ast>(
 fn format_index_or_chain_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    left: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let left_is_instantiation =
-        matches!(f.context().tree.get(left), Expression::Instantiation { .. });
-    if is_expression_chain(f.context().tree, node_id) && !left_is_instantiation {
+    if is_expression_chain(f.context().tree, node_id) {
         let _timing = f
             .context()
             .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CHAIN);

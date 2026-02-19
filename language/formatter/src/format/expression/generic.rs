@@ -27,3 +27,18 @@ pub(crate) fn format_static_argument_list<'ast>(
         write!(f, [list])
     }
 }
+
+/// Format static type arguments with relational spacing for index-following instantiations.
+pub(crate) fn format_static_argument_list_with_relational_spacing<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    static_arguments: &[LocalNodeId<Argument>],
+) -> FormatResult<()> {
+    write!(f, [space(), token("<"), space()])?;
+    for (index, argument_id) in static_arguments.iter().enumerate() {
+        if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+        write!(f, [*argument_id])?;
+    }
+    write!(f, [space(), token(">"), space()])
+}

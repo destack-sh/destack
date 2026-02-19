@@ -11,19 +11,21 @@ use super::owner::{
 };
 use super::rule::normalize_owner_with_shared_end;
 use super::seam::{
-    CommentSeamContext, CommentSeamFacts, CommentSeamRuleState, resolve_comment_seam_owner,
+    CommentAttachmentDecision, CommentAttachmentOwners, CommentSeamContext, CommentSeamFacts,
+    CommentSeamOwnerCache, resolve_comment_seam_owner,
 };
 
 /// Resolve statement-prefix seam comment rules.
-pub(super) fn resolve_comment_statement_prefix_rules(
+pub(super) fn try_attach_comment_statement_prefix(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
     facts: &CommentSeamFacts,
-    state: &mut CommentSeamRuleState,
-    left_owner: Option<u32>,
-    right_owner: Option<u32>,
-) -> Option<(Option<u32>, AnnotationPosition)> {
+    seam_owner_cache: &mut CommentSeamOwnerCache,
+    owners: CommentAttachmentOwners,
+) -> Option<CommentAttachmentDecision> {
+    let left_owner = owners.left;
+    let right_owner = owners.right;
     let has_leading_newline = facts.has_leading_newline;
     let token_after_is_case_or_default = facts.token_after_is_case_or_default();
     let token_after_is_semicolon = facts.token_after_is(TokenType::Semicolon);
@@ -60,7 +62,8 @@ pub(super) fn resolve_comment_statement_prefix_rules(
     // own-line comments before switch case labels should attach to the first case expression
     if has_leading_newline
         && token_after_is_case_or_default
-        && let Some(target_node) = resolve_comment_seam_owner(context, state).or(right_owner)
+        && let Some(target_node) =
+            resolve_comment_seam_owner(context, seam_owner_cache).or(right_owner)
     {
         if tree.get_node_type(target_node) == NodeType::Expression {
             let expression_id = LocalNodeId::<Expression>::new(target_node);
@@ -85,13 +88,14 @@ pub(super) fn resolve_comment_statement_prefix_rules(
 }
 
 /// Resolve statement-suffix seam comment rules.
-pub(super) fn resolve_comment_statement_suffix_rules(
+pub(super) fn try_attach_comment_statement_suffix(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     facts: &CommentSeamFacts,
-    left_owner: Option<u32>,
-    right_owner: Option<u32>,
-) -> Option<(Option<u32>, AnnotationPosition)> {
+    owners: CommentAttachmentOwners,
+) -> Option<CommentAttachmentDecision> {
+    let left_owner = owners.left;
+    let right_owner = owners.right;
     let has_leading_newline = facts.has_leading_newline;
     let has_trailing_newline = facts.has_trailing_newline;
     let comment_is_line = facts.comment_is_line;
@@ -196,11 +200,12 @@ pub(super) fn resolve_comment_statement_suffix_rules(
 }
 
 /// Resolve block body seam comment rules.
-pub(super) fn resolve_comment_block_body_rules(
+pub(super) fn try_attach_comment_block_body(
     tree: &NodeTree,
     facts: &CommentSeamFacts,
-    right_owner: Option<u32>,
-) -> Option<(Option<u32>, AnnotationPosition)> {
+    owners: CommentAttachmentOwners,
+) -> Option<CommentAttachmentDecision> {
+    let right_owner = owners.right;
     let has_leading_newline = facts.has_leading_newline;
     let has_trailing_newline = facts.has_trailing_newline;
     let token_after_is_open_brace = facts.token_after_is(TokenType::OpenBrace);

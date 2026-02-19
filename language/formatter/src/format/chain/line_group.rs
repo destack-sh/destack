@@ -69,6 +69,38 @@ pub(super) fn group_chain_expression_lines(
 
 type ChainOperationIter = std::iter::Peekable<std::vec::IntoIter<ChainExpression>>;
 
+/// Return whether lookahead starts with a simple `?.member` tail pair.
+fn iter_starts_with_simple_optional_member_tail_pair(
+    context: &DestackFormatContext<'_>,
+    iter: &ChainOperationIter,
+) -> bool {
+    let mut lookahead = iter.clone();
+
+    let Some(ChainExpression::Maybe { node_id, .. }) = lookahead.next() else {
+        return false;
+    };
+    if chain_node_has_non_inline_annotation(context, node_id) {
+        return false;
+    }
+
+    let Some(ChainExpression::Member { node_id, .. }) = lookahead.next() else {
+        return false;
+    };
+    if chain_node_has_non_inline_annotation(context, node_id) {
+        return false;
+    }
+
+    !matches!(
+        lookahead.peek(),
+        Some(
+            ChainExpression::Call { .. }
+                | ChainExpression::Index { .. }
+                | ChainExpression::Instantiation { .. }
+                | ChainExpression::Must { .. }
+        )
+    )
+}
+
 /// Return whether a chain line starts with a mergeable direct index operation.
 fn line_starts_with_mergeable_direct_index(
     context: &DestackFormatContext<'_>,
@@ -141,6 +173,16 @@ fn extend_maybe_line(
             }
             push_next_chain_operation(iter, line);
             merged_member_count += 1;
+        }
+
+        // keep short optional member tails with the preceding optional call
+        let mut merged_optional_member_tail_pair_count = 0usize;
+        while merged_optional_member_tail_pair_count < 2
+            && iter_starts_with_simple_optional_member_tail_pair(context, iter)
+        {
+            push_next_chain_operation(iter, line);
+            push_next_chain_operation(iter, line);
+            merged_optional_member_tail_pair_count += 1;
         }
 
         return;

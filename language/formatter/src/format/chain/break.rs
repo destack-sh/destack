@@ -60,6 +60,10 @@ fn chain_annotation_is_inline_non_breaking(
         return false;
     }
 
+    if position == AnnotationPosition::LinePostfixBoundary {
+        return true;
+    }
+
     annotation_next_token_is_on_same_line(context, annotation_id)
 }
 

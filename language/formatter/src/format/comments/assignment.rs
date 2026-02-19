@@ -3,31 +3,51 @@ use destack_ast as ast;
 
 use super::rule::promote_rhs_expression_owner;
 use super::seam::{
-    CommentSeamContext, CommentSeamFacts, CommentSeamRuleState, resolve_comment_seam_owner,
+    CommentAttachmentDecision, CommentAttachmentOwners, CommentSeamContext, CommentSeamFacts,
+    CommentSeamOwnerCache, resolve_comment_seam_owner,
 };
 
 /// Resolve assignment seam comment rules.
-pub(super) fn resolve_comment_assignment_rules(
+pub(super) fn try_attach_comment_assignment(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
     facts: &CommentSeamFacts,
-    state: &mut CommentSeamRuleState,
-    right_owner: Option<u32>,
-) -> Option<(Option<u32>, AnnotationPosition)> {
+    seam_owner_cache: &mut CommentSeamOwnerCache,
+    owners: CommentAttachmentOwners,
+) -> Option<CommentAttachmentDecision> {
+    let right_owner = owners.right;
     let has_leading_newline = facts.has_leading_newline;
     let has_trailing_newline = facts.has_trailing_newline;
     let comment_is_line = facts.comment_is_line;
+    let comment_is_star = facts.comment_is_star;
     let token_before_is_assign = facts.token_before_is(TokenType::Assign);
     let token_after_span = context.token_after_span;
     let token_before_span = context.token_before_span;
+
+    // inline block comments between assignment and rhs should stay inline with the rhs expression
+    if !has_leading_newline
+        && !has_trailing_newline
+        && comment_is_star
+        && token_before_is_assign
+        && let Some(target_node) =
+            right_owner.or_else(|| resolve_comment_seam_owner(context, seam_owner_cache))
+    {
+        let target_node = promote_rhs_expression_owner(
+            tree,
+            parents,
+            target_node,
+            token_after_span.map(|token| token.span),
+        );
+        return Some((Some(target_node), AnnotationPosition::LinePrefix));
+    }
 
     // comments between assignment and rhs should bind to the rhs seam
     if !has_leading_newline
         && has_trailing_newline
         && token_before_is_assign
         && let Some(target_node) =
-            right_owner.or_else(|| resolve_comment_seam_owner(context, state))
+            right_owner.or_else(|| resolve_comment_seam_owner(context, seam_owner_cache))
     {
         let target_node = promote_rhs_expression_owner(
             tree,
@@ -59,7 +79,7 @@ pub(super) fn resolve_comment_assignment_rules(
     if has_leading_newline
         && token_before_is_assign
         && let Some(target_node) =
-            right_owner.or_else(|| resolve_comment_seam_owner(context, state))
+            right_owner.or_else(|| resolve_comment_seam_owner(context, seam_owner_cache))
     {
         let target_node = promote_rhs_expression_owner(
             tree,

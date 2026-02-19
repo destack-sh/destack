@@ -2,14 +2,15 @@ use std::borrow::Cow;
 
 use crate::Annotation;
 use destack_ast::{
-    AnnotationPosition, Block, Declaration, Expression, FunctionKind, LocalNodeId, Node, NodeTree,
-    NodeTreeImpl, NodeType, ScalarLiteral,
+    AnnotationPosition, Block, BlockFormat, Declaration, Expression, FunctionKind, LocalNodeId,
+    Node, NodeTree, NodeTreeImpl, NodeType, ScalarLiteral, WhileKind,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::{FileId, Span};
 
+use super::block_policy::block_allows_value_tail;
 use super::imports;
 use crate::analysis::timing::tags;
 use crate::directive::{
@@ -55,7 +56,7 @@ impl<'ast, 'a> Format<DestackFormatContext<'ast>> for StatementList<'a> {
         }
 
         let _timing = f.context().timing_scope(tags::FORMAT_STATEMENT_LIST);
-        format_block_of_statements(f, self.expressions)?;
+        format_block_of_statements(f, self.expressions, false)?;
         if !self.expressions.is_empty() {
             write!(f, [hard_line_break()])?;
         }
@@ -362,6 +363,7 @@ pub(crate) fn format_block_body_wide<'ast>(
     block_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
+    let allow_value_tail = block_allows_value_tail(f.context(), block_id);
     // body
     write!(
         f,
@@ -370,7 +372,8 @@ pub(crate) fn format_block_body_wide<'ast>(
             hard_line_break(),
             soft_block_indent(&format_with(|f| format_block_of_statements(
                 f,
-                &block.expressions
+                &block.expressions,
+                allow_value_tail,
             ))),
             hard_line_break(),
             block_indent(&f.context().block_infix_annotations(block_id)),
@@ -383,6 +386,7 @@ pub(crate) fn format_block_body_wide<'ast>(
 pub(crate) fn format_block_of_statements<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expressions: &[LocalNodeId<Expression>],
+    allow_value_tail: bool,
 ) -> FormatResult<()> {
     let _timing = f.context().timing_scope(tags::FORMAT_BLOCK_STATEMENTS);
     let organize = f.context().options.organize_imports.is_enabled();
@@ -581,23 +585,33 @@ pub(crate) fn format_block_of_statements<'ast>(
         }
         format_expression(f, expression_id, expression, directive)?;
 
-        // add statement terminators for declaration like expression forms
-        let needs_statement_terminator = matches!(
-            expression,
-            Expression::Import { .. } | Expression::Let { .. } | Expression::Using { .. }
-        ) || matches!(
-            expression,
-            Expression::Declaration(declaration_id)
-                if matches!(
-                    tree.get(*declaration_id),
-                    Declaration::Function {
-                        descriptor,
-                        signature,
-                        ..
-                    }
-                    if descriptor.name.is_none() && signature.kind == FunctionKind::Lambda
-                )
-        );
+        // add statement terminators for statement-context expression forms
+        let is_expression_context_tail = allow_value_tail && i + 1 == effective_expressions.len();
+        let needs_statement_terminator = !is_expression_context_tail
+            && (matches!(
+                expression,
+                Expression::Import { .. } | Expression::Let { .. } | Expression::Using { .. }
+            ) || matches!(
+                expression,
+                Expression::While {
+                    kind: WhileKind::DoWhile,
+                    ..
+                }
+            ) || matches!(
+                expression,
+                Expression::Declaration(declaration_id)
+                    if matches!(
+                        tree.get(*declaration_id),
+                        Declaration::Function {
+                            descriptor,
+                            signature,
+                            ..
+                        }
+                        if descriptor.name.is_none() && signature.kind == FunctionKind::Lambda
+                    )
+            ) || (!matches!(expression, Expression::Statement(_))
+                && !matches!(expression, Expression::Stub | Expression::Error)
+                && !expression.ends_statement_on_newline()));
         if needs_statement_terminator {
             write!(f, [token(";")])?;
         }
@@ -633,6 +647,11 @@ pub(crate) fn should_inline_block<'ast>(
 ) -> bool {
     let block = f.context().tree.get(block_id);
     let span = f.context().span(block_id);
+
+    // explicit non-value blocks should stay expanded
+    if block.format == BlockFormat::Explicit && !block_allows_value_tail(f.context(), block_id) {
+        return false;
+    }
 
     // can only inline if there is at most one expression
     if block.expressions.len() > 1 || f.context().has_infix_annotation(block_id) {
