@@ -847,6 +847,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack"
+version = "0.55.2"
+
+[[package]]
 name = "destack_ast"
 version = "0.55.2"
 dependencies = [
@@ -1219,23 +1223,8 @@ dependencies = [
 name = "destack_napi"
 version = "0.55.2"
 dependencies = [
- "destack_ast",
- "destack_codegen_js",
- "destack_compiler",
- "destack_daemon",
- "destack_dir",
- "destack_fir",
- "destack_formatter",
- "destack_parser",
- "destack_resolver",
- "destack_service",
- "destack_source",
- "destack_workspace",
- "indexmap",
  "napi",
- "napi-build",
  "napi-derive",
- "serde_json",
 ]
 
 [[package]]
@@ -1255,6 +1244,10 @@ dependencies = [
  "smallvec",
  "tracing",
 ]
+
+[[package]]
+name = "destack_python"
+version = "0.55.2"
 
 [[package]]
 name = "destack_resolver"
@@ -1414,18 +1407,6 @@ version = "0.55.2"
 name = "destack_wasm"
 version = "0.55.2"
 dependencies = [
- "destack_ast",
- "destack_compiler",
- "destack_fir",
- "destack_formatter",
- "destack_parser",
- "destack_resolver",
- "destack_service",
- "destack_source",
- "destack_workspace",
- "serde",
- "serde-wasm-bindgen",
- "serde_json",
  "wasm-bindgen",
 ]
 
@@ -3184,17 +3165,6 @@ checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
  "serde_derive",
-]
-
-[[package]]
-name = "serde-wasm-bindgen"
-version = "0.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8302e169f0eddcc139c70f139d19d6467353af16f9fce27e8c30158036a1e16b"
-dependencies = [
- "js-sys",
- "serde",
- "wasm-bindgen",
 ]
 
 [[package]]

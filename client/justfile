@@ -1,0 +1,199 @@
+set shell := ["bash", "-cu"]
+set dotenv-load := true
+set dotenv-filename := "../.env.local"
+
+# all client crates
+packages := "-p destack_napi -p destack_wasm -p destack -p destack_python"
+format-packages := "-p destack_napi -p destack_wasm -p destack -p destack_python"
+test-packages := "-p destack_napi -p destack_wasm -p destack -p destack_python"
+
+_default:
+    @just --list --unsorted
+
+# --- ci ---
+
+# install js dependencies required by client gates
+ci-install:
+    bun install --frozen-lockfile
+
+# run client format gate
+ci-format:
+    just format-check
+
+# run client lint gate
+ci-lint:
+    just lint
+
+# run client test gate
+ci-tests:
+    just test
+
+# run all blocking client ci gates locally
+ci:
+    just ci-install
+    just ci-format
+    just ci-lint
+    just ci-tests
+
+# --- build ---
+
+# check (clippy + ts)
+check:
+    cargo clippy --release {{ packages }}
+    bun x tsc --noEmit -p napi/tsconfig.json
+    bun x tsc --noEmit -p wasm/tsconfig.json
+    bun x tsc -p typescript/tsconfig.json
+    bun run biome lint napi wasm typescript
+
+# lint (alias for check)
+lint:
+    just check
+
+# build all client packages
+build:
+    cargo build --release {{ packages }}
+    bun run --cwd napi build
+    bun run --cwd wasm build
+    bun run --cwd typescript build
+
+# build napi package
+napi:
+    cargo build --release -p destack_napi
+    bun run --cwd napi build
+
+# build wasm package
+wasm:
+    cargo build --release -p destack_wasm
+    bun run --cwd wasm build
+
+# canonical wasm size analysis command
+wasm-size:
+    cd wasm && bun ./scripts/size-report.mjs
+
+# canonical wasm size analysis command without rebuilding
+wasm-size-no-build:
+    cd wasm && bun ./scripts/size-report.mjs
+
+# analyze one preset with canonical size report settings
+wasm-size-preset preset="core":
+    cd wasm && bun ./scripts/size-report.mjs
+
+# format code
+format:
+    cargo fmt {{ format-packages }}
+    bun run biome format --write napi wasm typescript
+
+# check formatting
+format-check:
+    cargo fmt --check {{ format-packages }}
+    bun run biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false napi wasm typescript
+
+# alias for format
+alias fmt := format
+
+# clean
+clean:
+    cargo clean
+    rm -rf napi/node_modules wasm/node_modules typescript/node_modules
+    rm -rf typescript/dist
+
+# --- test ---
+
+# run all tests
+test:
+    cargo test --release --all-targets {{ test-packages }}
+    bun run --cwd napi test
+    bun run --cwd wasm test
+    bun run --cwd typescript test
+
+# --- release ---
+
+# publish npm client packages (dry-run by default)
+publish-npm dry="--dry-run":
+    cd napi && npm publish {{dry}} --access public
+    cd wasm && npm publish {{dry}} --access public
+    cd typescript && npm publish {{dry}} --access public
+
+# publish npm client packages as dry run
+publish-npm-dry:
+    just publish-npm --dry-run
+
+# publish npm client packages live
+publish-npm-live:
+    just publish-npm ""
+
+# backward compatibility alias for npm publish
+publish-js dry="--dry-run":
+    just publish-npm "{{dry}}"
+
+# publish cargo client crate (dry-run by default)
+publish-cargo dry="--dry-run":
+    @if [ "{{dry}}" = "--dry-run" ]; then \
+        cd rust && cargo publish --dry-run --allow-dirty; \
+    else \
+        if [ -z "${CARGO_TOKEN:-}" ]; then \
+            echo "missing CARGO_TOKEN env var for live cargo publish"; \
+            exit 1; \
+        fi; \
+        cd rust && cargo publish --token "${CARGO_TOKEN}"; \
+    fi
+
+# publish cargo client crate as dry run
+publish-cargo-dry:
+    just publish-cargo --dry-run
+
+# publish cargo client crate live
+publish-cargo-live:
+    just publish-cargo ""
+
+# backward compatibility alias for cargo publish
+publish-rust dry="--dry-run":
+    just publish-cargo "{{dry}}"
+
+# publish pypi client package (dry-run by default)
+publish-pypi dry="--dry-run":
+    python3 -m venv .publish-python-venv
+    .publish-python-venv/bin/python -m pip install --quiet --disable-pip-version-check build twine
+    cd python && ../.publish-python-venv/bin/python -m build
+    cd python && ../.publish-python-venv/bin/python -m twine check dist/*
+    @if [ "{{dry}}" = "--dry-run" ]; then \
+        echo "Dry run: built and validated python package"; \
+    else \
+        if [ -z "${PYPI_TOKEN:-}" ]; then \
+            echo "missing PYPI_TOKEN env var for live pypi publish"; \
+            exit 1; \
+        fi; \
+        cd python && TWINE_USERNAME="__token__" TWINE_PASSWORD="${PYPI_TOKEN}" ../.publish-python-venv/bin/python -m twine upload --non-interactive dist/*; \
+    fi
+    @if [ -d ".publish-python-venv" ]; then \
+        rm -r .publish-python-venv; \
+    fi
+    @if [ -d "python/dist" ]; then \
+        rm -r python/dist; \
+    fi
+
+# publish pypi client package as dry run
+publish-pypi-dry:
+    just publish-pypi --dry-run
+
+# publish pypi client package live
+publish-pypi-live:
+    just publish-pypi ""
+
+# backward compatibility alias for pypi publish
+publish-python dry="--dry-run":
+    just publish-pypi "{{dry}}"
+
+# publish all client packages (dry-run by default)
+publish dry="--dry-run":
+    just publish-npm "{{dry}}"
+    just publish-cargo "{{dry}}"
+    just publish-pypi "{{dry}}"
+
+# publish all client packages as dry run
+publish-dry:
+    just publish --dry-run
+
+# publish all client packages live
+publish-live:
+    just publish ""

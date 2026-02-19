@@ -3,9 +3,9 @@ set dotenv-load := true
 set dotenv-filename := "../.env.local"
 
 # all platform crates
-packages := "-p destack_napi -p destack_cli -p destack_daemon -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_vscode -p destack_zed"
-format-packages := "-p destack_napi -p destack_wasm -p destack_cli -p destack_daemon -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_vscode -p destack_zed"
-test-packages := "-p destack_napi -p destack_wasm -p destack_cli -p destack_daemon -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_vscode -p destack_zed"
+packages := "-p destack_cli -p destack_daemon -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_vscode -p destack_zed"
+format-packages := "-p destack_cli -p destack_daemon -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_vscode -p destack_zed"
+test-packages := "-p destack_cli -p destack_daemon -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_vscode -p destack_zed"
 
 _default:
     @just --list --unsorted
@@ -41,9 +41,6 @@ ci:
 # check (clippy)
 check:
     cargo clippy --release {{ packages }}
-    cargo check --release -p destack_wasm --target wasm32-wasip2
-    bun x tsc --noEmit -p napi/tsconfig.json
-    bun run biome lint napi wasm
 
 # lint (alias for check)
 lint:
@@ -53,31 +50,6 @@ lint:
 build:
     cargo build --release {{ packages }}
     just build-vscode
-
-# build napi bindings
-napi:
-    cargo build --release -p destack_napi
-    just napi-js
-
-# build napi js bindings
-napi-js:
-    cd napi && bun run build
-
-# build wasm bindings
-wasm:
-    RUSTFLAGS='-C target-feature=+tail-call' cargo build --release -p destack_wasm --target wasm32-wasip2
-
-# canonical wasm size analysis command
-wasm-size:
-    cd wasm && bun ./scripts/size-report.mjs --build --preset core --top 20 --retained-top 20 --crate-top 12 --mono-top 8 --symbols
-
-# canonical wasm size analysis command without rebuilding
-wasm-size-no-build:
-    cd wasm && bun ./scripts/size-report.mjs --no-build --preset core --top 20 --retained-top 20 --crate-top 12 --mono-top 8 --symbols
-
-# analyze one preset with canonical size report settings
-wasm-size-preset preset="core":
-    cd wasm && bun ./scripts/size-report.mjs --build --preset {{preset}} --top 20 --retained-top 20 --crate-top 12 --mono-top 8 --symbols
 
 # build vscode extension
 build-vscode:
@@ -90,12 +62,10 @@ build-zed:
 # format code
 format:
     cargo fmt {{ format-packages }}
-    bun run biome format --write napi wasm
 
 # check formatting
 format-check:
     cargo fmt --check {{ format-packages }}
-    bun run biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false napi wasm
 
 # alias for format
 alias fmt := format
@@ -103,7 +73,6 @@ alias fmt := format
 # clean
 clean:
     cargo clean
-    rm -rf napi/node_modules wasm/node_modules
     rm -rf vscode/out vscode/*.vsix
     rm -rf zed/grammars zed/extension.wasm
 
@@ -112,10 +81,30 @@ clean:
 # run all tests
 test:
     cargo test --release --all-targets {{ test-packages }}
-    cd napi && bun run test
-    cd wasm && bun run test
     just test-vscode
     just test-zed
+
+# --- compatibility ---
+
+# backward compatibility proxy for moved client bindings
+napi:
+    cd .. && just client/napi
+
+# backward compatibility proxy for moved client bindings
+wasm:
+    cd .. && just client/wasm
+
+# backward compatibility proxy for moved client bindings
+wasm-size:
+    cd .. && just client/wasm-size
+
+# backward compatibility proxy for moved client bindings
+wasm-size-no-build:
+    cd .. && just client/wasm-size-no-build
+
+# backward compatibility proxy for moved client bindings
+wasm-size-preset preset="core":
+    cd .. && just client/wasm-size-preset {{preset}}
 
 # --- schema ---
 
@@ -162,11 +151,36 @@ alias test-editor := test-ide
 
 # build cli binaries for npm platform packages
 build-cli-binaries:
-    cargo build --release -p destack_cli --target aarch64-apple-darwin
-    cargo build --release -p destack_cli --target x86_64-apple-darwin
-    cargo build --release -p destack_cli --target aarch64-unknown-linux-gnu
-    cargo build --release -p destack_cli --target x86_64-unknown-linux-gnu
-    cargo build --release -p destack_cli --target x86_64-pc-windows-msvc
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # resolve active targets from DESTACK_RELEASE_TARGETS or use all by default
+    targets_input="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
+    selected_targets=()
+
+    # map aliases and validate supported targets
+    for token in ${targets_input}; do
+        case "${token}" in
+            darwin-arm64|aarch64-apple-darwin) selected_targets+=("aarch64-apple-darwin") ;;
+            darwin-x64|x86_64-apple-darwin) selected_targets+=("x86_64-apple-darwin") ;;
+            linux-arm64-gnu|aarch64-unknown-linux-gnu) selected_targets+=("aarch64-unknown-linux-gnu") ;;
+            linux-x64-gnu|x86_64-unknown-linux-gnu) selected_targets+=("x86_64-unknown-linux-gnu") ;;
+            win32-x64-msvc|x86_64-pc-windows-msvc) selected_targets+=("x86_64-pc-windows-msvc") ;;
+            *) echo "error: unsupported DESTACK_RELEASE_TARGETS entry: ${token}" >&2; exit 1 ;;
+        esac
+    done
+
+    # build each unique selected target
+    built_targets=""
+    for target_triple in "${selected_targets[@]}"; do
+        if [[ " ${built_targets} " == *" ${target_triple} "* ]]; then
+            continue
+        fi
+        built_targets="${built_targets} ${target_triple}"
+
+        rustup target add "${target_triple}"
+        cargo build --release -p destack_cli --target "${target_triple}"
+    done
 
 # package cli release archives and checksums
 package-cli-release version="" artifacts="cli/install/artifacts":
@@ -264,7 +278,7 @@ publish-zed dry="--dry-run" version="":
 
 # publish vscode extension (dry-run by default)
 publish dry="--dry-run":
-    just publish-cli {{dry}}
+    just publish-cli "{{dry}}"
     cd vscode && bun run package
     @if [ "{{dry}}" = "--dry-run" ]; then \
         echo "Dry run: would publish vscode extension"; \

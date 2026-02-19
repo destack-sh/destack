@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       publish_packages:
-        description: "Publish library/platform packages after verification"
+        description: "Publish workspace packages after verification"
         required: false
         default: false
         type: boolean
@@ -113,11 +113,20 @@ jobs:
       - name: Run platform format check
         run: just platform/ci-format
 
+      - name: Run client format check
+        run: just client/ci-format
+
       - name: Run platform lint
         run: just platform/ci-lint
 
+      - name: Run client lint
+        run: just client/ci-lint
+
       - name: Run platform tests
         run: just platform/ci-tests
+
+      - name: Run client tests
+        run: just client/ci-tests
 
   build-artifacts:
     name: Build Release Artifacts
@@ -484,6 +493,14 @@ jobs:
             echo "missing NPM_TOKEN secret"
             exit 1
           fi
+          if [ -z "${CARGO_TOKEN}" ]; then
+            echo "missing CARGO_TOKEN secret"
+            exit 1
+          fi
+          if [ -z "${PYPI_TOKEN}" ]; then
+            echo "missing PYPI_TOKEN secret"
+            exit 1
+          fi
           if [ -z "${VSCE_PAT}" ]; then
             echo "missing VSCE_PAT secret"
             exit 1
@@ -500,6 +517,8 @@ jobs:
           fi
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          CARGO_TOKEN: ${{ secrets.CARGO_TOKEN }}
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
           PUBLISH_ZED: ${{ inputs.publish_zed }}
           ZED_GITHUB_TOKEN: ${{ secrets.ZED_GITHUB_TOKEN }}
@@ -514,6 +533,9 @@ jobs:
       - name: Publish packages
         run: just publish ""
         env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          CARGO_TOKEN: ${{ secrets.CARGO_TOKEN }}
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
       - name: Publish zed registry PR

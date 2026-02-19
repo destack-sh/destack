@@ -168,6 +168,44 @@
             "null"
           ]
         },
+        "moduleResolution": {
+          "description": "Module resolution strategy (e.g., \"bundler\", \"node16\", \"nodenext\").",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolvePackageJsonExports": {
+          "description": "Use package.json exports field during module resolution.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "resolvePackageJsonImports": {
+          "description": "Use package.json imports field during module resolution.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "customConditions": {
+          "description": "Custom package export conditions for module resolution.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "moduleDetection": {
+          "description": "How to detect modules versus scripts (e.g., \"auto\", \"force\", \"legacy\").",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "lib": {
           "description": "Library files to include (e.g., [\"es2024\", \"dom\"]).",
           "type": [
@@ -179,7 +217,7 @@
           }
         },
         "types": {
-          "description": "Additional library types to include (e.g., [\"node\", \"dom.iterable\"]).",
+          "description": "Additional ambient type entries to include (e.g., [\"node\", \"@types/node\", \"dom.iterable\"]).",
           "type": [
             "array",
             "null"
@@ -765,6 +803,48 @@
         },
         "checkJs": {
           "description": "Type-check JavaScript files.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allowArbitraryExtensions": {
+          "description": "Allow arbitrary file extensions in import specifiers.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allowImportingTsExtensions": {
+          "description": "Allow TypeScript file extensions in import specifiers.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "esModuleInterop": {
+          "description": "Enable TypeScript CommonJS default import interop semantics.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allowSyntheticDefaultImports": {
+          "description": "Allow synthetic default imports from modules without explicit defaults.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "verbatimModuleSyntax": {
+          "description": "Preserve import and export syntax verbatim.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "rewriteRelativeImportExtensions": {
+          "description": "Rewrite relative import extensions.",
           "type": [
             "boolean",
             "null"
@@ -2517,7 +2597,7 @@
           "const": "poll"
         },
         {
-          "description": "Use the Windows IOCP backend.",
+          "description": "Use the Windows readiness backend.",
           "type": "string",
           "const": "windows"
         }

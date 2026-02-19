@@ -285,6 +285,9 @@ jobs:
       - name: Run platform format check
         run: just platform/ci-format
 
+      - name: Run client format check
+        run: just client/ci-format
+
   platform-lint:
     name: Platform Lint
     runs-on: ubuntu-latest
@@ -312,6 +315,9 @@ jobs:
 
       - name: Run platform lint
         run: just platform/ci-lint
+
+      - name: Run client lint
+        run: just client/ci-lint
 
   platform-tests:
     name: Platform Tests
@@ -348,3 +354,6 @@ jobs:
 
       - name: Run platform tests
         run: just platform/ci-tests
+
+      - name: Run client tests
+        run: just client/ci-tests

@@ -1,0 +1,25 @@
+[package]
+name = "destack_wasm"
+description = "WebAssembly bindings for Destack"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+repository = "https://github.com/destack-sh/destack"
+homepage = "https://github.com/destack-sh/destack"
+documentation = "https://docs.rs/destack_wasm"
+keywords = ["destack", "wasm", "webassembly", "bindings"]
+categories = ["api-bindings", "wasm"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+wasm-bindgen = "0.2.105"
+
+[lints]
+workspace = true

@@ -4,7 +4,7 @@
 
 **Destack is a universal software engine for building correct, optimal, integrated software systems.**
 
-_Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and platform - built on open standards._
+_Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, client SDKs, and platform - built on open standards._
 
 <p>
     <a href="version.txt"><img src="https://img.shields.io/badge/version-0.55.2-2ea44f" alt="Version"></a>
@@ -31,7 +31,10 @@ While Destack is designed for integration, we also value incremental adoption an
 
 - [**Destack Language**](language/README.md): TypeScript++ toolchain, VM, AOT compiler, runtime.
 - [**Destack Library**](library/README.md): Standard library packages for most things most software needs, written in TS++.
-- [**Destack Platform**](platform/README.md): CLI, daemon, LSP, IDE integrations, everything to run, deploy, and integrate software.
+- [**Destack Client**](client/README.md): User-facing SDKs and bindings for JS/TS, WASM, Rust, and Python.
+- [**Destack Platform**](platform/README.md): CLI, daemon, LSP, editor integrations, everything to run, deploy, and integrate software.
+- [**Destack Examples**](examples/README.md): End-to-end sample projects that demonstrate language and platform usage.
+- [**Destack Templates**](templates/README.md): Starter project templates used by `destack new`.
 
 ### Higher-Order Programming
 
@@ -47,6 +50,7 @@ the more we can express in one unified software system, the more software system
 <!--TODO #Incomplete: getting started (`bun i -g @destack/cli`, `curl destack.sh/install`, and local development setup)-->
 
 Install via `curl -fsSL https://destack.sh/install | sh` or `npm i -g @destack/cli`.
+Create a new app with `npm create destack@latest my-app` or `bun create destack my-app`.
 
 ---
 

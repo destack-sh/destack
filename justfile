@@ -45,6 +45,10 @@ ci-language:
 ci-library:
     just library/ci
 
+# run client ci gates
+ci-client:
+    just client/ci
+
 # run platform ci gates
 ci-platform:
     just platform/ci
@@ -53,6 +57,7 @@ ci-platform:
 ci:
     just ci-language
     just ci-library
+    just ci-client
     just ci-platform
 
 # canonical pre commit gate
@@ -63,20 +68,21 @@ precommit:
 check:
     just language/check
     just library/check
+    just client/check
     just platform/check
 
 
 # build everything
 build:
     just language/build
-    just platform/napi
-    just platform/wasm
+    just client/build
     just platform/build
 
 # format all code
 format:
     just language/format
     just library/format
+    just client/format
     just platform/format
 
 # alias for format
@@ -86,6 +92,7 @@ alias fmt := format
 clean:
     just language/clean
     just library/clean
+    just client/clean
     just platform/clean
 
 # --- test ---
@@ -94,6 +101,7 @@ clean:
 test:
     just language/test
     just library/test
+    just client/test
     just platform/test
 
 # run ide integration tests
@@ -137,8 +145,61 @@ bump kind:
 # publish all packages (dry-run by default)
 publish dry="--dry-run":
     just build
-    just library/publish {{dry}}
-    just platform/publish {{dry}}
+    just templates/publish-create-destack "{{dry}}"
+    just library/publish "{{dry}}"
+    just client/publish "{{dry}}"
+    just platform/publish "{{dry}}"
+
+# publish all packages as dry run
+publish-dry:
+    just publish --dry-run
+
+# publish all packages live
+publish-live:
+    just build
+    just platform/validate-cli-publish
+    just templates/publish-create-destack ""
+    just library/publish ""
+    just client/publish ""
+    just platform/publish ""
+
+# publish all packages live with local cli binary staging
+publish-live-local:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # prefer staged release artifacts when available
+    cli_artifacts_directory="${DESTACK_CLI_ARTIFACTS:-release-cli-assets}"
+
+    just build
+
+    if [ -d "${cli_artifacts_directory}" ]; then
+        just platform/stage-cli-binaries-from-artifacts "$(cat version.txt)" "${cli_artifacts_directory}"
+    else
+        # default local target selection to host target when not explicitly set
+        if [ -z "${DESTACK_RELEASE_TARGETS:-}" ]; then
+            host_target="$(rustc -vV | awk '/^host: / { print $2 }')"
+            case "${host_target}" in
+                aarch64-apple-darwin|x86_64-apple-darwin|aarch64-unknown-linux-gnu|x86_64-unknown-linux-gnu|x86_64-pc-windows-msvc)
+                    export DESTACK_RELEASE_TARGETS="${host_target}"
+                    ;;
+                *)
+                    echo "error: unsupported host target for default local publish: ${host_target}" >&2
+                    echo "set DESTACK_RELEASE_TARGETS explicitly to one or more supported targets" >&2
+                    exit 1
+                    ;;
+            esac
+        fi
+
+        just platform/build-cli-binaries
+        (cd platform/cli && npm run stage:binaries)
+    fi
+
+    just platform/validate-cli-publish
+    just templates/publish-create-destack ""
+    just library/publish ""
+    just client/publish ""
+    just platform/publish ""
 
 # create a new release (bump, commit, tag, push)
 release kind message:
@@ -171,4 +232,5 @@ release kind message:
     echo "Release v${VERSION} created locally."
     echo "To publish:"
     echo "  git push origin main --tags"
-    echo "  just publish ''"
+    echo "  just publish-live"
+    echo "  just publish-live-local   # uses release-cli-assets when present, else host target"

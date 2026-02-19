@@ -1,0 +1,48 @@
+{
+    "name": "@destack/wasm",
+    "version": "0.55.2",
+    "description": "WebAssembly bindings for Destack",
+    "license": "MIT",
+    "type": "module",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/destack-sh/destack.git",
+        "directory": "client/wasm"
+    },
+    "homepage": "https://github.com/destack-sh/destack/tree/main/client/wasm",
+    "bugs": {
+        "url": "https://github.com/destack-sh/destack/issues"
+    },
+    "keywords": [
+        "destack",
+        "wasm",
+        "webassembly",
+        "typescript"
+    ],
+    "files": [
+        "src",
+        "scripts",
+        "README.md",
+        "Cargo.toml",
+        "tsconfig.json"
+    ],
+    "main": "./src/index.ts",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "sideEffects": false,
+    "scripts": {
+        "build": "bun x tsc --noEmit -p tsconfig.json",
+        "test": "bun x tsc --noEmit -p tsconfig.json",
+        "size:report": "bun ./scripts/size-report.mjs",
+        "size:report:all": "bun ./scripts/size-report.mjs",
+        "prepublishOnly": "bun run build",
+        "publish:dry": "npm publish --dry-run --access public",
+        "publish:live": "npm publish --access public"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "dependencies": {},
+    "devDependencies": {}
+}

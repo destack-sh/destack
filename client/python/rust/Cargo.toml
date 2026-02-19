@@ -1,0 +1,19 @@
+[package]
+name = "destack_python"
+description = "Python bindings support crate for Destack"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+readme = "../README.md"
+repository = "https://github.com/destack-sh/destack"
+homepage = "https://github.com/destack-sh/destack"
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true

@@ -7,7 +7,11 @@
     "workspaces": {
         "packages": [
             "examples/tetris",
+            "client/napi",
+            "client/wasm",
+            "client/typescript",
             "platform/bun",
+            "templates/create-destack",
             "platform/cli",
             "platform/cli/npm-darwin-arm64",
             "platform/cli/npm-darwin-x64",
@@ -16,14 +20,12 @@
             "platform/cli/npm-win32-x64-msvc",
             "platform/vite",
             "platform/vscode",
-            "platform/napi",
-            "platform/wasm",
             "library/schema",
             "library/test"
         ]
     },
     "scripts": {
-        "build:napi": "bun run --cwd platform/napi build"
+        "build:napi": "bun run --cwd client/napi build"
     },
     "catalog": {
         "@destack/napi": "workspace:*",
