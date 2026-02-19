@@ -406,6 +406,16 @@ fn test_format_member_expression_unwraps_parenthesized_call_object() {
     );
 }
 
+#[test]
+fn test_format_member_expression_keeps_parenthesized_integer_object() {
+    assert_format!(
+        "(1).toString()",
+        "(1).toString()",
+        |p| p.eat_expression(Default::default()),
+        DestackFormatOptions::default()
+    );
+}
+
 /// Tree children with map callbacks that return trees force a break.
 #[test]
 fn test_tree_child_map_callback_breaks() {

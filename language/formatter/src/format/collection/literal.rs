@@ -19,6 +19,66 @@ const TEMPLATE_COMPLEX_ARGUMENT_COUNT_THRESHOLD: usize = 2;
 const TEMPLATE_INTERPOLATION_DELIMITER_WIDTH: usize = 4;
 const TEMPLATE_COMPLEX_OBJECT_PROPERTY_THRESHOLD: usize = 2;
 
+/// Escape string content for one quote-delimited literal.
+fn escape_string_literal_content(content: &str, quote_char: char) -> String {
+    let mut escaped = String::with_capacity(content.len());
+    for ch in content.chars() {
+        match ch {
+            '\\' => escaped.push_str("\\\\"),
+            '\n' => escaped.push_str("\\n"),
+            '\r' => escaped.push_str("\\r"),
+            '\t' => escaped.push_str("\\t"),
+            '\u{08}' => escaped.push_str("\\b"),
+            '\u{0C}' => escaped.push_str("\\f"),
+            ch if ch == quote_char => {
+                escaped.push('\\');
+                escaped.push(ch);
+            }
+            _ => escaped.push(ch),
+        }
+    }
+    escaped
+}
+
+/// Rewrite one raw quoted string body for a different delimiter while preserving escapes.
+fn rewrite_raw_string_literal_for_quote(
+    inner: &str,
+    source_quote: char,
+    target_quote: char,
+) -> String {
+    let mut rewritten = String::with_capacity(inner.len());
+    let mut chars = inner.chars();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            let Some(next) = chars.next() else {
+                rewritten.push('\\');
+                break;
+            };
+
+            if source_quote != target_quote && next == source_quote {
+                rewritten.push(next);
+            } else if next == target_quote {
+                rewritten.push('\\');
+                rewritten.push(next);
+            } else {
+                rewritten.push('\\');
+                rewritten.push(next);
+            }
+            continue;
+        }
+
+        if ch == target_quote {
+            rewritten.push('\\');
+            rewritten.push(ch);
+        } else {
+            rewritten.push(ch);
+        }
+    }
+
+    rewritten
+}
+
 /// Format a scalar literal.
 /// (This is a separate function because it's not a node but we need the span for normalization.)
 pub(crate) fn format_scalar_literal<'ast>(
@@ -70,9 +130,14 @@ pub(crate) fn format_scalar_literal<'ast>(
                 let content = value.to_string();
                 let quote_char = quote_style.char_for(content.as_str());
                 let quote_str = if quote_char == '"' { "\"" } else { "'" };
+                let escaped_content = escape_string_literal_content(content.as_str(), quote_char);
                 write!(
                     f,
-                    [token(quote_str), text(content.as_str()), token(quote_str)]
+                    [
+                        token(quote_str),
+                        text(escaped_content.as_str()),
+                        token(quote_str)
+                    ]
                 )?;
             }
         }
@@ -85,25 +150,49 @@ pub(crate) fn format_scalar_literal<'ast>(
             }
             let content = f.context().strings.get(*string_id);
             let quote_char = quote_style.char_for(content);
+            let escaped_content = escape_string_literal_content(content, quote_char);
 
             if span_str.is_empty() {
                 // fallback: no source span available, format from string pool
                 let quote_str = if quote_char == '"' { "\"" } else { "'" };
-                write!(f, [token(quote_str), text(content), token(quote_str)])?;
+                write!(
+                    f,
+                    [
+                        token(quote_str),
+                        text(escaped_content.as_str()),
+                        token(quote_str)
+                    ]
+                )?;
             } else if span_str.starts_with('"') || span_str.starts_with('\'') {
                 // quoted string: normalize to preferred quote style
                 let source_quote = span_str.chars().next().unwrap_or_default();
                 let has_matching_quote = span_str.len() >= 2 && span_str.ends_with(source_quote);
                 if has_matching_quote {
                     let inner = &span_str[1..span_str.len() - 1];
-                    let mut normalized = String::with_capacity(span_str.len());
-                    normalized.push(quote_char);
-                    normalized.push_str(inner);
-                    normalized.push(quote_char);
-                    write!(f, [text(normalized.as_str())])?;
+                    let normalized_inner = if source_quote == quote_char {
+                        inner.to_string()
+                    } else {
+                        rewrite_raw_string_literal_for_quote(inner, source_quote, quote_char)
+                    };
+                    let quote_str = if quote_char == '"' { "\"" } else { "'" };
+                    write!(
+                        f,
+                        [
+                            token(quote_str),
+                            text(normalized_inner.as_str()),
+                            token(quote_str)
+                        ]
+                    )?;
                 } else {
                     let quote_str = if quote_char == '"' { "\"" } else { "'" };
-                    write!(f, [token(quote_str), text(content), token(quote_str)])?;
+                    write!(
+                        f,
+                        [
+                            token(quote_str),
+                            text(escaped_content.as_str()),
+                            token(quote_str)
+                        ]
+                    )?;
                 }
             } else {
                 // jsx text content (unquoted): normalize whitespace
@@ -701,6 +790,18 @@ mod tests {
     #[test]
     fn test_format_string_literal_empty() {
         assert_format!("''", "\"\"", |p| p.eat_expression(Default::default()));
+    }
+
+    #[test]
+    fn test_format_string_literal_escapes_embedded_target_quote() {
+        assert_format!("'\"1\"'", r#""\"1\"""#, |p| p
+            .eat_expression(Default::default()));
+    }
+
+    #[test]
+    fn test_format_string_literal_does_not_double_escape_target_quote() {
+        assert_format!(r#""\"1\"""#, r#""\"1\"""#, |p| p
+            .eat_expression(Default::default()));
     }
 
     /// Formats a template literal string with no interpolation.

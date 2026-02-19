@@ -526,17 +526,25 @@ pub(crate) fn write_postfix_base_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    if needs_parens_in_postfix_position(f.context().tree, expression_id) {
+    let parent_expression_id = postfix_parent_expression_id(f.context(), expression_id);
+    let needs_integer_member_parentheses = parent_expression_id.is_some_and(|parent_id| {
+        matches!(
+            f.context().tree.get(expression_id),
+            Expression::ScalarLiteral(ScalarLiteral::Integer(_))
+        ) && matches!(
+            f.context().tree.get(parent_id),
+            Expression::Member { .. } | Expression::PrivateMember { .. }
+        )
+    });
+    let needs_parentheses = needs_parens_in_postfix_position(f.context().tree, expression_id)
+        || needs_integer_member_parentheses;
+    if needs_parentheses {
         let line_width = usize::from(f.context().options.line_width);
-        let parenthesized_chain_overflows =
-            postfix_parent_expression_id(f.context(), expression_id).is_some_and(
-                |parent_expression_id| {
-                    let available_width =
-                        assignment_like_remaining_width(f.context(), parent_expression_id)
-                            .unwrap_or(line_width);
-                    expression_source_len(f.context(), parent_expression_id) > available_width
-                },
-            );
+        let parenthesized_chain_overflows = parent_expression_id.is_some_and(|parent_id| {
+            let available_width =
+                assignment_like_remaining_width(f.context(), parent_id).unwrap_or(line_width);
+            expression_source_len(f.context(), parent_id) > available_width
+        });
 
         if parenthesized_chain_overflows {
             write!(
