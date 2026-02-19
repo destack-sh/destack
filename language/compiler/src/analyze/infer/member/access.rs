@@ -80,6 +80,7 @@ impl Compiler {
             tree,
             symbols,
             types,
+            infer,
             ctx,
         )?;
 
@@ -195,6 +196,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<MemberAccessLookup> {
         // ensure instance types are available for reference receivers
@@ -213,6 +215,7 @@ impl Compiler {
             receiver.receiver_id.into_any(),
             Some(receiver.receiver_ty_id),
             &receiver.receiver_ty,
+            infer,
             &ctx.options,
             tree,
             symbols,
@@ -404,8 +407,9 @@ impl Compiler {
                             &resolved_member.static_parameter_symbols,
                             tree,
                             symbols,
+                            infer,
                             types,
-                        )
+                        )?
                     } else {
                         None
                     }

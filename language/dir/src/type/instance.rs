@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::Display;
 
 use destack_source::ModuleId;
@@ -55,6 +56,21 @@ impl From<GlobalInstanceId> for LocalInstanceId {
     }
 }
 
+/// Errors emitted when instance environment metadata is invalid.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InstanceEnvironmentError {
+    /// Parameter symbol count does not match argument count.
+    ParameterArgumentCountMismatch,
+    /// Inherited argument count exceeds total argument count.
+    InheritedArgumentCountOutOfRange,
+    /// Parameter symbols contain duplicates.
+    DuplicateParameterSymbol,
+    /// Merge metadata parameter symbols do not match instance symbols.
+    ParameterSymbolMismatch,
+    /// Merge metadata inherited argument count conflicts with existing metadata.
+    InheritedArgumentCountConflict,
+}
+
 impl Display for LocalInstanceId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "#{}", self.0)
@@ -104,7 +120,7 @@ impl Instance {
         symbol_id: GlobalSymbolId,
         arguments: Vec<StaticArgument>,
         parameter_symbols: Vec<GlobalSymbolId>,
-    ) -> Option<Self> {
+    ) -> Result<Self, InstanceEnvironmentError> {
         Self::with_environment(symbol_id, arguments, parameter_symbols, 0)
     }
 
@@ -114,15 +130,18 @@ impl Instance {
         arguments: Vec<StaticArgument>,
         parameter_symbols: Vec<GlobalSymbolId>,
         inherited_argument_count: usize,
-    ) -> Option<Self> {
+    ) -> Result<Self, InstanceEnvironmentError> {
         if parameter_symbols.len() != arguments.len() {
-            return None;
+            return Err(InstanceEnvironmentError::ParameterArgumentCountMismatch);
         }
         if inherited_argument_count > arguments.len() {
-            return None;
+            return Err(InstanceEnvironmentError::InheritedArgumentCountOutOfRange);
+        }
+        if !parameter_symbols_are_unique(&parameter_symbols) {
+            return Err(InstanceEnvironmentError::DuplicateParameterSymbol);
         }
 
-        Some(Self {
+        Ok(Self {
             symbol_id,
             static_arguments: arguments,
             static_parameter_symbols: parameter_symbols,
@@ -132,17 +151,21 @@ impl Instance {
 
     /// Return inherited arguments from the canonical flattened list.
     pub fn inherited_arguments(&self) -> &[StaticArgument] {
-        let split = self
-            .inherited_static_argument_count
-            .min(self.static_arguments.len());
+        let split = self.inherited_static_argument_count;
+        assert!(
+            split <= self.static_arguments.len(),
+            "invalid inherited argument count"
+        );
         &self.static_arguments[..split]
     }
 
     /// Return own arguments from the canonical flattened list.
     pub fn own_arguments(&self) -> &[StaticArgument] {
-        let split = self
-            .inherited_static_argument_count
-            .min(self.static_arguments.len());
+        let split = self.inherited_static_argument_count;
+        assert!(
+            split <= self.static_arguments.len(),
+            "invalid inherited argument count"
+        );
         &self.static_arguments[split..]
     }
 
@@ -162,27 +185,115 @@ impl Instance {
         &mut self,
         parameter_symbols: &[GlobalSymbolId],
         inherited_argument_count: usize,
-    ) {
+    ) -> Result<(), InstanceEnvironmentError> {
         if parameter_symbols != self.static_parameter_symbols {
-            return;
+            return Err(InstanceEnvironmentError::ParameterSymbolMismatch);
+        }
+        if inherited_argument_count > self.static_arguments.len() {
+            return Err(InstanceEnvironmentError::InheritedArgumentCountOutOfRange);
+        }
+        if inherited_argument_count < self.inherited_static_argument_count {
+            return Err(InstanceEnvironmentError::InheritedArgumentCountConflict);
         }
 
-        if inherited_argument_count > self.inherited_static_argument_count {
-            self.inherited_static_argument_count =
-                inherited_argument_count.min(self.static_arguments.len());
-        }
+        self.inherited_static_argument_count = inherited_argument_count;
+        Ok(())
     }
 
-    /// Split arguments into inherited and own, given the count of own parameters.
+    /// Split arguments into inherited and own using canonical instance metadata.
     /// Returns `(inherited, own)`.
-    pub fn split_arguments(
-        &self,
-        own_param_count: usize,
-    ) -> (&[StaticArgument], &[StaticArgument]) {
-        let split = self.static_arguments.len().saturating_sub(own_param_count);
-        (
-            &self.static_arguments[..split],
-            &self.static_arguments[split..],
-        )
+    pub fn split_arguments(&self) -> (&[StaticArgument], &[StaticArgument]) {
+        (self.inherited_arguments(), self.own_arguments())
+    }
+}
+
+/// Return whether parameter symbols are unique.
+fn parameter_symbols_are_unique(parameter_symbols: &[GlobalSymbolId]) -> bool {
+    let mut seen = HashSet::with_capacity(parameter_symbols.len());
+    parameter_symbols
+        .iter()
+        .copied()
+        .all(|symbol| seen.insert(symbol))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{LocalSymbolId, LocalTypeId, StaticExpression, SymbolType};
+
+    /// Build one stable test symbol id.
+    fn test_symbol(id: u32) -> GlobalSymbolId {
+        LocalSymbolId::new_typed(id, SymbolType::Void).into_global(ModuleId::EPHEMERAL)
+    }
+
+    /// Build one stable static type argument.
+    fn test_type_argument(id: u32) -> StaticArgument {
+        StaticArgument::value(StaticExpression::Type {
+            ty: LocalTypeId::new(id),
+        })
+    }
+
+    /// Reject duplicate parameter symbols during instance construction.
+    #[test]
+    fn test_instance_rejects_duplicate_parameter_symbols() {
+        let symbol_id = test_symbol(1);
+        let parameter_symbol = test_symbol(2);
+        let arguments = vec![test_type_argument(1), test_type_argument(2)];
+        let parameter_symbols = vec![parameter_symbol, parameter_symbol];
+
+        let result = Instance::with_environment(symbol_id, arguments, parameter_symbols, 1);
+        assert_eq!(
+            result,
+            Err(InstanceEnvironmentError::DuplicateParameterSymbol)
+        );
+    }
+
+    /// Reject mismatched parameter and argument lengths during construction.
+    #[test]
+    fn test_instance_rejects_parameter_argument_count_mismatch() {
+        let symbol_id = test_symbol(1);
+        let arguments = vec![test_type_argument(1)];
+        let parameter_symbols = vec![test_symbol(2), test_symbol(3)];
+
+        let result = Instance::with_environment(symbol_id, arguments, parameter_symbols, 0);
+        assert_eq!(
+            result,
+            Err(InstanceEnvironmentError::ParameterArgumentCountMismatch)
+        );
+    }
+
+    /// Split inherited and own arguments using instance-owned metadata.
+    #[test]
+    fn test_instance_split_arguments_uses_inherited_count() {
+        let symbol_id = test_symbol(1);
+        let arguments = vec![
+            test_type_argument(1),
+            test_type_argument(2),
+            test_type_argument(3),
+        ];
+        let parameter_symbols = vec![test_symbol(2), test_symbol(3), test_symbol(4)];
+        let instance = Instance::with_environment(symbol_id, arguments, parameter_symbols, 2)
+            .expect("expected valid instance");
+
+        let (inherited, own) = instance.split_arguments();
+        assert_eq!(inherited.len(), 2);
+        assert_eq!(own.len(), 1);
+    }
+
+    /// Reject metadata merges that regress inherited-argument count.
+    #[test]
+    fn test_instance_merge_rejects_inherited_argument_regression() {
+        let symbol_id = test_symbol(1);
+        let parameter_symbols = vec![test_symbol(2), test_symbol(3)];
+        let arguments = vec![test_type_argument(1), test_type_argument(2)];
+        let mut instance =
+            Instance::with_environment(symbol_id, arguments, parameter_symbols.clone(), 1)
+                .expect("expected valid instance");
+
+        let result = instance.merge_environment_metadata(&parameter_symbols, 0);
+        assert_eq!(
+            result,
+            Err(InstanceEnvironmentError::InheritedArgumentCountConflict)
+        );
     }
 }

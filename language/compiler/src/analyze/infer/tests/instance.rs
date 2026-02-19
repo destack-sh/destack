@@ -1,5 +1,5 @@
 use super::*;
-use destack_dir::{DynamicKey, Resolution};
+use destack_dir::{DynamicKey, LocalInstanceId, Member, Resolution};
 
 #[derive(Debug, Clone, PartialEq)]
 struct ExpectedInstanceShape {
@@ -60,7 +60,7 @@ impl TestModuleView<'_> {
     fn expect_instance_id_for_expression(
         &self,
         expression_id: LocalNodeId<Expression>,
-    ) -> destack_dir::LocalInstanceId {
+    ) -> LocalInstanceId {
         self.types()
             .get_instance_for_node(expression_id.into_global_any(self.module_id))
             .expect("expected instance id for expression")
@@ -100,7 +100,7 @@ impl TestModuleView<'_> {
                 }
 
                 let member_parameters = match member {
-                    destack_dir::Member::Type {
+                    Member::Type {
                         static_parameters, ..
                     } => static_parameters
                         .clone()
@@ -113,7 +113,7 @@ impl TestModuleView<'_> {
                                 .into_global(self.module_id)
                         })
                         .collect::<Vec<_>>(),
-                    destack_dir::Member::Method { signature, .. } => signature
+                    Member::Method { signature, .. } => signature
                         .generics
                         .as_ref()
                         .and_then(|generics| generics.static_parameters.as_ref())
@@ -136,7 +136,7 @@ impl TestModuleView<'_> {
             }
         }
 
-        Vec::new()
+        panic!("expected static parameter symbols for {symbol:?}")
     }
 
     /// Assert the full committed instance set for one symbol.
@@ -165,6 +165,7 @@ impl TestModuleView<'_> {
                 })
             })
             .collect::<Vec<_>>();
+        let mut remaining = actual.clone();
 
         assert_eq!(
             actual.len(),
@@ -173,8 +174,13 @@ impl TestModuleView<'_> {
         );
 
         for expected_shape in expected {
-            assert!(
-                actual.contains(expected_shape),
+            let found_index = remaining.iter().position(|actual| actual == expected_shape);
+            if let Some(index) = found_index {
+                remaining.swap_remove(index);
+                continue;
+            }
+
+            panic!(
                 "missing expected instance shape for {symbol:?}: {expected_shape:#?}, actual: {actual:#?}",
             );
         }
@@ -192,7 +198,7 @@ impl TestModuleView<'_> {
     fn expect_static_resolution_target_and_instance(
         &self,
         expression_id: LocalNodeId<Expression>,
-    ) -> (GlobalSymbolId, Option<destack_dir::LocalInstanceId>) {
+    ) -> (GlobalSymbolId, Option<LocalInstanceId>) {
         let resolution_id = self
             .types()
             .get_resolution_for_node(expression_id.into_global_any(self.module_id))
@@ -201,6 +207,25 @@ impl TestModuleView<'_> {
         match resolution {
             Resolution::Static { candidate, .. } => (candidate.target_symbol, candidate.instance),
             other => panic!("expected static resolution, got {other:?}"),
+        }
+    }
+
+    /// Resolve dynamic resolution targets and instances for one expression node.
+    fn expect_dynamic_resolution_targets_and_instances(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Vec<(GlobalSymbolId, Option<LocalInstanceId>)> {
+        let resolution_id = self
+            .types()
+            .get_resolution_for_node(expression_id.into_global_any(self.module_id))
+            .expect("expected resolution for expression");
+        let resolution = self.types().get_resolution(resolution_id);
+        match resolution {
+            Resolution::Dynamic { candidates, .. } => candidates
+                .iter()
+                .map(|candidate| (candidate.target_symbol, candidate.instance))
+                .collect(),
+            other => panic!("expected dynamic resolution, got {other:?}"),
         }
     }
 
@@ -541,7 +566,7 @@ let value = box.map(text);
     );
 
     // Box.map
-    // Box.map<number, string>
+    // Box<number>.map<string>
     view.assert_instances_for_symbol(
         map_symbol,
         &[ExpectedInstanceShape {
@@ -618,7 +643,7 @@ let value = identity(text);
 
 /// Verify non-generic calls commit no instance and keep resolution instance empty.
 #[test]
-fn test_instance_non_generic_call_has_no_instance_fact() {
+fn test_instance_non_generic_call_commits_no_instance() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
         "test.ds",
@@ -929,19 +954,19 @@ let third = boxNumber.map(flag);
     assert_eq!(second_instance_symbol, map_symbol);
     assert_eq!(third_instance_symbol, map_symbol);
 
-    // boxString.map<boolean>(flag): <string, boolean>
+    // boxString.map<boolean>(flag): Box<string>.map<boolean>
     view.assert_static_argument_primitive_sequence(
         &first_arguments,
         &[PrimitiveType::String, PrimitiveType::Boolean],
     );
 
-    // boxString.map(flag): <string, boolean>
+    // boxString.map(flag): Box<string>.map<boolean>
     view.assert_static_argument_primitive_sequence(
         &second_arguments,
         &[PrimitiveType::String, PrimitiveType::Boolean],
     );
 
-    // boxNumber.map(flag): <number, boolean>
+    // boxNumber.map(flag): Box<number>.map<boolean>
     view.assert_static_argument_primitive_sequence(
         &third_arguments,
         &[PrimitiveType::Number, PrimitiveType::Boolean],
@@ -960,6 +985,9 @@ let third = boxNumber.map(flag);
         .types()
         .get_instance_for_node(third_value_id.into_global_any(module_id))
         .expect("expected third instance id");
+
+    // boxString.map<boolean>(flag), boxString.map(flag): Box<string>.map<boolean>
+    assert_eq!(first_instance_id, second_instance_id);
     assert_ne!(first_instance_id, third_instance_id);
     assert_ne!(second_instance_id, third_instance_id);
 
@@ -1034,6 +1062,160 @@ let value = derived.map<string>();
         &static_arguments,
         &[PrimitiveType::Number, PrimitiveType::String],
     );
+}
+
+/// Verify imported generic function calls commit instances in the consumer module.
+#[test]
+fn test_instance_records_cross_module_function_call_instantiation_with_inferred_arguments() {
+    let test = TestProgram::memory_sequential();
+    let lib_id = test.add_module(
+        "lib.ds",
+        r#"
+export declare function identity<T>(value: T): T;
+"#,
+    );
+    let main_id = test.add_module(
+        "main.ds",
+        r#"
+import { identity } from "./lib.ds";
+
+declare let text: string;
+
+let value = identity(text);
+"#,
+    );
+
+    // analyze
+    test.analyze_module_and_check_clean(main_id);
+    let main_view = test.view(main_id);
+    let lib_view = test.view(lib_id);
+
+    // read
+    let value_name = test.program.strings.intern("value");
+    let declarator_id = main_view.expect_let_declarator(value_name);
+    let declarator = main_view.tree().get(declarator_id);
+    let value_id = declarator.value.expect("expected initializer");
+
+    let identity_symbol = test
+        .resolve_to_symbol("lib.ds", "identity")
+        .expect("expected identity symbol");
+
+    // identity(text)
+    let (instance_symbol, static_arguments) = main_view.expect_instance_for_expression(value_id);
+    // identity
+    assert_eq!(instance_symbol, identity_symbol);
+    // <string>
+    main_view
+        .assert_static_argument_primitive_sequence(&static_arguments, &[PrimitiveType::String]);
+
+    // identity(text) resolution
+    let (resolution_symbol, resolution_instance_id) =
+        main_view.expect_static_resolution_target_and_instance(value_id);
+    assert_eq!(resolution_symbol, identity_symbol);
+    assert!(resolution_instance_id.is_some());
+
+    // identity<string>
+    let committed = main_view
+        .types()
+        .iter_instances()
+        .filter(|(_, instance)| instance.symbol_id == identity_symbol)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        committed.len(),
+        1,
+        "expected one committed identity instance"
+    );
+    let committed_instance = committed[0].1;
+    assert_eq!(committed_instance.inherited_static_argument_count, 0);
+    main_view.assert_static_argument_primitive_sequence(
+        &committed_instance.static_arguments,
+        &[PrimitiveType::String],
+    );
+
+    // lib module declaration-only analysis should not commit consumer-call instances
+    assert_eq!(lib_view.types().instance_count(), 0);
+}
+
+/// Verify equal imported instantiations commit independently per consumer module.
+#[test]
+fn test_instance_commits_are_module_local_for_same_imported_symbol_instantiation() {
+    let test = TestProgram::memory_sequential();
+    let lib_id = test.add_module(
+        "lib.ds",
+        r#"
+export declare function identity<T>(value: T): T;
+"#,
+    );
+    let main_a_id = test.add_module(
+        "main_a.ds",
+        r#"
+import { identity } from "./lib.ds";
+
+declare let text: string;
+
+let value = identity(text);
+"#,
+    );
+    let main_b_id = test.add_module(
+        "main_b.ds",
+        r#"
+import { identity } from "./lib.ds";
+
+declare let text: string;
+
+let value = identity(text);
+"#,
+    );
+
+    // analyze
+    test.analyze_module_and_check_clean(main_a_id);
+    test.analyze_module_and_check_clean(main_b_id);
+    let lib_view = test.view(lib_id);
+    let main_a_view = test.view(main_a_id);
+    let main_b_view = test.view(main_b_id);
+
+    // read
+    let identity_symbol = test
+        .resolve_to_symbol("lib.ds", "identity")
+        .expect("expected identity symbol");
+    let value_name = test.program.strings.intern("value");
+    let value_a = main_a_view
+        .tree()
+        .get(main_a_view.expect_let_declarator(value_name))
+        .value
+        .expect("expected main_a value initializer");
+    let value_b = main_b_view
+        .tree()
+        .get(main_b_view.expect_let_declarator(value_name))
+        .value
+        .expect("expected main_b value initializer");
+
+    // main_a identity(text)
+    let (instance_symbol_a, arguments_a) = main_a_view.expect_instance_for_expression(value_a);
+    assert_eq!(instance_symbol_a, identity_symbol);
+    main_a_view.assert_static_argument_primitive_sequence(&arguments_a, &[PrimitiveType::String]);
+
+    // main_b identity(text)
+    let (instance_symbol_b, arguments_b) = main_b_view.expect_instance_for_expression(value_b);
+    assert_eq!(instance_symbol_b, identity_symbol);
+    main_b_view.assert_static_argument_primitive_sequence(&arguments_b, &[PrimitiveType::String]);
+
+    // per-module committed instance sets
+    let committed_a = main_a_view
+        .types()
+        .iter_instances()
+        .filter(|(_, instance)| instance.symbol_id == identity_symbol)
+        .count();
+    let committed_b = main_b_view
+        .types()
+        .iter_instances()
+        .filter(|(_, instance)| instance.symbol_id == identity_symbol)
+        .count();
+    assert_eq!(committed_a, 1, "expected one identity instance in main_a");
+    assert_eq!(committed_b, 1, "expected one identity instance in main_b");
+
+    // lib module remains declaration-only for this scenario
+    assert_eq!(lib_view.types().instance_count(), 0);
 }
 
 /// Verify inherited interface member calls commit base-member instances with inherited arguments.
@@ -1189,7 +1371,7 @@ let value = pair.map<boolean>(true);
     );
 
     // PairOps.map
-    // PairOps.map<string, number, boolean>
+    // PairOps<string, number>.map<boolean>
     view.assert_instances_for_symbol(
         map_symbol,
         &[ExpectedInstanceShape {
@@ -1200,6 +1382,109 @@ let value = pair.map<boolean>(true);
                 PrimitiveType::Number,
                 PrimitiveType::Boolean,
             ],
+        }],
+    );
+}
+
+/// Verify union member calls commit one instance per dynamic target member.
+#[test]
+fn test_instance_records_union_member_call_instances_for_each_dynamic_target() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+declare interface Left<T> {
+    map<U>(): [T, U];
+}
+
+declare interface Right<T> {
+    map<U>(): [T, U];
+}
+
+declare let cond: boolean;
+declare let left: Left<string>;
+declare let right: Right<number>;
+
+let both: Left<string> | Right<number> = cond ? left : right;
+let value = both.map<boolean>();
+"#,
+    );
+
+    // analyze
+    test.analyze_module_and_check_clean(module_id);
+    let view = test.view(module_id);
+
+    // read
+    let value_name = test.program.strings.intern("value");
+    let declarator_id = view.expect_let_declarator(value_name);
+    let declarator = view.tree().get(declarator_id);
+    let value_id = declarator.value.expect("expected initializer");
+
+    let left_symbol = test
+        .resolve_to_symbol("test.ds", "Left")
+        .expect("expected Left symbol");
+    let right_symbol = test
+        .resolve_to_symbol("test.ds", "Right")
+        .expect("expected Right symbol");
+    let map_name = test.program.strings.intern("map");
+    let left_map_symbol = view.expect_member_symbol_for_owner(left_symbol, map_name);
+    let right_map_symbol = view.expect_member_symbol_for_owner(right_symbol, map_name);
+
+    // both.map<boolean>()
+    let candidates = view.expect_dynamic_resolution_targets_and_instances(value_id);
+    assert_eq!(candidates.len(), 2, "expected two dynamic candidates");
+
+    // Left.map
+    let left_candidate_instance_id = candidates
+        .iter()
+        .find_map(|(target_symbol, instance_id)| {
+            (*target_symbol == left_map_symbol)
+                .then(|| instance_id.expect("expected Left.map candidate instance"))
+        })
+        .expect("expected Left.map candidate");
+
+    // Right.map
+    let right_candidate_instance_id = candidates
+        .iter()
+        .find_map(|(target_symbol, instance_id)| {
+            (*target_symbol == right_map_symbol)
+                .then(|| instance_id.expect("expected Right.map candidate instance"))
+        })
+        .expect("expected Right.map candidate");
+
+    // Left<string>.map<boolean>
+    let left_candidate_instance = view.types().get_instance(left_candidate_instance_id);
+    view.assert_static_argument_primitive_sequence(
+        &left_candidate_instance.static_arguments,
+        &[PrimitiveType::String, PrimitiveType::Boolean],
+    );
+
+    // Right<number>.map<boolean>
+    let right_candidate_instance = view.types().get_instance(right_candidate_instance_id);
+    view.assert_static_argument_primitive_sequence(
+        &right_candidate_instance.static_arguments,
+        &[PrimitiveType::Number, PrimitiveType::Boolean],
+    );
+
+    // Left.map
+    // Left<string>.map<boolean>
+    view.assert_instances_for_symbol(
+        left_map_symbol,
+        &[ExpectedInstanceShape {
+            static_parameter_symbols: view.static_parameter_symbols_for_symbol(left_map_symbol),
+            inherited_static_argument_count: 1,
+            static_argument_primitives: vec![PrimitiveType::String, PrimitiveType::Boolean],
+        }],
+    );
+
+    // Right.map
+    // Right<number>.map<boolean>
+    view.assert_instances_for_symbol(
+        right_map_symbol,
+        &[ExpectedInstanceShape {
+            static_parameter_symbols: view.static_parameter_symbols_for_symbol(right_map_symbol),
+            inherited_static_argument_count: 1,
+            static_argument_primitives: vec![PrimitiveType::Number, PrimitiveType::Boolean],
         }],
     );
 }

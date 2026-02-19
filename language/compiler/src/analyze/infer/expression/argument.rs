@@ -475,6 +475,7 @@ impl Compiler {
         receiver_id: LocalNodeIdAny,
         receiver_ty_id: Option<LocalTypeId>,
         receiver_ty: &Type,
+        infer: &InferTable,
         options: &AnalyzeOptions,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -535,9 +536,11 @@ impl Compiler {
         let instance_reference = || {
             // prefer instances registered on the receiver expression
             let receiver_global_id = receiver_id.into_global(module.id);
-            if let Some(instance_reference) =
-                self.query_instance_symbol_arguments_for_node(receiver_global_id, types)
-            {
+            if let Some(instance_reference) = self.query_instance_symbol_arguments_for_node_infer(
+                receiver_global_id,
+                infer,
+                types,
+            ) {
                 return Some(instance_reference);
             }
 
@@ -545,8 +548,8 @@ impl Compiler {
             if let Some(receiver_ty_id) = receiver_ty_id {
                 let source_id = types.get_type_source(receiver_ty_id);
                 let source_global_id = source_id.into_global(module.id);
-                if let Some(instance_reference) =
-                    self.query_instance_symbol_arguments_for_node(source_global_id, types)
+                if let Some(instance_reference) = self
+                    .query_instance_symbol_arguments_for_node_infer(source_global_id, infer, types)
                 {
                     return Some(instance_reference);
                 }
@@ -2728,22 +2731,6 @@ impl Compiler {
 
                 resolved_argument_map.insert(static_parameter.symbol, resolved_argument.clone());
                 resolved_arguments.push(resolved_argument);
-            }
-
-            // record resolved arguments for this reference instance
-            if self.symbol_is_instantiable(symbol) {
-                let node_global_id = node_id.into_global(module.id);
-                let _ = self.commit_instance_for_node_arguments_maybe_in_module(
-                    module,
-                    profile,
-                    node_global_id,
-                    symbol,
-                    resolved_arguments.clone(),
-                    0,
-                    tree,
-                    symbols,
-                    types,
-                );
             }
 
             Ok(Some(resolved_arguments))

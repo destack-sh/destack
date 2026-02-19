@@ -871,4 +871,8 @@ pub enum AnalyzeError {
         message = "javascript modules are disabled by configuration"
     )]
     JavaScriptDisabled { module: ModuleId },
+
+    /// Internal analyze error.
+    #[error(code = "EA903", message = "internal error: {message}")]
+    Internal { message: String },
 }

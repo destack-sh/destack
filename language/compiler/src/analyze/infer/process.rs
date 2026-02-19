@@ -106,10 +106,6 @@ impl Compiler {
         let runtime_roots = self.collect_runtime_roots(&module, &tree, &dir.roots);
         let infer_roots = runtime_roots.clone();
 
-        if infer_roots.is_empty() {
-            return Ok(());
-        }
-
         drop(types);
         drop(symbols);
         drop(tree);
@@ -185,23 +181,6 @@ impl Compiler {
             }
         }
 
-        // register instances
-        {
-            let _timing = self.timing_scope(tags::ANALYZE_INFER_REGISTER_INSTANCES);
-
-            // skip instance registration when the module declares no instantiable symbols
-            // TODO #Performance: register instances incrementally while inferring each node
-            let has_instantiable_symbols = symbols
-                .active_symbol_ids()
-                .any(|symbol_id| self.symbol_is_instantiable(symbol_id.into_global(module.id)));
-            if has_instantiable_symbols {
-                self.collect(
-                    &mut collector,
-                    self.commit_reference_instances(&module, profile, &tree, &symbols, &mut types),
-                );
-            }
-        }
-
         // yield on any yields
         if let Some(dependency) = collector.try_into_yield_any() {
             return Err(AnalyzeError::Yield { dependency });
@@ -229,6 +208,9 @@ impl Compiler {
             &mut types,
             session.table_mut(),
         );
+
+        // discharge instance-commit obligations after inference convergence
+        self.discharge_instance_commit_obligations(session.table_mut(), &mut types)?;
 
         Ok(())
     }
