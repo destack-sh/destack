@@ -13,11 +13,16 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         let remote_module_id = target_symbol.module_id;
         let error_node = node_id.into_global(module.id).into_anchored(Some(profile));
+        let has_declared_value_type = if is_surface_inference {
+            self.remote_symbol_has_declared_value_type(profile, target_symbol)?
+        } else {
+            false
+        };
 
         // reject export inference cycles that lack explicit annotations
         if is_surface_inference
             && self.export_inference_has_cycle(module.id, profile, remote_module_id)?
-            && !self.remote_symbol_has_declared_value_type(profile, target_symbol)
+            && !has_declared_value_type
         {
             return Err(AnalyzeError::ExportInferenceRequiresAnnotation { node: error_node });
         }
@@ -40,7 +45,7 @@ impl Compiler {
             module,
             profile,
             remote_module_id,
-            AnalyzeReadStage::Export,
+            AnalyzeDependencyStage::Export,
             |remote_module, remote_tree, remote_symbols| {
                 let remote_dir = remote_module.dir(profile);
                 let mut remote_types = remote_dir.types.write();
@@ -99,7 +104,7 @@ impl Compiler {
         .map_err(|error| {
             // only reject when we have an explicit export inference cycle
             if is_surface_inference
-                && !self.remote_symbol_has_declared_value_type(profile, target_symbol)
+                && !has_declared_value_type
                 && let Ok(has_cycle) =
                     self.export_inference_has_cycle(module.id, profile, remote_module_id)
                 && has_cycle
@@ -115,19 +120,16 @@ impl Compiler {
         &self,
         profile: ProfileId,
         symbol: GlobalSymbolId,
-    ) -> bool {
-        self.with_module_tree_symbols_by_id(
+    ) -> AnalyzeResult<bool> {
+        self.with_module_tree_symbols_by_id_for_resolve(
             profile,
             symbol.module_id,
             |remote_module, tree, symbols| {
-                let types = remote_module.dir(profile).types.read();
-
                 // check for explicit declarator annotations
                 if let Some(declarator_id) =
                     self.direct_binding_declarator_for_symbol(remote_module, symbol, tree, symbols)
                 {
-                    let node_id = declarator_id.into_global_any(remote_module.id);
-                    if types.get_declared_type_id(node_id).is_some() {
+                    if tree.get(declarator_id).ty.is_some() {
                         return true;
                     }
                 }
@@ -152,6 +154,7 @@ impl Compiler {
                 signature.return_type.is_some()
             },
         )
+        .map_err(AnalyzeError::from)
     }
 
     /// Resolve a declaration id from a primary declaration node.

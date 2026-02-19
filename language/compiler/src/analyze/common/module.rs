@@ -8,7 +8,7 @@ use crate::{Compiler, TaskDependencyError};
 /// Stage contract for cross-module analyze table reads.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum AnalyzeReadStage {
+pub(crate) enum AnalyzeDependencyStage {
     /// Read data owned by declare.
     Declare,
     /// Read data owned by export.
@@ -27,14 +27,20 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        stage: AnalyzeReadStage,
+        stage: AnalyzeDependencyStage,
     ) -> Result<(), TaskDependencyError> {
         // gate reads by stage ownership
         match stage {
-            AnalyzeReadStage::Declare => self.require_analyze_module_declare(module_id, profile),
-            AnalyzeReadStage::Export => self.require_analyze_module_export(module_id, profile),
-            AnalyzeReadStage::Infer => self.require_analyze_module_infer(module_id, profile),
-            AnalyzeReadStage::Validate => self.require_analyze_module_validate(module_id, profile),
+            AnalyzeDependencyStage::Declare => {
+                self.require_analyze_module_declare(module_id, profile)
+            }
+            AnalyzeDependencyStage::Export => {
+                self.require_analyze_module_export(module_id, profile)
+            }
+            AnalyzeDependencyStage::Infer => self.require_analyze_module_infer(module_id, profile),
+            AnalyzeDependencyStage::Validate => {
+                self.require_analyze_module_validate(module_id, profile)
+            }
         }
     }
 
@@ -44,7 +50,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         module_id: ModuleId,
-        stage: AnalyzeReadStage,
+        stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &SymbolTable) -> R,
     ) -> Result<R, TaskDependencyError> {
         // remote reads must satisfy the stage gate
@@ -62,7 +68,7 @@ impl Compiler {
         profile: ProfileId,
         module_id: ModuleId,
         symbols: &SymbolTable,
-        stage: AnalyzeReadStage,
+        stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &SymbolTable) -> R,
     ) -> Result<R, TaskDependencyError> {
         // remote reads must satisfy the stage gate
@@ -79,7 +85,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         module_id: ModuleId,
-        stage: AnalyzeReadStage,
+        stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &NodeTree, &SymbolTable) -> R,
     ) -> Result<R, TaskDependencyError> {
         // remote reads must satisfy the stage gate
@@ -98,7 +104,7 @@ impl Compiler {
         module_id: ModuleId,
         tree: &NodeTree,
         symbols: &SymbolTable,
-        stage: AnalyzeReadStage,
+        stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &NodeTree, &SymbolTable) -> R,
     ) -> Result<R, TaskDependencyError> {
         // remote reads must satisfy the stage gate
@@ -116,7 +122,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         module_id: ModuleId,
-        stage: AnalyzeReadStage,
+        stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &TypeTable) -> R,
     ) -> Result<R, TaskDependencyError> {
         // remote reads must satisfy the stage gate
@@ -134,7 +140,7 @@ impl Compiler {
         profile: ProfileId,
         module_id: ModuleId,
         types: &TypeTable,
-        stage: AnalyzeReadStage,
+        stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &TypeTable) -> R,
     ) -> Result<R, TaskDependencyError> {
         // remote reads must satisfy the stage gate
@@ -150,7 +156,7 @@ impl Compiler {
         &self,
         profile: ProfileId,
         module_id: ModuleId,
-        stage: AnalyzeReadStage,
+        stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &TypeTable) -> R,
     ) -> Result<R, TaskDependencyError> {
         // by-id reads are always cross-module, so always gate
@@ -275,12 +281,23 @@ impl Compiler {
         handle(&remote_module, &remote_tree, &remote_symbols)
     }
 
+    /// Provide tree and symbol tables by module id after resolve dependencies are ready.
+    pub(crate) fn with_module_tree_symbols_by_id_for_resolve<R>(
+        &self,
+        profile: ProfileId,
+        module_id: ModuleId,
+        handle: impl FnOnce(&Module, &NodeTree, &SymbolTable) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        self.require_resolve_module_direct(module_id, profile)?;
+        Ok(self.with_module_tree_symbols_by_id(profile, module_id, handle))
+    }
+
     /// Provide tree and symbol tables by module id with a stage gate.
     pub(crate) fn with_module_tree_symbols_by_id_for_stage<R>(
         &self,
         profile: ProfileId,
         module_id: ModuleId,
-        stage: AnalyzeReadStage,
+        stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &NodeTree, &SymbolTable) -> R,
     ) -> Result<R, TaskDependencyError> {
         // by-id reads are always cross-module, so always gate
@@ -372,7 +389,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         module_id: ModuleId,
-        stage: AnalyzeReadStage,
+        stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &mut TypeTable) -> R,
     ) -> Result<R, TaskDependencyError> {
         // remote reads must satisfy the stage gate
@@ -407,7 +424,7 @@ impl Compiler {
         profile: ProfileId,
         module_id: ModuleId,
         types: &mut TypeTable,
-        stage: AnalyzeReadStage,
+        stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &mut TypeTable) -> R,
     ) -> Result<R, TaskDependencyError> {
         // remote reads must satisfy the stage gate

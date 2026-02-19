@@ -352,6 +352,10 @@ impl Compiler {
                     Member::Type {
                         static_parameters, ..
                     } => static_parameters.as_ref(),
+                    Member::Method { signature, .. } => signature
+                        .generics
+                        .as_ref()
+                        .and_then(|generics| generics.static_parameters.as_ref()),
                     _ => None,
                 }
             }

@@ -207,7 +207,7 @@ impl Compiler {
         )?;
 
         // inherit static arguments and substitutions from the receiver
-        let inherited = self.resolve_inherited_static_arguments(
+        let mut inherited = self.resolve_inherited_static_arguments(
             module,
             ctx.profile,
             receiver.receiver_id.into_any(),
@@ -286,6 +286,19 @@ impl Compiler {
             symbols,
             types,
         )?;
+        if let Some(member_symbol) = member_symbol {
+            self.extend_owner_substitutions_from_inherited_arguments(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                member_symbol,
+                &inherited.arguments,
+                &mut inherited.substitutions,
+                tree,
+                symbols,
+                types,
+            );
+        }
         let enum_field_value_ty_id =
             self.enum_field_value_type_for_symbol(module, symbols, member_symbol, types);
 
@@ -382,11 +395,15 @@ impl Compiler {
                     if let Some(member_symbol) = lookup.member_symbol {
                         self.commit_member_instance_for_arguments(
                             module,
+                            ctx.profile,
                             expression_id,
                             member_symbol,
                             &lookup.inherited,
                             lookup.extension_context.as_ref(),
                             &resolved_member.static_arguments,
+                            &resolved_member.static_parameter_symbols,
+                            tree,
+                            symbols,
                             types,
                         )
                     } else {

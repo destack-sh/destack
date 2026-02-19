@@ -36,12 +36,6 @@ impl Compiler {
                         .collect::<Vec<_>>();
 
                     if changed {
-                        let _ = self.commit_instance_for_symbol_if_arguments(
-                            symbol,
-                            mapped_arguments.clone(),
-                            types,
-                        );
-
                         types.insert_type_from_type(
                             Type::Reference {
                                 symbol,

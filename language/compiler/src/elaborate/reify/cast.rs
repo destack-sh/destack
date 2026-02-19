@@ -1,10 +1,10 @@
 use destack_dir::{
     Argument, BinaryOperator, Block, CastOperator, CastSource, Declarator, DynamicKey,
-    EnumBackingType, Expression, GlobalSymbolId, IfCondition, IfKind, LocalNodeId, LocalTypeId,
-    MatchCase, NodeTree, NodeType, Path, Resolution, ResolutionCandidate, ResolvedSignature,
-    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolSpace, SymbolTable,
-    SymbolType, Type, TypeBinaryOperator, TypeElement, TypeLiteral, TypeTable, UnaryOperator,
-    WellKnownSymbol,
+    EnumBackingType, Expression, GlobalSymbolId, IfCondition, IfKind, Instance, LocalNodeId,
+    LocalTypeId, MatchCase, NodeTree, NodeType, Path, Resolution, ResolutionCandidate,
+    ResolvedSignature, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolSpace,
+    SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeElement, TypeLiteral, TypeTable,
+    UnaryOperator, WellKnownSymbol,
 };
 use destack_source::ModuleId;
 use destack_workspace::{ImplicitCollectionConversionPolicy, Module, ProfileId};
@@ -1470,15 +1470,34 @@ impl Compiler {
         )?;
 
         // register a concrete instance for Map.from<K, V>
-        let map_from_instance_id = types
-            .find_instance(map_from_symbol, &record_like.map_static_arguments)
-            .unwrap_or_else(|| {
-                let instance = destack_dir::Instance::new(
+        let map_from_instance_id = if let Some(instance_id) =
+            types.find_instance(map_from_symbol, &record_like.map_static_arguments)
+        {
+            instance_id
+        } else {
+            let parameter_symbols = self
+                .collect_static_parameter_symbols(
+                    module,
                     map_from_symbol,
-                    record_like.map_static_arguments.clone(),
-                );
-                types.insert_instance(instance)
-            });
+                    profile,
+                    tree,
+                    symbols,
+                    types,
+                )
+                .unwrap_or_default();
+            let instance = Instance::with_environment(
+                map_from_symbol,
+                record_like.map_static_arguments.clone(),
+                parameter_symbols,
+                0,
+            )
+            .ok_or(ElaborateError::UnsupportedConstruct {
+                node: origin_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+            })?;
+            types.insert_instance(instance)
+        };
 
         // build tuple entries for each property
         let mut entry_arguments = Vec::with_capacity(properties.len());
@@ -1736,13 +1755,34 @@ impl Compiler {
         let array_static_arguments = vec![StaticArgument::value(StaticExpression::Type {
             ty: element_type_id,
         })];
-        let from_sized_instance_id = types
-            .find_instance(from_sized_symbol, &array_static_arguments)
-            .unwrap_or_else(|| {
-                let instance =
-                    destack_dir::Instance::new(from_sized_symbol, array_static_arguments.clone());
-                types.insert_instance(instance)
-            });
+        let from_sized_instance_id = if let Some(instance_id) =
+            types.find_instance(from_sized_symbol, &array_static_arguments)
+        {
+            instance_id
+        } else {
+            let parameter_symbols = self
+                .collect_static_parameter_symbols(
+                    module,
+                    from_sized_symbol,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
+                )
+                .unwrap_or_default();
+            let instance = Instance::with_environment(
+                from_sized_symbol,
+                array_static_arguments.clone(),
+                parameter_symbols,
+                0,
+            )
+            .ok_or(ElaborateError::UnsupportedConstruct {
+                node: origin_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+            })?;
+            types.insert_instance(instance)
+        };
 
         // build a module reference to Array.fromSized
         let array_name = self

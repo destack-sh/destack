@@ -190,7 +190,7 @@ impl Compiler {
             module,
             profile,
             enum_symbol.module_id,
-            AnalyzeReadStage::Declare,
+            AnalyzeDependencyStage::Declare,
             |_, owner_tree, owner_symbols| {
                 self.enum_field_symbol_for_member_key_in_tree(
                     enum_symbol,

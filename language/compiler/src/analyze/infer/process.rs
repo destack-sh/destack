@@ -190,7 +190,7 @@ impl Compiler {
             let _timing = self.timing_scope(tags::ANALYZE_INFER_REGISTER_INSTANCES);
 
             // skip instance registration when the module declares no instantiable symbols
-            // TODO #Performance: register instances incrementally to avoid full table scans
+            // TODO #Performance: register instances incrementally while inferring each node
             let has_instantiable_symbols = symbols
                 .active_symbol_ids()
                 .any(|symbol_id| self.symbol_is_instantiable(symbol_id.into_global(module.id)));

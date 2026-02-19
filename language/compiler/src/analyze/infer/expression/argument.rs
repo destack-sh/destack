@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::analyze::common::{
-    AnalyzeReadStage, CanonicalSymbolMode, ContextualTypingMode, MaterializationMode,
+    AnalyzeDependencyStage, CanonicalSymbolMode, ContextualTypingMode, MaterializationMode,
     REWRITER_TAG_STATIC_ARGUMENT, TypeRewriteCache, TypeWalkContext, rewrite_type_with_cache,
 };
 use crate::timing::tags;
@@ -224,13 +224,6 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
         if !changed {
             return id;
         }
-
-        // register instances for materialized static arguments
-        let _ = self.compiler.commit_instance_for_symbol_if_arguments(
-            symbol,
-            mapped_arguments.clone(),
-            types,
-        );
 
         // return a rewritten reference type
         types.insert_type_from_type(
@@ -501,6 +494,42 @@ impl Compiler {
                     })
             });
         let mut reference = reference;
+        let has_usable_reference_arguments =
+            |reference: &Option<(GlobalSymbolId, Option<Vec<StaticArgument>>)>| {
+                let Some((_, Some(arguments))) = reference.as_ref() else {
+                    return false;
+                };
+                if arguments.is_empty() {
+                    return false;
+                }
+
+                arguments.iter().all(|argument| match argument {
+                    StaticArgument::Evaluated { value, .. } => {
+                        self.static_value_argument_is_static(value, types)
+                    }
+                    StaticArgument::Unevaluated { .. } => false,
+                })
+            };
+
+        // recover declared reference arguments for direct receiver symbols when inference widened away static args
+        if !has_usable_reference_arguments(&reference)
+            && let Some(declared_reference) = self.receiver_reference_for_declaration_symbol(
+                module,
+                receiver_id,
+                tree,
+                symbols,
+                types,
+            )
+        {
+            reference = Some(declared_reference);
+        }
+        if !has_usable_reference_arguments(&reference)
+            && let Some(receiver_ty_id) = receiver_ty_id
+            && let Some(source_reference) =
+                self.receiver_reference_for_type_source(module, receiver_ty_id, types)
+        {
+            reference = Some(source_reference);
+        }
 
         // fall back to instance arguments when the receiver type does not preserve them (#Suspicious?)
         let instance_reference = || {
@@ -526,9 +555,7 @@ impl Compiler {
             None
         };
         // use instance arguments when reference arguments are missing
-        if reference
-            .as_ref()
-            .is_none_or(|(_, args)| args.as_ref().is_none_or(|args| args.is_empty()))
+        if !has_usable_reference_arguments(&reference)
             && let Some(instance_reference) = instance_reference()
         {
             reference = Some((instance_reference.0, Some(instance_reference.1)));
@@ -881,6 +908,42 @@ impl Compiler {
         }
 
         candidate
+    }
+
+    /// Extract a reference symbol from the receiver declaration symbol type when available.
+    fn receiver_reference_for_declaration_symbol(
+        &self,
+        module: &Module,
+        receiver_id: LocalNodeIdAny,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> Option<(GlobalSymbolId, Option<Vec<StaticArgument>>)> {
+        let receiver_expression_id = receiver_id.into_typed::<Expression>();
+        let receiver_symbol = tree.get(receiver_expression_id).target_symbol()?;
+        if receiver_symbol.module_id != module.id {
+            return None;
+        }
+
+        let receiver_type_id = types.get_type_id_for_symbol(symbols, receiver_symbol)?;
+        let declared_type = types.get_type(receiver_type_id);
+
+        self.receiver_reference_for_inherited_arguments(declared_type, types)
+    }
+
+    /// Extract a reference symbol from the source node attached to one receiver type id.
+    fn receiver_reference_for_type_source(
+        &self,
+        module: &Module,
+        receiver_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<(GlobalSymbolId, Option<Vec<StaticArgument>>)> {
+        let source_id = types.get_type_source(receiver_ty_id);
+        let source_ty_id =
+            types.get_declared_or_inferred_type_id(source_id.into_global(module.id))?;
+        let source_ty = types.get_type(source_ty_id);
+
+        self.receiver_reference_for_inherited_arguments(source_ty, types)
     }
 
     /// Infer a dynamic argument value with contextual typing.
@@ -1444,7 +1507,7 @@ impl Compiler {
                 module,
                 profile,
                 enum_symbol.module_id,
-                AnalyzeReadStage::Declare,
+                AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     let mut owner_types = owner_module.dir(profile).types.write();
                     let _ = self.enum_backing_type_for_symbol_in_tables(
@@ -2670,10 +2733,15 @@ impl Compiler {
             // record resolved arguments for this reference instance
             if self.symbol_is_instantiable(symbol) {
                 let node_global_id = node_id.into_global(module.id);
-                let _ = self.commit_instance_for_node_if_arguments(
+                let _ = self.commit_instance_for_node_arguments_maybe_in_module(
+                    module,
+                    profile,
                     node_global_id,
                     symbol,
                     resolved_arguments.clone(),
+                    0,
+                    tree,
+                    symbols,
                     types,
                 );
             }
@@ -3649,12 +3717,6 @@ impl Compiler {
                         .collect::<Vec<_>>();
 
                     if changed {
-                        let _ = self.commit_instance_for_symbol_if_arguments(
-                            symbol,
-                            mapped_arguments.clone(),
-                            types,
-                        );
-
                         types.insert_type_from_type(
                             Type::Reference {
                                 symbol,

@@ -13,10 +13,10 @@ pub(crate) use expression::{argument, call};
 /// Mode used when resolving call signatures.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SignatureResolutionMode {
-    /// Resolve signatures for inference (preserve inference variables).
-    Inference,
-    /// Resolve signatures for assignability and diagnostics.
-    Checking,
+    /// Resolve signatures to synthesize types while preserving inference variables.
+    Synthesize,
+    /// Resolve signatures to check compatibility and diagnostics.
+    Check,
 }
 
 pub use common::*;

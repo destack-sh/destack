@@ -2650,7 +2650,7 @@ impl Compiler {
         for referenced in references {
             let has_cycle =
                 self.export_inference_has_cycle(module.id, profile, referenced.module_id)?;
-            if has_cycle && !self.remote_symbol_has_declared_value_type(profile, referenced) {
+            if has_cycle && !self.remote_symbol_has_declared_value_type(profile, referenced)? {
                 return Ok(true);
             }
         }

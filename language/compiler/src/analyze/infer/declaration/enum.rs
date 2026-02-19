@@ -1,4 +1,4 @@
-use crate::analyze::common::AnalyzeReadStage;
+use crate::analyze::common::AnalyzeDependencyStage;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, EnumBackingType, EnumField, EnumFieldValue, Expression, GlobalSymbolId, IntType,
@@ -235,7 +235,7 @@ impl Compiler {
             module,
             profile,
             target_symbol.module_id,
-            AnalyzeReadStage::Declare,
+            AnalyzeDependencyStage::Declare,
             |owner_module, owner_symbols| {
                 let mut owner_types = owner_module.dir(profile).types.write();
                 self.enum_field_value_for_symbol_reference_in_tables(
@@ -314,7 +314,7 @@ impl Compiler {
             module,
             profile,
             enum_symbol.module_id,
-            AnalyzeReadStage::Declare,
+            AnalyzeDependencyStage::Declare,
             |owner_module, owner_types| {
                 self.enum_backing_type_for_symbol_in_tables(
                     owner_module,
@@ -404,7 +404,7 @@ impl Compiler {
                     module,
                     profile,
                     enum_symbol.module_id,
-                    AnalyzeReadStage::Declare,
+                    AnalyzeDependencyStage::Declare,
                     |owner_module, owner_types| {
                         if let Some(backing) = owner_types.get_enum_backing_type(enum_symbol) {
                             return Ok(Some(backing));
@@ -590,7 +590,7 @@ impl Compiler {
                     module,
                     profile,
                     enum_symbol.module_id,
-                    AnalyzeReadStage::Declare,
+                    AnalyzeDependencyStage::Declare,
                     |owner_module, owner_tree, owner_symbols| {
                         self.enum_field_symbol_for_name_in_tree(
                             enum_symbol,

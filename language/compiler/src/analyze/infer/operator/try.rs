@@ -824,6 +824,8 @@ impl Compiler {
                     member_resolution: MemberResolution::None,
                     member_symbol: None,
                     instance_arguments: Vec::new(),
+                    signature_static_parameter_symbols: Vec::new(),
+                    bound_substitutions: HashMap::new(),
                     has_member: false,
                 },
                 member_instance_id: None,
@@ -849,8 +851,15 @@ impl Compiler {
         }
 
         // register instance if needed
-        let member_instance_id =
-            self.commit_member_call_instance_id(module, expression_id, &resolved, types);
+        let member_instance_id = self.commit_member_call_instance_id(
+            module,
+            profile,
+            expression_id,
+            &resolved,
+            tree,
+            symbols,
+            types,
+        );
 
         Ok(TryBranchMember {
             resolved,

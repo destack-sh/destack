@@ -193,6 +193,43 @@ Infer is where most semantic decisions become concrete program facts.
 | output: flow facts | Narrowing and control-flow-refined types |
 | output: instance and substitution facts | Concrete static argument instantiations and replacements |
 
+### Instantiation And Resolution Commitment Contract
+
+Infer commits instantiation and dispatch as separate but linked fact families.
+An `Instance` is canonical semantic identity for one concrete static substitution environment.
+The canonical identity key is `(origin symbol, normalized substitution environment)`.
+The `instance_by_node_id` table is a use-site index only.
+Node placement does not own instance identity.
+Resolution ownership stays in `resolution_by_node_id`.
+
+Infer commits one `Instantiation Event` whenever a node materializes concrete static substitutions for one symbol.
+Each event writes `node -> instance_id` and interns through canonical instance keying.
+Instance facts are committed only when arguments are non-empty and fully evaluated.
+Unevaluated or unresolved static arguments must not commit instance facts.
+
+Infer commits static and dynamic dispatch selections through resolution facts.
+Resolution and instance commitments must stay coherent for static single-target dispatch.
+If `resolution_by_node_id[node]` is `Static` with `candidate.instance = Some(id)`, then `instance_by_node_id[node]` must equal `id`.
+Dynamic resolution may carry per-candidate instances without requiring node-level instance commitment.
+Type-space instantiation sites may commit instances without any runtime resolution fact.
+
+### Instance Placement Rules
+
+The placement rules below are hard invariants for Analyze correctness and lowering soundness.
+
+| Node category | Commit instance on node | Rule |
+| --- | --- | --- |
+| Type reference expression | yes, when resolved static arguments are non-empty and evaluated | type instantiation event |
+| Call expression | yes, when callee or member static substitutions are non-empty and evaluated | invocation instantiation event |
+| New expression | yes, when constructor static substitutions are non-empty and evaluated | constructor instantiation event |
+| Member expression used as value with static arguments | yes, when static substitutions are non-empty and evaluated | member-value instantiation event |
+| Declarations and declarators and patterns and statements | no | not instantiation events |
+| Plain references and non-generic calls | no | no concrete static substitution environment |
+
+Lower and later phases must consume committed instance ids only.
+Lower must not synthesize instance identities from syntax.
+Any missing instance commitment at a required monomorphization site is an Analyze bug.
+
 ### Infer Semantic Flow
 
 Infer work is ordered so commitments are reproducible.

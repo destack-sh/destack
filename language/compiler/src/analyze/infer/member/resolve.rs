@@ -523,7 +523,7 @@ impl Compiler {
                 module,
                 profile,
                 symbol.module_id,
-                AnalyzeReadStage::Declare,
+                AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     let owner_types = owner_module.dir(profile).types.read();
                     let allow_merge = owner_module.language_type.supports_declaration_merging();
@@ -773,7 +773,7 @@ impl Compiler {
             module,
             profile,
             extension_symbol.module_id,
-            AnalyzeReadStage::Declare,
+            AnalyzeDependencyStage::Declare,
             |owner_module, owner_tree, owner_symbols| {
                 let owner_types = owner_module.dir(profile).types.read();
                 self.find_member_symbol_in_declaration(

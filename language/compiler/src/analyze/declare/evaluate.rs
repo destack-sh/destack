@@ -1,5 +1,5 @@
 use crate::analyze::common::{
-    AnalyzeReadStage, AssociatedProjectionSelection, CanonicalSymbolMode, RelationMode,
+    AnalyzeDependencyStage, AssociatedProjectionSelection, CanonicalSymbolMode, RelationMode,
     StaticMemberSymbolKind, TypeRewriteCache,
 };
 use crate::timing::tags;
@@ -2544,7 +2544,7 @@ impl Compiler {
                     module,
                     profile,
                     symbol.module_id,
-                    AnalyzeReadStage::Infer,
+                    AnalyzeDependencyStage::Infer,
                     |owner_module, owner_tree, owner_symbols| {
                         let mut owner_types = owner_module.dir(profile).types.write();
                         let mapped_substitutions = substitutions.map(|substitutions| {
@@ -2954,7 +2954,7 @@ impl Compiler {
                         projected_symbol.module_id,
                         tree,
                         symbols,
-                        AnalyzeReadStage::Declare,
+                        AnalyzeDependencyStage::Declare,
                         |_owner_module, _owner_tree, owner_symbols| {
                             let symbol_entry = owner_symbols.get_symbol(projected_symbol.local_id);
                             let Some(primary_declaration) = symbol_entry.primary_declaration else {
@@ -3007,7 +3007,7 @@ impl Compiler {
                 left_target_symbol.module_id,
                 tree,
                 symbols,
-                AnalyzeReadStage::Declare,
+                AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     self.resolve_static_member_symbol_in_tables(
                         owner_module,
@@ -3031,7 +3031,7 @@ impl Compiler {
                 projected_symbol.module_id,
                 tree,
                 symbols,
-                AnalyzeReadStage::Declare,
+                AnalyzeDependencyStage::Declare,
                 |_owner_module, _owner_tree, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(projected_symbol.local_id);
                     let Some(primary_declaration) = symbol_entry.primary_declaration else {

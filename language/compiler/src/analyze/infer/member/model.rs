@@ -82,6 +82,8 @@ pub(crate) struct InstantiatedMemberSignature {
     pub(crate) type_id: LocalTypeId,
     /// The static arguments selected for the signature.
     pub(crate) static_arguments: Vec<StaticArgument>,
+    /// The signature static parameter symbols in resolved order.
+    pub(crate) static_parameter_symbols: Vec<GlobalSymbolId>,
 }
 
 /// Resolved member access type for one symbol lookup path.
@@ -91,6 +93,8 @@ pub(crate) struct ResolvedMemberAccessType {
     pub(crate) type_id: LocalTypeId,
     /// The resolved static arguments applied to this member access.
     pub(crate) static_arguments: Vec<StaticArgument>,
+    /// The signature static parameter symbols in resolved order.
+    pub(crate) static_parameter_symbols: Vec<GlobalSymbolId>,
 }
 
 /// Prepared receiver metadata for member access inference.

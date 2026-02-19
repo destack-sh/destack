@@ -5,7 +5,7 @@ use super::declaration::DeclaratorConstraint;
 
 use crate::analyze::common::{
     CanonicalSymbolMode, ConstContext, ContextualTypingMode, LiteralFreshness, RelationMode,
-    WideningMode,
+    StaticSubstitutionEnvironment, WideningMode,
 };
 use crate::timing::tags;
 use crate::{
@@ -196,8 +196,8 @@ impl Compiler {
         false
     }
 
-    /// Recover static parameters for a signature when the type omitted them.
-    fn recover_static_parameters_for_signature(
+    /// Materialize static parameters for a signature from source declarations when omitted.
+    fn materialize_signature_static_parameters_from_source(
         &self,
         module: &Module,
         signature_ty_id: LocalTypeId,
@@ -1100,7 +1100,16 @@ impl Compiler {
                 }
                 if let Some(arguments) = arguments {
                     for argument_id in arguments {
-                        self.infer_argument(module, *argument_id, None, tree, symbols, types, infer, ctx)?;
+                        self.infer_argument(
+                            module,
+                            *argument_id,
+                            None,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?;
                     }
                 }
 
@@ -1698,8 +1707,12 @@ impl Compiler {
 
         // recover static parameters when they are missing from the signature type
         if static_parameters.is_empty() {
-            static_parameters =
-                self.recover_static_parameters_for_signature(module, signature_ty_id, tree, types);
+            static_parameters = self.materialize_signature_static_parameters_from_source(
+                module,
+                signature_ty_id,
+                tree,
+                types,
+            );
         }
 
         let resolved = self.resolve_function_signature(
@@ -1714,7 +1727,7 @@ impl Compiler {
             &dynamic_parameters,
             return_type,
             None,
-            super::SignatureResolutionMode::Checking,
+            super::SignatureResolutionMode::Check,
             false,
             ctx.profile,
             &ctx.options,
@@ -1735,12 +1748,33 @@ impl Compiler {
         let instantiated_ty_id = types.insert_type_from(instantiated_fn, expression_id);
 
         if let Some(owner_symbol) = owner_symbol {
-            let _ = self.commit_instance_for_node_if_arguments(
-                expression_id.into_global_any(module.id),
-                owner_symbol,
-                resolved.static_arguments,
-                types,
-            );
+            let signature_parameter_symbols =
+                self.query_signature_static_parameter_symbols(signature_ty_id, types);
+            let environment = StaticSubstitutionEnvironment::from_parameter_symbols(
+                resolved.static_arguments.clone(),
+                signature_parameter_symbols,
+                0,
+            )
+            .or_else(|| {
+                self.instance_environment_for_symbol_arguments(
+                    module,
+                    ctx.profile,
+                    owner_symbol,
+                    resolved.static_arguments.clone(),
+                    0,
+                    tree,
+                    symbols,
+                    types,
+                )
+            });
+            if let Some(environment) = environment {
+                let _ = self.commit_instance_for_node_maybe(
+                    expression_id.into_global_any(module.id),
+                    owner_symbol,
+                    environment,
+                    types,
+                );
+            }
         }
 
         Ok(instantiated_ty_id)
@@ -4733,7 +4767,8 @@ impl Compiler {
                         target_symbol.module_id,
                     )?;
                     if has_cycle
-                        && !self.remote_symbol_has_declared_value_type(ctx.profile, target_symbol)
+                        && !self
+                            .remote_symbol_has_declared_value_type(ctx.profile, target_symbol)?
                     {
                         let error_node = expression_id
                             .into_global_any(module.id)
@@ -4784,7 +4819,7 @@ impl Compiler {
                     target_symbol.module_id,
                 )?;
                 if has_cycle
-                    && !self.remote_symbol_has_declared_value_type(ctx.profile, target_symbol)
+                    && !self.remote_symbol_has_declared_value_type(ctx.profile, target_symbol)?
                 {
                     let error_node = expression_id
                         .into_global_any(module.id)
@@ -4952,8 +4987,12 @@ impl Compiler {
 
         // recover static parameters when they are missing from the signature type
         if static_parameters.is_empty() {
-            static_parameters =
-                self.recover_static_parameters_for_signature(module, signature_ty_id, tree, types);
+            static_parameters = self.materialize_signature_static_parameters_from_source(
+                module,
+                signature_ty_id,
+                tree,
+                types,
+            );
         }
 
         let resolved = self.resolve_function_signature(
@@ -4968,7 +5007,7 @@ impl Compiler {
             &dynamic_parameters,
             return_type,
             None,
-            super::SignatureResolutionMode::Checking,
+            super::SignatureResolutionMode::Check,
             false,
             ctx.profile,
             &ctx.options,
@@ -4988,12 +5027,33 @@ impl Compiler {
         };
         let instantiated_ty_id = types.insert_type_from(instantiated_fn, expression_id);
 
-        let _ = self.commit_instance_for_node_if_arguments(
-            expression_id.into_global_any(module.id),
-            canonical_symbol,
-            resolved.static_arguments,
-            types,
-        );
+        let signature_parameter_symbols =
+            self.query_signature_static_parameter_symbols(signature_ty_id, types);
+        let environment = StaticSubstitutionEnvironment::from_parameter_symbols(
+            resolved.static_arguments.clone(),
+            signature_parameter_symbols,
+            0,
+        )
+        .or_else(|| {
+            self.instance_environment_for_symbol_arguments(
+                module,
+                ctx.profile,
+                canonical_symbol,
+                resolved.static_arguments.clone(),
+                0,
+                tree,
+                symbols,
+                types,
+            )
+        });
+        if let Some(environment) = environment {
+            let _ = self.commit_instance_for_node_maybe(
+                expression_id.into_global_any(module.id),
+                canonical_symbol,
+                environment,
+                types,
+            );
+        }
 
         Ok(instantiated_ty_id)
     }
