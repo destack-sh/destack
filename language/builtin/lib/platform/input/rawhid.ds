@@ -38,7 +38,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "sometimes",
     })
     export function rawHidRead(
@@ -70,7 +70,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "never",
     })
     export function rawHidTryRead(
@@ -100,7 +100,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.write"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function rawHidWrite(
@@ -130,7 +130,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.control"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function rawHidGetFeature(
@@ -160,7 +160,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.control"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function rawHidSetFeature(

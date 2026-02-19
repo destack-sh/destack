@@ -27,7 +27,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.workdir.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -57,7 +57,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.workdir.write"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

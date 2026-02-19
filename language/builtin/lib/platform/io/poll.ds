@@ -52,7 +52,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.poll"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -82,7 +82,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.poll"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -112,7 +112,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.poll"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -147,7 +147,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.poll"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -182,7 +182,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.poll"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -212,7 +212,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.poll"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

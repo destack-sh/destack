@@ -469,7 +469,7 @@ pub(crate) unsafe fn destack_gpu_pipeline_layout_destroy(
 
 /// Bind one compute pipeline.
 ///
-/// Bind one compute pipeline to one command encoder for subsequent dispatch operations.
+/// Bind one compute pipeline to one active compute pass for subsequent dispatch operations.
 /// Binding state remains active until changed or encoder reset.
 ///
 /// # Platform
@@ -499,7 +499,7 @@ pub(crate) unsafe fn destack_gpu_command_bind_compute_pipeline(
 
 /// Bind one render pipeline.
 ///
-/// Bind one render pipeline to one command encoder for subsequent draw operations.
+/// Bind one render pipeline to one active render pass for subsequent draw operations.
 /// Binding state remains active until changed or encoder reset.
 ///
 /// # Platform
@@ -562,6 +562,7 @@ pub(crate) unsafe fn destack_gpu_command_clear_buffer(
 /// Begin one compute pass.
 ///
 /// Begin compute-pass encoding on one command encoder with optional timestamp writes.
+/// Returns one compute-pass handle for pass-scoped commands.
 /// Nested pass semantics follow backend command recording rules.
 ///
 /// # Platform
@@ -591,7 +592,7 @@ pub(crate) unsafe fn destack_gpu_command_compute_pass_begin(
 
 /// End one compute pass.
 ///
-/// End compute-pass encoding on one command encoder.
+/// End compute-pass encoding for one active compute-pass handle.
 /// Pass finalization follows backend validation behavior.
 ///
 /// # Platform
@@ -1073,9 +1074,9 @@ pub(crate) unsafe fn destack_gpu_command_execute_bundles(
     .boxed())
 }
 
-/// Insert one debug marker in the active encoding scope.
+/// Insert one debug marker in one command-encoder scope.
 ///
-/// Insert one lightweight debug marker in one active command or pass scope.
+/// Insert one lightweight debug marker in one active command-encoder scope.
 /// Marker visibility is backend-defined and intended for tooling.
 ///
 /// # Platform
@@ -1107,16 +1108,17 @@ pub(crate) unsafe fn destack_gpu_command_insert_debug_marker(
 ///
 /// Encode multiple indexed draws loaded from one argument buffer.
 /// Draw-count and argument layout follow backend multi-draw contracts.
+/// This operation is one optional feature lane and can return `notSupported`.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses WebGPU-style multi-draw-indexed-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+/// Uses backend-specific multi-draw-indexed-indirect commands where exposed.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `gpu.render`.
+/// Requires `gpu.render.multiDraw`.
 ///
 /// # Replay
 /// External, recordable.
@@ -1143,13 +1145,13 @@ pub(crate) unsafe fn destack_gpu_command_multi_draw_indexed_indirect(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses WebGPU-style multi-draw-indexed-indirect-count commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+/// Uses backend-specific multi-draw-indexed-indirect-count commands where exposed.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `gpu.render`.
+/// Requires `gpu.render.multiDrawCount`.
 ///
 /// # Replay
 /// External, recordable.
@@ -1183,16 +1185,17 @@ pub(crate) unsafe fn destack_gpu_command_multi_draw_indexed_indirect_count(
 ///
 /// Encode multiple non-indexed draws loaded from one argument buffer.
 /// Draw-count and argument layout follow backend multi-draw contracts.
+/// This operation is one optional feature lane and can return `notSupported`.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses WebGPU-style multi-draw-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+/// Uses backend-specific multi-draw-indirect commands where exposed.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `gpu.render`.
+/// Requires `gpu.render.multiDraw`.
 ///
 /// # Replay
 /// External, recordable.
@@ -1219,13 +1222,13 @@ pub(crate) unsafe fn destack_gpu_command_multi_draw_indirect(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses WebGPU-style multi-draw-indirect-count commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+/// Uses backend-specific multi-draw-indirect-count commands where exposed.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `gpu.render`.
+/// Requires `gpu.render.multiDrawCount`.
 ///
 /// # Replay
 /// External, recordable.
@@ -1255,9 +1258,9 @@ pub(crate) unsafe fn destack_gpu_command_multi_draw_indirect_count(
     .boxed())
 }
 
-/// Pop one debug group in the active encoding scope.
+/// Pop one debug group in one command-encoder scope.
 ///
-/// Pop one previously pushed debug group in one active scope.
+/// Pop one previously pushed debug group in one active command-encoder scope.
 /// Pop fails when no matching group exists.
 ///
 /// # Platform
@@ -1284,9 +1287,9 @@ pub(crate) unsafe fn destack_gpu_command_pop_debug_group(
     .boxed())
 }
 
-/// Push one debug group in the active encoding scope.
+/// Push one debug group in one command-encoder scope.
 ///
-/// Push one nested debug group in one active command or pass scope.
+/// Push one nested debug group in one active command-encoder scope.
 /// Groups must be balanced with matching pop operations.
 ///
 /// # Platform
@@ -1934,6 +1937,7 @@ pub(crate) unsafe fn destack_gpu_render_bundle_set_vertex_buffer(
 ///
 /// Begin render-pass encoding on one command encoder with explicit attachments and optional query wiring.
 /// Attachment load, clear, timestamp, and occlusion behavior follow backend render pass semantics.
+/// Returns one render-pass handle for pass-scoped commands.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1962,7 +1966,7 @@ pub(crate) unsafe fn destack_gpu_command_render_pass_begin(
 
 /// End one render pass.
 ///
-/// End render-pass encoding on one command encoder.
+/// End render-pass encoding for one active render-pass handle.
 /// Pass finalization follows backend validation behavior.
 ///
 /// # Platform
@@ -3735,6 +3739,7 @@ pub(crate) unsafe fn destack_gpu_fence_destroy(
 ///
 /// Create one query set for timestamp, occlusion, or pipeline-statistics queries.
 /// Query set size and type are fixed for the object lifetime.
+/// Pipeline-statistics queries are one optional lane and require feature support.
 ///
 /// # Platform
 /// Unix and Windows.

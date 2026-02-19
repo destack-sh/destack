@@ -36,7 +36,7 @@ declare namespace ipc {
             replay: "recordable",
             capabilities: ["ipc.pipe"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -66,7 +66,7 @@ declare namespace ipc {
             replay: "recordable",
             capabilities: ["ipc.pipe"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -96,7 +96,7 @@ declare namespace ipc {
             replay: "recordable",
             capabilities: ["ipc.pipe"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -126,7 +126,7 @@ declare namespace ipc {
             replay: "recordable",
             capabilities: ["ipc.pipe"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

@@ -45,7 +45,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function clockNow(domain: AudioClockDomain): Result<uint64, PlatformError>;
@@ -72,7 +72,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function streamClock(

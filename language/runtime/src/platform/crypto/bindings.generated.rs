@@ -927,7 +927,7 @@ pub const CRYPTO_CERTIFICATE_DELETE: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.certificate.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -939,7 +939,7 @@ pub const CRYPTO_CERTIFICATE_EXPORT: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.certificate.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -951,7 +951,7 @@ pub const CRYPTO_CERTIFICATE_IMPORT: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.certificate.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -963,7 +963,7 @@ pub const CRYPTO_CERTIFICATE_METADATA: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.certificate.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -975,7 +975,7 @@ pub const CRYPTO_CERTIFICATE_VERIFY: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.certificate.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -987,7 +987,7 @@ pub const CRYPTO_KEY_DECRYPT: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.key.decrypt"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1000,7 +1000,7 @@ pub const CRYPTO_KEY_DELETE: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["crypto.store.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1025,7 +1025,7 @@ pub const CRYPTO_KEY_ENCRYPT: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.key.encrypt"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1037,7 +1037,7 @@ pub const CRYPTO_KEY_EXPORT_PUBLIC: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.store.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1049,7 +1049,7 @@ pub const CRYPTO_KEY_GENERATE: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.key.generate"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1061,7 +1061,7 @@ pub const CRYPTO_KEY_IMPORT: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.store.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1073,7 +1073,7 @@ pub const CRYPTO_KEY_METADATA: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.store.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1085,7 +1085,7 @@ pub const CRYPTO_KEY_SIGN: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.key.sign"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1097,7 +1097,7 @@ pub const CRYPTO_KEY_VERIFY: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.key.verify"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1110,7 +1110,7 @@ pub const CRYPTO_STORE_CLOSE: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["crypto.store.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1135,7 +1135,7 @@ pub const CRYPTO_STORE_LIST_CERTIFICATES: BindingDescriptor = BindingDescriptor:
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.store.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1147,7 +1147,7 @@ pub const CRYPTO_STORE_LIST_KEYS: BindingDescriptor = BindingDescriptor::externa
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.store.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1159,7 +1159,7 @@ pub const CRYPTO_STORE_OPEN: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.store.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);

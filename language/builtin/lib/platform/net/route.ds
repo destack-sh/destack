@@ -53,7 +53,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.route.routeList", { effect: "external", replay: "recordable", capabilities: ["net.route.read"], platforms: ["windows", "linux", "bsd"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.route.routeList", { effect: "external", replay: "recordable", capabilities: ["net.route.read"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
     export function routeList(family: SocketFamily): Result<Array<RouteEntry>, PlatformError>;
 
     /// Add a route table entry.
@@ -73,7 +73,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.route.routeAdd", { effect: "external", replay: "recordable", capabilities: ["net.route.write"], platforms: ["windows", "linux", "bsd"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.route.routeAdd", { effect: "external", replay: "recordable", capabilities: ["net.route.write"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
     export function routeAdd(route: RouteEntry): Result<void, PlatformError>;
 
     /// Remove a route table entry.
@@ -93,7 +93,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.route.routeDelete", { effect: "external", replay: "recordable", capabilities: ["net.route.write"], platforms: ["windows", "linux", "bsd"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.route.routeDelete", { effect: "external", replay: "recordable", capabilities: ["net.route.write"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
     export function routeDelete(route: RouteEntry): Result<void, PlatformError>;
 
 }

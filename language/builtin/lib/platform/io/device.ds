@@ -30,7 +30,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.device.read", "io.device.write"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -60,7 +60,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.device.read", "io.device.write"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -90,7 +90,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.device.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -120,7 +120,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.device.write"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -150,7 +150,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.device.control"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

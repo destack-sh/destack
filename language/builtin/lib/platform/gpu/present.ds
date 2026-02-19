@@ -132,7 +132,7 @@ declare namespace gpu {
         replay: "nonrecordable",
         capabilities: ["gpu.present"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function surfaceOpen(window: WindowHandle): Result<GpuSurfaceHandle, PlatformError>;
@@ -159,7 +159,7 @@ declare namespace gpu {
         replay: "nonrecordable",
         capabilities: ["gpu.present"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function surfaceClose(surface: GpuSurfaceHandle): Result<void, PlatformError>;
@@ -186,7 +186,7 @@ declare namespace gpu {
         replay: "nonrecordable",
         capabilities: ["gpu.present"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function surfaceCapabilities(
@@ -216,7 +216,7 @@ declare namespace gpu {
         replay: "nonrecordable",
         capabilities: ["gpu.present"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function surfaceConfigure(
@@ -247,7 +247,7 @@ declare namespace gpu {
         replay: "nonrecordable",
         capabilities: ["gpu.present"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function surfaceUnconfigure(surface: GpuSurfaceHandle): Result<void, PlatformError>;
@@ -275,7 +275,7 @@ declare namespace gpu {
         replay: "nonrecordable",
         capabilities: ["gpu.present"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function surfaceAcquire(
@@ -306,7 +306,7 @@ declare namespace gpu {
         replay: "nonrecordable",
         capabilities: ["gpu.present"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function surfacePresent(surface: GpuSurfaceHandle, options: GpuPresentOptions): Result<void, PlatformError>;

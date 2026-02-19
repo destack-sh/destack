@@ -226,7 +226,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.queue"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function commandEncoderOpen(
@@ -256,7 +256,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.queue"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandEncoderClose(handle: GpuCommandListHandle): Result<void, PlatformError>;
@@ -283,7 +283,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.queue"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function commandEncoderFinish(handle: GpuCommandListHandle): Result<void, PlatformError>;
@@ -310,7 +310,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function renderBundleEncoderOpen(
@@ -340,7 +340,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function renderBundleEncoderClose(handle: GpuRenderBundleEncoderHandle): Result<void, PlatformError>;
@@ -367,7 +367,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function renderBundleEncoderFinish(
@@ -397,7 +397,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.compute"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandComputePassBegin(
@@ -427,7 +427,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.compute"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandComputePassEnd(handle: GpuComputePassHandle): Result<void, PlatformError>;
@@ -455,7 +455,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandRenderPassBegin(
@@ -485,7 +485,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandRenderPassEnd(handle: GpuRenderPassHandle): Result<void, PlatformError>;
@@ -512,7 +512,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandExecuteBundles(
@@ -542,7 +542,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function renderBundleDestroy(handle: GpuRenderBundleHandle): Result<void, PlatformError>;
@@ -569,7 +569,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function renderBundleSetPipeline(
@@ -599,7 +599,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.bind"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function renderBundleSetBindGroup(
@@ -631,7 +631,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function renderBundleSetVertexBuffer(
@@ -664,7 +664,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function renderBundleSetIndexBuffer(
@@ -697,7 +697,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function renderBundleDraw(
@@ -730,7 +730,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function renderBundleDrawIndexed(
@@ -764,7 +764,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function renderBundleDrawIndirect(
@@ -797,7 +797,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function renderBundleDrawIndexedIndirect(
@@ -830,7 +830,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.debug"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function renderBundleInsertDebugMarker(
@@ -860,7 +860,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.debug"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function renderBundlePushDebugGroup(
@@ -890,7 +890,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.debug"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function renderBundlePopDebugGroup(handle: GpuRenderBundleEncoderHandle): Result<void, PlatformError>;
@@ -917,7 +917,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.compute"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandBindComputePipeline(
@@ -947,7 +947,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandBindRenderPipeline(
@@ -977,7 +977,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.bind"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandSetComputeBindGroup(
@@ -1009,7 +1009,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.bind"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandSetRenderBindGroup(
@@ -1041,7 +1041,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandSetVertexBuffer(
@@ -1074,7 +1074,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandSetIndexBuffer(
@@ -1107,7 +1107,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandSetViewport(
@@ -1142,7 +1142,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandSetScissor(
@@ -1175,7 +1175,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandSetBlendConstant(
@@ -1208,7 +1208,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandSetStencilReference(
@@ -1238,7 +1238,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.debug"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandInsertDebugMarker(
@@ -1268,7 +1268,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.debug"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandPushDebugGroup(
@@ -1298,7 +1298,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.debug"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandPopDebugGroup(handle: GpuCommandListHandle): Result<void, PlatformError>;
@@ -1325,7 +1325,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.debug"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandComputePassInsertDebugMarker(
@@ -1355,7 +1355,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.debug"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandComputePassPushDebugGroup(
@@ -1385,7 +1385,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.debug"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandComputePassPopDebugGroup(
@@ -1414,7 +1414,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.debug"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandRenderPassInsertDebugMarker(
@@ -1444,7 +1444,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.debug"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandRenderPassPushDebugGroup(
@@ -1474,7 +1474,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.debug"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandRenderPassPopDebugGroup(
@@ -1503,7 +1503,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.compute"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandDispatch(
@@ -1535,7 +1535,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.compute"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandDispatchIndirect(
@@ -1566,7 +1566,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandDraw(
@@ -1599,7 +1599,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandDrawIndexed(
@@ -1633,7 +1633,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandDrawIndirect(
@@ -1666,7 +1666,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandDrawIndexedIndirect(
@@ -1700,7 +1700,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render.multiDraw"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandMultiDrawIndirect(
@@ -1734,7 +1734,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render.multiDraw"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandMultiDrawIndexedIndirect(
@@ -1767,7 +1767,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render.multiDrawCount"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandMultiDrawIndirectCount(
@@ -1802,7 +1802,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render.multiDrawCount"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandMultiDrawIndexedIndirectCount(
@@ -1837,7 +1837,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandCopyBuffer(
@@ -1871,7 +1871,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandClearBuffer(
@@ -1903,7 +1903,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandCopyTextureToTexture(
@@ -1935,7 +1935,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandCopyTextureToBuffer(
@@ -1967,7 +1967,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandCopyBufferToTexture(
@@ -1999,7 +1999,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.queue"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function queueSubmit(
@@ -2030,7 +2030,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.queue", "gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function queueWriteBuffer(
@@ -2064,7 +2064,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.queue", "gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function queueWriteTexture(
@@ -2097,7 +2097,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.queue"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function queueWaitIdle(

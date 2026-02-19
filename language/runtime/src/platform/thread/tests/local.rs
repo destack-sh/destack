@@ -35,3 +35,18 @@ fn test_thread_local_reject_deleted_key() {
         Ok(())
     });
 }
+
+/// Reject writes to one deleted thread-local key.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_thread_local_set_rejects_deleted_key() {
+    with_harness_context(|mut context| {
+        let key = context.destack_thread_local_create()?;
+        context.destack_thread_local_delete(key)?;
+
+        let result = context.destack_thread_local_set(key, 123);
+        assert_platform_error_code(result, PlatformErrorCode::InvalidArgumentValue)?;
+
+        Ok(())
+    });
+}

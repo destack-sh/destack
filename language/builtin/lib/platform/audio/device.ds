@@ -164,7 +164,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.device"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function deviceList(request: AudioDeviceListRequest): Result<Slice<AudioDeviceInfo>, PlatformError>;
@@ -191,7 +191,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.device"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function deviceDefault(direction: AudioDeviceDirection): Result<string, PlatformError>;
@@ -218,7 +218,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.device"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function deviceOpen(
@@ -248,7 +248,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.device"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function deviceInfo(handle: AudioDeviceHandle): Result<AudioDeviceInfo, PlatformError>;
@@ -275,7 +275,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.device"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function deviceClose(handle: AudioDeviceHandle): Result<void, PlatformError>;

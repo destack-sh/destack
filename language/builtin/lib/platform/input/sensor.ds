@@ -98,7 +98,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "never",
     })
     export function sensorList(handle: InputDeviceHandle): Result<Array<InputSensorInfo>, PlatformError>;
@@ -125,7 +125,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.control"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function sensorConfigure(
@@ -156,7 +156,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "sometimes",
     })
     export function sensorRead(
@@ -185,7 +185,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "never",
     })
     export function sensorTryRead(

@@ -4,6 +4,7 @@ use super::{
 };
 
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::resource::{ResourceId, ThreadHandle};
 
 /// Set and read thread priority and affinity for one spawned thread handle.
 #[cfg(any(unix, windows))]
@@ -84,6 +85,29 @@ fn test_thread_set_affinity_rejects_zero_mask() {
         assert_platform_error_code(result, PlatformErrorCode::InvalidArgumentValue)?;
 
         context.destack_thread_detach(handle)?;
+
+        Ok(())
+    });
+}
+
+/// Reject priority and affinity operations for one unknown thread handle.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_thread_priority_affinity_reject_unknown_handle() {
+    with_harness_context(|mut context| {
+        let unknown = ThreadHandle(ResourceId(0));
+
+        let get_priority_result = context.destack_thread_get_priority(unknown);
+        assert_platform_error_code(get_priority_result, PlatformErrorCode::InvalidArgumentValue)?;
+
+        let set_priority_result = context.destack_thread_set_priority(unknown, 0);
+        assert_platform_error_code(set_priority_result, PlatformErrorCode::InvalidArgumentValue)?;
+
+        let get_affinity_result = context.destack_thread_get_affinity(unknown);
+        assert_platform_error_code(get_affinity_result, PlatformErrorCode::InvalidArgumentValue)?;
+
+        let set_affinity_result = context.destack_thread_set_affinity(unknown, 1);
+        assert_platform_error_code(set_affinity_result, PlatformErrorCode::InvalidArgumentValue)?;
 
         Ok(())
     });

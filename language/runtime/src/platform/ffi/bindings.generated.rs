@@ -345,7 +345,7 @@ pub const FFI_LIBRARY_CLOSE: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["ffi.load"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -371,7 +371,7 @@ pub const FFI_LIBRARY_OPEN: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["ffi.load"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -470,7 +470,7 @@ pub const FFI_SYMBOL_LOOKUP: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["ffi.symbol"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);

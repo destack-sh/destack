@@ -207,7 +207,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.bind"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function bindGroupLayoutCreate(
@@ -238,7 +238,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.bind"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function bindGroupLayoutDestroy(handle: GpuBindGroupLayoutHandle): Result<void, PlatformError>;
@@ -265,7 +265,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.bind"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function pipelineLayoutCreate(
@@ -295,7 +295,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.bind"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function pipelineLayoutDestroy(handle: GpuPipelineLayoutHandle): Result<void, PlatformError>;
@@ -322,7 +322,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.bind"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function bindGroupCreate(
@@ -354,7 +354,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.bind"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function bindGroupDestroy(handle: GpuBindGroupHandle): Result<void, PlatformError>;

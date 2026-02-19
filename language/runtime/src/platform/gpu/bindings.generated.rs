@@ -34,11 +34,11 @@ use crate::platform::gpu::{
     GpuRenderBundleEncoderOptions, GpuRenderBundleEncoderOptionsVm, GpuRenderPassColorAttachmentVm,
     GpuRenderPassDepthStencilAttachmentVm, GpuRenderPassOptions, GpuRenderPassOptionsVm,
     GpuRenderPipelineOptions, GpuRenderPipelineOptionsVm, GpuRenderStateVm, GpuSamplerOptions,
-    GpuSamplerOptionsVm, GpuShaderOptions, GpuShaderOptionsVm, GpuStencilFaceStateVm,
-    GpuStencilOperation, GpuStoreOp, GpuSubmitOptions, GpuSubmitOptionsVm, GpuSurfaceAlphaMode,
-    GpuSurfaceCapabilities, GpuSurfaceCapabilitiesVm, GpuSurfaceFrame, GpuSurfaceFrameVm,
-    GpuSurfaceOptions, GpuSurfaceOptionsVm, GpuTextureCopy, GpuTextureCopyVm, GpuTextureDimension,
-    GpuTextureInfo, GpuTextureInfoVm, GpuTextureOptions, GpuTextureOptionsVm,
+    GpuSamplerOptionsVm, GpuShaderFormat, GpuShaderOptions, GpuShaderOptionsVm,
+    GpuStencilFaceStateVm, GpuStencilOperation, GpuStoreOp, GpuSubmitOptions, GpuSubmitOptionsVm,
+    GpuSurfaceAlphaMode, GpuSurfaceCapabilities, GpuSurfaceCapabilitiesVm, GpuSurfaceFrame,
+    GpuSurfaceFrameVm, GpuSurfaceOptions, GpuSurfaceOptionsVm, GpuTextureCopy, GpuTextureCopyVm,
+    GpuTextureDimension, GpuTextureInfo, GpuTextureInfoVm, GpuTextureOptions, GpuTextureOptionsVm,
     GpuTextureViewOptions, GpuTextureViewOptionsVm, GpuVertexBufferLayoutVm, GpuVertexStateVm,
 };
 use crate::platform::{
@@ -347,22 +347,60 @@ fn encode_destack_gpu_adapter_info_result(
         let field_12 = value.features.to_value(context);
         let field_13 = {
             let field_0 = vm::Value::uint(value.limits.max_bind_groups as u64, 32);
-            let field_1 = vm::Value::uint(value.limits.max_push_constant_bytes as u64, 32);
-            let field_2 = vm::Value::uint(value.limits.max_texture_dimension2_d as u64, 32);
-            let field_3 = vm::Value::uint(value.limits.max_color_attachments as u64, 32);
-            let field_4 = vm::Value::uint(value.limits.max_sampled_textures_per_stage as u64, 32);
-            let field_5 = vm::Value::uint(value.limits.max_samplers_per_stage as u64, 32);
-            let field_6 = vm::Value::uint(value.limits.max_storage_buffers_per_stage as u64, 32);
-            let field_7 = vm::Value::uint(value.limits.max_uniform_buffers_per_stage as u64, 32);
-            let field_8 = vm::Value::uint(value.limits.max_uniform_buffer_binding_size, 64);
-            let field_9 = vm::Value::uint(value.limits.max_storage_buffer_binding_size, 64);
-            let field_10 =
+            let field_1 = vm::Value::uint(value.limits.max_bindings_per_bind_group as u64, 32);
+            let field_2 = vm::Value::uint(value.limits.max_push_constant_bytes as u64, 32);
+            let field_3 = vm::Value::uint(value.limits.max_texture_dimension1_d as u64, 32);
+            let field_4 = vm::Value::uint(value.limits.max_texture_dimension2_d as u64, 32);
+            let field_5 = vm::Value::uint(value.limits.max_texture_dimension3_d as u64, 32);
+            let field_6 = vm::Value::uint(value.limits.max_texture_array_layers as u64, 32);
+            let field_7 = vm::Value::uint(value.limits.max_color_attachments as u64, 32);
+            let field_8 = vm::Value::uint(
+                value.limits.max_color_attachment_bytes_per_sample as u64,
+                32,
+            );
+            let field_9 = vm::Value::uint(value.limits.max_sampled_textures_per_stage as u64, 32);
+            let field_10 = vm::Value::uint(value.limits.max_samplers_per_stage as u64, 32);
+            let field_11 = vm::Value::uint(value.limits.max_storage_buffers_per_stage as u64, 32);
+            let field_12 = vm::Value::uint(value.limits.max_storage_textures_per_stage as u64, 32);
+            let field_13 = vm::Value::uint(value.limits.max_uniform_buffers_per_stage as u64, 32);
+            let field_14 = vm::Value::uint(
+                value.limits.max_dynamic_uniform_buffers_per_pipeline_layout as u64,
+                32,
+            );
+            let field_15 = vm::Value::uint(
+                value.limits.max_dynamic_storage_buffers_per_pipeline_layout as u64,
+                32,
+            );
+            let field_16 = vm::Value::uint(value.limits.max_uniform_buffer_binding_size, 64);
+            let field_17 = vm::Value::uint(value.limits.max_storage_buffer_binding_size, 64);
+            let field_18 =
                 vm::Value::uint(value.limits.min_storage_buffer_offset_alignment as u64, 32);
-            let field_11 =
+            let field_19 =
                 vm::Value::uint(value.limits.min_uniform_buffer_offset_alignment as u64, 32);
+            let field_20 = vm::Value::uint(value.limits.max_vertex_buffers as u64, 32);
+            let field_21 = vm::Value::uint(value.limits.max_vertex_attributes as u64, 32);
+            let field_22 = vm::Value::uint(value.limits.max_vertex_buffer_array_stride as u64, 32);
+            let field_23 = vm::Value::uint(value.limits.max_buffer_size, 64);
+            let field_24 =
+                vm::Value::uint(value.limits.max_inter_stage_shader_components as u64, 32);
+            let field_25 =
+                vm::Value::uint(value.limits.max_inter_stage_shader_variables as u64, 32);
+            let field_26 =
+                vm::Value::uint(value.limits.max_compute_workgroup_storage_size as u64, 32);
+            let field_27 = vm::Value::uint(
+                value.limits.max_compute_invocations_per_workgroup as u64,
+                32,
+            );
+            let field_28 = vm::Value::uint(value.limits.max_compute_workgroup_size_x as u64, 32);
+            let field_29 = vm::Value::uint(value.limits.max_compute_workgroup_size_y as u64, 32);
+            let field_30 = vm::Value::uint(value.limits.max_compute_workgroup_size_z as u64, 32);
+            let field_31 =
+                vm::Value::uint(value.limits.max_compute_workgroups_per_dimension as u64, 32);
             context.allocate_aggregate(vec![
                 field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-                field_9, field_10, field_11,
+                field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+                field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24,
+                field_25, field_26, field_27, field_28, field_29, field_30, field_31,
             ])
         };
         context.allocate_aggregate(vec![
@@ -393,20 +431,48 @@ fn encode_destack_gpu_adapter_limits_result(
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
         let field_0 = vm::Value::uint(value.max_bind_groups as u64, 32);
-        let field_1 = vm::Value::uint(value.max_push_constant_bytes as u64, 32);
-        let field_2 = vm::Value::uint(value.max_texture_dimension2_d as u64, 32);
-        let field_3 = vm::Value::uint(value.max_color_attachments as u64, 32);
-        let field_4 = vm::Value::uint(value.max_sampled_textures_per_stage as u64, 32);
-        let field_5 = vm::Value::uint(value.max_samplers_per_stage as u64, 32);
-        let field_6 = vm::Value::uint(value.max_storage_buffers_per_stage as u64, 32);
-        let field_7 = vm::Value::uint(value.max_uniform_buffers_per_stage as u64, 32);
-        let field_8 = vm::Value::uint(value.max_uniform_buffer_binding_size, 64);
-        let field_9 = vm::Value::uint(value.max_storage_buffer_binding_size, 64);
-        let field_10 = vm::Value::uint(value.min_storage_buffer_offset_alignment as u64, 32);
-        let field_11 = vm::Value::uint(value.min_uniform_buffer_offset_alignment as u64, 32);
+        let field_1 = vm::Value::uint(value.max_bindings_per_bind_group as u64, 32);
+        let field_2 = vm::Value::uint(value.max_push_constant_bytes as u64, 32);
+        let field_3 = vm::Value::uint(value.max_texture_dimension1_d as u64, 32);
+        let field_4 = vm::Value::uint(value.max_texture_dimension2_d as u64, 32);
+        let field_5 = vm::Value::uint(value.max_texture_dimension3_d as u64, 32);
+        let field_6 = vm::Value::uint(value.max_texture_array_layers as u64, 32);
+        let field_7 = vm::Value::uint(value.max_color_attachments as u64, 32);
+        let field_8 = vm::Value::uint(value.max_color_attachment_bytes_per_sample as u64, 32);
+        let field_9 = vm::Value::uint(value.max_sampled_textures_per_stage as u64, 32);
+        let field_10 = vm::Value::uint(value.max_samplers_per_stage as u64, 32);
+        let field_11 = vm::Value::uint(value.max_storage_buffers_per_stage as u64, 32);
+        let field_12 = vm::Value::uint(value.max_storage_textures_per_stage as u64, 32);
+        let field_13 = vm::Value::uint(value.max_uniform_buffers_per_stage as u64, 32);
+        let field_14 = vm::Value::uint(
+            value.max_dynamic_uniform_buffers_per_pipeline_layout as u64,
+            32,
+        );
+        let field_15 = vm::Value::uint(
+            value.max_dynamic_storage_buffers_per_pipeline_layout as u64,
+            32,
+        );
+        let field_16 = vm::Value::uint(value.max_uniform_buffer_binding_size, 64);
+        let field_17 = vm::Value::uint(value.max_storage_buffer_binding_size, 64);
+        let field_18 = vm::Value::uint(value.min_storage_buffer_offset_alignment as u64, 32);
+        let field_19 = vm::Value::uint(value.min_uniform_buffer_offset_alignment as u64, 32);
+        let field_20 = vm::Value::uint(value.max_vertex_buffers as u64, 32);
+        let field_21 = vm::Value::uint(value.max_vertex_attributes as u64, 32);
+        let field_22 = vm::Value::uint(value.max_vertex_buffer_array_stride as u64, 32);
+        let field_23 = vm::Value::uint(value.max_buffer_size, 64);
+        let field_24 = vm::Value::uint(value.max_inter_stage_shader_components as u64, 32);
+        let field_25 = vm::Value::uint(value.max_inter_stage_shader_variables as u64, 32);
+        let field_26 = vm::Value::uint(value.max_compute_workgroup_storage_size as u64, 32);
+        let field_27 = vm::Value::uint(value.max_compute_invocations_per_workgroup as u64, 32);
+        let field_28 = vm::Value::uint(value.max_compute_workgroup_size_x as u64, 32);
+        let field_29 = vm::Value::uint(value.max_compute_workgroup_size_y as u64, 32);
+        let field_30 = vm::Value::uint(value.max_compute_workgroup_size_z as u64, 32);
+        let field_31 = vm::Value::uint(value.max_compute_workgroups_per_dimension as u64, 32);
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11,
+            field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+            field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24,
+            field_25, field_26, field_27, field_28, field_29, field_30, field_31,
         ])
     })
 }
@@ -744,12 +810,12 @@ fn encode_destack_gpu_bind_pipeline_layout_destroy_result(
 fn decode_destack_gpu_command_bind_compute_pipeline_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::GpuCommandListHandle, resource::GpuPipelineHandle)> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+) -> RuntimeResult<(resource::GpuComputePassHandle, resource::GpuPipelineHandle)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuComputePassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuComputePassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuComputePassHandle(handle_inner);
     let pipeline_value = arg_value(args, 1, "pipeline", "GpuPipelineHandle")?;
     let pipeline_inner_inner =
         decode_uint64(pipeline_value, "pipeline_inner_inner", "GpuPipelineHandle")?;
@@ -772,12 +838,12 @@ fn encode_destack_gpu_command_bind_compute_pipeline_result(
 fn decode_destack_gpu_command_bind_render_pipeline_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::GpuCommandListHandle, resource::GpuPipelineHandle)> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+) -> RuntimeResult<(resource::GpuRenderPassHandle, resource::GpuPipelineHandle)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let pipeline_value = arg_value(args, 1, "pipeline", "GpuPipelineHandle")?;
     let pipeline_inner_inner =
         decode_uint64(pipeline_value, "pipeline_inner_inner", "GpuPipelineHandle")?;
@@ -935,9 +1001,9 @@ fn decode_destack_gpu_command_compute_pass_begin_args(
 #[inline]
 fn encode_destack_gpu_command_compute_pass_begin_result(
     _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
+    result: RuntimeResult<resource::GpuComputePassHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.command.computePassEnd.
@@ -945,18 +1011,91 @@ fn encode_destack_gpu_command_compute_pass_begin_result(
 fn decode_destack_gpu_command_compute_pass_end_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::GpuCommandListHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+) -> RuntimeResult<(resource::GpuComputePassHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuComputePassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuComputePassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuComputePassHandle(handle_inner);
     Ok((handle,))
 }
 
 /// Encode the result for destack.gpu.command.computePassEnd.
 #[inline]
 fn encode_destack_gpu_command_compute_pass_end_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.gpu.command.computePassInsertDebugMarker.
+#[inline]
+fn decode_destack_gpu_command_compute_pass_insert_debug_marker_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::GpuComputePassHandle, vm::StringHandle)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuComputePassHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "GpuComputePassHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::GpuComputePassHandle(handle_inner);
+    let marker_value = arg_value(args, 1, "marker", "string")?;
+    let marker = decode_string(marker_value, "marker", "string")?;
+    Ok((handle, marker))
+}
+
+/// Encode the result for destack.gpu.command.computePassInsertDebugMarker.
+#[inline]
+fn encode_destack_gpu_command_compute_pass_insert_debug_marker_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.gpu.command.computePassPopDebugGroup.
+#[inline]
+fn decode_destack_gpu_command_compute_pass_pop_debug_group_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::GpuComputePassHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuComputePassHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "GpuComputePassHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::GpuComputePassHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.gpu.command.computePassPopDebugGroup.
+#[inline]
+fn encode_destack_gpu_command_compute_pass_pop_debug_group_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.gpu.command.computePassPushDebugGroup.
+#[inline]
+fn decode_destack_gpu_command_compute_pass_push_debug_group_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::GpuComputePassHandle, vm::StringHandle)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuComputePassHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "GpuComputePassHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::GpuComputePassHandle(handle_inner);
+    let label_value = arg_value(args, 1, "label", "string")?;
+    let label = decode_string(label_value, "label", "string")?;
+    Ok((handle, label))
+}
+
+/// Encode the result for destack.gpu.command.computePassPushDebugGroup.
+#[inline]
+fn encode_destack_gpu_command_compute_pass_push_debug_group_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1449,12 +1588,12 @@ fn encode_destack_gpu_command_copy_texture_to_texture_result(
 fn decode_destack_gpu_command_dispatch_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::GpuCommandListHandle, u32, u32, u32)> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+) -> RuntimeResult<(resource::GpuComputePassHandle, u32, u32, u32)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuComputePassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuComputePassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuComputePassHandle(handle_inner);
     let groupx_value = arg_value(args, 1, "groupx", "uint32")?;
     let groupx = decode_uint32(groupx_value, "groupx", "uint32")?;
     let groupy_value = arg_value(args, 2, "groupy", "uint32")?;
@@ -1479,15 +1618,15 @@ fn decode_destack_gpu_command_dispatch_indirect_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
-    resource::GpuCommandListHandle,
+    resource::GpuComputePassHandle,
     resource::GpuBufferHandle,
     u64,
 )> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+    let handle_value = arg_value(args, 0, "handle", "GpuComputePassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuComputePassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuComputePassHandle(handle_inner);
     let buffer_value = arg_value(args, 1, "buffer", "GpuBufferHandle")?;
     let buffer_inner_inner = decode_uint64(buffer_value, "buffer_inner_inner", "GpuBufferHandle")?;
     let buffer_inner = resource::ResourceId(buffer_inner_inner);
@@ -1511,12 +1650,12 @@ fn encode_destack_gpu_command_dispatch_indirect_result(
 fn decode_destack_gpu_command_draw_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::GpuCommandListHandle, u32, u32, u32, u32)> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+) -> RuntimeResult<(resource::GpuRenderPassHandle, u32, u32, u32, u32)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let vertexcount_value = arg_value(args, 1, "vertexcount", "uint32")?;
     let vertexcount = decode_uint32(vertexcount_value, "vertexcount", "uint32")?;
     let instancecount_value = arg_value(args, 2, "instancecount", "uint32")?;
@@ -1548,12 +1687,12 @@ fn encode_destack_gpu_command_draw_result(
 fn decode_destack_gpu_command_draw_indexed_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::GpuCommandListHandle, u32, u32, u32, i32, u32)> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+) -> RuntimeResult<(resource::GpuRenderPassHandle, u32, u32, u32, i32, u32)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let indexcount_value = arg_value(args, 1, "indexcount", "uint32")?;
     let indexcount = decode_uint32(indexcount_value, "indexcount", "uint32")?;
     let instancecount_value = arg_value(args, 2, "instancecount", "uint32")?;
@@ -1589,17 +1728,17 @@ fn decode_destack_gpu_command_draw_indexed_indirect_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
-    resource::GpuCommandListHandle,
+    resource::GpuRenderPassHandle,
     resource::GpuBufferHandle,
     u64,
     u32,
     u32,
 )> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let buffer_value = arg_value(args, 1, "buffer", "GpuBufferHandle")?;
     let buffer_inner_inner = decode_uint64(buffer_value, "buffer_inner_inner", "GpuBufferHandle")?;
     let buffer_inner = resource::ResourceId(buffer_inner_inner);
@@ -1628,17 +1767,17 @@ fn decode_destack_gpu_command_draw_indirect_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
-    resource::GpuCommandListHandle,
+    resource::GpuRenderPassHandle,
     resource::GpuBufferHandle,
     u64,
     u32,
     u32,
 )> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let buffer_value = arg_value(args, 1, "buffer", "GpuBufferHandle")?;
     let buffer_inner_inner = decode_uint64(buffer_value, "buffer_inner_inner", "GpuBufferHandle")?;
     let buffer_inner = resource::ResourceId(buffer_inner_inner);
@@ -1759,14 +1898,14 @@ fn decode_destack_gpu_command_execute_bundles_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
-    resource::GpuCommandListHandle,
+    resource::GpuRenderPassHandle,
     VmSlice<resource::GpuRenderBundleHandle>,
 )> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let bundles_value = arg_value(args, 1, "bundles", "Slice<GpuRenderBundleHandle>")?;
     let bundles = decode_slice::<resource::GpuRenderBundleHandle>(
         context,
@@ -1817,17 +1956,17 @@ fn decode_destack_gpu_command_multi_draw_indexed_indirect_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
-    resource::GpuCommandListHandle,
+    resource::GpuRenderPassHandle,
     resource::GpuBufferHandle,
     u64,
     u32,
     u32,
 )> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let buffer_value = arg_value(args, 1, "buffer", "GpuBufferHandle")?;
     let buffer_inner_inner = decode_uint64(buffer_value, "buffer_inner_inner", "GpuBufferHandle")?;
     let buffer_inner = resource::ResourceId(buffer_inner_inner);
@@ -1856,7 +1995,7 @@ fn decode_destack_gpu_command_multi_draw_indexed_indirect_count_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
-    resource::GpuCommandListHandle,
+    resource::GpuRenderPassHandle,
     resource::GpuBufferHandle,
     u64,
     resource::GpuBufferHandle,
@@ -1864,11 +2003,11 @@ fn decode_destack_gpu_command_multi_draw_indexed_indirect_count_args(
     u32,
     u32,
 )> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let buffer_value = arg_value(args, 1, "buffer", "GpuBufferHandle")?;
     let buffer_inner_inner = decode_uint64(buffer_value, "buffer_inner_inner", "GpuBufferHandle")?;
     let buffer_inner = resource::ResourceId(buffer_inner_inner);
@@ -1915,17 +2054,17 @@ fn decode_destack_gpu_command_multi_draw_indirect_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
-    resource::GpuCommandListHandle,
+    resource::GpuRenderPassHandle,
     resource::GpuBufferHandle,
     u64,
     u32,
     u32,
 )> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let buffer_value = arg_value(args, 1, "buffer", "GpuBufferHandle")?;
     let buffer_inner_inner = decode_uint64(buffer_value, "buffer_inner_inner", "GpuBufferHandle")?;
     let buffer_inner = resource::ResourceId(buffer_inner_inner);
@@ -1954,7 +2093,7 @@ fn decode_destack_gpu_command_multi_draw_indirect_count_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
-    resource::GpuCommandListHandle,
+    resource::GpuRenderPassHandle,
     resource::GpuBufferHandle,
     u64,
     resource::GpuBufferHandle,
@@ -1962,11 +2101,11 @@ fn decode_destack_gpu_command_multi_draw_indirect_count_args(
     u32,
     u32,
 )> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let buffer_value = arg_value(args, 1, "buffer", "GpuBufferHandle")?;
     let buffer_inner_inner = decode_uint64(buffer_value, "buffer_inner_inner", "GpuBufferHandle")?;
     let buffer_inner = resource::ResourceId(buffer_inner_inner);
@@ -3124,9 +3263,9 @@ fn decode_destack_gpu_command_render_pass_begin_args(
 #[inline]
 fn encode_destack_gpu_command_render_pass_begin_result(
     _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
+    result: RuntimeResult<resource::GpuRenderPassHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.command.renderPassEnd.
@@ -3134,12 +3273,12 @@ fn encode_destack_gpu_command_render_pass_begin_result(
 fn decode_destack_gpu_command_render_pass_end_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::GpuCommandListHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+) -> RuntimeResult<(resource::GpuRenderPassHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     Ok((handle,))
 }
 
@@ -3152,45 +3291,73 @@ fn encode_destack_gpu_command_render_pass_end_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.gpu.command.setBindGroup.
+/// Decode arguments for destack.gpu.command.renderPassInsertDebugMarker.
 #[inline]
-fn decode_destack_gpu_command_set_bind_group_args(
-    context: &mut vm::ExternalCallContext<'_>,
+fn decode_destack_gpu_command_render_pass_insert_debug_marker_args(
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(
-    resource::GpuCommandListHandle,
-    u32,
-    resource::GpuBindGroupHandle,
-    VmSlice<u32>,
-)> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+) -> RuntimeResult<(resource::GpuRenderPassHandle, vm::StringHandle)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
-    let index_value = arg_value(args, 1, "index", "uint32")?;
-    let index = decode_uint32(index_value, "index", "uint32")?;
-    let bindgroup_value = arg_value(args, 2, "bindgroup", "GpuBindGroupHandle")?;
-    let bindgroup_inner_inner = decode_uint64(
-        bindgroup_value,
-        "bindgroup_inner_inner",
-        "GpuBindGroupHandle",
-    )?;
-    let bindgroup_inner = resource::ResourceId(bindgroup_inner_inner);
-    let bindgroup = resource::GpuBindGroupHandle(bindgroup_inner);
-    let dynamicoffsets_value = arg_value(args, 3, "dynamicoffsets", "Slice<uint32>")?;
-    let dynamicoffsets = decode_slice::<u32>(
-        context,
-        dynamicoffsets_value,
-        "dynamicoffsets",
-        "Slice<uint32>",
-    )?;
-    Ok((handle, index, bindgroup, dynamicoffsets))
+    let handle = resource::GpuRenderPassHandle(handle_inner);
+    let marker_value = arg_value(args, 1, "marker", "string")?;
+    let marker = decode_string(marker_value, "marker", "string")?;
+    Ok((handle, marker))
 }
 
-/// Encode the result for destack.gpu.command.setBindGroup.
+/// Encode the result for destack.gpu.command.renderPassInsertDebugMarker.
 #[inline]
-fn encode_destack_gpu_command_set_bind_group_result(
+fn encode_destack_gpu_command_render_pass_insert_debug_marker_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.gpu.command.renderPassPopDebugGroup.
+#[inline]
+fn decode_destack_gpu_command_render_pass_pop_debug_group_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::GpuRenderPassHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.gpu.command.renderPassPopDebugGroup.
+#[inline]
+fn encode_destack_gpu_command_render_pass_pop_debug_group_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.gpu.command.renderPassPushDebugGroup.
+#[inline]
+fn decode_destack_gpu_command_render_pass_push_debug_group_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::GpuRenderPassHandle, vm::StringHandle)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
+    let label_value = arg_value(args, 1, "label", "string")?;
+    let label = decode_string(label_value, "label", "string")?;
+    Ok((handle, label))
+}
+
+/// Encode the result for destack.gpu.command.renderPassPushDebugGroup.
+#[inline]
+fn encode_destack_gpu_command_render_pass_push_debug_group_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -3202,12 +3369,12 @@ fn encode_destack_gpu_command_set_bind_group_result(
 fn decode_destack_gpu_command_set_blend_constant_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::GpuCommandListHandle, f64, f64, f64, f64)> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+) -> RuntimeResult<(resource::GpuRenderPassHandle, f64, f64, f64, f64)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let r_value = arg_value(args, 1, "r", "float64")?;
     let r = decode_float64(r_value, "r", "float64")?;
     let g_value = arg_value(args, 2, "g", "float64")?;
@@ -3228,23 +3395,68 @@ fn encode_destack_gpu_command_set_blend_constant_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.gpu.command.setComputeBindGroup.
+#[inline]
+fn decode_destack_gpu_command_set_compute_bind_group_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::GpuComputePassHandle,
+    u32,
+    resource::GpuBindGroupHandle,
+    VmSlice<u32>,
+)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuComputePassHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "GpuComputePassHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::GpuComputePassHandle(handle_inner);
+    let index_value = arg_value(args, 1, "index", "uint32")?;
+    let index = decode_uint32(index_value, "index", "uint32")?;
+    let bindgroup_value = arg_value(args, 2, "bindgroup", "GpuBindGroupHandle")?;
+    let bindgroup_inner_inner = decode_uint64(
+        bindgroup_value,
+        "bindgroup_inner_inner",
+        "GpuBindGroupHandle",
+    )?;
+    let bindgroup_inner = resource::ResourceId(bindgroup_inner_inner);
+    let bindgroup = resource::GpuBindGroupHandle(bindgroup_inner);
+    let dynamicoffsets_value = arg_value(args, 3, "dynamicoffsets", "Slice<uint32>")?;
+    let dynamicoffsets = decode_slice::<u32>(
+        context,
+        dynamicoffsets_value,
+        "dynamicoffsets",
+        "Slice<uint32>",
+    )?;
+    Ok((handle, index, bindgroup, dynamicoffsets))
+}
+
+/// Encode the result for destack.gpu.command.setComputeBindGroup.
+#[inline]
+fn encode_destack_gpu_command_set_compute_bind_group_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
 /// Decode arguments for destack.gpu.command.setIndexBuffer.
 #[inline]
 fn decode_destack_gpu_command_set_index_buffer_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
-    resource::GpuCommandListHandle,
+    resource::GpuRenderPassHandle,
     resource::GpuBufferHandle,
     GpuIndexFormat,
     u64,
     u64,
 )> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let buffer_value = arg_value(args, 1, "buffer", "GpuBufferHandle")?;
     let buffer_inner_inner = decode_uint64(buffer_value, "buffer_inner_inner", "GpuBufferHandle")?;
     let buffer_inner = resource::ResourceId(buffer_inner_inner);
@@ -3279,17 +3491,62 @@ fn encode_destack_gpu_command_set_index_buffer_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.gpu.command.setRenderBindGroup.
+#[inline]
+fn decode_destack_gpu_command_set_render_bind_group_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::GpuRenderPassHandle,
+    u32,
+    resource::GpuBindGroupHandle,
+    VmSlice<u32>,
+)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
+    let index_value = arg_value(args, 1, "index", "uint32")?;
+    let index = decode_uint32(index_value, "index", "uint32")?;
+    let bindgroup_value = arg_value(args, 2, "bindgroup", "GpuBindGroupHandle")?;
+    let bindgroup_inner_inner = decode_uint64(
+        bindgroup_value,
+        "bindgroup_inner_inner",
+        "GpuBindGroupHandle",
+    )?;
+    let bindgroup_inner = resource::ResourceId(bindgroup_inner_inner);
+    let bindgroup = resource::GpuBindGroupHandle(bindgroup_inner);
+    let dynamicoffsets_value = arg_value(args, 3, "dynamicoffsets", "Slice<uint32>")?;
+    let dynamicoffsets = decode_slice::<u32>(
+        context,
+        dynamicoffsets_value,
+        "dynamicoffsets",
+        "Slice<uint32>",
+    )?;
+    Ok((handle, index, bindgroup, dynamicoffsets))
+}
+
+/// Encode the result for destack.gpu.command.setRenderBindGroup.
+#[inline]
+fn encode_destack_gpu_command_set_render_bind_group_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
 /// Decode arguments for destack.gpu.command.setScissor.
 #[inline]
 fn decode_destack_gpu_command_set_scissor_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::GpuCommandListHandle, u32, u32, u32, u32)> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+) -> RuntimeResult<(resource::GpuRenderPassHandle, u32, u32, u32, u32)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let x_value = arg_value(args, 1, "x", "uint32")?;
     let x = decode_uint32(x_value, "x", "uint32")?;
     let y_value = arg_value(args, 2, "y", "uint32")?;
@@ -3315,12 +3572,12 @@ fn encode_destack_gpu_command_set_scissor_result(
 fn decode_destack_gpu_command_set_stencil_reference_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::GpuCommandListHandle, u32)> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+) -> RuntimeResult<(resource::GpuRenderPassHandle, u32)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let reference_value = arg_value(args, 1, "reference", "uint32")?;
     let reference = decode_uint32(reference_value, "reference", "uint32")?;
     Ok((handle, reference))
@@ -3341,17 +3598,17 @@ fn decode_destack_gpu_command_set_vertex_buffer_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
-    resource::GpuCommandListHandle,
+    resource::GpuRenderPassHandle,
     u32,
     resource::GpuBufferHandle,
     u64,
     u64,
 )> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let slot_value = arg_value(args, 1, "slot", "uint32")?;
     let slot = decode_uint32(slot_value, "slot", "uint32")?;
     let buffer_value = arg_value(args, 2, "buffer", "GpuBufferHandle")?;
@@ -3379,12 +3636,12 @@ fn encode_destack_gpu_command_set_vertex_buffer_result(
 fn decode_destack_gpu_command_set_viewport_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::GpuCommandListHandle, f64, f64, f64, f64, f64, f64)> {
-    let handle_value = arg_value(args, 0, "handle", "GpuCommandListHandle")?;
+) -> RuntimeResult<(resource::GpuRenderPassHandle, f64, f64, f64, f64, f64, f64)> {
+    let handle_value = arg_value(args, 0, "handle", "GpuRenderPassHandle")?;
     let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "GpuCommandListHandle")?;
+        decode_uint64(handle_value, "handle_inner_inner", "GpuRenderPassHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::GpuCommandListHandle(handle_inner);
+    let handle = resource::GpuRenderPassHandle(handle_inner);
     let x_value = arg_value(args, 1, "x", "float64")?;
     let x = decode_float64(x_value, "x", "float64")?;
     let y_value = arg_value(args, 2, "y", "float64")?;
@@ -3525,39 +3782,111 @@ fn encode_destack_gpu_device_info_result(
         let field_1 = value.enabled_features.to_value(context);
         let field_2 = {
             let field_0 = vm::Value::uint(value.effective_limits.max_bind_groups as u64, 32);
-            let field_1 =
-                vm::Value::uint(value.effective_limits.max_push_constant_bytes as u64, 32);
+            let field_1 = vm::Value::uint(
+                value.effective_limits.max_bindings_per_bind_group as u64,
+                32,
+            );
             let field_2 =
+                vm::Value::uint(value.effective_limits.max_push_constant_bytes as u64, 32);
+            let field_3 =
+                vm::Value::uint(value.effective_limits.max_texture_dimension1_d as u64, 32);
+            let field_4 =
                 vm::Value::uint(value.effective_limits.max_texture_dimension2_d as u64, 32);
-            let field_3 = vm::Value::uint(value.effective_limits.max_color_attachments as u64, 32);
-            let field_4 = vm::Value::uint(
+            let field_5 =
+                vm::Value::uint(value.effective_limits.max_texture_dimension3_d as u64, 32);
+            let field_6 =
+                vm::Value::uint(value.effective_limits.max_texture_array_layers as u64, 32);
+            let field_7 = vm::Value::uint(value.effective_limits.max_color_attachments as u64, 32);
+            let field_8 = vm::Value::uint(
+                value.effective_limits.max_color_attachment_bytes_per_sample as u64,
+                32,
+            );
+            let field_9 = vm::Value::uint(
                 value.effective_limits.max_sampled_textures_per_stage as u64,
                 32,
             );
-            let field_5 = vm::Value::uint(value.effective_limits.max_samplers_per_stage as u64, 32);
-            let field_6 = vm::Value::uint(
+            let field_10 =
+                vm::Value::uint(value.effective_limits.max_samplers_per_stage as u64, 32);
+            let field_11 = vm::Value::uint(
                 value.effective_limits.max_storage_buffers_per_stage as u64,
                 32,
             );
-            let field_7 = vm::Value::uint(
+            let field_12 = vm::Value::uint(
+                value.effective_limits.max_storage_textures_per_stage as u64,
+                32,
+            );
+            let field_13 = vm::Value::uint(
                 value.effective_limits.max_uniform_buffers_per_stage as u64,
                 32,
             );
-            let field_8 =
+            let field_14 = vm::Value::uint(
+                value
+                    .effective_limits
+                    .max_dynamic_uniform_buffers_per_pipeline_layout as u64,
+                32,
+            );
+            let field_15 = vm::Value::uint(
+                value
+                    .effective_limits
+                    .max_dynamic_storage_buffers_per_pipeline_layout as u64,
+                32,
+            );
+            let field_16 =
                 vm::Value::uint(value.effective_limits.max_uniform_buffer_binding_size, 64);
-            let field_9 =
+            let field_17 =
                 vm::Value::uint(value.effective_limits.max_storage_buffer_binding_size, 64);
-            let field_10 = vm::Value::uint(
+            let field_18 = vm::Value::uint(
                 value.effective_limits.min_storage_buffer_offset_alignment as u64,
                 32,
             );
-            let field_11 = vm::Value::uint(
+            let field_19 = vm::Value::uint(
                 value.effective_limits.min_uniform_buffer_offset_alignment as u64,
+                32,
+            );
+            let field_20 = vm::Value::uint(value.effective_limits.max_vertex_buffers as u64, 32);
+            let field_21 = vm::Value::uint(value.effective_limits.max_vertex_attributes as u64, 32);
+            let field_22 = vm::Value::uint(
+                value.effective_limits.max_vertex_buffer_array_stride as u64,
+                32,
+            );
+            let field_23 = vm::Value::uint(value.effective_limits.max_buffer_size, 64);
+            let field_24 = vm::Value::uint(
+                value.effective_limits.max_inter_stage_shader_components as u64,
+                32,
+            );
+            let field_25 = vm::Value::uint(
+                value.effective_limits.max_inter_stage_shader_variables as u64,
+                32,
+            );
+            let field_26 = vm::Value::uint(
+                value.effective_limits.max_compute_workgroup_storage_size as u64,
+                32,
+            );
+            let field_27 = vm::Value::uint(
+                value.effective_limits.max_compute_invocations_per_workgroup as u64,
+                32,
+            );
+            let field_28 = vm::Value::uint(
+                value.effective_limits.max_compute_workgroup_size_x as u64,
+                32,
+            );
+            let field_29 = vm::Value::uint(
+                value.effective_limits.max_compute_workgroup_size_y as u64,
+                32,
+            );
+            let field_30 = vm::Value::uint(
+                value.effective_limits.max_compute_workgroup_size_z as u64,
+                32,
+            );
+            let field_31 = vm::Value::uint(
+                value.effective_limits.max_compute_workgroups_per_dimension as u64,
                 32,
             );
             context.allocate_aggregate(vec![
                 field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-                field_9, field_10, field_11,
+                field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+                field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24,
+                field_25, field_26, field_27, field_28, field_29, field_30, field_31,
             ])
         };
         let field_3 = vm::Value::uint(value.queue_count as u64, 32);
@@ -3591,20 +3920,48 @@ fn encode_destack_gpu_device_limits_result(
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
         let field_0 = vm::Value::uint(value.max_bind_groups as u64, 32);
-        let field_1 = vm::Value::uint(value.max_push_constant_bytes as u64, 32);
-        let field_2 = vm::Value::uint(value.max_texture_dimension2_d as u64, 32);
-        let field_3 = vm::Value::uint(value.max_color_attachments as u64, 32);
-        let field_4 = vm::Value::uint(value.max_sampled_textures_per_stage as u64, 32);
-        let field_5 = vm::Value::uint(value.max_samplers_per_stage as u64, 32);
-        let field_6 = vm::Value::uint(value.max_storage_buffers_per_stage as u64, 32);
-        let field_7 = vm::Value::uint(value.max_uniform_buffers_per_stage as u64, 32);
-        let field_8 = vm::Value::uint(value.max_uniform_buffer_binding_size, 64);
-        let field_9 = vm::Value::uint(value.max_storage_buffer_binding_size, 64);
-        let field_10 = vm::Value::uint(value.min_storage_buffer_offset_alignment as u64, 32);
-        let field_11 = vm::Value::uint(value.min_uniform_buffer_offset_alignment as u64, 32);
+        let field_1 = vm::Value::uint(value.max_bindings_per_bind_group as u64, 32);
+        let field_2 = vm::Value::uint(value.max_push_constant_bytes as u64, 32);
+        let field_3 = vm::Value::uint(value.max_texture_dimension1_d as u64, 32);
+        let field_4 = vm::Value::uint(value.max_texture_dimension2_d as u64, 32);
+        let field_5 = vm::Value::uint(value.max_texture_dimension3_d as u64, 32);
+        let field_6 = vm::Value::uint(value.max_texture_array_layers as u64, 32);
+        let field_7 = vm::Value::uint(value.max_color_attachments as u64, 32);
+        let field_8 = vm::Value::uint(value.max_color_attachment_bytes_per_sample as u64, 32);
+        let field_9 = vm::Value::uint(value.max_sampled_textures_per_stage as u64, 32);
+        let field_10 = vm::Value::uint(value.max_samplers_per_stage as u64, 32);
+        let field_11 = vm::Value::uint(value.max_storage_buffers_per_stage as u64, 32);
+        let field_12 = vm::Value::uint(value.max_storage_textures_per_stage as u64, 32);
+        let field_13 = vm::Value::uint(value.max_uniform_buffers_per_stage as u64, 32);
+        let field_14 = vm::Value::uint(
+            value.max_dynamic_uniform_buffers_per_pipeline_layout as u64,
+            32,
+        );
+        let field_15 = vm::Value::uint(
+            value.max_dynamic_storage_buffers_per_pipeline_layout as u64,
+            32,
+        );
+        let field_16 = vm::Value::uint(value.max_uniform_buffer_binding_size, 64);
+        let field_17 = vm::Value::uint(value.max_storage_buffer_binding_size, 64);
+        let field_18 = vm::Value::uint(value.min_storage_buffer_offset_alignment as u64, 32);
+        let field_19 = vm::Value::uint(value.min_uniform_buffer_offset_alignment as u64, 32);
+        let field_20 = vm::Value::uint(value.max_vertex_buffers as u64, 32);
+        let field_21 = vm::Value::uint(value.max_vertex_attributes as u64, 32);
+        let field_22 = vm::Value::uint(value.max_vertex_buffer_array_stride as u64, 32);
+        let field_23 = vm::Value::uint(value.max_buffer_size, 64);
+        let field_24 = vm::Value::uint(value.max_inter_stage_shader_components as u64, 32);
+        let field_25 = vm::Value::uint(value.max_inter_stage_shader_variables as u64, 32);
+        let field_26 = vm::Value::uint(value.max_compute_workgroup_storage_size as u64, 32);
+        let field_27 = vm::Value::uint(value.max_compute_invocations_per_workgroup as u64, 32);
+        let field_28 = vm::Value::uint(value.max_compute_workgroup_size_x as u64, 32);
+        let field_29 = vm::Value::uint(value.max_compute_workgroup_size_y as u64, 32);
+        let field_30 = vm::Value::uint(value.max_compute_workgroup_size_z as u64, 32);
+        let field_31 = vm::Value::uint(value.max_compute_workgroups_per_dimension as u64, 32);
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11,
+            field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+            field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24,
+            field_25, field_26, field_27, field_28, field_29, field_30, field_31,
         ])
     })
 }
@@ -3656,10 +4013,10 @@ fn decode_destack_gpu_device_open_args(
             let slots = context
                 .aggregate_slots(slots[1])
                 .map_err(|error| RuntimeError::from(error).boxed())?;
-            if slots.len() != 12 {
+            if slots.len() != 32 {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_required_limits",
-                    "expected 12 fields",
+                    "expected 32 fields",
                 ))
                 .boxed());
             }
@@ -3668,73 +4025,187 @@ fn decode_destack_gpu_device_open_args(
                 "options_required_limits_max_bind_groups",
                 "maxBindGroups",
             )?;
-            let options_required_limits_max_push_constant_bytes = decode_uint32(
+            let options_required_limits_max_bindings_per_bind_group = decode_uint32(
                 slots[1],
+                "options_required_limits_max_bindings_per_bind_group",
+                "maxBindingsPerBindGroup",
+            )?;
+            let options_required_limits_max_push_constant_bytes = decode_uint32(
+                slots[2],
                 "options_required_limits_max_push_constant_bytes",
                 "maxPushConstantBytes",
             )?;
+            let options_required_limits_max_texture_dimension1_d = decode_uint32(
+                slots[3],
+                "options_required_limits_max_texture_dimension1_d",
+                "maxTextureDimension1D",
+            )?;
             let options_required_limits_max_texture_dimension2_d = decode_uint32(
-                slots[2],
+                slots[4],
                 "options_required_limits_max_texture_dimension2_d",
                 "maxTextureDimension2D",
             )?;
+            let options_required_limits_max_texture_dimension3_d = decode_uint32(
+                slots[5],
+                "options_required_limits_max_texture_dimension3_d",
+                "maxTextureDimension3D",
+            )?;
+            let options_required_limits_max_texture_array_layers = decode_uint32(
+                slots[6],
+                "options_required_limits_max_texture_array_layers",
+                "maxTextureArrayLayers",
+            )?;
             let options_required_limits_max_color_attachments = decode_uint32(
-                slots[3],
+                slots[7],
                 "options_required_limits_max_color_attachments",
                 "maxColorAttachments",
             )?;
+            let options_required_limits_max_color_attachment_bytes_per_sample = decode_uint32(
+                slots[8],
+                "options_required_limits_max_color_attachment_bytes_per_sample",
+                "maxColorAttachmentBytesPerSample",
+            )?;
             let options_required_limits_max_sampled_textures_per_stage = decode_uint32(
-                slots[4],
+                slots[9],
                 "options_required_limits_max_sampled_textures_per_stage",
                 "maxSampledTexturesPerStage",
             )?;
             let options_required_limits_max_samplers_per_stage = decode_uint32(
-                slots[5],
+                slots[10],
                 "options_required_limits_max_samplers_per_stage",
                 "maxSamplersPerStage",
             )?;
             let options_required_limits_max_storage_buffers_per_stage = decode_uint32(
-                slots[6],
+                slots[11],
                 "options_required_limits_max_storage_buffers_per_stage",
                 "maxStorageBuffersPerStage",
             )?;
+            let options_required_limits_max_storage_textures_per_stage = decode_uint32(
+                slots[12],
+                "options_required_limits_max_storage_textures_per_stage",
+                "maxStorageTexturesPerStage",
+            )?;
             let options_required_limits_max_uniform_buffers_per_stage = decode_uint32(
-                slots[7],
+                slots[13],
                 "options_required_limits_max_uniform_buffers_per_stage",
                 "maxUniformBuffersPerStage",
             )?;
+            let options_required_limits_max_dynamic_uniform_buffers_per_pipeline_layout =
+                decode_uint32(
+                    slots[14],
+                    "options_required_limits_max_dynamic_uniform_buffers_per_pipeline_layout",
+                    "maxDynamicUniformBuffersPerPipelineLayout",
+                )?;
+            let options_required_limits_max_dynamic_storage_buffers_per_pipeline_layout =
+                decode_uint32(
+                    slots[15],
+                    "options_required_limits_max_dynamic_storage_buffers_per_pipeline_layout",
+                    "maxDynamicStorageBuffersPerPipelineLayout",
+                )?;
             let options_required_limits_max_uniform_buffer_binding_size = decode_uint64(
-                slots[8],
+                slots[16],
                 "options_required_limits_max_uniform_buffer_binding_size",
                 "maxUniformBufferBindingSize",
             )?;
             let options_required_limits_max_storage_buffer_binding_size = decode_uint64(
-                slots[9],
+                slots[17],
                 "options_required_limits_max_storage_buffer_binding_size",
                 "maxStorageBufferBindingSize",
             )?;
             let options_required_limits_min_storage_buffer_offset_alignment = decode_uint32(
-                slots[10],
+                slots[18],
                 "options_required_limits_min_storage_buffer_offset_alignment",
                 "minStorageBufferOffsetAlignment",
             )?;
             let options_required_limits_min_uniform_buffer_offset_alignment = decode_uint32(
-                slots[11],
+                slots[19],
                 "options_required_limits_min_uniform_buffer_offset_alignment",
                 "minUniformBufferOffsetAlignment",
             )?;
+            let options_required_limits_max_vertex_buffers = decode_uint32(
+                slots[20],
+                "options_required_limits_max_vertex_buffers",
+                "maxVertexBuffers",
+            )?;
+            let options_required_limits_max_vertex_attributes = decode_uint32(
+                slots[21],
+                "options_required_limits_max_vertex_attributes",
+                "maxVertexAttributes",
+            )?;
+            let options_required_limits_max_vertex_buffer_array_stride = decode_uint32(
+                slots[22],
+                "options_required_limits_max_vertex_buffer_array_stride",
+                "maxVertexBufferArrayStride",
+            )?;
+            let options_required_limits_max_buffer_size = decode_uint64(
+                slots[23],
+                "options_required_limits_max_buffer_size",
+                "maxBufferSize",
+            )?;
+            let options_required_limits_max_inter_stage_shader_components = decode_uint32(
+                slots[24],
+                "options_required_limits_max_inter_stage_shader_components",
+                "maxInterStageShaderComponents",
+            )?;
+            let options_required_limits_max_inter_stage_shader_variables = decode_uint32(
+                slots[25],
+                "options_required_limits_max_inter_stage_shader_variables",
+                "maxInterStageShaderVariables",
+            )?;
+            let options_required_limits_max_compute_workgroup_storage_size = decode_uint32(
+                slots[26],
+                "options_required_limits_max_compute_workgroup_storage_size",
+                "maxComputeWorkgroupStorageSize",
+            )?;
+            let options_required_limits_max_compute_invocations_per_workgroup = decode_uint32(
+                slots[27],
+                "options_required_limits_max_compute_invocations_per_workgroup",
+                "maxComputeInvocationsPerWorkgroup",
+            )?;
+            let options_required_limits_max_compute_workgroup_size_x = decode_uint32(
+                slots[28],
+                "options_required_limits_max_compute_workgroup_size_x",
+                "maxComputeWorkgroupSizeX",
+            )?;
+            let options_required_limits_max_compute_workgroup_size_y = decode_uint32(
+                slots[29],
+                "options_required_limits_max_compute_workgroup_size_y",
+                "maxComputeWorkgroupSizeY",
+            )?;
+            let options_required_limits_max_compute_workgroup_size_z = decode_uint32(
+                slots[30],
+                "options_required_limits_max_compute_workgroup_size_z",
+                "maxComputeWorkgroupSizeZ",
+            )?;
+            let options_required_limits_max_compute_workgroups_per_dimension = decode_uint32(
+                slots[31],
+                "options_required_limits_max_compute_workgroups_per_dimension",
+                "maxComputeWorkgroupsPerDimension",
+            )?;
             GpuAdapterLimitsVm {
                 max_bind_groups: options_required_limits_max_bind_groups,
+                max_bindings_per_bind_group: options_required_limits_max_bindings_per_bind_group,
                 max_push_constant_bytes: options_required_limits_max_push_constant_bytes,
+                max_texture_dimension1_d: options_required_limits_max_texture_dimension1_d,
                 max_texture_dimension2_d: options_required_limits_max_texture_dimension2_d,
+                max_texture_dimension3_d: options_required_limits_max_texture_dimension3_d,
+                max_texture_array_layers: options_required_limits_max_texture_array_layers,
                 max_color_attachments: options_required_limits_max_color_attachments,
+                max_color_attachment_bytes_per_sample:
+                    options_required_limits_max_color_attachment_bytes_per_sample,
                 max_sampled_textures_per_stage:
                     options_required_limits_max_sampled_textures_per_stage,
                 max_samplers_per_stage: options_required_limits_max_samplers_per_stage,
                 max_storage_buffers_per_stage:
                     options_required_limits_max_storage_buffers_per_stage,
+                max_storage_textures_per_stage:
+                    options_required_limits_max_storage_textures_per_stage,
                 max_uniform_buffers_per_stage:
                     options_required_limits_max_uniform_buffers_per_stage,
+                max_dynamic_uniform_buffers_per_pipeline_layout:
+                    options_required_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                max_dynamic_storage_buffers_per_pipeline_layout:
+                    options_required_limits_max_dynamic_storage_buffers_per_pipeline_layout,
                 max_uniform_buffer_binding_size:
                     options_required_limits_max_uniform_buffer_binding_size,
                 max_storage_buffer_binding_size:
@@ -3743,6 +4214,24 @@ fn decode_destack_gpu_device_open_args(
                     options_required_limits_min_storage_buffer_offset_alignment,
                 min_uniform_buffer_offset_alignment:
                     options_required_limits_min_uniform_buffer_offset_alignment,
+                max_vertex_buffers: options_required_limits_max_vertex_buffers,
+                max_vertex_attributes: options_required_limits_max_vertex_attributes,
+                max_vertex_buffer_array_stride:
+                    options_required_limits_max_vertex_buffer_array_stride,
+                max_buffer_size: options_required_limits_max_buffer_size,
+                max_inter_stage_shader_components:
+                    options_required_limits_max_inter_stage_shader_components,
+                max_inter_stage_shader_variables:
+                    options_required_limits_max_inter_stage_shader_variables,
+                max_compute_workgroup_storage_size:
+                    options_required_limits_max_compute_workgroup_storage_size,
+                max_compute_invocations_per_workgroup:
+                    options_required_limits_max_compute_invocations_per_workgroup,
+                max_compute_workgroup_size_x: options_required_limits_max_compute_workgroup_size_x,
+                max_compute_workgroup_size_y: options_required_limits_max_compute_workgroup_size_y,
+                max_compute_workgroup_size_z: options_required_limits_max_compute_workgroup_size_z,
+                max_compute_workgroups_per_dimension:
+                    options_required_limits_max_compute_workgroups_per_dimension,
             }
         };
         let options_backend_raw = decode_uint8(slots[2], "options_backend_raw", "backend")?;
@@ -4830,7 +5319,21 @@ fn decode_destack_gpu_pipeline_shader_create_args(
             ))
             .boxed());
         }
-        let options_format = decode_uint32(slots[0], "options_format", "format")?;
+        let options_format_raw = decode_uint8(slots[0], "options_format_raw", "format")?;
+        let options_format = match options_format_raw {
+            1u8 => GpuShaderFormat::Wgsl,
+            2u8 => GpuShaderFormat::SpirV,
+            3u8 => GpuShaderFormat::Msl,
+            4u8 => GpuShaderFormat::HlslOrDxil,
+            5u8 => GpuShaderFormat::Glsl,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_format",
+                    "unknown GpuShaderFormat value",
+                ))
+                .boxed());
+            }
+        };
         let options_flags = decode_uint32(slots[1], "options_flags", "flags")?;
         let options_label = decode_string(slots[2], "options_label", "label")?;
         GpuShaderOptionsVm {
@@ -5706,24 +6209,24 @@ fn encode_destack_gpu_resource_texture_view_destroy_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.gpu.sync.commandBeginOcclusionQuery.
+/// Decode arguments for destack.gpu.sync.commandBeginComputePipelineStatisticsQuery.
 #[inline]
-fn decode_destack_gpu_sync_command_begin_occlusion_query_args(
+fn decode_destack_gpu_sync_command_begin_compute_pipeline_statistics_query_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
-    resource::GpuCommandListHandle,
+    resource::GpuComputePassHandle,
     resource::GpuQuerySetHandle,
     u32,
 )> {
-    let commandlist_value = arg_value(args, 0, "commandlist", "GpuCommandListHandle")?;
-    let commandlist_inner_inner = decode_uint64(
-        commandlist_value,
-        "commandlist_inner_inner",
-        "GpuCommandListHandle",
+    let computepass_value = arg_value(args, 0, "computepass", "GpuComputePassHandle")?;
+    let computepass_inner_inner = decode_uint64(
+        computepass_value,
+        "computepass_inner_inner",
+        "GpuComputePassHandle",
     )?;
-    let commandlist_inner = resource::ResourceId(commandlist_inner_inner);
-    let commandlist = resource::GpuCommandListHandle(commandlist_inner);
+    let computepass_inner = resource::ResourceId(computepass_inner_inner);
+    let computepass = resource::GpuComputePassHandle(computepass_inner);
     let queryset_value = arg_value(args, 1, "queryset", "GpuQuerySetHandle")?;
     let queryset_inner_inner =
         decode_uint64(queryset_value, "queryset_inner_inner", "GpuQuerySetHandle")?;
@@ -5731,7 +6234,44 @@ fn decode_destack_gpu_sync_command_begin_occlusion_query_args(
     let queryset = resource::GpuQuerySetHandle(queryset_inner);
     let queryindex_value = arg_value(args, 2, "queryindex", "uint32")?;
     let queryindex = decode_uint32(queryindex_value, "queryindex", "uint32")?;
-    Ok((commandlist, queryset, queryindex))
+    Ok((computepass, queryset, queryindex))
+}
+
+/// Encode the result for destack.gpu.sync.commandBeginComputePipelineStatisticsQuery.
+#[inline]
+fn encode_destack_gpu_sync_command_begin_compute_pipeline_statistics_query_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.gpu.sync.commandBeginOcclusionQuery.
+#[inline]
+fn decode_destack_gpu_sync_command_begin_occlusion_query_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::GpuRenderPassHandle,
+    resource::GpuQuerySetHandle,
+    u32,
+)> {
+    let renderpass_value = arg_value(args, 0, "renderpass", "GpuRenderPassHandle")?;
+    let renderpass_inner_inner = decode_uint64(
+        renderpass_value,
+        "renderpass_inner_inner",
+        "GpuRenderPassHandle",
+    )?;
+    let renderpass_inner = resource::ResourceId(renderpass_inner_inner);
+    let renderpass = resource::GpuRenderPassHandle(renderpass_inner);
+    let queryset_value = arg_value(args, 1, "queryset", "GpuQuerySetHandle")?;
+    let queryset_inner_inner =
+        decode_uint64(queryset_value, "queryset_inner_inner", "GpuQuerySetHandle")?;
+    let queryset_inner = resource::ResourceId(queryset_inner_inner);
+    let queryset = resource::GpuQuerySetHandle(queryset_inner);
+    let queryindex_value = arg_value(args, 2, "queryindex", "uint32")?;
+    let queryindex = decode_uint32(queryindex_value, "queryindex", "uint32")?;
+    Ok((renderpass, queryset, queryindex))
 }
 
 /// Encode the result for destack.gpu.sync.commandBeginOcclusionQuery.
@@ -5743,24 +6283,24 @@ fn encode_destack_gpu_sync_command_begin_occlusion_query_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.gpu.sync.commandBeginPipelineStatisticsQuery.
+/// Decode arguments for destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery.
 #[inline]
-fn decode_destack_gpu_sync_command_begin_pipeline_statistics_query_args(
+fn decode_destack_gpu_sync_command_begin_render_pipeline_statistics_query_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
-    resource::GpuCommandListHandle,
+    resource::GpuRenderPassHandle,
     resource::GpuQuerySetHandle,
     u32,
 )> {
-    let commandlist_value = arg_value(args, 0, "commandlist", "GpuCommandListHandle")?;
-    let commandlist_inner_inner = decode_uint64(
-        commandlist_value,
-        "commandlist_inner_inner",
-        "GpuCommandListHandle",
+    let renderpass_value = arg_value(args, 0, "renderpass", "GpuRenderPassHandle")?;
+    let renderpass_inner_inner = decode_uint64(
+        renderpass_value,
+        "renderpass_inner_inner",
+        "GpuRenderPassHandle",
     )?;
-    let commandlist_inner = resource::ResourceId(commandlist_inner_inner);
-    let commandlist = resource::GpuCommandListHandle(commandlist_inner);
+    let renderpass_inner = resource::ResourceId(renderpass_inner_inner);
+    let renderpass = resource::GpuRenderPassHandle(renderpass_inner);
     let queryset_value = arg_value(args, 1, "queryset", "GpuQuerySetHandle")?;
     let queryset_inner_inner =
         decode_uint64(queryset_value, "queryset_inner_inner", "GpuQuerySetHandle")?;
@@ -5768,12 +6308,38 @@ fn decode_destack_gpu_sync_command_begin_pipeline_statistics_query_args(
     let queryset = resource::GpuQuerySetHandle(queryset_inner);
     let queryindex_value = arg_value(args, 2, "queryindex", "uint32")?;
     let queryindex = decode_uint32(queryindex_value, "queryindex", "uint32")?;
-    Ok((commandlist, queryset, queryindex))
+    Ok((renderpass, queryset, queryindex))
 }
 
-/// Encode the result for destack.gpu.sync.commandBeginPipelineStatisticsQuery.
+/// Encode the result for destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery.
 #[inline]
-fn encode_destack_gpu_sync_command_begin_pipeline_statistics_query_result(
+fn encode_destack_gpu_sync_command_begin_render_pipeline_statistics_query_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.gpu.sync.commandEndComputePipelineStatisticsQuery.
+#[inline]
+fn decode_destack_gpu_sync_command_end_compute_pipeline_statistics_query_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::GpuComputePassHandle,)> {
+    let computepass_value = arg_value(args, 0, "computepass", "GpuComputePassHandle")?;
+    let computepass_inner_inner = decode_uint64(
+        computepass_value,
+        "computepass_inner_inner",
+        "GpuComputePassHandle",
+    )?;
+    let computepass_inner = resource::ResourceId(computepass_inner_inner);
+    let computepass = resource::GpuComputePassHandle(computepass_inner);
+    Ok((computepass,))
+}
+
+/// Encode the result for destack.gpu.sync.commandEndComputePipelineStatisticsQuery.
+#[inline]
+fn encode_destack_gpu_sync_command_end_compute_pipeline_statistics_query_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -5785,16 +6351,16 @@ fn encode_destack_gpu_sync_command_begin_pipeline_statistics_query_result(
 fn decode_destack_gpu_sync_command_end_occlusion_query_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::GpuCommandListHandle,)> {
-    let commandlist_value = arg_value(args, 0, "commandlist", "GpuCommandListHandle")?;
-    let commandlist_inner_inner = decode_uint64(
-        commandlist_value,
-        "commandlist_inner_inner",
-        "GpuCommandListHandle",
+) -> RuntimeResult<(resource::GpuRenderPassHandle,)> {
+    let renderpass_value = arg_value(args, 0, "renderpass", "GpuRenderPassHandle")?;
+    let renderpass_inner_inner = decode_uint64(
+        renderpass_value,
+        "renderpass_inner_inner",
+        "GpuRenderPassHandle",
     )?;
-    let commandlist_inner = resource::ResourceId(commandlist_inner_inner);
-    let commandlist = resource::GpuCommandListHandle(commandlist_inner);
-    Ok((commandlist,))
+    let renderpass_inner = resource::ResourceId(renderpass_inner_inner);
+    let renderpass = resource::GpuRenderPassHandle(renderpass_inner);
+    Ok((renderpass,))
 }
 
 /// Encode the result for destack.gpu.sync.commandEndOcclusionQuery.
@@ -5806,26 +6372,26 @@ fn encode_destack_gpu_sync_command_end_occlusion_query_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.gpu.sync.commandEndPipelineStatisticsQuery.
+/// Decode arguments for destack.gpu.sync.commandEndRenderPipelineStatisticsQuery.
 #[inline]
-fn decode_destack_gpu_sync_command_end_pipeline_statistics_query_args(
+fn decode_destack_gpu_sync_command_end_render_pipeline_statistics_query_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::GpuCommandListHandle,)> {
-    let commandlist_value = arg_value(args, 0, "commandlist", "GpuCommandListHandle")?;
-    let commandlist_inner_inner = decode_uint64(
-        commandlist_value,
-        "commandlist_inner_inner",
-        "GpuCommandListHandle",
+) -> RuntimeResult<(resource::GpuRenderPassHandle,)> {
+    let renderpass_value = arg_value(args, 0, "renderpass", "GpuRenderPassHandle")?;
+    let renderpass_inner_inner = decode_uint64(
+        renderpass_value,
+        "renderpass_inner_inner",
+        "GpuRenderPassHandle",
     )?;
-    let commandlist_inner = resource::ResourceId(commandlist_inner_inner);
-    let commandlist = resource::GpuCommandListHandle(commandlist_inner);
-    Ok((commandlist,))
+    let renderpass_inner = resource::ResourceId(renderpass_inner_inner);
+    let renderpass = resource::GpuRenderPassHandle(renderpass_inner);
+    Ok((renderpass,))
 }
 
-/// Encode the result for destack.gpu.sync.commandEndPipelineStatisticsQuery.
+/// Encode the result for destack.gpu.sync.commandEndRenderPipelineStatisticsQuery.
 #[inline]
-fn encode_destack_gpu_sync_command_end_pipeline_statistics_query_result(
+fn encode_destack_gpu_sync_command_end_render_pipeline_statistics_query_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -6361,12 +6927,33 @@ struct GpuCommandClearBufferReplay {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandComputePassBeginReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<resource::GpuComputePassHandle, PlatformError>,
 }
 
 /// Replay payload for destack.gpu.command.computePassEnd.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandComputePassEndReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.gpu.command.computePassInsertDebugMarker.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct GpuCommandComputePassInsertDebugMarkerReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.gpu.command.computePassPopDebugGroup.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct GpuCommandComputePassPopDebugGroupReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.gpu.command.computePassPushDebugGroup.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct GpuCommandComputePassPushDebugGroupReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
@@ -6655,7 +7242,7 @@ struct GpuCommandRenderBundleSetVertexBufferReplay {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderPassBeginReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<resource::GpuRenderPassHandle, PlatformError>,
 }
 
 /// Replay payload for destack.gpu.command.renderPassEnd.
@@ -6665,9 +7252,23 @@ struct GpuCommandRenderPassEndReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.gpu.command.setBindGroup.
+/// Replay payload for destack.gpu.command.renderPassInsertDebugMarker.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct GpuCommandSetBindGroupReplay {
+struct GpuCommandRenderPassInsertDebugMarkerReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.gpu.command.renderPassPopDebugGroup.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct GpuCommandRenderPassPopDebugGroupReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.gpu.command.renderPassPushDebugGroup.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct GpuCommandRenderPassPushDebugGroupReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
@@ -6679,9 +7280,23 @@ struct GpuCommandSetBlendConstantReplay {
     pub result: Result<(), PlatformError>,
 }
 
+/// Replay payload for destack.gpu.command.setComputeBindGroup.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct GpuCommandSetComputeBindGroupReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
 /// Replay payload for destack.gpu.command.setIndexBuffer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandSetIndexBufferReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.gpu.command.setRenderBindGroup.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct GpuCommandSetRenderBindGroupReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
@@ -6945,6 +7560,13 @@ struct GpuResourceTextureViewDestroyReplay {
     pub result: Result<(), PlatformError>,
 }
 
+/// Replay payload for destack.gpu.sync.commandBeginComputePipelineStatisticsQuery.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct GpuSyncCommandBeginComputePipelineStatisticsQueryReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
 /// Replay payload for destack.gpu.sync.commandBeginOcclusionQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncCommandBeginOcclusionQueryReplay {
@@ -6952,9 +7574,16 @@ struct GpuSyncCommandBeginOcclusionQueryReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.gpu.sync.commandBeginPipelineStatisticsQuery.
+/// Replay payload for destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct GpuSyncCommandBeginPipelineStatisticsQueryReplay {
+struct GpuSyncCommandBeginRenderPipelineStatisticsQueryReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.gpu.sync.commandEndComputePipelineStatisticsQuery.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct GpuSyncCommandEndComputePipelineStatisticsQueryReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
@@ -6966,9 +7595,9 @@ struct GpuSyncCommandEndOcclusionQueryReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.gpu.sync.commandEndPipelineStatisticsQuery.
+/// Replay payload for destack.gpu.sync.commandEndRenderPipelineStatisticsQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct GpuSyncCommandEndPipelineStatisticsQueryReplay {
+struct GpuSyncCommandEndRenderPipelineStatisticsQueryReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
@@ -7058,7 +7687,7 @@ pub const GPU_ADAPTER_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.adapter"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -7083,7 +7712,7 @@ pub const GPU_ADAPTER_FEATURES: BindingDescriptor = BindingDescriptor::external_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.adapter"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7095,7 +7724,7 @@ pub const GPU_ADAPTER_FORMAT_CAPABILITIES: BindingDescriptor = BindingDescriptor
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.adapter"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7107,7 +7736,7 @@ pub const GPU_ADAPTER_HAS_FEATURE: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.adapter"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7119,7 +7748,7 @@ pub const GPU_ADAPTER_INFO: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.adapter"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7131,7 +7760,7 @@ pub const GPU_ADAPTER_LIMITS: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.adapter"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7143,7 +7772,7 @@ pub const GPU_ADAPTER_LIST: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.adapter"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7156,7 +7785,7 @@ pub const GPU_ADAPTER_OPEN: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.adapter"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7181,7 +7810,7 @@ pub const GPU_BIND_GROUP_CREATE: BindingDescriptor = BindingDescriptor::external
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7194,7 +7823,7 @@ pub const GPU_BIND_GROUP_DESTROY: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.bind"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -7219,7 +7848,7 @@ pub const GPU_BIND_GROUP_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor::e
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7231,7 +7860,7 @@ pub const GPU_BIND_GROUP_LAYOUT_DESTROY: BindingDescriptor = BindingDescriptor::
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7243,7 +7872,7 @@ pub const GPU_BIND_PIPELINE_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7255,7 +7884,7 @@ pub const GPU_BIND_PIPELINE_LAYOUT_DESTROY: BindingDescriptor = BindingDescripto
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7263,11 +7892,11 @@ pub const GPU_BIND_PIPELINE_LAYOUT_DESTROY: BindingDescriptor = BindingDescripto
 /// Binding descriptor for destack.gpu.command.bindComputePipeline.
 pub const GPU_COMMAND_BIND_COMPUTE_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.bindComputePipeline",
-    "export function commandBindComputePipeline(handle: GpuCommandListHandle, pipeline: GpuPipelineHandle): Result<void, PlatformError>",
+    "export function commandBindComputePipeline(handle: GpuComputePassHandle, pipeline: GpuPipelineHandle): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.compute"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7275,11 +7904,11 @@ pub const GPU_COMMAND_BIND_COMPUTE_PIPELINE: BindingDescriptor = BindingDescript
 /// Binding descriptor for destack.gpu.command.bindRenderPipeline.
 pub const GPU_COMMAND_BIND_RENDER_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.bindRenderPipeline",
-    "export function commandBindRenderPipeline(handle: GpuCommandListHandle, pipeline: GpuPipelineHandle): Result<void, PlatformError>",
+    "export function commandBindRenderPipeline(handle: GpuRenderPassHandle, pipeline: GpuPipelineHandle): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7291,7 +7920,7 @@ pub const GPU_COMMAND_CLEAR_BUFFER: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7299,11 +7928,11 @@ pub const GPU_COMMAND_CLEAR_BUFFER: BindingDescriptor = BindingDescriptor::exter
 /// Binding descriptor for destack.gpu.command.computePassBegin.
 pub const GPU_COMMAND_COMPUTE_PASS_BEGIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.computePassBegin",
-    "export function commandComputePassBegin(handle: GpuCommandListHandle, options: GpuComputePassOptions): Result<void, PlatformError>",
+    "export function commandComputePassBegin(handle: GpuCommandListHandle, options: GpuComputePassOptions): Result<GpuComputePassHandle, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.compute"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7311,11 +7940,47 @@ pub const GPU_COMMAND_COMPUTE_PASS_BEGIN: BindingDescriptor = BindingDescriptor:
 /// Binding descriptor for destack.gpu.command.computePassEnd.
 pub const GPU_COMMAND_COMPUTE_PASS_END: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.computePassEnd",
-    "export function commandComputePassEnd(handle: GpuCommandListHandle): Result<void, PlatformError>",
+    "export function commandComputePassEnd(handle: GpuComputePassHandle): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.compute"],
-    BindingScope::Os,
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.gpu.command.computePassInsertDebugMarker.
+pub const GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.gpu.command.computePassInsertDebugMarker",
+    "export function commandComputePassInsertDebugMarker(handle: GpuComputePassHandle, marker: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["gpu.debug"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.gpu.command.computePassPopDebugGroup.
+pub const GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.gpu.command.computePassPopDebugGroup",
+    "export function commandComputePassPopDebugGroup(handle: GpuComputePassHandle): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["gpu.debug"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.gpu.command.computePassPushDebugGroup.
+pub const GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.gpu.command.computePassPushDebugGroup",
+    "export function commandComputePassPushDebugGroup(handle: GpuComputePassHandle, label: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["gpu.debug"],
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7327,7 +7992,7 @@ pub const GPU_COMMAND_COPY_BUFFER: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7339,7 +8004,7 @@ pub const GPU_COMMAND_COPY_BUFFER_TO_TEXTURE: BindingDescriptor = BindingDescrip
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7351,7 +8016,7 @@ pub const GPU_COMMAND_COPY_TEXTURE_TO_BUFFER: BindingDescriptor = BindingDescrip
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7363,7 +8028,7 @@ pub const GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE: BindingDescriptor = BindingDescri
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7371,11 +8036,11 @@ pub const GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE: BindingDescriptor = BindingDescri
 /// Binding descriptor for destack.gpu.command.dispatch.
 pub const GPU_COMMAND_DISPATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.dispatch",
-    "export function commandDispatch(handle: GpuCommandListHandle, groupX: uint32, groupY: uint32, groupZ: uint32): Result<void, PlatformError>",
+    "export function commandDispatch(handle: GpuComputePassHandle, groupX: uint32, groupY: uint32, groupZ: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.compute"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7383,11 +8048,11 @@ pub const GPU_COMMAND_DISPATCH: BindingDescriptor = BindingDescriptor::external_
 /// Binding descriptor for destack.gpu.command.dispatchIndirect.
 pub const GPU_COMMAND_DISPATCH_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.dispatchIndirect",
-    "export function commandDispatchIndirect(handle: GpuCommandListHandle, buffer: GpuBufferHandle, offset: uint64): Result<void, PlatformError>",
+    "export function commandDispatchIndirect(handle: GpuComputePassHandle, buffer: GpuBufferHandle, offset: uint64): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.compute"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7395,11 +8060,11 @@ pub const GPU_COMMAND_DISPATCH_INDIRECT: BindingDescriptor = BindingDescriptor::
 /// Binding descriptor for destack.gpu.command.draw.
 pub const GPU_COMMAND_DRAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.draw",
-    "export function commandDraw(handle: GpuCommandListHandle, vertexCount: uint32, instanceCount: uint32, firstVertex: uint32, firstInstance: uint32): Result<void, PlatformError>",
+    "export function commandDraw(handle: GpuRenderPassHandle, vertexCount: uint32, instanceCount: uint32, firstVertex: uint32, firstInstance: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7407,11 +8072,11 @@ pub const GPU_COMMAND_DRAW: BindingDescriptor = BindingDescriptor::external_with
 /// Binding descriptor for destack.gpu.command.drawIndexed.
 pub const GPU_COMMAND_DRAW_INDEXED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.drawIndexed",
-    "export function commandDrawIndexed(handle: GpuCommandListHandle, indexCount: uint32, instanceCount: uint32, firstIndex: uint32, baseVertex: int32, firstInstance: uint32): Result<void, PlatformError>",
+    "export function commandDrawIndexed(handle: GpuRenderPassHandle, indexCount: uint32, instanceCount: uint32, firstIndex: uint32, baseVertex: int32, firstInstance: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7419,11 +8084,11 @@ pub const GPU_COMMAND_DRAW_INDEXED: BindingDescriptor = BindingDescriptor::exter
 /// Binding descriptor for destack.gpu.command.drawIndexedIndirect.
 pub const GPU_COMMAND_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.drawIndexedIndirect",
-    "export function commandDrawIndexedIndirect(handle: GpuCommandListHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
+    "export function commandDrawIndexedIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7431,11 +8096,11 @@ pub const GPU_COMMAND_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescript
 /// Binding descriptor for destack.gpu.command.drawIndirect.
 pub const GPU_COMMAND_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.drawIndirect",
-    "export function commandDrawIndirect(handle: GpuCommandListHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
+    "export function commandDrawIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7447,7 +8112,7 @@ pub const GPU_COMMAND_ENCODER_CLOSE: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.queue"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7459,7 +8124,7 @@ pub const GPU_COMMAND_ENCODER_FINISH: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.queue"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7471,7 +8136,7 @@ pub const GPU_COMMAND_ENCODER_OPEN: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.queue"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7479,11 +8144,11 @@ pub const GPU_COMMAND_ENCODER_OPEN: BindingDescriptor = BindingDescriptor::exter
 /// Binding descriptor for destack.gpu.command.executeBundles.
 pub const GPU_COMMAND_EXECUTE_BUNDLES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.executeBundles",
-    "export function commandExecuteBundles(handle: GpuCommandListHandle, bundles: Slice<GpuRenderBundleHandle>): Result<void, PlatformError>",
+    "export function commandExecuteBundles(handle: GpuRenderPassHandle, bundles: Slice<GpuRenderBundleHandle>): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7495,7 +8160,7 @@ pub const GPU_COMMAND_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7503,11 +8168,11 @@ pub const GPU_COMMAND_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor
 /// Binding descriptor for destack.gpu.command.multiDrawIndexedIndirect.
 pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.multiDrawIndexedIndirect",
-    "export function commandMultiDrawIndexedIndirect(handle: GpuCommandListHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
+    "export function commandMultiDrawIndexedIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.render"],
-    BindingScope::Os,
+    &["gpu.render.multiDraw"],
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7515,11 +8180,11 @@ pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDe
 /// Binding descriptor for destack.gpu.command.multiDrawIndexedIndirectCount.
 pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.multiDrawIndexedIndirectCount",
-    "export function commandMultiDrawIndexedIndirectCount(handle: GpuCommandListHandle, buffer: GpuBufferHandle, offset: uint64, countBuffer: GpuBufferHandle, countOffset: uint64, maxDrawCount: uint32, stride: uint32): Result<void, PlatformError>",
+    "export function commandMultiDrawIndexedIndirectCount(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, countBuffer: GpuBufferHandle, countOffset: uint64, maxDrawCount: uint32, stride: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.render"],
-    BindingScope::Os,
+    &["gpu.render.multiDrawCount"],
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7527,11 +8192,11 @@ pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT: BindingDescriptor = Bin
 /// Binding descriptor for destack.gpu.command.multiDrawIndirect.
 pub const GPU_COMMAND_MULTI_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.multiDrawIndirect",
-    "export function commandMultiDrawIndirect(handle: GpuCommandListHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
+    "export function commandMultiDrawIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.render"],
-    BindingScope::Os,
+    &["gpu.render.multiDraw"],
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7539,11 +8204,11 @@ pub const GPU_COMMAND_MULTI_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor
 /// Binding descriptor for destack.gpu.command.multiDrawIndirectCount.
 pub const GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.multiDrawIndirectCount",
-    "export function commandMultiDrawIndirectCount(handle: GpuCommandListHandle, buffer: GpuBufferHandle, offset: uint64, countBuffer: GpuBufferHandle, countOffset: uint64, maxDrawCount: uint32, stride: uint32): Result<void, PlatformError>",
+    "export function commandMultiDrawIndirectCount(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, countBuffer: GpuBufferHandle, countOffset: uint64, maxDrawCount: uint32, stride: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.render"],
-    BindingScope::Os,
+    &["gpu.render.multiDrawCount"],
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7555,7 +8220,7 @@ pub const GPU_COMMAND_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7567,7 +8232,7 @@ pub const GPU_COMMAND_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::e
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7579,7 +8244,7 @@ pub const GPU_COMMAND_QUEUE_SUBMIT: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.queue"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7591,7 +8256,7 @@ pub const GPU_COMMAND_QUEUE_WAIT_IDLE: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.queue"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7603,7 +8268,7 @@ pub const GPU_COMMAND_QUEUE_WRITE_BUFFER: BindingDescriptor = BindingDescriptor:
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory", "gpu.queue"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7615,7 +8280,7 @@ pub const GPU_COMMAND_QUEUE_WRITE_TEXTURE: BindingDescriptor = BindingDescriptor
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory", "gpu.queue"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7627,7 +8292,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DESTROY: BindingDescriptor = BindingDescript
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7639,7 +8304,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW: BindingDescriptor = BindingDescriptor:
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7651,7 +8316,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED: BindingDescriptor = BindingDes
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7663,7 +8328,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT: BindingDescriptor = B
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7675,7 +8340,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT: BindingDescriptor = BindingDe
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7687,7 +8352,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE: BindingDescriptor = BindingDe
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7699,7 +8364,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH: BindingDescriptor = BindingD
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7711,7 +8376,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN: BindingDescriptor = BindingDes
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7723,7 +8388,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER: BindingDescriptor = Bin
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7735,7 +8400,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP: BindingDescriptor = Binding
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7747,7 +8412,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP: BindingDescriptor = Bindin
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7759,7 +8424,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP: BindingDescriptor = BindingD
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7771,7 +8436,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER: BindingDescriptor = Bindin
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7783,7 +8448,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE: BindingDescriptor = BindingDes
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7795,7 +8460,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER: BindingDescriptor = Bindi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7803,11 +8468,11 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER: BindingDescriptor = Bindi
 /// Binding descriptor for destack.gpu.command.renderPassBegin.
 pub const GPU_COMMAND_RENDER_PASS_BEGIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderPassBegin",
-    "export function commandRenderPassBegin(handle: GpuCommandListHandle, options: GpuRenderPassOptions): Result<void, PlatformError>",
+    "export function commandRenderPassBegin(handle: GpuCommandListHandle, options: GpuRenderPassOptions): Result<GpuRenderPassHandle, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7815,23 +8480,47 @@ pub const GPU_COMMAND_RENDER_PASS_BEGIN: BindingDescriptor = BindingDescriptor::
 /// Binding descriptor for destack.gpu.command.renderPassEnd.
 pub const GPU_COMMAND_RENDER_PASS_END: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderPassEnd",
-    "export function commandRenderPassEnd(handle: GpuCommandListHandle): Result<void, PlatformError>",
+    "export function commandRenderPassEnd(handle: GpuRenderPassHandle): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.gpu.command.setBindGroup.
-pub const GPU_COMMAND_SET_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.gpu.command.setBindGroup",
-    "export function commandSetBindGroup(handle: GpuCommandListHandle, index: uint32, bindGroup: GpuBindGroupHandle, dynamicOffsets: Slice<uint32>): Result<void, PlatformError>",
+/// Binding descriptor for destack.gpu.command.renderPassInsertDebugMarker.
+pub const GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.gpu.command.renderPassInsertDebugMarker",
+    "export function commandRenderPassInsertDebugMarker(handle: GpuRenderPassHandle, marker: string): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.bind"],
-    BindingScope::Os,
+    &["gpu.debug"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.gpu.command.renderPassPopDebugGroup.
+pub const GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.gpu.command.renderPassPopDebugGroup",
+    "export function commandRenderPassPopDebugGroup(handle: GpuRenderPassHandle): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["gpu.debug"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.gpu.command.renderPassPushDebugGroup.
+pub const GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.gpu.command.renderPassPushDebugGroup",
+    "export function commandRenderPassPushDebugGroup(handle: GpuRenderPassHandle, label: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["gpu.debug"],
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7839,11 +8528,23 @@ pub const GPU_COMMAND_SET_BIND_GROUP: BindingDescriptor = BindingDescriptor::ext
 /// Binding descriptor for destack.gpu.command.setBlendConstant.
 pub const GPU_COMMAND_SET_BLEND_CONSTANT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setBlendConstant",
-    "export function commandSetBlendConstant(handle: GpuCommandListHandle, r: float64, g: float64, b: float64, a: float64): Result<void, PlatformError>",
+    "export function commandSetBlendConstant(handle: GpuRenderPassHandle, r: float64, g: float64, b: float64, a: float64): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.gpu.command.setComputeBindGroup.
+pub const GPU_COMMAND_SET_COMPUTE_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.gpu.command.setComputeBindGroup",
+    "export function commandSetComputeBindGroup(handle: GpuComputePassHandle, index: uint32, bindGroup: GpuBindGroupHandle, dynamicOffsets: Slice<uint32>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["gpu.bind"],
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7851,11 +8552,23 @@ pub const GPU_COMMAND_SET_BLEND_CONSTANT: BindingDescriptor = BindingDescriptor:
 /// Binding descriptor for destack.gpu.command.setIndexBuffer.
 pub const GPU_COMMAND_SET_INDEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setIndexBuffer",
-    "export function commandSetIndexBuffer(handle: GpuCommandListHandle, buffer: GpuBufferHandle, format: GpuIndexFormat, offset: uint64, size: uint64): Result<void, PlatformError>",
+    "export function commandSetIndexBuffer(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, format: GpuIndexFormat, offset: uint64, size: uint64): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.gpu.command.setRenderBindGroup.
+pub const GPU_COMMAND_SET_RENDER_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.gpu.command.setRenderBindGroup",
+    "export function commandSetRenderBindGroup(handle: GpuRenderPassHandle, index: uint32, bindGroup: GpuBindGroupHandle, dynamicOffsets: Slice<uint32>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["gpu.bind"],
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7863,11 +8576,11 @@ pub const GPU_COMMAND_SET_INDEX_BUFFER: BindingDescriptor = BindingDescriptor::e
 /// Binding descriptor for destack.gpu.command.setScissor.
 pub const GPU_COMMAND_SET_SCISSOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setScissor",
-    "export function commandSetScissor(handle: GpuCommandListHandle, x: uint32, y: uint32, width: uint32, height: uint32): Result<void, PlatformError>",
+    "export function commandSetScissor(handle: GpuRenderPassHandle, x: uint32, y: uint32, width: uint32, height: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7875,11 +8588,11 @@ pub const GPU_COMMAND_SET_SCISSOR: BindingDescriptor = BindingDescriptor::extern
 /// Binding descriptor for destack.gpu.command.setStencilReference.
 pub const GPU_COMMAND_SET_STENCIL_REFERENCE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setStencilReference",
-    "export function commandSetStencilReference(handle: GpuCommandListHandle, reference: uint32): Result<void, PlatformError>",
+    "export function commandSetStencilReference(handle: GpuRenderPassHandle, reference: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7887,11 +8600,11 @@ pub const GPU_COMMAND_SET_STENCIL_REFERENCE: BindingDescriptor = BindingDescript
 /// Binding descriptor for destack.gpu.command.setVertexBuffer.
 pub const GPU_COMMAND_SET_VERTEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setVertexBuffer",
-    "export function commandSetVertexBuffer(handle: GpuCommandListHandle, slot: uint32, buffer: GpuBufferHandle, offset: uint64, size: uint64): Result<void, PlatformError>",
+    "export function commandSetVertexBuffer(handle: GpuRenderPassHandle, slot: uint32, buffer: GpuBufferHandle, offset: uint64, size: uint64): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7899,11 +8612,11 @@ pub const GPU_COMMAND_SET_VERTEX_BUFFER: BindingDescriptor = BindingDescriptor::
 /// Binding descriptor for destack.gpu.command.setViewport.
 pub const GPU_COMMAND_SET_VIEWPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setViewport",
-    "export function commandSetViewport(handle: GpuCommandListHandle, x: float64, y: float64, width: float64, height: float64, minDepth: float64, maxDepth: float64): Result<void, PlatformError>",
+    "export function commandSetViewport(handle: GpuRenderPassHandle, x: float64, y: float64, width: float64, height: float64, minDepth: float64, maxDepth: float64): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7916,7 +8629,7 @@ pub const GPU_DEBUG_SET_LABEL: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.debug"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -7942,7 +8655,7 @@ pub const GPU_DEVICE_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.device"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7967,7 +8680,7 @@ pub const GPU_DEVICE_FEATURES: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.device"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7979,7 +8692,7 @@ pub const GPU_DEVICE_HAS_FEATURE: BindingDescriptor = BindingDescriptor::externa
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.device"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7992,7 +8705,7 @@ pub const GPU_DEVICE_INFO: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.device"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -8017,7 +8730,7 @@ pub const GPU_DEVICE_LIMITS: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.device"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8029,7 +8742,7 @@ pub const GPU_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.device"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8041,7 +8754,7 @@ pub const GPU_DEVICE_POLL: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.queue"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8053,7 +8766,7 @@ pub const GPU_DEVICE_POP_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.device"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8065,7 +8778,7 @@ pub const GPU_DEVICE_PUSH_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.device"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8077,7 +8790,7 @@ pub const GPU_DEVICE_QUEUE: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.queue"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8089,7 +8802,7 @@ pub const GPU_DEVICE_STATUS: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.device"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8101,7 +8814,7 @@ pub const GPU_PIPELINE_BIND_GROUP_LAYOUT: BindingDescriptor = BindingDescriptor:
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8113,7 +8826,7 @@ pub const GPU_PIPELINE_COMPUTE_CREATE: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.compute"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8126,7 +8839,7 @@ pub const GPU_PIPELINE_DESTROY: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.compute", "gpu.render"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8151,7 +8864,7 @@ pub const GPU_PIPELINE_RENDER_CREATE: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8163,7 +8876,7 @@ pub const GPU_PIPELINE_SHADER_COMPILATION_INFO: BindingDescriptor = BindingDescr
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.shader"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8175,7 +8888,7 @@ pub const GPU_PIPELINE_SHADER_CREATE: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.shader"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8188,7 +8901,7 @@ pub const GPU_PIPELINE_SHADER_DESTROY: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.shader"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -8213,7 +8926,7 @@ pub const GPU_PRESENT_SURFACE_ACQUIRE: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["gpu.present"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8225,7 +8938,7 @@ pub const GPU_PRESENT_SURFACE_CAPABILITIES: BindingDescriptor = BindingDescripto
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["gpu.present"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8238,7 +8951,7 @@ pub const GPU_PRESENT_SURFACE_CLOSE: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["gpu.present"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8263,7 +8976,7 @@ pub const GPU_PRESENT_SURFACE_CONFIGURE: BindingDescriptor = BindingDescriptor::
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["gpu.present"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8275,7 +8988,7 @@ pub const GPU_PRESENT_SURFACE_OPEN: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["gpu.present"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8287,7 +9000,7 @@ pub const GPU_PRESENT_SURFACE_PRESENT: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["gpu.present"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8299,7 +9012,7 @@ pub const GPU_PRESENT_SURFACE_UNCONFIGURE: BindingDescriptor = BindingDescriptor
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["gpu.present"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8311,7 +9024,7 @@ pub const GPU_RESOURCE_BUFFER_CREATE: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8324,7 +9037,7 @@ pub const GPU_RESOURCE_BUFFER_DESTROY: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.memory"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8350,7 +9063,7 @@ pub const GPU_RESOURCE_BUFFER_INFO: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.memory"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -8375,7 +9088,7 @@ pub const GPU_RESOURCE_BUFFER_MAP: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8387,7 +9100,7 @@ pub const GPU_RESOURCE_BUFFER_READ: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8400,7 +9113,7 @@ pub const GPU_RESOURCE_BUFFER_UNMAP: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.memory"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8425,7 +9138,7 @@ pub const GPU_RESOURCE_BUFFER_WRITE: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8437,7 +9150,7 @@ pub const GPU_RESOURCE_SAMPLER_CREATE: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8450,7 +9163,7 @@ pub const GPU_RESOURCE_SAMPLER_DESTROY: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.memory"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8475,7 +9188,7 @@ pub const GPU_RESOURCE_TEXTURE_CREATE: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8488,7 +9201,7 @@ pub const GPU_RESOURCE_TEXTURE_DESTROY: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.memory"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8513,7 +9226,7 @@ pub const GPU_RESOURCE_TEXTURE_INFO: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8525,7 +9238,7 @@ pub const GPU_RESOURCE_TEXTURE_VIEW_CREATE: BindingDescriptor = BindingDescripto
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8537,31 +9250,55 @@ pub const GPU_RESOURCE_TEXTURE_VIEW_DESTROY: BindingDescriptor = BindingDescript
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.gpu.sync.commandBeginComputePipelineStatisticsQuery.
+pub const GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.gpu.sync.commandBeginComputePipelineStatisticsQuery",
+    "export function commandBeginComputePipelineStatisticsQuery(computePass: GpuComputePassHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["gpu.sync.pipelineStatistics"],
+    BindingScope::Host,
+    BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandBeginOcclusionQuery.
 pub const GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandBeginOcclusionQuery",
-    "export function commandBeginOcclusionQuery(commandList: GpuCommandListHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
+    "export function commandBeginOcclusionQuery(renderPass: GpuRenderPassHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.gpu.sync.commandBeginPipelineStatisticsQuery.
-pub const GPU_SYNC_COMMAND_BEGIN_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.gpu.sync.commandBeginPipelineStatisticsQuery",
-    "export function commandBeginPipelineStatisticsQuery(commandList: GpuCommandListHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
+/// Binding descriptor for destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery.
+pub const GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery",
+    "export function commandBeginRenderPipelineStatisticsQuery(renderPass: GpuRenderPassHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.sync"],
-    BindingScope::Os,
+    &["gpu.sync.pipelineStatistics"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.gpu.sync.commandEndComputePipelineStatisticsQuery.
+pub const GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.gpu.sync.commandEndComputePipelineStatisticsQuery",
+    "export function commandEndComputePipelineStatisticsQuery(computePass: GpuComputePassHandle): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["gpu.sync.pipelineStatistics"],
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8569,23 +9306,23 @@ pub const GPU_SYNC_COMMAND_BEGIN_PIPELINE_STATISTICS_QUERY: BindingDescriptor = 
 /// Binding descriptor for destack.gpu.sync.commandEndOcclusionQuery.
 pub const GPU_SYNC_COMMAND_END_OCCLUSION_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandEndOcclusionQuery",
-    "export function commandEndOcclusionQuery(commandList: GpuCommandListHandle): Result<void, PlatformError>",
+    "export function commandEndOcclusionQuery(renderPass: GpuRenderPassHandle): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.gpu.sync.commandEndPipelineStatisticsQuery.
-pub const GPU_SYNC_COMMAND_END_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.gpu.sync.commandEndPipelineStatisticsQuery",
-    "export function commandEndPipelineStatisticsQuery(commandList: GpuCommandListHandle): Result<void, PlatformError>",
+/// Binding descriptor for destack.gpu.sync.commandEndRenderPipelineStatisticsQuery.
+pub const GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.gpu.sync.commandEndRenderPipelineStatisticsQuery",
+    "export function commandEndRenderPipelineStatisticsQuery(renderPass: GpuRenderPassHandle): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.sync"],
-    BindingScope::Os,
+    &["gpu.sync.pipelineStatistics"],
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8597,7 +9334,7 @@ pub const GPU_SYNC_COMMAND_RESOLVE_QUERIES: BindingDescriptor = BindingDescripto
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8609,7 +9346,7 @@ pub const GPU_SYNC_COMMAND_WRITE_TIMESTAMP: BindingDescriptor = BindingDescripto
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8621,7 +9358,7 @@ pub const GPU_SYNC_FENCE_CREATE: BindingDescriptor = BindingDescriptor::external
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8634,7 +9371,7 @@ pub const GPU_SYNC_FENCE_DESTROY: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.sync"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -8659,7 +9396,7 @@ pub const GPU_SYNC_QUERY_SET_CREATE: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8672,7 +9409,7 @@ pub const GPU_SYNC_QUERY_SET_DESTROY: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.sync"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -8697,7 +9434,7 @@ pub const GPU_SYNC_QUERY_SET_INFO: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8709,7 +9446,7 @@ pub const GPU_SYNC_QUEUE_SIGNAL: BindingDescriptor = BindingDescriptor::external
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8721,7 +9458,7 @@ pub const GPU_SYNC_QUEUE_TIMESTAMP_PERIOD: BindingDescriptor = BindingDescriptor
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8733,7 +9470,7 @@ pub const GPU_SYNC_QUEUE_WAIT: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8745,7 +9482,7 @@ pub const GPU_SYNC_QUEUE_WORK_DONE: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8771,6 +9508,9 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     GPU_COMMAND_CLEAR_BUFFER,
     GPU_COMMAND_COMPUTE_PASS_BEGIN,
     GPU_COMMAND_COMPUTE_PASS_END,
+    GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
+    GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
+    GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
     GPU_COMMAND_COPY_BUFFER,
     GPU_COMMAND_COPY_BUFFER_TO_TEXTURE,
     GPU_COMMAND_COPY_TEXTURE_TO_BUFFER,
@@ -8813,9 +9553,13 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER,
     GPU_COMMAND_RENDER_PASS_BEGIN,
     GPU_COMMAND_RENDER_PASS_END,
-    GPU_COMMAND_SET_BIND_GROUP,
+    GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
+    GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP,
+    GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
     GPU_COMMAND_SET_BLEND_CONSTANT,
+    GPU_COMMAND_SET_COMPUTE_BIND_GROUP,
     GPU_COMMAND_SET_INDEX_BUFFER,
+    GPU_COMMAND_SET_RENDER_BIND_GROUP,
     GPU_COMMAND_SET_SCISSOR,
     GPU_COMMAND_SET_STENCIL_REFERENCE,
     GPU_COMMAND_SET_VERTEX_BUFFER,
@@ -8860,10 +9604,12 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     GPU_RESOURCE_TEXTURE_INFO,
     GPU_RESOURCE_TEXTURE_VIEW_CREATE,
     GPU_RESOURCE_TEXTURE_VIEW_DESTROY,
+    GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY,
     GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY,
-    GPU_SYNC_COMMAND_BEGIN_PIPELINE_STATISTICS_QUERY,
+    GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY,
+    GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
     GPU_SYNC_COMMAND_END_OCCLUSION_QUERY,
-    GPU_SYNC_COMMAND_END_PIPELINE_STATISTICS_QUERY,
+    GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
     GPU_SYNC_COMMAND_RESOLVE_QUERIES,
     GPU_SYNC_COMMAND_WRITE_TIMESTAMP,
     GPU_SYNC_FENCE_CREATE,
@@ -8975,6 +9721,21 @@ pub const GPU_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             GPU_COMMAND_COMPUTE_PASS_END,
             "destack.gpu.command.computePassEnd",
             destack_gpu_command_compute_pass_end as *const (),
+        ),
+        NativeBinding::new(
+            GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
+            "destack.gpu.command.computePassInsertDebugMarker",
+            destack_gpu_command_compute_pass_insert_debug_marker as *const (),
+        ),
+        NativeBinding::new(
+            GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
+            "destack.gpu.command.computePassPopDebugGroup",
+            destack_gpu_command_compute_pass_pop_debug_group as *const (),
+        ),
+        NativeBinding::new(
+            GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
+            "destack.gpu.command.computePassPushDebugGroup",
+            destack_gpu_command_compute_pass_push_debug_group as *const (),
         ),
         NativeBinding::new(
             GPU_COMMAND_COPY_BUFFER,
@@ -9187,9 +9948,19 @@ pub const GPU_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_gpu_command_render_pass_end as *const (),
         ),
         NativeBinding::new(
-            GPU_COMMAND_SET_BIND_GROUP,
-            "destack.gpu.command.setBindGroup",
-            destack_gpu_command_set_bind_group as *const (),
+            GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
+            "destack.gpu.command.renderPassInsertDebugMarker",
+            destack_gpu_command_render_pass_insert_debug_marker as *const (),
+        ),
+        NativeBinding::new(
+            GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP,
+            "destack.gpu.command.renderPassPopDebugGroup",
+            destack_gpu_command_render_pass_pop_debug_group as *const (),
+        ),
+        NativeBinding::new(
+            GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
+            "destack.gpu.command.renderPassPushDebugGroup",
+            destack_gpu_command_render_pass_push_debug_group as *const (),
         ),
         NativeBinding::new(
             GPU_COMMAND_SET_BLEND_CONSTANT,
@@ -9197,9 +9968,19 @@ pub const GPU_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_gpu_command_set_blend_constant as *const (),
         ),
         NativeBinding::new(
+            GPU_COMMAND_SET_COMPUTE_BIND_GROUP,
+            "destack.gpu.command.setComputeBindGroup",
+            destack_gpu_command_set_compute_bind_group as *const (),
+        ),
+        NativeBinding::new(
             GPU_COMMAND_SET_INDEX_BUFFER,
             "destack.gpu.command.setIndexBuffer",
             destack_gpu_command_set_index_buffer as *const (),
+        ),
+        NativeBinding::new(
+            GPU_COMMAND_SET_RENDER_BIND_GROUP,
+            "destack.gpu.command.setRenderBindGroup",
+            destack_gpu_command_set_render_bind_group as *const (),
         ),
         NativeBinding::new(
             GPU_COMMAND_SET_SCISSOR,
@@ -9422,14 +10203,24 @@ pub const GPU_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_gpu_resource_texture_view_destroy as *const (),
         ),
         NativeBinding::new(
+            GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY,
+            "destack.gpu.sync.commandBeginComputePipelineStatisticsQuery",
+            destack_gpu_sync_command_begin_compute_pipeline_statistics_query as *const (),
+        ),
+        NativeBinding::new(
             GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY,
             "destack.gpu.sync.commandBeginOcclusionQuery",
             destack_gpu_sync_command_begin_occlusion_query as *const (),
         ),
         NativeBinding::new(
-            GPU_SYNC_COMMAND_BEGIN_PIPELINE_STATISTICS_QUERY,
-            "destack.gpu.sync.commandBeginPipelineStatisticsQuery",
-            destack_gpu_sync_command_begin_pipeline_statistics_query as *const (),
+            GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY,
+            "destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery",
+            destack_gpu_sync_command_begin_render_pipeline_statistics_query as *const (),
+        ),
+        NativeBinding::new(
+            GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
+            "destack.gpu.sync.commandEndComputePipelineStatisticsQuery",
+            destack_gpu_sync_command_end_compute_pipeline_statistics_query as *const (),
         ),
         NativeBinding::new(
             GPU_SYNC_COMMAND_END_OCCLUSION_QUERY,
@@ -9437,9 +10228,9 @@ pub const GPU_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_gpu_sync_command_end_occlusion_query as *const (),
         ),
         NativeBinding::new(
-            GPU_SYNC_COMMAND_END_PIPELINE_STATISTICS_QUERY,
-            "destack.gpu.sync.commandEndPipelineStatisticsQuery",
-            destack_gpu_sync_command_end_pipeline_statistics_query as *const (),
+            GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
+            "destack.gpu.sync.commandEndRenderPipelineStatisticsQuery",
+            destack_gpu_sync_command_end_render_pipeline_statistics_query as *const (),
         ),
         NativeBinding::new(
             GPU_SYNC_COMMAND_RESOLVE_QUERIES,
@@ -9826,20 +10617,40 @@ fn destack_gpu_adapter_info_replay(
                     result_recorded_features.push(result_recorded_features_item_recorded);
                 }
                 let result_recorded_limits_max_bind_groups = result_value.limits.max_bind_groups;
+                let result_recorded_limits_max_bindings_per_bind_group =
+                    result_value.limits.max_bindings_per_bind_group;
                 let result_recorded_limits_max_push_constant_bytes =
                     result_value.limits.max_push_constant_bytes;
+                let result_recorded_limits_max_texture_dimension1_d =
+                    result_value.limits.max_texture_dimension1_d;
                 let result_recorded_limits_max_texture_dimension2_d =
                     result_value.limits.max_texture_dimension2_d;
+                let result_recorded_limits_max_texture_dimension3_d =
+                    result_value.limits.max_texture_dimension3_d;
+                let result_recorded_limits_max_texture_array_layers =
+                    result_value.limits.max_texture_array_layers;
                 let result_recorded_limits_max_color_attachments =
                     result_value.limits.max_color_attachments;
+                let result_recorded_limits_max_color_attachment_bytes_per_sample =
+                    result_value.limits.max_color_attachment_bytes_per_sample;
                 let result_recorded_limits_max_sampled_textures_per_stage =
                     result_value.limits.max_sampled_textures_per_stage;
                 let result_recorded_limits_max_samplers_per_stage =
                     result_value.limits.max_samplers_per_stage;
                 let result_recorded_limits_max_storage_buffers_per_stage =
                     result_value.limits.max_storage_buffers_per_stage;
+                let result_recorded_limits_max_storage_textures_per_stage =
+                    result_value.limits.max_storage_textures_per_stage;
                 let result_recorded_limits_max_uniform_buffers_per_stage =
                     result_value.limits.max_uniform_buffers_per_stage;
+                let result_recorded_limits_max_dynamic_uniform_buffers_per_pipeline_layout =
+                    result_value
+                        .limits
+                        .max_dynamic_uniform_buffers_per_pipeline_layout;
+                let result_recorded_limits_max_dynamic_storage_buffers_per_pipeline_layout =
+                    result_value
+                        .limits
+                        .max_dynamic_storage_buffers_per_pipeline_layout;
                 let result_recorded_limits_max_uniform_buffer_binding_size =
                     result_value.limits.max_uniform_buffer_binding_size;
                 let result_recorded_limits_max_storage_buffer_binding_size =
@@ -9848,18 +10659,53 @@ fn destack_gpu_adapter_info_replay(
                     result_value.limits.min_storage_buffer_offset_alignment;
                 let result_recorded_limits_min_uniform_buffer_offset_alignment =
                     result_value.limits.min_uniform_buffer_offset_alignment;
+                let result_recorded_limits_max_vertex_buffers =
+                    result_value.limits.max_vertex_buffers;
+                let result_recorded_limits_max_vertex_attributes =
+                    result_value.limits.max_vertex_attributes;
+                let result_recorded_limits_max_vertex_buffer_array_stride =
+                    result_value.limits.max_vertex_buffer_array_stride;
+                let result_recorded_limits_max_buffer_size = result_value.limits.max_buffer_size;
+                let result_recorded_limits_max_inter_stage_shader_components =
+                    result_value.limits.max_inter_stage_shader_components;
+                let result_recorded_limits_max_inter_stage_shader_variables =
+                    result_value.limits.max_inter_stage_shader_variables;
+                let result_recorded_limits_max_compute_workgroup_storage_size =
+                    result_value.limits.max_compute_workgroup_storage_size;
+                let result_recorded_limits_max_compute_invocations_per_workgroup =
+                    result_value.limits.max_compute_invocations_per_workgroup;
+                let result_recorded_limits_max_compute_workgroup_size_x =
+                    result_value.limits.max_compute_workgroup_size_x;
+                let result_recorded_limits_max_compute_workgroup_size_y =
+                    result_value.limits.max_compute_workgroup_size_y;
+                let result_recorded_limits_max_compute_workgroup_size_z =
+                    result_value.limits.max_compute_workgroup_size_z;
+                let result_recorded_limits_max_compute_workgroups_per_dimension =
+                    result_value.limits.max_compute_workgroups_per_dimension;
                 let result_recorded_limits = GpuAdapterLimits {
                     max_bind_groups: result_recorded_limits_max_bind_groups,
+                    max_bindings_per_bind_group: result_recorded_limits_max_bindings_per_bind_group,
                     max_push_constant_bytes: result_recorded_limits_max_push_constant_bytes,
+                    max_texture_dimension1_d: result_recorded_limits_max_texture_dimension1_d,
                     max_texture_dimension2_d: result_recorded_limits_max_texture_dimension2_d,
+                    max_texture_dimension3_d: result_recorded_limits_max_texture_dimension3_d,
+                    max_texture_array_layers: result_recorded_limits_max_texture_array_layers,
                     max_color_attachments: result_recorded_limits_max_color_attachments,
+                    max_color_attachment_bytes_per_sample:
+                        result_recorded_limits_max_color_attachment_bytes_per_sample,
                     max_sampled_textures_per_stage:
                         result_recorded_limits_max_sampled_textures_per_stage,
                     max_samplers_per_stage: result_recorded_limits_max_samplers_per_stage,
                     max_storage_buffers_per_stage:
                         result_recorded_limits_max_storage_buffers_per_stage,
+                    max_storage_textures_per_stage:
+                        result_recorded_limits_max_storage_textures_per_stage,
                     max_uniform_buffers_per_stage:
                         result_recorded_limits_max_uniform_buffers_per_stage,
+                    max_dynamic_uniform_buffers_per_pipeline_layout:
+                        result_recorded_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                    max_dynamic_storage_buffers_per_pipeline_layout:
+                        result_recorded_limits_max_dynamic_storage_buffers_per_pipeline_layout,
                     max_uniform_buffer_binding_size:
                         result_recorded_limits_max_uniform_buffer_binding_size,
                     max_storage_buffer_binding_size:
@@ -9868,6 +10714,27 @@ fn destack_gpu_adapter_info_replay(
                         result_recorded_limits_min_storage_buffer_offset_alignment,
                     min_uniform_buffer_offset_alignment:
                         result_recorded_limits_min_uniform_buffer_offset_alignment,
+                    max_vertex_buffers: result_recorded_limits_max_vertex_buffers,
+                    max_vertex_attributes: result_recorded_limits_max_vertex_attributes,
+                    max_vertex_buffer_array_stride:
+                        result_recorded_limits_max_vertex_buffer_array_stride,
+                    max_buffer_size: result_recorded_limits_max_buffer_size,
+                    max_inter_stage_shader_components:
+                        result_recorded_limits_max_inter_stage_shader_components,
+                    max_inter_stage_shader_variables:
+                        result_recorded_limits_max_inter_stage_shader_variables,
+                    max_compute_workgroup_storage_size:
+                        result_recorded_limits_max_compute_workgroup_storage_size,
+                    max_compute_invocations_per_workgroup:
+                        result_recorded_limits_max_compute_invocations_per_workgroup,
+                    max_compute_workgroup_size_x:
+                        result_recorded_limits_max_compute_workgroup_size_x,
+                    max_compute_workgroup_size_y:
+                        result_recorded_limits_max_compute_workgroup_size_y,
+                    max_compute_workgroup_size_z:
+                        result_recorded_limits_max_compute_workgroup_size_z,
+                    max_compute_workgroups_per_dimension:
+                        result_recorded_limits_max_compute_workgroups_per_dimension,
                 };
                 let result_recorded = GpuAdapterInfoReplayRecord {
                     id: result_recorded_id,
@@ -9924,20 +10791,36 @@ fn destack_gpu_adapter_info_replay(
                     }
                     let value_native_features = context.store_slice(value_native_features_values);
                     let value_native_limits_max_bind_groups = value.limits.max_bind_groups;
+                    let value_native_limits_max_bindings_per_bind_group =
+                        value.limits.max_bindings_per_bind_group;
                     let value_native_limits_max_push_constant_bytes =
                         value.limits.max_push_constant_bytes;
+                    let value_native_limits_max_texture_dimension1_d =
+                        value.limits.max_texture_dimension1_d;
                     let value_native_limits_max_texture_dimension2_d =
                         value.limits.max_texture_dimension2_d;
+                    let value_native_limits_max_texture_dimension3_d =
+                        value.limits.max_texture_dimension3_d;
+                    let value_native_limits_max_texture_array_layers =
+                        value.limits.max_texture_array_layers;
                     let value_native_limits_max_color_attachments =
                         value.limits.max_color_attachments;
+                    let value_native_limits_max_color_attachment_bytes_per_sample =
+                        value.limits.max_color_attachment_bytes_per_sample;
                     let value_native_limits_max_sampled_textures_per_stage =
                         value.limits.max_sampled_textures_per_stage;
                     let value_native_limits_max_samplers_per_stage =
                         value.limits.max_samplers_per_stage;
                     let value_native_limits_max_storage_buffers_per_stage =
                         value.limits.max_storage_buffers_per_stage;
+                    let value_native_limits_max_storage_textures_per_stage =
+                        value.limits.max_storage_textures_per_stage;
                     let value_native_limits_max_uniform_buffers_per_stage =
                         value.limits.max_uniform_buffers_per_stage;
+                    let value_native_limits_max_dynamic_uniform_buffers_per_pipeline_layout =
+                        value.limits.max_dynamic_uniform_buffers_per_pipeline_layout;
+                    let value_native_limits_max_dynamic_storage_buffers_per_pipeline_layout =
+                        value.limits.max_dynamic_storage_buffers_per_pipeline_layout;
                     let value_native_limits_max_uniform_buffer_binding_size =
                         value.limits.max_uniform_buffer_binding_size;
                     let value_native_limits_max_storage_buffer_binding_size =
@@ -9946,18 +10829,53 @@ fn destack_gpu_adapter_info_replay(
                         value.limits.min_storage_buffer_offset_alignment;
                     let value_native_limits_min_uniform_buffer_offset_alignment =
                         value.limits.min_uniform_buffer_offset_alignment;
+                    let value_native_limits_max_vertex_buffers = value.limits.max_vertex_buffers;
+                    let value_native_limits_max_vertex_attributes =
+                        value.limits.max_vertex_attributes;
+                    let value_native_limits_max_vertex_buffer_array_stride =
+                        value.limits.max_vertex_buffer_array_stride;
+                    let value_native_limits_max_buffer_size = value.limits.max_buffer_size;
+                    let value_native_limits_max_inter_stage_shader_components =
+                        value.limits.max_inter_stage_shader_components;
+                    let value_native_limits_max_inter_stage_shader_variables =
+                        value.limits.max_inter_stage_shader_variables;
+                    let value_native_limits_max_compute_workgroup_storage_size =
+                        value.limits.max_compute_workgroup_storage_size;
+                    let value_native_limits_max_compute_invocations_per_workgroup =
+                        value.limits.max_compute_invocations_per_workgroup;
+                    let value_native_limits_max_compute_workgroup_size_x =
+                        value.limits.max_compute_workgroup_size_x;
+                    let value_native_limits_max_compute_workgroup_size_y =
+                        value.limits.max_compute_workgroup_size_y;
+                    let value_native_limits_max_compute_workgroup_size_z =
+                        value.limits.max_compute_workgroup_size_z;
+                    let value_native_limits_max_compute_workgroups_per_dimension =
+                        value.limits.max_compute_workgroups_per_dimension;
                     let value_native_limits = GpuAdapterLimits {
                         max_bind_groups: value_native_limits_max_bind_groups,
+                        max_bindings_per_bind_group:
+                            value_native_limits_max_bindings_per_bind_group,
                         max_push_constant_bytes: value_native_limits_max_push_constant_bytes,
+                        max_texture_dimension1_d: value_native_limits_max_texture_dimension1_d,
                         max_texture_dimension2_d: value_native_limits_max_texture_dimension2_d,
+                        max_texture_dimension3_d: value_native_limits_max_texture_dimension3_d,
+                        max_texture_array_layers: value_native_limits_max_texture_array_layers,
                         max_color_attachments: value_native_limits_max_color_attachments,
+                        max_color_attachment_bytes_per_sample:
+                            value_native_limits_max_color_attachment_bytes_per_sample,
                         max_sampled_textures_per_stage:
                             value_native_limits_max_sampled_textures_per_stage,
                         max_samplers_per_stage: value_native_limits_max_samplers_per_stage,
                         max_storage_buffers_per_stage:
                             value_native_limits_max_storage_buffers_per_stage,
+                        max_storage_textures_per_stage:
+                            value_native_limits_max_storage_textures_per_stage,
                         max_uniform_buffers_per_stage:
                             value_native_limits_max_uniform_buffers_per_stage,
+                        max_dynamic_uniform_buffers_per_pipeline_layout:
+                            value_native_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                        max_dynamic_storage_buffers_per_pipeline_layout:
+                            value_native_limits_max_dynamic_storage_buffers_per_pipeline_layout,
                         max_uniform_buffer_binding_size:
                             value_native_limits_max_uniform_buffer_binding_size,
                         max_storage_buffer_binding_size:
@@ -9966,6 +10884,27 @@ fn destack_gpu_adapter_info_replay(
                             value_native_limits_min_storage_buffer_offset_alignment,
                         min_uniform_buffer_offset_alignment:
                             value_native_limits_min_uniform_buffer_offset_alignment,
+                        max_vertex_buffers: value_native_limits_max_vertex_buffers,
+                        max_vertex_attributes: value_native_limits_max_vertex_attributes,
+                        max_vertex_buffer_array_stride:
+                            value_native_limits_max_vertex_buffer_array_stride,
+                        max_buffer_size: value_native_limits_max_buffer_size,
+                        max_inter_stage_shader_components:
+                            value_native_limits_max_inter_stage_shader_components,
+                        max_inter_stage_shader_variables:
+                            value_native_limits_max_inter_stage_shader_variables,
+                        max_compute_workgroup_storage_size:
+                            value_native_limits_max_compute_workgroup_storage_size,
+                        max_compute_invocations_per_workgroup:
+                            value_native_limits_max_compute_invocations_per_workgroup,
+                        max_compute_workgroup_size_x:
+                            value_native_limits_max_compute_workgroup_size_x,
+                        max_compute_workgroup_size_y:
+                            value_native_limits_max_compute_workgroup_size_y,
+                        max_compute_workgroup_size_z:
+                            value_native_limits_max_compute_workgroup_size_z,
+                        max_compute_workgroups_per_dimension:
+                            value_native_limits_max_compute_workgroups_per_dimension,
                     };
                     let value_native = GpuAdapterInfo {
                         id: value_native_id,
@@ -10023,17 +10962,33 @@ fn destack_gpu_adapter_limits_replay(
                     *out
                 };
                 let result_recorded_max_bind_groups = result_value.max_bind_groups;
+                let result_recorded_max_bindings_per_bind_group =
+                    result_value.max_bindings_per_bind_group;
                 let result_recorded_max_push_constant_bytes = result_value.max_push_constant_bytes;
+                let result_recorded_max_texture_dimension1_d =
+                    result_value.max_texture_dimension1_d;
                 let result_recorded_max_texture_dimension2_d =
                     result_value.max_texture_dimension2_d;
+                let result_recorded_max_texture_dimension3_d =
+                    result_value.max_texture_dimension3_d;
+                let result_recorded_max_texture_array_layers =
+                    result_value.max_texture_array_layers;
                 let result_recorded_max_color_attachments = result_value.max_color_attachments;
+                let result_recorded_max_color_attachment_bytes_per_sample =
+                    result_value.max_color_attachment_bytes_per_sample;
                 let result_recorded_max_sampled_textures_per_stage =
                     result_value.max_sampled_textures_per_stage;
                 let result_recorded_max_samplers_per_stage = result_value.max_samplers_per_stage;
                 let result_recorded_max_storage_buffers_per_stage =
                     result_value.max_storage_buffers_per_stage;
+                let result_recorded_max_storage_textures_per_stage =
+                    result_value.max_storage_textures_per_stage;
                 let result_recorded_max_uniform_buffers_per_stage =
                     result_value.max_uniform_buffers_per_stage;
+                let result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout =
+                    result_value.max_dynamic_uniform_buffers_per_pipeline_layout;
+                let result_recorded_max_dynamic_storage_buffers_per_pipeline_layout =
+                    result_value.max_dynamic_storage_buffers_per_pipeline_layout;
                 let result_recorded_max_uniform_buffer_binding_size =
                     result_value.max_uniform_buffer_binding_size;
                 let result_recorded_max_storage_buffer_binding_size =
@@ -10042,15 +10997,47 @@ fn destack_gpu_adapter_limits_replay(
                     result_value.min_storage_buffer_offset_alignment;
                 let result_recorded_min_uniform_buffer_offset_alignment =
                     result_value.min_uniform_buffer_offset_alignment;
+                let result_recorded_max_vertex_buffers = result_value.max_vertex_buffers;
+                let result_recorded_max_vertex_attributes = result_value.max_vertex_attributes;
+                let result_recorded_max_vertex_buffer_array_stride =
+                    result_value.max_vertex_buffer_array_stride;
+                let result_recorded_max_buffer_size = result_value.max_buffer_size;
+                let result_recorded_max_inter_stage_shader_components =
+                    result_value.max_inter_stage_shader_components;
+                let result_recorded_max_inter_stage_shader_variables =
+                    result_value.max_inter_stage_shader_variables;
+                let result_recorded_max_compute_workgroup_storage_size =
+                    result_value.max_compute_workgroup_storage_size;
+                let result_recorded_max_compute_invocations_per_workgroup =
+                    result_value.max_compute_invocations_per_workgroup;
+                let result_recorded_max_compute_workgroup_size_x =
+                    result_value.max_compute_workgroup_size_x;
+                let result_recorded_max_compute_workgroup_size_y =
+                    result_value.max_compute_workgroup_size_y;
+                let result_recorded_max_compute_workgroup_size_z =
+                    result_value.max_compute_workgroup_size_z;
+                let result_recorded_max_compute_workgroups_per_dimension =
+                    result_value.max_compute_workgroups_per_dimension;
                 let result_recorded = GpuAdapterLimits {
                     max_bind_groups: result_recorded_max_bind_groups,
+                    max_bindings_per_bind_group: result_recorded_max_bindings_per_bind_group,
                     max_push_constant_bytes: result_recorded_max_push_constant_bytes,
+                    max_texture_dimension1_d: result_recorded_max_texture_dimension1_d,
                     max_texture_dimension2_d: result_recorded_max_texture_dimension2_d,
+                    max_texture_dimension3_d: result_recorded_max_texture_dimension3_d,
+                    max_texture_array_layers: result_recorded_max_texture_array_layers,
                     max_color_attachments: result_recorded_max_color_attachments,
+                    max_color_attachment_bytes_per_sample:
+                        result_recorded_max_color_attachment_bytes_per_sample,
                     max_sampled_textures_per_stage: result_recorded_max_sampled_textures_per_stage,
                     max_samplers_per_stage: result_recorded_max_samplers_per_stage,
                     max_storage_buffers_per_stage: result_recorded_max_storage_buffers_per_stage,
+                    max_storage_textures_per_stage: result_recorded_max_storage_textures_per_stage,
                     max_uniform_buffers_per_stage: result_recorded_max_uniform_buffers_per_stage,
+                    max_dynamic_uniform_buffers_per_pipeline_layout:
+                        result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout,
+                    max_dynamic_storage_buffers_per_pipeline_layout:
+                        result_recorded_max_dynamic_storage_buffers_per_pipeline_layout,
                     max_uniform_buffer_binding_size:
                         result_recorded_max_uniform_buffer_binding_size,
                     max_storage_buffer_binding_size:
@@ -10059,6 +11046,23 @@ fn destack_gpu_adapter_limits_replay(
                         result_recorded_min_storage_buffer_offset_alignment,
                     min_uniform_buffer_offset_alignment:
                         result_recorded_min_uniform_buffer_offset_alignment,
+                    max_vertex_buffers: result_recorded_max_vertex_buffers,
+                    max_vertex_attributes: result_recorded_max_vertex_attributes,
+                    max_vertex_buffer_array_stride: result_recorded_max_vertex_buffer_array_stride,
+                    max_buffer_size: result_recorded_max_buffer_size,
+                    max_inter_stage_shader_components:
+                        result_recorded_max_inter_stage_shader_components,
+                    max_inter_stage_shader_variables:
+                        result_recorded_max_inter_stage_shader_variables,
+                    max_compute_workgroup_storage_size:
+                        result_recorded_max_compute_workgroup_storage_size,
+                    max_compute_invocations_per_workgroup:
+                        result_recorded_max_compute_invocations_per_workgroup,
+                    max_compute_workgroup_size_x: result_recorded_max_compute_workgroup_size_x,
+                    max_compute_workgroup_size_y: result_recorded_max_compute_workgroup_size_y,
+                    max_compute_workgroup_size_z: result_recorded_max_compute_workgroup_size_z,
+                    max_compute_workgroups_per_dimension:
+                        result_recorded_max_compute_workgroups_per_dimension,
                 };
                 let payload = GpuAdapterLimitsReplay {
                     result: Ok(result_recorded),
@@ -10081,16 +11085,29 @@ fn destack_gpu_adapter_limits_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_max_bind_groups = value.max_bind_groups;
+                    let value_native_max_bindings_per_bind_group =
+                        value.max_bindings_per_bind_group;
                     let value_native_max_push_constant_bytes = value.max_push_constant_bytes;
+                    let value_native_max_texture_dimension1_d = value.max_texture_dimension1_d;
                     let value_native_max_texture_dimension2_d = value.max_texture_dimension2_d;
+                    let value_native_max_texture_dimension3_d = value.max_texture_dimension3_d;
+                    let value_native_max_texture_array_layers = value.max_texture_array_layers;
                     let value_native_max_color_attachments = value.max_color_attachments;
+                    let value_native_max_color_attachment_bytes_per_sample =
+                        value.max_color_attachment_bytes_per_sample;
                     let value_native_max_sampled_textures_per_stage =
                         value.max_sampled_textures_per_stage;
                     let value_native_max_samplers_per_stage = value.max_samplers_per_stage;
                     let value_native_max_storage_buffers_per_stage =
                         value.max_storage_buffers_per_stage;
+                    let value_native_max_storage_textures_per_stage =
+                        value.max_storage_textures_per_stage;
                     let value_native_max_uniform_buffers_per_stage =
                         value.max_uniform_buffers_per_stage;
+                    let value_native_max_dynamic_uniform_buffers_per_pipeline_layout =
+                        value.max_dynamic_uniform_buffers_per_pipeline_layout;
+                    let value_native_max_dynamic_storage_buffers_per_pipeline_layout =
+                        value.max_dynamic_storage_buffers_per_pipeline_layout;
                     let value_native_max_uniform_buffer_binding_size =
                         value.max_uniform_buffer_binding_size;
                     let value_native_max_storage_buffer_binding_size =
@@ -10099,15 +11116,47 @@ fn destack_gpu_adapter_limits_replay(
                         value.min_storage_buffer_offset_alignment;
                     let value_native_min_uniform_buffer_offset_alignment =
                         value.min_uniform_buffer_offset_alignment;
+                    let value_native_max_vertex_buffers = value.max_vertex_buffers;
+                    let value_native_max_vertex_attributes = value.max_vertex_attributes;
+                    let value_native_max_vertex_buffer_array_stride =
+                        value.max_vertex_buffer_array_stride;
+                    let value_native_max_buffer_size = value.max_buffer_size;
+                    let value_native_max_inter_stage_shader_components =
+                        value.max_inter_stage_shader_components;
+                    let value_native_max_inter_stage_shader_variables =
+                        value.max_inter_stage_shader_variables;
+                    let value_native_max_compute_workgroup_storage_size =
+                        value.max_compute_workgroup_storage_size;
+                    let value_native_max_compute_invocations_per_workgroup =
+                        value.max_compute_invocations_per_workgroup;
+                    let value_native_max_compute_workgroup_size_x =
+                        value.max_compute_workgroup_size_x;
+                    let value_native_max_compute_workgroup_size_y =
+                        value.max_compute_workgroup_size_y;
+                    let value_native_max_compute_workgroup_size_z =
+                        value.max_compute_workgroup_size_z;
+                    let value_native_max_compute_workgroups_per_dimension =
+                        value.max_compute_workgroups_per_dimension;
                     let value_native = GpuAdapterLimits {
                         max_bind_groups: value_native_max_bind_groups,
+                        max_bindings_per_bind_group: value_native_max_bindings_per_bind_group,
                         max_push_constant_bytes: value_native_max_push_constant_bytes,
+                        max_texture_dimension1_d: value_native_max_texture_dimension1_d,
                         max_texture_dimension2_d: value_native_max_texture_dimension2_d,
+                        max_texture_dimension3_d: value_native_max_texture_dimension3_d,
+                        max_texture_array_layers: value_native_max_texture_array_layers,
                         max_color_attachments: value_native_max_color_attachments,
+                        max_color_attachment_bytes_per_sample:
+                            value_native_max_color_attachment_bytes_per_sample,
                         max_sampled_textures_per_stage: value_native_max_sampled_textures_per_stage,
                         max_samplers_per_stage: value_native_max_samplers_per_stage,
                         max_storage_buffers_per_stage: value_native_max_storage_buffers_per_stage,
+                        max_storage_textures_per_stage: value_native_max_storage_textures_per_stage,
                         max_uniform_buffers_per_stage: value_native_max_uniform_buffers_per_stage,
+                        max_dynamic_uniform_buffers_per_pipeline_layout:
+                            value_native_max_dynamic_uniform_buffers_per_pipeline_layout,
+                        max_dynamic_storage_buffers_per_pipeline_layout:
+                            value_native_max_dynamic_storage_buffers_per_pipeline_layout,
                         max_uniform_buffer_binding_size:
                             value_native_max_uniform_buffer_binding_size,
                         max_storage_buffer_binding_size:
@@ -10116,6 +11165,23 @@ fn destack_gpu_adapter_limits_replay(
                             value_native_min_storage_buffer_offset_alignment,
                         min_uniform_buffer_offset_alignment:
                             value_native_min_uniform_buffer_offset_alignment,
+                        max_vertex_buffers: value_native_max_vertex_buffers,
+                        max_vertex_attributes: value_native_max_vertex_attributes,
+                        max_vertex_buffer_array_stride: value_native_max_vertex_buffer_array_stride,
+                        max_buffer_size: value_native_max_buffer_size,
+                        max_inter_stage_shader_components:
+                            value_native_max_inter_stage_shader_components,
+                        max_inter_stage_shader_variables:
+                            value_native_max_inter_stage_shader_variables,
+                        max_compute_workgroup_storage_size:
+                            value_native_max_compute_workgroup_storage_size,
+                        max_compute_invocations_per_workgroup:
+                            value_native_max_compute_invocations_per_workgroup,
+                        max_compute_workgroup_size_x: value_native_max_compute_workgroup_size_x,
+                        max_compute_workgroup_size_y: value_native_max_compute_workgroup_size_y,
+                        max_compute_workgroup_size_z: value_native_max_compute_workgroup_size_z,
+                        max_compute_workgroups_per_dimension:
+                            value_native_max_compute_workgroups_per_dimension,
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -10174,30 +11240,70 @@ fn destack_gpu_adapter_list_replay(
                         result_recorded_item_recorded_features.push(result_recorded_item_recorded_features_item_recorded);
                     }
                     let result_recorded_item_recorded_limits_max_bind_groups = result_recorded_item.limits.max_bind_groups;
+                    let result_recorded_item_recorded_limits_max_bindings_per_bind_group = result_recorded_item.limits.max_bindings_per_bind_group;
                     let result_recorded_item_recorded_limits_max_push_constant_bytes = result_recorded_item.limits.max_push_constant_bytes;
+                    let result_recorded_item_recorded_limits_max_texture_dimension1_d = result_recorded_item.limits.max_texture_dimension1_d;
                     let result_recorded_item_recorded_limits_max_texture_dimension2_d = result_recorded_item.limits.max_texture_dimension2_d;
+                    let result_recorded_item_recorded_limits_max_texture_dimension3_d = result_recorded_item.limits.max_texture_dimension3_d;
+                    let result_recorded_item_recorded_limits_max_texture_array_layers = result_recorded_item.limits.max_texture_array_layers;
                     let result_recorded_item_recorded_limits_max_color_attachments = result_recorded_item.limits.max_color_attachments;
+                    let result_recorded_item_recorded_limits_max_color_attachment_bytes_per_sample = result_recorded_item.limits.max_color_attachment_bytes_per_sample;
                     let result_recorded_item_recorded_limits_max_sampled_textures_per_stage = result_recorded_item.limits.max_sampled_textures_per_stage;
                     let result_recorded_item_recorded_limits_max_samplers_per_stage = result_recorded_item.limits.max_samplers_per_stage;
                     let result_recorded_item_recorded_limits_max_storage_buffers_per_stage = result_recorded_item.limits.max_storage_buffers_per_stage;
+                    let result_recorded_item_recorded_limits_max_storage_textures_per_stage = result_recorded_item.limits.max_storage_textures_per_stage;
                     let result_recorded_item_recorded_limits_max_uniform_buffers_per_stage = result_recorded_item.limits.max_uniform_buffers_per_stage;
+                    let result_recorded_item_recorded_limits_max_dynamic_uniform_buffers_per_pipeline_layout = result_recorded_item.limits.max_dynamic_uniform_buffers_per_pipeline_layout;
+                    let result_recorded_item_recorded_limits_max_dynamic_storage_buffers_per_pipeline_layout = result_recorded_item.limits.max_dynamic_storage_buffers_per_pipeline_layout;
                     let result_recorded_item_recorded_limits_max_uniform_buffer_binding_size = result_recorded_item.limits.max_uniform_buffer_binding_size;
                     let result_recorded_item_recorded_limits_max_storage_buffer_binding_size = result_recorded_item.limits.max_storage_buffer_binding_size;
                     let result_recorded_item_recorded_limits_min_storage_buffer_offset_alignment = result_recorded_item.limits.min_storage_buffer_offset_alignment;
                     let result_recorded_item_recorded_limits_min_uniform_buffer_offset_alignment = result_recorded_item.limits.min_uniform_buffer_offset_alignment;
+                    let result_recorded_item_recorded_limits_max_vertex_buffers = result_recorded_item.limits.max_vertex_buffers;
+                    let result_recorded_item_recorded_limits_max_vertex_attributes = result_recorded_item.limits.max_vertex_attributes;
+                    let result_recorded_item_recorded_limits_max_vertex_buffer_array_stride = result_recorded_item.limits.max_vertex_buffer_array_stride;
+                    let result_recorded_item_recorded_limits_max_buffer_size = result_recorded_item.limits.max_buffer_size;
+                    let result_recorded_item_recorded_limits_max_inter_stage_shader_components = result_recorded_item.limits.max_inter_stage_shader_components;
+                    let result_recorded_item_recorded_limits_max_inter_stage_shader_variables = result_recorded_item.limits.max_inter_stage_shader_variables;
+                    let result_recorded_item_recorded_limits_max_compute_workgroup_storage_size = result_recorded_item.limits.max_compute_workgroup_storage_size;
+                    let result_recorded_item_recorded_limits_max_compute_invocations_per_workgroup = result_recorded_item.limits.max_compute_invocations_per_workgroup;
+                    let result_recorded_item_recorded_limits_max_compute_workgroup_size_x = result_recorded_item.limits.max_compute_workgroup_size_x;
+                    let result_recorded_item_recorded_limits_max_compute_workgroup_size_y = result_recorded_item.limits.max_compute_workgroup_size_y;
+                    let result_recorded_item_recorded_limits_max_compute_workgroup_size_z = result_recorded_item.limits.max_compute_workgroup_size_z;
+                    let result_recorded_item_recorded_limits_max_compute_workgroups_per_dimension = result_recorded_item.limits.max_compute_workgroups_per_dimension;
                     let result_recorded_item_recorded_limits = GpuAdapterLimits {
                         max_bind_groups: result_recorded_item_recorded_limits_max_bind_groups,
+                        max_bindings_per_bind_group: result_recorded_item_recorded_limits_max_bindings_per_bind_group,
                         max_push_constant_bytes: result_recorded_item_recorded_limits_max_push_constant_bytes,
+                        max_texture_dimension1_d: result_recorded_item_recorded_limits_max_texture_dimension1_d,
                         max_texture_dimension2_d: result_recorded_item_recorded_limits_max_texture_dimension2_d,
+                        max_texture_dimension3_d: result_recorded_item_recorded_limits_max_texture_dimension3_d,
+                        max_texture_array_layers: result_recorded_item_recorded_limits_max_texture_array_layers,
                         max_color_attachments: result_recorded_item_recorded_limits_max_color_attachments,
+                        max_color_attachment_bytes_per_sample: result_recorded_item_recorded_limits_max_color_attachment_bytes_per_sample,
                         max_sampled_textures_per_stage: result_recorded_item_recorded_limits_max_sampled_textures_per_stage,
                         max_samplers_per_stage: result_recorded_item_recorded_limits_max_samplers_per_stage,
                         max_storage_buffers_per_stage: result_recorded_item_recorded_limits_max_storage_buffers_per_stage,
+                        max_storage_textures_per_stage: result_recorded_item_recorded_limits_max_storage_textures_per_stage,
                         max_uniform_buffers_per_stage: result_recorded_item_recorded_limits_max_uniform_buffers_per_stage,
+                        max_dynamic_uniform_buffers_per_pipeline_layout: result_recorded_item_recorded_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                        max_dynamic_storage_buffers_per_pipeline_layout: result_recorded_item_recorded_limits_max_dynamic_storage_buffers_per_pipeline_layout,
                         max_uniform_buffer_binding_size: result_recorded_item_recorded_limits_max_uniform_buffer_binding_size,
                         max_storage_buffer_binding_size: result_recorded_item_recorded_limits_max_storage_buffer_binding_size,
                         min_storage_buffer_offset_alignment: result_recorded_item_recorded_limits_min_storage_buffer_offset_alignment,
                         min_uniform_buffer_offset_alignment: result_recorded_item_recorded_limits_min_uniform_buffer_offset_alignment,
+                        max_vertex_buffers: result_recorded_item_recorded_limits_max_vertex_buffers,
+                        max_vertex_attributes: result_recorded_item_recorded_limits_max_vertex_attributes,
+                        max_vertex_buffer_array_stride: result_recorded_item_recorded_limits_max_vertex_buffer_array_stride,
+                        max_buffer_size: result_recorded_item_recorded_limits_max_buffer_size,
+                        max_inter_stage_shader_components: result_recorded_item_recorded_limits_max_inter_stage_shader_components,
+                        max_inter_stage_shader_variables: result_recorded_item_recorded_limits_max_inter_stage_shader_variables,
+                        max_compute_workgroup_storage_size: result_recorded_item_recorded_limits_max_compute_workgroup_storage_size,
+                        max_compute_invocations_per_workgroup: result_recorded_item_recorded_limits_max_compute_invocations_per_workgroup,
+                        max_compute_workgroup_size_x: result_recorded_item_recorded_limits_max_compute_workgroup_size_x,
+                        max_compute_workgroup_size_y: result_recorded_item_recorded_limits_max_compute_workgroup_size_y,
+                        max_compute_workgroup_size_z: result_recorded_item_recorded_limits_max_compute_workgroup_size_z,
+                        max_compute_workgroups_per_dimension: result_recorded_item_recorded_limits_max_compute_workgroups_per_dimension,
                     };
                     let result_recorded_item_recorded = GpuAdapterInfoReplayRecord {
                         id: result_recorded_item_recorded_id,
@@ -10260,30 +11366,70 @@ fn destack_gpu_adapter_list_replay(
                         }
                         let value_native_item_native_features = context.store_slice(value_native_item_native_features_values);
                         let value_native_item_native_limits_max_bind_groups = value_native_item.limits.max_bind_groups;
+                        let value_native_item_native_limits_max_bindings_per_bind_group = value_native_item.limits.max_bindings_per_bind_group;
                         let value_native_item_native_limits_max_push_constant_bytes = value_native_item.limits.max_push_constant_bytes;
+                        let value_native_item_native_limits_max_texture_dimension1_d = value_native_item.limits.max_texture_dimension1_d;
                         let value_native_item_native_limits_max_texture_dimension2_d = value_native_item.limits.max_texture_dimension2_d;
+                        let value_native_item_native_limits_max_texture_dimension3_d = value_native_item.limits.max_texture_dimension3_d;
+                        let value_native_item_native_limits_max_texture_array_layers = value_native_item.limits.max_texture_array_layers;
                         let value_native_item_native_limits_max_color_attachments = value_native_item.limits.max_color_attachments;
+                        let value_native_item_native_limits_max_color_attachment_bytes_per_sample = value_native_item.limits.max_color_attachment_bytes_per_sample;
                         let value_native_item_native_limits_max_sampled_textures_per_stage = value_native_item.limits.max_sampled_textures_per_stage;
                         let value_native_item_native_limits_max_samplers_per_stage = value_native_item.limits.max_samplers_per_stage;
                         let value_native_item_native_limits_max_storage_buffers_per_stage = value_native_item.limits.max_storage_buffers_per_stage;
+                        let value_native_item_native_limits_max_storage_textures_per_stage = value_native_item.limits.max_storage_textures_per_stage;
                         let value_native_item_native_limits_max_uniform_buffers_per_stage = value_native_item.limits.max_uniform_buffers_per_stage;
+                        let value_native_item_native_limits_max_dynamic_uniform_buffers_per_pipeline_layout = value_native_item.limits.max_dynamic_uniform_buffers_per_pipeline_layout;
+                        let value_native_item_native_limits_max_dynamic_storage_buffers_per_pipeline_layout = value_native_item.limits.max_dynamic_storage_buffers_per_pipeline_layout;
                         let value_native_item_native_limits_max_uniform_buffer_binding_size = value_native_item.limits.max_uniform_buffer_binding_size;
                         let value_native_item_native_limits_max_storage_buffer_binding_size = value_native_item.limits.max_storage_buffer_binding_size;
                         let value_native_item_native_limits_min_storage_buffer_offset_alignment = value_native_item.limits.min_storage_buffer_offset_alignment;
                         let value_native_item_native_limits_min_uniform_buffer_offset_alignment = value_native_item.limits.min_uniform_buffer_offset_alignment;
+                        let value_native_item_native_limits_max_vertex_buffers = value_native_item.limits.max_vertex_buffers;
+                        let value_native_item_native_limits_max_vertex_attributes = value_native_item.limits.max_vertex_attributes;
+                        let value_native_item_native_limits_max_vertex_buffer_array_stride = value_native_item.limits.max_vertex_buffer_array_stride;
+                        let value_native_item_native_limits_max_buffer_size = value_native_item.limits.max_buffer_size;
+                        let value_native_item_native_limits_max_inter_stage_shader_components = value_native_item.limits.max_inter_stage_shader_components;
+                        let value_native_item_native_limits_max_inter_stage_shader_variables = value_native_item.limits.max_inter_stage_shader_variables;
+                        let value_native_item_native_limits_max_compute_workgroup_storage_size = value_native_item.limits.max_compute_workgroup_storage_size;
+                        let value_native_item_native_limits_max_compute_invocations_per_workgroup = value_native_item.limits.max_compute_invocations_per_workgroup;
+                        let value_native_item_native_limits_max_compute_workgroup_size_x = value_native_item.limits.max_compute_workgroup_size_x;
+                        let value_native_item_native_limits_max_compute_workgroup_size_y = value_native_item.limits.max_compute_workgroup_size_y;
+                        let value_native_item_native_limits_max_compute_workgroup_size_z = value_native_item.limits.max_compute_workgroup_size_z;
+                        let value_native_item_native_limits_max_compute_workgroups_per_dimension = value_native_item.limits.max_compute_workgroups_per_dimension;
                         let value_native_item_native_limits = GpuAdapterLimits {
                             max_bind_groups: value_native_item_native_limits_max_bind_groups,
+                            max_bindings_per_bind_group: value_native_item_native_limits_max_bindings_per_bind_group,
                             max_push_constant_bytes: value_native_item_native_limits_max_push_constant_bytes,
+                            max_texture_dimension1_d: value_native_item_native_limits_max_texture_dimension1_d,
                             max_texture_dimension2_d: value_native_item_native_limits_max_texture_dimension2_d,
+                            max_texture_dimension3_d: value_native_item_native_limits_max_texture_dimension3_d,
+                            max_texture_array_layers: value_native_item_native_limits_max_texture_array_layers,
                             max_color_attachments: value_native_item_native_limits_max_color_attachments,
+                            max_color_attachment_bytes_per_sample: value_native_item_native_limits_max_color_attachment_bytes_per_sample,
                             max_sampled_textures_per_stage: value_native_item_native_limits_max_sampled_textures_per_stage,
                             max_samplers_per_stage: value_native_item_native_limits_max_samplers_per_stage,
                             max_storage_buffers_per_stage: value_native_item_native_limits_max_storage_buffers_per_stage,
+                            max_storage_textures_per_stage: value_native_item_native_limits_max_storage_textures_per_stage,
                             max_uniform_buffers_per_stage: value_native_item_native_limits_max_uniform_buffers_per_stage,
+                            max_dynamic_uniform_buffers_per_pipeline_layout: value_native_item_native_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                            max_dynamic_storage_buffers_per_pipeline_layout: value_native_item_native_limits_max_dynamic_storage_buffers_per_pipeline_layout,
                             max_uniform_buffer_binding_size: value_native_item_native_limits_max_uniform_buffer_binding_size,
                             max_storage_buffer_binding_size: value_native_item_native_limits_max_storage_buffer_binding_size,
                             min_storage_buffer_offset_alignment: value_native_item_native_limits_min_storage_buffer_offset_alignment,
                             min_uniform_buffer_offset_alignment: value_native_item_native_limits_min_uniform_buffer_offset_alignment,
+                            max_vertex_buffers: value_native_item_native_limits_max_vertex_buffers,
+                            max_vertex_attributes: value_native_item_native_limits_max_vertex_attributes,
+                            max_vertex_buffer_array_stride: value_native_item_native_limits_max_vertex_buffer_array_stride,
+                            max_buffer_size: value_native_item_native_limits_max_buffer_size,
+                            max_inter_stage_shader_components: value_native_item_native_limits_max_inter_stage_shader_components,
+                            max_inter_stage_shader_variables: value_native_item_native_limits_max_inter_stage_shader_variables,
+                            max_compute_workgroup_storage_size: value_native_item_native_limits_max_compute_workgroup_storage_size,
+                            max_compute_invocations_per_workgroup: value_native_item_native_limits_max_compute_invocations_per_workgroup,
+                            max_compute_workgroup_size_x: value_native_item_native_limits_max_compute_workgroup_size_x,
+                            max_compute_workgroup_size_y: value_native_item_native_limits_max_compute_workgroup_size_y,
+                            max_compute_workgroup_size_z: value_native_item_native_limits_max_compute_workgroup_size_z,
+                            max_compute_workgroups_per_dimension: value_native_item_native_limits_max_compute_workgroups_per_dimension,
                         };
                         let value_native_item_native = GpuAdapterInfo {
                             id: value_native_item_native_id,
@@ -10721,7 +11867,7 @@ fn destack_gpu_bind_pipeline_layout_destroy_replay(
 fn destack_gpu_command_bind_compute_pipeline_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &pipeline);
@@ -10774,7 +11920,7 @@ fn destack_gpu_command_bind_compute_pipeline_replay(
 fn destack_gpu_command_bind_render_pipeline_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &pipeline);
@@ -10880,6 +12026,7 @@ fn destack_gpu_command_clear_buffer_replay(
 fn destack_gpu_command_compute_pass_begin_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
+    out: *mut resource::GpuComputePassHandle,
     handle: resource::GpuCommandListHandle,
     options: GpuComputePassOptions,
 ) -> RuntimeResult<()> {
@@ -10890,17 +12037,25 @@ fn destack_gpu_command_compute_pass_begin_replay(
         context.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_BEGIN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_compute_pass_begin(context, handle, options)
+                platform_native::destack_gpu_command_compute_pass_begin(
+                    context, out, handle, options,
+                )
             },
             RuntimeWorld::Simulated => unsafe {
                 platform_simulated_native::destack_gpu_command_compute_pass_begin(
-                    context, handle, options,
+                    context, out, handle, options,
                 )
             },
         },
         |result| {
             if let Ok(()) = result {
-                let result_recorded = ();
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
                 let payload = GpuCommandComputePassBeginReplay {
                     result: Ok(result_recorded),
                 };
@@ -10920,7 +12075,13 @@ fn destack_gpu_command_compute_pass_begin_replay(
         |payload| {
             // replay result
             match payload.result {
-                Ok(()) => Ok(()),
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
@@ -10931,7 +12092,7 @@ fn destack_gpu_command_compute_pass_begin_replay(
 fn destack_gpu_command_compute_pass_end_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
@@ -10959,6 +12120,162 @@ fn destack_gpu_command_compute_pass_end_replay(
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
                     GpuCommandComputePassEndReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_gpu_command_compute_pass_insert_debug_marker_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::GpuComputePassHandle,
+    marker: NativeStringRef,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &marker);
+
+    context.replay().run_binding_with_payload_policy(
+        GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
+        context.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_gpu_command_compute_pass_insert_debug_marker(
+                    context, handle, marker,
+                )
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_gpu_command_compute_pass_insert_debug_marker(
+                    context, handle, marker,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandComputePassInsertDebugMarkerReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandComputePassInsertDebugMarkerReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_gpu_command_compute_pass_pop_debug_group_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::GpuComputePassHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
+        context.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_gpu_command_compute_pass_pop_debug_group(context, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_gpu_command_compute_pass_pop_debug_group(
+                    context, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandComputePassPopDebugGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandComputePassPopDebugGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_gpu_command_compute_pass_push_debug_group_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::GpuComputePassHandle,
+    label: NativeStringRef,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &label);
+
+    context.replay().run_binding_with_payload_policy(
+        GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
+        context.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_gpu_command_compute_pass_push_debug_group(
+                    context, handle, label,
+                )
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_gpu_command_compute_pass_push_debug_group(
+                    context, handle, label,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandComputePassPushDebugGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandComputePassPushDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -11237,7 +12554,7 @@ fn destack_gpu_command_copy_texture_to_texture_replay(
 fn destack_gpu_command_dispatch_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
     groupx: u32,
     groupy: u32,
     groupz: u32,
@@ -11292,7 +12609,7 @@ fn destack_gpu_command_dispatch_replay(
 fn destack_gpu_command_dispatch_indirect_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
 ) -> RuntimeResult<()> {
@@ -11346,7 +12663,7 @@ fn destack_gpu_command_dispatch_indirect_replay(
 fn destack_gpu_command_draw_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     vertexcount: u32,
     instancecount: u32,
     firstvertex: u32,
@@ -11418,7 +12735,7 @@ fn destack_gpu_command_draw_replay(
 fn destack_gpu_command_draw_indexed_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     indexcount: u32,
     instancecount: u32,
     firstindex: u32,
@@ -11494,7 +12811,7 @@ fn destack_gpu_command_draw_indexed_replay(
 fn destack_gpu_command_draw_indexed_indirect_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -11550,7 +12867,7 @@ fn destack_gpu_command_draw_indexed_indirect_replay(
 fn destack_gpu_command_draw_indirect_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -11766,7 +13083,7 @@ fn destack_gpu_command_encoder_open_replay(
 fn destack_gpu_command_execute_bundles_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     bundles: NativeSlice<resource::GpuRenderBundleHandle>,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &bundles);
@@ -11868,7 +13185,7 @@ fn destack_gpu_command_insert_debug_marker_replay(
 fn destack_gpu_command_multi_draw_indexed_indirect_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -11924,7 +13241,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_replay(
 fn destack_gpu_command_multi_draw_indexed_indirect_count_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     countbuffer: resource::GpuBufferHandle,
@@ -12004,7 +13321,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_replay(
 fn destack_gpu_command_multi_draw_indirect_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -12060,7 +13377,7 @@ fn destack_gpu_command_multi_draw_indirect_replay(
 fn destack_gpu_command_multi_draw_indirect_count_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     countbuffer: resource::GpuBufferHandle,
@@ -13343,6 +14660,7 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_replay(
 fn destack_gpu_command_render_pass_begin_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
+    out: *mut resource::GpuRenderPassHandle,
     handle: resource::GpuCommandListHandle,
     options: GpuRenderPassOptions,
 ) -> RuntimeResult<()> {
@@ -13353,17 +14671,25 @@ fn destack_gpu_command_render_pass_begin_replay(
         context.replay_payload_for(GPU_COMMAND_RENDER_PASS_BEGIN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_render_pass_begin(context, handle, options)
+                platform_native::destack_gpu_command_render_pass_begin(
+                    context, out, handle, options,
+                )
             },
             RuntimeWorld::Simulated => unsafe {
                 platform_simulated_native::destack_gpu_command_render_pass_begin(
-                    context, handle, options,
+                    context, out, handle, options,
                 )
             },
         },
         |result| {
             if let Ok(()) = result {
-                let result_recorded = ();
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
                 let payload = GpuCommandRenderPassBeginReplay {
                     result: Ok(result_recorded),
                 };
@@ -13383,7 +14709,13 @@ fn destack_gpu_command_render_pass_begin_replay(
         |payload| {
             // replay result
             match payload.result {
-                Ok(()) => Ok(()),
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
@@ -13394,7 +14726,7 @@ fn destack_gpu_command_render_pass_begin_replay(
 fn destack_gpu_command_render_pass_end_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
@@ -13439,43 +14771,33 @@ fn destack_gpu_command_render_pass_end_replay(
 }
 
 #[inline]
-fn destack_gpu_command_set_bind_group_replay(
+fn destack_gpu_command_render_pass_insert_debug_marker_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
-    index: u32,
-    bindgroup: resource::GpuBindGroupHandle,
-    dynamicoffsets: NativeSlice<u32>,
+    handle: resource::GpuRenderPassHandle,
+    marker: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
+    let _ = (&handle, &marker);
 
     context.replay().run_binding_with_payload_policy(
-        GPU_COMMAND_SET_BIND_GROUP,
-        context.replay_payload_for(GPU_COMMAND_SET_BIND_GROUP)?,
+        GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
+        context.replay_payload_for(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_set_bind_group(
-                    context,
-                    handle,
-                    index,
-                    bindgroup,
-                    dynamicoffsets,
+                platform_native::destack_gpu_command_render_pass_insert_debug_marker(
+                    context, handle, marker,
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_set_bind_group(
-                    context,
-                    handle,
-                    index,
-                    bindgroup,
-                    dynamicoffsets,
+                platform_simulated_native::destack_gpu_command_render_pass_insert_debug_marker(
+                    context, handle, marker,
                 )
             },
         },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = GpuCommandSetBindGroupReplay {
+                let payload = GpuCommandRenderPassInsertDebugMarkerReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -13484,7 +14806,110 @@ fn destack_gpu_command_set_bind_group_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GpuCommandSetBindGroupReplay { result }
+                    GpuCommandRenderPassInsertDebugMarkerReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_gpu_command_render_pass_pop_debug_group_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::GpuRenderPassHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP,
+        context.replay_payload_for(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_gpu_command_render_pass_pop_debug_group(context, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_gpu_command_render_pass_pop_debug_group(
+                    context, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderPassPopDebugGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderPassPopDebugGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_gpu_command_render_pass_push_debug_group_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::GpuRenderPassHandle,
+    label: NativeStringRef,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &label);
+
+    context.replay().run_binding_with_payload_policy(
+        GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
+        context.replay_payload_for(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_gpu_command_render_pass_push_debug_group(
+                    context, handle, label,
+                )
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_gpu_command_render_pass_push_debug_group(
+                    context, handle, label,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderPassPushDebugGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderPassPushDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13505,7 +14930,7 @@ fn destack_gpu_command_set_bind_group_replay(
 fn destack_gpu_command_set_blend_constant_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     r: f64,
     g: f64,
     b: f64,
@@ -13556,10 +14981,73 @@ fn destack_gpu_command_set_blend_constant_replay(
 }
 
 #[inline]
+fn destack_gpu_command_set_compute_bind_group_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::GpuComputePassHandle,
+    index: u32,
+    bindgroup: resource::GpuBindGroupHandle,
+    dynamicoffsets: NativeSlice<u32>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
+
+    context.replay().run_binding_with_payload_policy(
+        GPU_COMMAND_SET_COMPUTE_BIND_GROUP,
+        context.replay_payload_for(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_gpu_command_set_compute_bind_group(
+                    context,
+                    handle,
+                    index,
+                    bindgroup,
+                    dynamicoffsets,
+                )
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_gpu_command_set_compute_bind_group(
+                    context,
+                    handle,
+                    index,
+                    bindgroup,
+                    dynamicoffsets,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandSetComputeBindGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandSetComputeBindGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_gpu_command_set_index_buffer_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     format: GpuIndexFormat,
     offset: u64,
@@ -13612,10 +15100,73 @@ fn destack_gpu_command_set_index_buffer_replay(
 }
 
 #[inline]
+fn destack_gpu_command_set_render_bind_group_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::GpuRenderPassHandle,
+    index: u32,
+    bindgroup: resource::GpuBindGroupHandle,
+    dynamicoffsets: NativeSlice<u32>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
+
+    context.replay().run_binding_with_payload_policy(
+        GPU_COMMAND_SET_RENDER_BIND_GROUP,
+        context.replay_payload_for(GPU_COMMAND_SET_RENDER_BIND_GROUP)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_gpu_command_set_render_bind_group(
+                    context,
+                    handle,
+                    index,
+                    bindgroup,
+                    dynamicoffsets,
+                )
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_gpu_command_set_render_bind_group(
+                    context,
+                    handle,
+                    index,
+                    bindgroup,
+                    dynamicoffsets,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandSetRenderBindGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandSetRenderBindGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_gpu_command_set_scissor_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     x: u32,
     y: u32,
     width: u32,
@@ -13671,7 +15222,7 @@ fn destack_gpu_command_set_scissor_replay(
 fn destack_gpu_command_set_stencil_reference_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     reference: u32,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &reference);
@@ -13724,7 +15275,7 @@ fn destack_gpu_command_set_stencil_reference_replay(
 fn destack_gpu_command_set_vertex_buffer_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     slot: u32,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -13780,7 +15331,7 @@ fn destack_gpu_command_set_vertex_buffer_replay(
 fn destack_gpu_command_set_viewport_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     x: f64,
     y: f64,
     width: f64,
@@ -14080,88 +15631,88 @@ fn destack_gpu_device_info_replay(
         GPU_DEVICE_INFO,
         context.replay_payload_for(GPU_DEVICE_INFO)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_device_info(context, out, device)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_device_info(context, out, device)
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_device_info(context, out, device) },
+            RuntimeWorld::Simulated => unsafe { platform_simulated_native::destack_gpu_device_info(context, out, device) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
                     *out
                 };
                 let result_recorded_backend = result_value.backend;
-                let result_recorded_enabled_features_raw =
-                    unsafe { result_value.enabled_features.as_slice()? };
-                let mut result_recorded_enabled_features =
-                    Vec::with_capacity(result_recorded_enabled_features_raw.len());
-                for result_recorded_enabled_features_item_value in
-                    result_recorded_enabled_features_raw
-                {
-                    let result_recorded_enabled_features_item =
-                        *result_recorded_enabled_features_item_value;
-                    let result_recorded_enabled_features_item_recorded =
-                        result_recorded_enabled_features_item;
-                    result_recorded_enabled_features
-                        .push(result_recorded_enabled_features_item_recorded);
+                let result_recorded_enabled_features_raw = unsafe { result_value.enabled_features.as_slice()? };
+                let mut result_recorded_enabled_features = Vec::with_capacity(result_recorded_enabled_features_raw.len());
+                for result_recorded_enabled_features_item_value in result_recorded_enabled_features_raw {
+                    let result_recorded_enabled_features_item = *result_recorded_enabled_features_item_value;
+                    let result_recorded_enabled_features_item_recorded = result_recorded_enabled_features_item;
+                    result_recorded_enabled_features.push(result_recorded_enabled_features_item_recorded);
                 }
-                let result_recorded_effective_limits_max_bind_groups =
-                    result_value.effective_limits.max_bind_groups;
-                let result_recorded_effective_limits_max_push_constant_bytes =
-                    result_value.effective_limits.max_push_constant_bytes;
-                let result_recorded_effective_limits_max_texture_dimension2_d =
-                    result_value.effective_limits.max_texture_dimension2_d;
-                let result_recorded_effective_limits_max_color_attachments =
-                    result_value.effective_limits.max_color_attachments;
-                let result_recorded_effective_limits_max_sampled_textures_per_stage =
-                    result_value.effective_limits.max_sampled_textures_per_stage;
-                let result_recorded_effective_limits_max_samplers_per_stage =
-                    result_value.effective_limits.max_samplers_per_stage;
-                let result_recorded_effective_limits_max_storage_buffers_per_stage =
-                    result_value.effective_limits.max_storage_buffers_per_stage;
-                let result_recorded_effective_limits_max_uniform_buffers_per_stage =
-                    result_value.effective_limits.max_uniform_buffers_per_stage;
-                let result_recorded_effective_limits_max_uniform_buffer_binding_size = result_value
-                    .effective_limits
-                    .max_uniform_buffer_binding_size;
-                let result_recorded_effective_limits_max_storage_buffer_binding_size = result_value
-                    .effective_limits
-                    .max_storage_buffer_binding_size;
-                let result_recorded_effective_limits_min_storage_buffer_offset_alignment =
-                    result_value
-                        .effective_limits
-                        .min_storage_buffer_offset_alignment;
-                let result_recorded_effective_limits_min_uniform_buffer_offset_alignment =
-                    result_value
-                        .effective_limits
-                        .min_uniform_buffer_offset_alignment;
+                let result_recorded_effective_limits_max_bind_groups = result_value.effective_limits.max_bind_groups;
+                let result_recorded_effective_limits_max_bindings_per_bind_group = result_value.effective_limits.max_bindings_per_bind_group;
+                let result_recorded_effective_limits_max_push_constant_bytes = result_value.effective_limits.max_push_constant_bytes;
+                let result_recorded_effective_limits_max_texture_dimension1_d = result_value.effective_limits.max_texture_dimension1_d;
+                let result_recorded_effective_limits_max_texture_dimension2_d = result_value.effective_limits.max_texture_dimension2_d;
+                let result_recorded_effective_limits_max_texture_dimension3_d = result_value.effective_limits.max_texture_dimension3_d;
+                let result_recorded_effective_limits_max_texture_array_layers = result_value.effective_limits.max_texture_array_layers;
+                let result_recorded_effective_limits_max_color_attachments = result_value.effective_limits.max_color_attachments;
+                let result_recorded_effective_limits_max_color_attachment_bytes_per_sample = result_value.effective_limits.max_color_attachment_bytes_per_sample;
+                let result_recorded_effective_limits_max_sampled_textures_per_stage = result_value.effective_limits.max_sampled_textures_per_stage;
+                let result_recorded_effective_limits_max_samplers_per_stage = result_value.effective_limits.max_samplers_per_stage;
+                let result_recorded_effective_limits_max_storage_buffers_per_stage = result_value.effective_limits.max_storage_buffers_per_stage;
+                let result_recorded_effective_limits_max_storage_textures_per_stage = result_value.effective_limits.max_storage_textures_per_stage;
+                let result_recorded_effective_limits_max_uniform_buffers_per_stage = result_value.effective_limits.max_uniform_buffers_per_stage;
+                let result_recorded_effective_limits_max_dynamic_uniform_buffers_per_pipeline_layout = result_value.effective_limits.max_dynamic_uniform_buffers_per_pipeline_layout;
+                let result_recorded_effective_limits_max_dynamic_storage_buffers_per_pipeline_layout = result_value.effective_limits.max_dynamic_storage_buffers_per_pipeline_layout;
+                let result_recorded_effective_limits_max_uniform_buffer_binding_size = result_value.effective_limits.max_uniform_buffer_binding_size;
+                let result_recorded_effective_limits_max_storage_buffer_binding_size = result_value.effective_limits.max_storage_buffer_binding_size;
+                let result_recorded_effective_limits_min_storage_buffer_offset_alignment = result_value.effective_limits.min_storage_buffer_offset_alignment;
+                let result_recorded_effective_limits_min_uniform_buffer_offset_alignment = result_value.effective_limits.min_uniform_buffer_offset_alignment;
+                let result_recorded_effective_limits_max_vertex_buffers = result_value.effective_limits.max_vertex_buffers;
+                let result_recorded_effective_limits_max_vertex_attributes = result_value.effective_limits.max_vertex_attributes;
+                let result_recorded_effective_limits_max_vertex_buffer_array_stride = result_value.effective_limits.max_vertex_buffer_array_stride;
+                let result_recorded_effective_limits_max_buffer_size = result_value.effective_limits.max_buffer_size;
+                let result_recorded_effective_limits_max_inter_stage_shader_components = result_value.effective_limits.max_inter_stage_shader_components;
+                let result_recorded_effective_limits_max_inter_stage_shader_variables = result_value.effective_limits.max_inter_stage_shader_variables;
+                let result_recorded_effective_limits_max_compute_workgroup_storage_size = result_value.effective_limits.max_compute_workgroup_storage_size;
+                let result_recorded_effective_limits_max_compute_invocations_per_workgroup = result_value.effective_limits.max_compute_invocations_per_workgroup;
+                let result_recorded_effective_limits_max_compute_workgroup_size_x = result_value.effective_limits.max_compute_workgroup_size_x;
+                let result_recorded_effective_limits_max_compute_workgroup_size_y = result_value.effective_limits.max_compute_workgroup_size_y;
+                let result_recorded_effective_limits_max_compute_workgroup_size_z = result_value.effective_limits.max_compute_workgroup_size_z;
+                let result_recorded_effective_limits_max_compute_workgroups_per_dimension = result_value.effective_limits.max_compute_workgroups_per_dimension;
                 let result_recorded_effective_limits = GpuAdapterLimits {
                     max_bind_groups: result_recorded_effective_limits_max_bind_groups,
-                    max_push_constant_bytes:
-                        result_recorded_effective_limits_max_push_constant_bytes,
-                    max_texture_dimension2_d:
-                        result_recorded_effective_limits_max_texture_dimension2_d,
+                    max_bindings_per_bind_group: result_recorded_effective_limits_max_bindings_per_bind_group,
+                    max_push_constant_bytes: result_recorded_effective_limits_max_push_constant_bytes,
+                    max_texture_dimension1_d: result_recorded_effective_limits_max_texture_dimension1_d,
+                    max_texture_dimension2_d: result_recorded_effective_limits_max_texture_dimension2_d,
+                    max_texture_dimension3_d: result_recorded_effective_limits_max_texture_dimension3_d,
+                    max_texture_array_layers: result_recorded_effective_limits_max_texture_array_layers,
                     max_color_attachments: result_recorded_effective_limits_max_color_attachments,
-                    max_sampled_textures_per_stage:
-                        result_recorded_effective_limits_max_sampled_textures_per_stage,
+                    max_color_attachment_bytes_per_sample: result_recorded_effective_limits_max_color_attachment_bytes_per_sample,
+                    max_sampled_textures_per_stage: result_recorded_effective_limits_max_sampled_textures_per_stage,
                     max_samplers_per_stage: result_recorded_effective_limits_max_samplers_per_stage,
-                    max_storage_buffers_per_stage:
-                        result_recorded_effective_limits_max_storage_buffers_per_stage,
-                    max_uniform_buffers_per_stage:
-                        result_recorded_effective_limits_max_uniform_buffers_per_stage,
-                    max_uniform_buffer_binding_size:
-                        result_recorded_effective_limits_max_uniform_buffer_binding_size,
-                    max_storage_buffer_binding_size:
-                        result_recorded_effective_limits_max_storage_buffer_binding_size,
-                    min_storage_buffer_offset_alignment:
-                        result_recorded_effective_limits_min_storage_buffer_offset_alignment,
-                    min_uniform_buffer_offset_alignment:
-                        result_recorded_effective_limits_min_uniform_buffer_offset_alignment,
+                    max_storage_buffers_per_stage: result_recorded_effective_limits_max_storage_buffers_per_stage,
+                    max_storage_textures_per_stage: result_recorded_effective_limits_max_storage_textures_per_stage,
+                    max_uniform_buffers_per_stage: result_recorded_effective_limits_max_uniform_buffers_per_stage,
+                    max_dynamic_uniform_buffers_per_pipeline_layout: result_recorded_effective_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                    max_dynamic_storage_buffers_per_pipeline_layout: result_recorded_effective_limits_max_dynamic_storage_buffers_per_pipeline_layout,
+                    max_uniform_buffer_binding_size: result_recorded_effective_limits_max_uniform_buffer_binding_size,
+                    max_storage_buffer_binding_size: result_recorded_effective_limits_max_storage_buffer_binding_size,
+                    min_storage_buffer_offset_alignment: result_recorded_effective_limits_min_storage_buffer_offset_alignment,
+                    min_uniform_buffer_offset_alignment: result_recorded_effective_limits_min_uniform_buffer_offset_alignment,
+                    max_vertex_buffers: result_recorded_effective_limits_max_vertex_buffers,
+                    max_vertex_attributes: result_recorded_effective_limits_max_vertex_attributes,
+                    max_vertex_buffer_array_stride: result_recorded_effective_limits_max_vertex_buffer_array_stride,
+                    max_buffer_size: result_recorded_effective_limits_max_buffer_size,
+                    max_inter_stage_shader_components: result_recorded_effective_limits_max_inter_stage_shader_components,
+                    max_inter_stage_shader_variables: result_recorded_effective_limits_max_inter_stage_shader_variables,
+                    max_compute_workgroup_storage_size: result_recorded_effective_limits_max_compute_workgroup_storage_size,
+                    max_compute_invocations_per_workgroup: result_recorded_effective_limits_max_compute_invocations_per_workgroup,
+                    max_compute_workgroup_size_x: result_recorded_effective_limits_max_compute_workgroup_size_x,
+                    max_compute_workgroup_size_y: result_recorded_effective_limits_max_compute_workgroup_size_y,
+                    max_compute_workgroup_size_z: result_recorded_effective_limits_max_compute_workgroup_size_z,
+                    max_compute_workgroups_per_dimension: result_recorded_effective_limits_max_compute_workgroups_per_dimension,
                 };
                 let result_recorded_queue_count = result_value.queue_count;
                 let result_recorded_has_timeline_sync = result_value.has_timeline_sync;
@@ -14185,7 +15736,9 @@ fn destack_gpu_device_info_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GpuDeviceInfoReplay { result }
+                    GpuDeviceInfoReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -14197,63 +15750,77 @@ fn destack_gpu_device_info_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_backend = value.backend;
-                    let mut value_native_enabled_features_values =
-                        Vec::with_capacity(value.enabled_features.len());
+                    let mut value_native_enabled_features_values = Vec::with_capacity(value.enabled_features.len());
                     for value_native_enabled_features_item in value.enabled_features {
-                        let value_native_enabled_features_item_native =
-                            value_native_enabled_features_item;
-                        value_native_enabled_features_values
-                            .push(value_native_enabled_features_item_native);
+                        let value_native_enabled_features_item_native = value_native_enabled_features_item;
+                        value_native_enabled_features_values.push(value_native_enabled_features_item_native);
                     }
-                    let value_native_enabled_features =
-                        context.store_slice(value_native_enabled_features_values);
-                    let value_native_effective_limits_max_bind_groups =
-                        value.effective_limits.max_bind_groups;
-                    let value_native_effective_limits_max_push_constant_bytes =
-                        value.effective_limits.max_push_constant_bytes;
-                    let value_native_effective_limits_max_texture_dimension2_d =
-                        value.effective_limits.max_texture_dimension2_d;
-                    let value_native_effective_limits_max_color_attachments =
-                        value.effective_limits.max_color_attachments;
-                    let value_native_effective_limits_max_sampled_textures_per_stage =
-                        value.effective_limits.max_sampled_textures_per_stage;
-                    let value_native_effective_limits_max_samplers_per_stage =
-                        value.effective_limits.max_samplers_per_stage;
-                    let value_native_effective_limits_max_storage_buffers_per_stage =
-                        value.effective_limits.max_storage_buffers_per_stage;
-                    let value_native_effective_limits_max_uniform_buffers_per_stage =
-                        value.effective_limits.max_uniform_buffers_per_stage;
-                    let value_native_effective_limits_max_uniform_buffer_binding_size =
-                        value.effective_limits.max_uniform_buffer_binding_size;
-                    let value_native_effective_limits_max_storage_buffer_binding_size =
-                        value.effective_limits.max_storage_buffer_binding_size;
-                    let value_native_effective_limits_min_storage_buffer_offset_alignment =
-                        value.effective_limits.min_storage_buffer_offset_alignment;
-                    let value_native_effective_limits_min_uniform_buffer_offset_alignment =
-                        value.effective_limits.min_uniform_buffer_offset_alignment;
+                    let value_native_enabled_features = context.store_slice(value_native_enabled_features_values);
+                    let value_native_effective_limits_max_bind_groups = value.effective_limits.max_bind_groups;
+                    let value_native_effective_limits_max_bindings_per_bind_group = value.effective_limits.max_bindings_per_bind_group;
+                    let value_native_effective_limits_max_push_constant_bytes = value.effective_limits.max_push_constant_bytes;
+                    let value_native_effective_limits_max_texture_dimension1_d = value.effective_limits.max_texture_dimension1_d;
+                    let value_native_effective_limits_max_texture_dimension2_d = value.effective_limits.max_texture_dimension2_d;
+                    let value_native_effective_limits_max_texture_dimension3_d = value.effective_limits.max_texture_dimension3_d;
+                    let value_native_effective_limits_max_texture_array_layers = value.effective_limits.max_texture_array_layers;
+                    let value_native_effective_limits_max_color_attachments = value.effective_limits.max_color_attachments;
+                    let value_native_effective_limits_max_color_attachment_bytes_per_sample = value.effective_limits.max_color_attachment_bytes_per_sample;
+                    let value_native_effective_limits_max_sampled_textures_per_stage = value.effective_limits.max_sampled_textures_per_stage;
+                    let value_native_effective_limits_max_samplers_per_stage = value.effective_limits.max_samplers_per_stage;
+                    let value_native_effective_limits_max_storage_buffers_per_stage = value.effective_limits.max_storage_buffers_per_stage;
+                    let value_native_effective_limits_max_storage_textures_per_stage = value.effective_limits.max_storage_textures_per_stage;
+                    let value_native_effective_limits_max_uniform_buffers_per_stage = value.effective_limits.max_uniform_buffers_per_stage;
+                    let value_native_effective_limits_max_dynamic_uniform_buffers_per_pipeline_layout = value.effective_limits.max_dynamic_uniform_buffers_per_pipeline_layout;
+                    let value_native_effective_limits_max_dynamic_storage_buffers_per_pipeline_layout = value.effective_limits.max_dynamic_storage_buffers_per_pipeline_layout;
+                    let value_native_effective_limits_max_uniform_buffer_binding_size = value.effective_limits.max_uniform_buffer_binding_size;
+                    let value_native_effective_limits_max_storage_buffer_binding_size = value.effective_limits.max_storage_buffer_binding_size;
+                    let value_native_effective_limits_min_storage_buffer_offset_alignment = value.effective_limits.min_storage_buffer_offset_alignment;
+                    let value_native_effective_limits_min_uniform_buffer_offset_alignment = value.effective_limits.min_uniform_buffer_offset_alignment;
+                    let value_native_effective_limits_max_vertex_buffers = value.effective_limits.max_vertex_buffers;
+                    let value_native_effective_limits_max_vertex_attributes = value.effective_limits.max_vertex_attributes;
+                    let value_native_effective_limits_max_vertex_buffer_array_stride = value.effective_limits.max_vertex_buffer_array_stride;
+                    let value_native_effective_limits_max_buffer_size = value.effective_limits.max_buffer_size;
+                    let value_native_effective_limits_max_inter_stage_shader_components = value.effective_limits.max_inter_stage_shader_components;
+                    let value_native_effective_limits_max_inter_stage_shader_variables = value.effective_limits.max_inter_stage_shader_variables;
+                    let value_native_effective_limits_max_compute_workgroup_storage_size = value.effective_limits.max_compute_workgroup_storage_size;
+                    let value_native_effective_limits_max_compute_invocations_per_workgroup = value.effective_limits.max_compute_invocations_per_workgroup;
+                    let value_native_effective_limits_max_compute_workgroup_size_x = value.effective_limits.max_compute_workgroup_size_x;
+                    let value_native_effective_limits_max_compute_workgroup_size_y = value.effective_limits.max_compute_workgroup_size_y;
+                    let value_native_effective_limits_max_compute_workgroup_size_z = value.effective_limits.max_compute_workgroup_size_z;
+                    let value_native_effective_limits_max_compute_workgroups_per_dimension = value.effective_limits.max_compute_workgroups_per_dimension;
                     let value_native_effective_limits = GpuAdapterLimits {
                         max_bind_groups: value_native_effective_limits_max_bind_groups,
-                        max_push_constant_bytes:
-                            value_native_effective_limits_max_push_constant_bytes,
-                        max_texture_dimension2_d:
-                            value_native_effective_limits_max_texture_dimension2_d,
+                        max_bindings_per_bind_group: value_native_effective_limits_max_bindings_per_bind_group,
+                        max_push_constant_bytes: value_native_effective_limits_max_push_constant_bytes,
+                        max_texture_dimension1_d: value_native_effective_limits_max_texture_dimension1_d,
+                        max_texture_dimension2_d: value_native_effective_limits_max_texture_dimension2_d,
+                        max_texture_dimension3_d: value_native_effective_limits_max_texture_dimension3_d,
+                        max_texture_array_layers: value_native_effective_limits_max_texture_array_layers,
                         max_color_attachments: value_native_effective_limits_max_color_attachments,
-                        max_sampled_textures_per_stage:
-                            value_native_effective_limits_max_sampled_textures_per_stage,
-                        max_samplers_per_stage:
-                            value_native_effective_limits_max_samplers_per_stage,
-                        max_storage_buffers_per_stage:
-                            value_native_effective_limits_max_storage_buffers_per_stage,
-                        max_uniform_buffers_per_stage:
-                            value_native_effective_limits_max_uniform_buffers_per_stage,
-                        max_uniform_buffer_binding_size:
-                            value_native_effective_limits_max_uniform_buffer_binding_size,
-                        max_storage_buffer_binding_size:
-                            value_native_effective_limits_max_storage_buffer_binding_size,
-                        min_storage_buffer_offset_alignment:
-                            value_native_effective_limits_min_storage_buffer_offset_alignment,
-                        min_uniform_buffer_offset_alignment:
-                            value_native_effective_limits_min_uniform_buffer_offset_alignment,
+                        max_color_attachment_bytes_per_sample: value_native_effective_limits_max_color_attachment_bytes_per_sample,
+                        max_sampled_textures_per_stage: value_native_effective_limits_max_sampled_textures_per_stage,
+                        max_samplers_per_stage: value_native_effective_limits_max_samplers_per_stage,
+                        max_storage_buffers_per_stage: value_native_effective_limits_max_storage_buffers_per_stage,
+                        max_storage_textures_per_stage: value_native_effective_limits_max_storage_textures_per_stage,
+                        max_uniform_buffers_per_stage: value_native_effective_limits_max_uniform_buffers_per_stage,
+                        max_dynamic_uniform_buffers_per_pipeline_layout: value_native_effective_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                        max_dynamic_storage_buffers_per_pipeline_layout: value_native_effective_limits_max_dynamic_storage_buffers_per_pipeline_layout,
+                        max_uniform_buffer_binding_size: value_native_effective_limits_max_uniform_buffer_binding_size,
+                        max_storage_buffer_binding_size: value_native_effective_limits_max_storage_buffer_binding_size,
+                        min_storage_buffer_offset_alignment: value_native_effective_limits_min_storage_buffer_offset_alignment,
+                        min_uniform_buffer_offset_alignment: value_native_effective_limits_min_uniform_buffer_offset_alignment,
+                        max_vertex_buffers: value_native_effective_limits_max_vertex_buffers,
+                        max_vertex_attributes: value_native_effective_limits_max_vertex_attributes,
+                        max_vertex_buffer_array_stride: value_native_effective_limits_max_vertex_buffer_array_stride,
+                        max_buffer_size: value_native_effective_limits_max_buffer_size,
+                        max_inter_stage_shader_components: value_native_effective_limits_max_inter_stage_shader_components,
+                        max_inter_stage_shader_variables: value_native_effective_limits_max_inter_stage_shader_variables,
+                        max_compute_workgroup_storage_size: value_native_effective_limits_max_compute_workgroup_storage_size,
+                        max_compute_invocations_per_workgroup: value_native_effective_limits_max_compute_invocations_per_workgroup,
+                        max_compute_workgroup_size_x: value_native_effective_limits_max_compute_workgroup_size_x,
+                        max_compute_workgroup_size_y: value_native_effective_limits_max_compute_workgroup_size_y,
+                        max_compute_workgroup_size_z: value_native_effective_limits_max_compute_workgroup_size_z,
+                        max_compute_workgroups_per_dimension: value_native_effective_limits_max_compute_workgroups_per_dimension,
                     };
                     let value_native_queue_count = value.queue_count;
                     let value_native_has_timeline_sync = value.has_timeline_sync;
@@ -14268,9 +15835,7 @@ fn destack_gpu_device_info_replay(
                         has_timestamp_queries: value_native_has_timestamp_queries,
                         has_push_constants: value_native_has_push_constants,
                     };
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
+                    unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -14308,17 +15873,33 @@ fn destack_gpu_device_limits_replay(
                     *out
                 };
                 let result_recorded_max_bind_groups = result_value.max_bind_groups;
+                let result_recorded_max_bindings_per_bind_group =
+                    result_value.max_bindings_per_bind_group;
                 let result_recorded_max_push_constant_bytes = result_value.max_push_constant_bytes;
+                let result_recorded_max_texture_dimension1_d =
+                    result_value.max_texture_dimension1_d;
                 let result_recorded_max_texture_dimension2_d =
                     result_value.max_texture_dimension2_d;
+                let result_recorded_max_texture_dimension3_d =
+                    result_value.max_texture_dimension3_d;
+                let result_recorded_max_texture_array_layers =
+                    result_value.max_texture_array_layers;
                 let result_recorded_max_color_attachments = result_value.max_color_attachments;
+                let result_recorded_max_color_attachment_bytes_per_sample =
+                    result_value.max_color_attachment_bytes_per_sample;
                 let result_recorded_max_sampled_textures_per_stage =
                     result_value.max_sampled_textures_per_stage;
                 let result_recorded_max_samplers_per_stage = result_value.max_samplers_per_stage;
                 let result_recorded_max_storage_buffers_per_stage =
                     result_value.max_storage_buffers_per_stage;
+                let result_recorded_max_storage_textures_per_stage =
+                    result_value.max_storage_textures_per_stage;
                 let result_recorded_max_uniform_buffers_per_stage =
                     result_value.max_uniform_buffers_per_stage;
+                let result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout =
+                    result_value.max_dynamic_uniform_buffers_per_pipeline_layout;
+                let result_recorded_max_dynamic_storage_buffers_per_pipeline_layout =
+                    result_value.max_dynamic_storage_buffers_per_pipeline_layout;
                 let result_recorded_max_uniform_buffer_binding_size =
                     result_value.max_uniform_buffer_binding_size;
                 let result_recorded_max_storage_buffer_binding_size =
@@ -14327,15 +15908,47 @@ fn destack_gpu_device_limits_replay(
                     result_value.min_storage_buffer_offset_alignment;
                 let result_recorded_min_uniform_buffer_offset_alignment =
                     result_value.min_uniform_buffer_offset_alignment;
+                let result_recorded_max_vertex_buffers = result_value.max_vertex_buffers;
+                let result_recorded_max_vertex_attributes = result_value.max_vertex_attributes;
+                let result_recorded_max_vertex_buffer_array_stride =
+                    result_value.max_vertex_buffer_array_stride;
+                let result_recorded_max_buffer_size = result_value.max_buffer_size;
+                let result_recorded_max_inter_stage_shader_components =
+                    result_value.max_inter_stage_shader_components;
+                let result_recorded_max_inter_stage_shader_variables =
+                    result_value.max_inter_stage_shader_variables;
+                let result_recorded_max_compute_workgroup_storage_size =
+                    result_value.max_compute_workgroup_storage_size;
+                let result_recorded_max_compute_invocations_per_workgroup =
+                    result_value.max_compute_invocations_per_workgroup;
+                let result_recorded_max_compute_workgroup_size_x =
+                    result_value.max_compute_workgroup_size_x;
+                let result_recorded_max_compute_workgroup_size_y =
+                    result_value.max_compute_workgroup_size_y;
+                let result_recorded_max_compute_workgroup_size_z =
+                    result_value.max_compute_workgroup_size_z;
+                let result_recorded_max_compute_workgroups_per_dimension =
+                    result_value.max_compute_workgroups_per_dimension;
                 let result_recorded = GpuAdapterLimits {
                     max_bind_groups: result_recorded_max_bind_groups,
+                    max_bindings_per_bind_group: result_recorded_max_bindings_per_bind_group,
                     max_push_constant_bytes: result_recorded_max_push_constant_bytes,
+                    max_texture_dimension1_d: result_recorded_max_texture_dimension1_d,
                     max_texture_dimension2_d: result_recorded_max_texture_dimension2_d,
+                    max_texture_dimension3_d: result_recorded_max_texture_dimension3_d,
+                    max_texture_array_layers: result_recorded_max_texture_array_layers,
                     max_color_attachments: result_recorded_max_color_attachments,
+                    max_color_attachment_bytes_per_sample:
+                        result_recorded_max_color_attachment_bytes_per_sample,
                     max_sampled_textures_per_stage: result_recorded_max_sampled_textures_per_stage,
                     max_samplers_per_stage: result_recorded_max_samplers_per_stage,
                     max_storage_buffers_per_stage: result_recorded_max_storage_buffers_per_stage,
+                    max_storage_textures_per_stage: result_recorded_max_storage_textures_per_stage,
                     max_uniform_buffers_per_stage: result_recorded_max_uniform_buffers_per_stage,
+                    max_dynamic_uniform_buffers_per_pipeline_layout:
+                        result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout,
+                    max_dynamic_storage_buffers_per_pipeline_layout:
+                        result_recorded_max_dynamic_storage_buffers_per_pipeline_layout,
                     max_uniform_buffer_binding_size:
                         result_recorded_max_uniform_buffer_binding_size,
                     max_storage_buffer_binding_size:
@@ -14344,6 +15957,23 @@ fn destack_gpu_device_limits_replay(
                         result_recorded_min_storage_buffer_offset_alignment,
                     min_uniform_buffer_offset_alignment:
                         result_recorded_min_uniform_buffer_offset_alignment,
+                    max_vertex_buffers: result_recorded_max_vertex_buffers,
+                    max_vertex_attributes: result_recorded_max_vertex_attributes,
+                    max_vertex_buffer_array_stride: result_recorded_max_vertex_buffer_array_stride,
+                    max_buffer_size: result_recorded_max_buffer_size,
+                    max_inter_stage_shader_components:
+                        result_recorded_max_inter_stage_shader_components,
+                    max_inter_stage_shader_variables:
+                        result_recorded_max_inter_stage_shader_variables,
+                    max_compute_workgroup_storage_size:
+                        result_recorded_max_compute_workgroup_storage_size,
+                    max_compute_invocations_per_workgroup:
+                        result_recorded_max_compute_invocations_per_workgroup,
+                    max_compute_workgroup_size_x: result_recorded_max_compute_workgroup_size_x,
+                    max_compute_workgroup_size_y: result_recorded_max_compute_workgroup_size_y,
+                    max_compute_workgroup_size_z: result_recorded_max_compute_workgroup_size_z,
+                    max_compute_workgroups_per_dimension:
+                        result_recorded_max_compute_workgroups_per_dimension,
                 };
                 let payload = GpuDeviceLimitsReplay {
                     result: Ok(result_recorded),
@@ -14366,16 +15996,29 @@ fn destack_gpu_device_limits_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_max_bind_groups = value.max_bind_groups;
+                    let value_native_max_bindings_per_bind_group =
+                        value.max_bindings_per_bind_group;
                     let value_native_max_push_constant_bytes = value.max_push_constant_bytes;
+                    let value_native_max_texture_dimension1_d = value.max_texture_dimension1_d;
                     let value_native_max_texture_dimension2_d = value.max_texture_dimension2_d;
+                    let value_native_max_texture_dimension3_d = value.max_texture_dimension3_d;
+                    let value_native_max_texture_array_layers = value.max_texture_array_layers;
                     let value_native_max_color_attachments = value.max_color_attachments;
+                    let value_native_max_color_attachment_bytes_per_sample =
+                        value.max_color_attachment_bytes_per_sample;
                     let value_native_max_sampled_textures_per_stage =
                         value.max_sampled_textures_per_stage;
                     let value_native_max_samplers_per_stage = value.max_samplers_per_stage;
                     let value_native_max_storage_buffers_per_stage =
                         value.max_storage_buffers_per_stage;
+                    let value_native_max_storage_textures_per_stage =
+                        value.max_storage_textures_per_stage;
                     let value_native_max_uniform_buffers_per_stage =
                         value.max_uniform_buffers_per_stage;
+                    let value_native_max_dynamic_uniform_buffers_per_pipeline_layout =
+                        value.max_dynamic_uniform_buffers_per_pipeline_layout;
+                    let value_native_max_dynamic_storage_buffers_per_pipeline_layout =
+                        value.max_dynamic_storage_buffers_per_pipeline_layout;
                     let value_native_max_uniform_buffer_binding_size =
                         value.max_uniform_buffer_binding_size;
                     let value_native_max_storage_buffer_binding_size =
@@ -14384,15 +16027,47 @@ fn destack_gpu_device_limits_replay(
                         value.min_storage_buffer_offset_alignment;
                     let value_native_min_uniform_buffer_offset_alignment =
                         value.min_uniform_buffer_offset_alignment;
+                    let value_native_max_vertex_buffers = value.max_vertex_buffers;
+                    let value_native_max_vertex_attributes = value.max_vertex_attributes;
+                    let value_native_max_vertex_buffer_array_stride =
+                        value.max_vertex_buffer_array_stride;
+                    let value_native_max_buffer_size = value.max_buffer_size;
+                    let value_native_max_inter_stage_shader_components =
+                        value.max_inter_stage_shader_components;
+                    let value_native_max_inter_stage_shader_variables =
+                        value.max_inter_stage_shader_variables;
+                    let value_native_max_compute_workgroup_storage_size =
+                        value.max_compute_workgroup_storage_size;
+                    let value_native_max_compute_invocations_per_workgroup =
+                        value.max_compute_invocations_per_workgroup;
+                    let value_native_max_compute_workgroup_size_x =
+                        value.max_compute_workgroup_size_x;
+                    let value_native_max_compute_workgroup_size_y =
+                        value.max_compute_workgroup_size_y;
+                    let value_native_max_compute_workgroup_size_z =
+                        value.max_compute_workgroup_size_z;
+                    let value_native_max_compute_workgroups_per_dimension =
+                        value.max_compute_workgroups_per_dimension;
                     let value_native = GpuAdapterLimits {
                         max_bind_groups: value_native_max_bind_groups,
+                        max_bindings_per_bind_group: value_native_max_bindings_per_bind_group,
                         max_push_constant_bytes: value_native_max_push_constant_bytes,
+                        max_texture_dimension1_d: value_native_max_texture_dimension1_d,
                         max_texture_dimension2_d: value_native_max_texture_dimension2_d,
+                        max_texture_dimension3_d: value_native_max_texture_dimension3_d,
+                        max_texture_array_layers: value_native_max_texture_array_layers,
                         max_color_attachments: value_native_max_color_attachments,
+                        max_color_attachment_bytes_per_sample:
+                            value_native_max_color_attachment_bytes_per_sample,
                         max_sampled_textures_per_stage: value_native_max_sampled_textures_per_stage,
                         max_samplers_per_stage: value_native_max_samplers_per_stage,
                         max_storage_buffers_per_stage: value_native_max_storage_buffers_per_stage,
+                        max_storage_textures_per_stage: value_native_max_storage_textures_per_stage,
                         max_uniform_buffers_per_stage: value_native_max_uniform_buffers_per_stage,
+                        max_dynamic_uniform_buffers_per_pipeline_layout:
+                            value_native_max_dynamic_uniform_buffers_per_pipeline_layout,
+                        max_dynamic_storage_buffers_per_pipeline_layout:
+                            value_native_max_dynamic_storage_buffers_per_pipeline_layout,
                         max_uniform_buffer_binding_size:
                             value_native_max_uniform_buffer_binding_size,
                         max_storage_buffer_binding_size:
@@ -14401,6 +16076,23 @@ fn destack_gpu_device_limits_replay(
                             value_native_min_storage_buffer_offset_alignment,
                         min_uniform_buffer_offset_alignment:
                             value_native_min_uniform_buffer_offset_alignment,
+                        max_vertex_buffers: value_native_max_vertex_buffers,
+                        max_vertex_attributes: value_native_max_vertex_attributes,
+                        max_vertex_buffer_array_stride: value_native_max_vertex_buffer_array_stride,
+                        max_buffer_size: value_native_max_buffer_size,
+                        max_inter_stage_shader_components:
+                            value_native_max_inter_stage_shader_components,
+                        max_inter_stage_shader_variables:
+                            value_native_max_inter_stage_shader_variables,
+                        max_compute_workgroup_storage_size:
+                            value_native_max_compute_workgroup_storage_size,
+                        max_compute_invocations_per_workgroup:
+                            value_native_max_compute_invocations_per_workgroup,
+                        max_compute_workgroup_size_x: value_native_max_compute_workgroup_size_x,
+                        max_compute_workgroup_size_y: value_native_max_compute_workgroup_size_y,
+                        max_compute_workgroup_size_z: value_native_max_compute_workgroup_size_z,
+                        max_compute_workgroups_per_dimension:
+                            value_native_max_compute_workgroups_per_dimension,
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -16169,14 +17861,62 @@ fn destack_gpu_resource_texture_view_destroy_replay(
 }
 
 #[inline]
-fn destack_gpu_sync_command_begin_occlusion_query_replay(
+fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    commandlist: resource::GpuCommandListHandle,
+    computepass: resource::GpuComputePassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<()> {
-    let _ = (&commandlist, &queryset, &queryindex);
+    let _ = (&computepass, &queryset, &queryindex);
+
+    context.replay().run_binding_with_payload_policy(
+        GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY,
+        context.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
+        || match world {
+            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_begin_compute_pipeline_statistics_query(context, computepass, queryset, queryindex) },
+            RuntimeWorld::Simulated => unsafe { platform_simulated_native::destack_gpu_command_begin_compute_pipeline_statistics_query(context, computepass, queryset, queryindex) },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuSyncCommandBeginComputePipelineStatisticsQueryReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncCommandBeginComputePipelineStatisticsQueryReplay {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_gpu_sync_command_begin_occlusion_query_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    renderpass: resource::GpuRenderPassHandle,
+    queryset: resource::GpuQuerySetHandle,
+    queryindex: u32,
+) -> RuntimeResult<()> {
+    let _ = (&renderpass, &queryset, &queryindex);
 
     context.replay().run_binding_with_payload_policy(
         GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY,
@@ -16184,18 +17924,12 @@ fn destack_gpu_sync_command_begin_occlusion_query_replay(
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_begin_occlusion_query(
-                    context,
-                    commandlist,
-                    queryset,
-                    queryindex,
+                    context, renderpass, queryset, queryindex,
                 )
             },
             RuntimeWorld::Simulated => unsafe {
                 platform_simulated_native::destack_gpu_command_begin_occlusion_query(
-                    context,
-                    commandlist,
-                    queryset,
-                    queryindex,
+                    context, renderpass, queryset, queryindex,
                 )
             },
         },
@@ -16229,40 +17963,26 @@ fn destack_gpu_sync_command_begin_occlusion_query_replay(
 }
 
 #[inline]
-fn destack_gpu_sync_command_begin_pipeline_statistics_query_replay(
+fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    commandlist: resource::GpuCommandListHandle,
+    renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<()> {
-    let _ = (&commandlist, &queryset, &queryindex);
+    let _ = (&renderpass, &queryset, &queryindex);
 
     context.replay().run_binding_with_payload_policy(
-        GPU_SYNC_COMMAND_BEGIN_PIPELINE_STATISTICS_QUERY,
-        context.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_PIPELINE_STATISTICS_QUERY)?,
+        GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY,
+        context.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_begin_pipeline_statistics_query(
-                    context,
-                    commandlist,
-                    queryset,
-                    queryindex,
-                )
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_begin_pipeline_statistics_query(
-                    context,
-                    commandlist,
-                    queryset,
-                    queryindex,
-                )
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_begin_render_pipeline_statistics_query(context, renderpass, queryset, queryindex) },
+            RuntimeWorld::Simulated => unsafe { platform_simulated_native::destack_gpu_command_begin_render_pipeline_statistics_query(context, renderpass, queryset, queryindex) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = GpuSyncCommandBeginPipelineStatisticsQueryReplay {
+                let payload = GpuSyncCommandBeginRenderPipelineStatisticsQueryReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -16271,7 +17991,55 @@ fn destack_gpu_sync_command_begin_pipeline_statistics_query_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GpuSyncCommandBeginPipelineStatisticsQueryReplay { result }
+                    GpuSyncCommandBeginRenderPipelineStatisticsQueryReplay {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    computepass: resource::GpuComputePassHandle,
+) -> RuntimeResult<()> {
+    let _ = &computepass;
+
+    context.replay().run_binding_with_payload_policy(
+        GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
+        context.replay_payload_for(GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
+        || match world {
+            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_end_compute_pipeline_statistics_query(context, computepass) },
+            RuntimeWorld::Simulated => unsafe { platform_simulated_native::destack_gpu_command_end_compute_pipeline_statistics_query(context, computepass) },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuSyncCommandEndComputePipelineStatisticsQueryReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncCommandEndComputePipelineStatisticsQueryReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -16292,21 +18060,20 @@ fn destack_gpu_sync_command_begin_pipeline_statistics_query_replay(
 fn destack_gpu_sync_command_end_occlusion_query_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    commandlist: resource::GpuCommandListHandle,
+    renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
-    let _ = &commandlist;
+    let _ = &renderpass;
 
     context.replay().run_binding_with_payload_policy(
         GPU_SYNC_COMMAND_END_OCCLUSION_QUERY,
         context.replay_payload_for(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_end_occlusion_query(context, commandlist)
+                platform_native::destack_gpu_command_end_occlusion_query(context, renderpass)
             },
             RuntimeWorld::Simulated => unsafe {
                 platform_simulated_native::destack_gpu_command_end_occlusion_query(
-                    context,
-                    commandlist,
+                    context, renderpass,
                 )
             },
         },
@@ -16340,34 +18107,32 @@ fn destack_gpu_sync_command_end_occlusion_query_replay(
 }
 
 #[inline]
-fn destack_gpu_sync_command_end_pipeline_statistics_query_replay(
+fn destack_gpu_sync_command_end_render_pipeline_statistics_query_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    commandlist: resource::GpuCommandListHandle,
+    renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
-    let _ = &commandlist;
+    let _ = &renderpass;
 
     context.replay().run_binding_with_payload_policy(
-        GPU_SYNC_COMMAND_END_PIPELINE_STATISTICS_QUERY,
-        context.replay_payload_for(GPU_SYNC_COMMAND_END_PIPELINE_STATISTICS_QUERY)?,
+        GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
+        context.replay_payload_for(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_end_pipeline_statistics_query(
-                    context,
-                    commandlist,
+                platform_native::destack_gpu_command_end_render_pipeline_statistics_query(
+                    context, renderpass,
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_end_pipeline_statistics_query(
-                    context,
-                    commandlist,
+                platform_simulated_native::destack_gpu_command_end_render_pipeline_statistics_query(
+                    context, renderpass,
                 )
             },
         },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = GpuSyncCommandEndPipelineStatisticsQueryReplay {
+                let payload = GpuSyncCommandEndRenderPipelineStatisticsQueryReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -16376,7 +18141,7 @@ fn destack_gpu_sync_command_end_pipeline_statistics_query_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GpuSyncCommandEndPipelineStatisticsQueryReplay { result }
+                    GpuSyncCommandEndRenderPipelineStatisticsQueryReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -17288,7 +19053,7 @@ pub unsafe extern "C" fn destack_gpu_bind_pipeline_layout_destroy(
 
 #[unsafe(export_name = "destack.gpu.command.bindComputePipeline")]
 pub unsafe extern "C" fn destack_gpu_command_bind_compute_pipeline(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -17302,7 +19067,7 @@ pub unsafe extern "C" fn destack_gpu_command_bind_compute_pipeline(
 
 #[unsafe(export_name = "destack.gpu.command.bindRenderPipeline")]
 pub unsafe extern "C" fn destack_gpu_command_bind_render_pipeline(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -17332,21 +19097,25 @@ pub unsafe extern "C" fn destack_gpu_command_clear_buffer(
 
 #[unsafe(export_name = "destack.gpu.command.computePassBegin")]
 pub unsafe extern "C" fn destack_gpu_command_compute_pass_begin(
+    out: *mut resource::GpuComputePassHandle,
     handle: resource::GpuCommandListHandle,
     options: GpuComputePassOptions,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&handle, &options);
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &options);
 
         context.check_policy(GPU_COMMAND_COMPUTE_PASS_BEGIN)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_BEGIN)?;
-        destack_gpu_command_compute_pass_begin_replay(context, world, handle, options)
+        destack_gpu_command_compute_pass_begin_replay(context, world, out, handle, options)
     })
 }
 
 #[unsafe(export_name = "destack.gpu.command.computePassEnd")]
 pub unsafe extern "C" fn destack_gpu_command_compute_pass_end(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
@@ -17354,6 +19123,48 @@ pub unsafe extern "C" fn destack_gpu_command_compute_pass_end(
         context.check_policy(GPU_COMMAND_COMPUTE_PASS_END)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_END)?;
         destack_gpu_command_compute_pass_end_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.gpu.command.computePassInsertDebugMarker")]
+pub unsafe extern "C" fn destack_gpu_command_compute_pass_insert_debug_marker(
+    handle: resource::GpuComputePassHandle,
+    marker: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &marker);
+
+        context.check_policy(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?;
+        let world =
+            context.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?;
+        destack_gpu_command_compute_pass_insert_debug_marker_replay(context, world, handle, marker)
+    })
+}
+
+#[unsafe(export_name = "destack.gpu.command.computePassPopDebugGroup")]
+pub unsafe extern "C" fn destack_gpu_command_compute_pass_pop_debug_group(
+    handle: resource::GpuComputePassHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        context.check_policy(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?;
+        let world = context.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?;
+        destack_gpu_command_compute_pass_pop_debug_group_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.gpu.command.computePassPushDebugGroup")]
+pub unsafe extern "C" fn destack_gpu_command_compute_pass_push_debug_group(
+    handle: resource::GpuComputePassHandle,
+    label: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &label);
+
+        context.check_policy(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?;
+        let world = context.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?;
+        destack_gpu_command_compute_pass_push_debug_group_replay(context, world, handle, label)
     })
 }
 
@@ -17455,7 +19266,7 @@ pub unsafe extern "C" fn destack_gpu_command_copy_texture_to_texture(
 
 #[unsafe(export_name = "destack.gpu.command.dispatch")]
 pub unsafe extern "C" fn destack_gpu_command_dispatch(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
     groupx: u32,
     groupy: u32,
     groupz: u32,
@@ -17471,7 +19282,7 @@ pub unsafe extern "C" fn destack_gpu_command_dispatch(
 
 #[unsafe(export_name = "destack.gpu.command.dispatchIndirect")]
 pub unsafe extern "C" fn destack_gpu_command_dispatch_indirect(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
 ) -> RuntimeStatus {
@@ -17486,7 +19297,7 @@ pub unsafe extern "C" fn destack_gpu_command_dispatch_indirect(
 
 #[unsafe(export_name = "destack.gpu.command.draw")]
 pub unsafe extern "C" fn destack_gpu_command_draw(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     vertexcount: u32,
     instancecount: u32,
     firstvertex: u32,
@@ -17517,7 +19328,7 @@ pub unsafe extern "C" fn destack_gpu_command_draw(
 
 #[unsafe(export_name = "destack.gpu.command.drawIndexed")]
 pub unsafe extern "C" fn destack_gpu_command_draw_indexed(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     indexcount: u32,
     instancecount: u32,
     firstindex: u32,
@@ -17551,7 +19362,7 @@ pub unsafe extern "C" fn destack_gpu_command_draw_indexed(
 
 #[unsafe(export_name = "destack.gpu.command.drawIndexedIndirect")]
 pub unsafe extern "C" fn destack_gpu_command_draw_indexed_indirect(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -17570,7 +19381,7 @@ pub unsafe extern "C" fn destack_gpu_command_draw_indexed_indirect(
 
 #[unsafe(export_name = "destack.gpu.command.drawIndirect")]
 pub unsafe extern "C" fn destack_gpu_command_draw_indirect(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -17633,7 +19444,7 @@ pub unsafe extern "C" fn destack_gpu_command_encoder_open(
 
 #[unsafe(export_name = "destack.gpu.command.executeBundles")]
 pub unsafe extern "C" fn destack_gpu_command_execute_bundles(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     bundles: NativeSlice<resource::GpuRenderBundleHandle>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -17661,7 +19472,7 @@ pub unsafe extern "C" fn destack_gpu_command_insert_debug_marker(
 
 #[unsafe(export_name = "destack.gpu.command.multiDrawIndexedIndirect")]
 pub unsafe extern "C" fn destack_gpu_command_multi_draw_indexed_indirect(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -17680,7 +19491,7 @@ pub unsafe extern "C" fn destack_gpu_command_multi_draw_indexed_indirect(
 
 #[unsafe(export_name = "destack.gpu.command.multiDrawIndexedIndirectCount")]
 pub unsafe extern "C" fn destack_gpu_command_multi_draw_indexed_indirect_count(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     countbuffer: resource::GpuBufferHandle,
@@ -17718,7 +19529,7 @@ pub unsafe extern "C" fn destack_gpu_command_multi_draw_indexed_indirect_count(
 
 #[unsafe(export_name = "destack.gpu.command.multiDrawIndirect")]
 pub unsafe extern "C" fn destack_gpu_command_multi_draw_indirect(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -17737,7 +19548,7 @@ pub unsafe extern "C" fn destack_gpu_command_multi_draw_indirect(
 
 #[unsafe(export_name = "destack.gpu.command.multiDrawIndirectCount")]
 pub unsafe extern "C" fn destack_gpu_command_multi_draw_indirect_count(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     countbuffer: resource::GpuBufferHandle,
@@ -18164,21 +19975,25 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_set_vertex_buffer(
 
 #[unsafe(export_name = "destack.gpu.command.renderPassBegin")]
 pub unsafe extern "C" fn destack_gpu_command_render_pass_begin(
+    out: *mut resource::GpuRenderPassHandle,
     handle: resource::GpuCommandListHandle,
     options: GpuRenderPassOptions,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&handle, &options);
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &options);
 
         context.check_policy(GPU_COMMAND_RENDER_PASS_BEGIN)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_BEGIN)?;
-        destack_gpu_command_render_pass_begin_replay(context, world, handle, options)
+        destack_gpu_command_render_pass_begin_replay(context, world, out, handle, options)
     })
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderPassEnd")]
 pub unsafe extern "C" fn destack_gpu_command_render_pass_end(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
@@ -18189,32 +20004,50 @@ pub unsafe extern "C" fn destack_gpu_command_render_pass_end(
     })
 }
 
-#[unsafe(export_name = "destack.gpu.command.setBindGroup")]
-pub unsafe extern "C" fn destack_gpu_command_set_bind_group(
-    handle: resource::GpuCommandListHandle,
-    index: u32,
-    bindgroup: resource::GpuBindGroupHandle,
-    dynamicoffsets: NativeSlice<u32>,
+#[unsafe(export_name = "destack.gpu.command.renderPassInsertDebugMarker")]
+pub unsafe extern "C" fn destack_gpu_command_render_pass_insert_debug_marker(
+    handle: resource::GpuRenderPassHandle,
+    marker: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
+        let _ = (&handle, &marker);
 
-        context.check_policy(GPU_COMMAND_SET_BIND_GROUP)?;
-        let world = context.check_and_resolve_world(GPU_COMMAND_SET_BIND_GROUP)?;
-        destack_gpu_command_set_bind_group_replay(
-            context,
-            world,
-            handle,
-            index,
-            bindgroup,
-            dynamicoffsets,
-        )
+        context.check_policy(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?;
+        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?;
+        destack_gpu_command_render_pass_insert_debug_marker_replay(context, world, handle, marker)
+    })
+}
+
+#[unsafe(export_name = "destack.gpu.command.renderPassPopDebugGroup")]
+pub unsafe extern "C" fn destack_gpu_command_render_pass_pop_debug_group(
+    handle: resource::GpuRenderPassHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        context.check_policy(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?;
+        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?;
+        destack_gpu_command_render_pass_pop_debug_group_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.gpu.command.renderPassPushDebugGroup")]
+pub unsafe extern "C" fn destack_gpu_command_render_pass_push_debug_group(
+    handle: resource::GpuRenderPassHandle,
+    label: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &label);
+
+        context.check_policy(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?;
+        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?;
+        destack_gpu_command_render_pass_push_debug_group_replay(context, world, handle, label)
     })
 }
 
 #[unsafe(export_name = "destack.gpu.command.setBlendConstant")]
 pub unsafe extern "C" fn destack_gpu_command_set_blend_constant(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     r: f64,
     g: f64,
     b: f64,
@@ -18229,9 +20062,32 @@ pub unsafe extern "C" fn destack_gpu_command_set_blend_constant(
     })
 }
 
+#[unsafe(export_name = "destack.gpu.command.setComputeBindGroup")]
+pub unsafe extern "C" fn destack_gpu_command_set_compute_bind_group(
+    handle: resource::GpuComputePassHandle,
+    index: u32,
+    bindgroup: resource::GpuBindGroupHandle,
+    dynamicoffsets: NativeSlice<u32>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
+
+        context.check_policy(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?;
+        let world = context.check_and_resolve_world(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?;
+        destack_gpu_command_set_compute_bind_group_replay(
+            context,
+            world,
+            handle,
+            index,
+            bindgroup,
+            dynamicoffsets,
+        )
+    })
+}
+
 #[unsafe(export_name = "destack.gpu.command.setIndexBuffer")]
 pub unsafe extern "C" fn destack_gpu_command_set_index_buffer(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     format: GpuIndexFormat,
     offset: u64,
@@ -18248,9 +20104,32 @@ pub unsafe extern "C" fn destack_gpu_command_set_index_buffer(
     })
 }
 
+#[unsafe(export_name = "destack.gpu.command.setRenderBindGroup")]
+pub unsafe extern "C" fn destack_gpu_command_set_render_bind_group(
+    handle: resource::GpuRenderPassHandle,
+    index: u32,
+    bindgroup: resource::GpuBindGroupHandle,
+    dynamicoffsets: NativeSlice<u32>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
+
+        context.check_policy(GPU_COMMAND_SET_RENDER_BIND_GROUP)?;
+        let world = context.check_and_resolve_world(GPU_COMMAND_SET_RENDER_BIND_GROUP)?;
+        destack_gpu_command_set_render_bind_group_replay(
+            context,
+            world,
+            handle,
+            index,
+            bindgroup,
+            dynamicoffsets,
+        )
+    })
+}
+
 #[unsafe(export_name = "destack.gpu.command.setScissor")]
 pub unsafe extern "C" fn destack_gpu_command_set_scissor(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     x: u32,
     y: u32,
     width: u32,
@@ -18267,7 +20146,7 @@ pub unsafe extern "C" fn destack_gpu_command_set_scissor(
 
 #[unsafe(export_name = "destack.gpu.command.setStencilReference")]
 pub unsafe extern "C" fn destack_gpu_command_set_stencil_reference(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     reference: u32,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -18281,7 +20160,7 @@ pub unsafe extern "C" fn destack_gpu_command_set_stencil_reference(
 
 #[unsafe(export_name = "destack.gpu.command.setVertexBuffer")]
 pub unsafe extern "C" fn destack_gpu_command_set_vertex_buffer(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     slot: u32,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -18300,7 +20179,7 @@ pub unsafe extern "C" fn destack_gpu_command_set_vertex_buffer(
 
 #[unsafe(export_name = "destack.gpu.command.setViewport")]
 pub unsafe extern "C" fn destack_gpu_command_set_viewport(
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     x: f64,
     y: f64,
     width: f64,
@@ -19050,73 +20929,107 @@ pub unsafe extern "C" fn destack_gpu_resource_texture_view_destroy(
     })
 }
 
-#[unsafe(export_name = "destack.gpu.sync.commandBeginOcclusionQuery")]
-pub unsafe extern "C" fn destack_gpu_sync_command_begin_occlusion_query(
-    commandlist: resource::GpuCommandListHandle,
+#[unsafe(export_name = "destack.gpu.sync.commandBeginComputePipelineStatisticsQuery")]
+pub unsafe extern "C" fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query(
+    computepass: resource::GpuComputePassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&commandlist, &queryset, &queryindex);
+        let _ = (&computepass, &queryset, &queryindex);
 
-        context.check_policy(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?;
-        let world = context.check_and_resolve_world(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?;
-        destack_gpu_sync_command_begin_occlusion_query_replay(
+        context.check_policy(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?;
+        let world = context
+            .check_and_resolve_world(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?;
+        destack_gpu_sync_command_begin_compute_pipeline_statistics_query_replay(
             context,
             world,
-            commandlist,
+            computepass,
             queryset,
             queryindex,
         )
     })
 }
 
-#[unsafe(export_name = "destack.gpu.sync.commandBeginPipelineStatisticsQuery")]
-pub unsafe extern "C" fn destack_gpu_sync_command_begin_pipeline_statistics_query(
-    commandlist: resource::GpuCommandListHandle,
+#[unsafe(export_name = "destack.gpu.sync.commandBeginOcclusionQuery")]
+pub unsafe extern "C" fn destack_gpu_sync_command_begin_occlusion_query(
+    renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&commandlist, &queryset, &queryindex);
+        let _ = (&renderpass, &queryset, &queryindex);
 
-        context.check_policy(GPU_SYNC_COMMAND_BEGIN_PIPELINE_STATISTICS_QUERY)?;
-        let world =
-            context.check_and_resolve_world(GPU_SYNC_COMMAND_BEGIN_PIPELINE_STATISTICS_QUERY)?;
-        destack_gpu_sync_command_begin_pipeline_statistics_query_replay(
+        context.check_policy(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?;
+        let world = context.check_and_resolve_world(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?;
+        destack_gpu_sync_command_begin_occlusion_query_replay(
+            context, world, renderpass, queryset, queryindex,
+        )
+    })
+}
+
+#[unsafe(export_name = "destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery")]
+pub unsafe extern "C" fn destack_gpu_sync_command_begin_render_pipeline_statistics_query(
+    renderpass: resource::GpuRenderPassHandle,
+    queryset: resource::GpuQuerySetHandle,
+    queryindex: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&renderpass, &queryset, &queryindex);
+
+        context.check_policy(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?;
+        let world = context
+            .check_and_resolve_world(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?;
+        destack_gpu_sync_command_begin_render_pipeline_statistics_query_replay(
+            context, world, renderpass, queryset, queryindex,
+        )
+    })
+}
+
+#[unsafe(export_name = "destack.gpu.sync.commandEndComputePipelineStatisticsQuery")]
+pub unsafe extern "C" fn destack_gpu_sync_command_end_compute_pipeline_statistics_query(
+    computepass: resource::GpuComputePassHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &computepass;
+
+        context.check_policy(GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY)?;
+        let world = context
+            .check_and_resolve_world(GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY)?;
+        destack_gpu_sync_command_end_compute_pipeline_statistics_query_replay(
             context,
             world,
-            commandlist,
-            queryset,
-            queryindex,
+            computepass,
         )
     })
 }
 
 #[unsafe(export_name = "destack.gpu.sync.commandEndOcclusionQuery")]
 pub unsafe extern "C" fn destack_gpu_sync_command_end_occlusion_query(
-    commandlist: resource::GpuCommandListHandle,
+    renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = &commandlist;
+        let _ = &renderpass;
 
         context.check_policy(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?;
         let world = context.check_and_resolve_world(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?;
-        destack_gpu_sync_command_end_occlusion_query_replay(context, world, commandlist)
+        destack_gpu_sync_command_end_occlusion_query_replay(context, world, renderpass)
     })
 }
 
-#[unsafe(export_name = "destack.gpu.sync.commandEndPipelineStatisticsQuery")]
-pub unsafe extern "C" fn destack_gpu_sync_command_end_pipeline_statistics_query(
-    commandlist: resource::GpuCommandListHandle,
+#[unsafe(export_name = "destack.gpu.sync.commandEndRenderPipelineStatisticsQuery")]
+pub unsafe extern "C" fn destack_gpu_sync_command_end_render_pipeline_statistics_query(
+    renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = &commandlist;
+        let _ = &renderpass;
 
-        context.check_policy(GPU_SYNC_COMMAND_END_PIPELINE_STATISTICS_QUERY)?;
-        let world =
-            context.check_and_resolve_world(GPU_SYNC_COMMAND_END_PIPELINE_STATISTICS_QUERY)?;
-        destack_gpu_sync_command_end_pipeline_statistics_query_replay(context, world, commandlist)
+        context.check_policy(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?;
+        let world = context
+            .check_and_resolve_world(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?;
+        destack_gpu_sync_command_end_render_pipeline_statistics_query_replay(
+            context, world, renderpass,
+        )
     })
 }
 
@@ -19670,20 +21583,40 @@ fn destack_gpu_adapter_info_vm_replay(
                     }
                     let result_recorded_limits_max_bind_groups =
                         result_value.limits.max_bind_groups;
+                    let result_recorded_limits_max_bindings_per_bind_group =
+                        result_value.limits.max_bindings_per_bind_group;
                     let result_recorded_limits_max_push_constant_bytes =
                         result_value.limits.max_push_constant_bytes;
+                    let result_recorded_limits_max_texture_dimension1_d =
+                        result_value.limits.max_texture_dimension1_d;
                     let result_recorded_limits_max_texture_dimension2_d =
                         result_value.limits.max_texture_dimension2_d;
+                    let result_recorded_limits_max_texture_dimension3_d =
+                        result_value.limits.max_texture_dimension3_d;
+                    let result_recorded_limits_max_texture_array_layers =
+                        result_value.limits.max_texture_array_layers;
                     let result_recorded_limits_max_color_attachments =
                         result_value.limits.max_color_attachments;
+                    let result_recorded_limits_max_color_attachment_bytes_per_sample =
+                        result_value.limits.max_color_attachment_bytes_per_sample;
                     let result_recorded_limits_max_sampled_textures_per_stage =
                         result_value.limits.max_sampled_textures_per_stage;
                     let result_recorded_limits_max_samplers_per_stage =
                         result_value.limits.max_samplers_per_stage;
                     let result_recorded_limits_max_storage_buffers_per_stage =
                         result_value.limits.max_storage_buffers_per_stage;
+                    let result_recorded_limits_max_storage_textures_per_stage =
+                        result_value.limits.max_storage_textures_per_stage;
                     let result_recorded_limits_max_uniform_buffers_per_stage =
                         result_value.limits.max_uniform_buffers_per_stage;
+                    let result_recorded_limits_max_dynamic_uniform_buffers_per_pipeline_layout =
+                        result_value
+                            .limits
+                            .max_dynamic_uniform_buffers_per_pipeline_layout;
+                    let result_recorded_limits_max_dynamic_storage_buffers_per_pipeline_layout =
+                        result_value
+                            .limits
+                            .max_dynamic_storage_buffers_per_pipeline_layout;
                     let result_recorded_limits_max_uniform_buffer_binding_size =
                         result_value.limits.max_uniform_buffer_binding_size;
                     let result_recorded_limits_max_storage_buffer_binding_size =
@@ -19692,18 +21625,55 @@ fn destack_gpu_adapter_info_vm_replay(
                         result_value.limits.min_storage_buffer_offset_alignment;
                     let result_recorded_limits_min_uniform_buffer_offset_alignment =
                         result_value.limits.min_uniform_buffer_offset_alignment;
+                    let result_recorded_limits_max_vertex_buffers =
+                        result_value.limits.max_vertex_buffers;
+                    let result_recorded_limits_max_vertex_attributes =
+                        result_value.limits.max_vertex_attributes;
+                    let result_recorded_limits_max_vertex_buffer_array_stride =
+                        result_value.limits.max_vertex_buffer_array_stride;
+                    let result_recorded_limits_max_buffer_size =
+                        result_value.limits.max_buffer_size;
+                    let result_recorded_limits_max_inter_stage_shader_components =
+                        result_value.limits.max_inter_stage_shader_components;
+                    let result_recorded_limits_max_inter_stage_shader_variables =
+                        result_value.limits.max_inter_stage_shader_variables;
+                    let result_recorded_limits_max_compute_workgroup_storage_size =
+                        result_value.limits.max_compute_workgroup_storage_size;
+                    let result_recorded_limits_max_compute_invocations_per_workgroup =
+                        result_value.limits.max_compute_invocations_per_workgroup;
+                    let result_recorded_limits_max_compute_workgroup_size_x =
+                        result_value.limits.max_compute_workgroup_size_x;
+                    let result_recorded_limits_max_compute_workgroup_size_y =
+                        result_value.limits.max_compute_workgroup_size_y;
+                    let result_recorded_limits_max_compute_workgroup_size_z =
+                        result_value.limits.max_compute_workgroup_size_z;
+                    let result_recorded_limits_max_compute_workgroups_per_dimension =
+                        result_value.limits.max_compute_workgroups_per_dimension;
                     let result_recorded_limits = GpuAdapterLimits {
                         max_bind_groups: result_recorded_limits_max_bind_groups,
+                        max_bindings_per_bind_group:
+                            result_recorded_limits_max_bindings_per_bind_group,
                         max_push_constant_bytes: result_recorded_limits_max_push_constant_bytes,
+                        max_texture_dimension1_d: result_recorded_limits_max_texture_dimension1_d,
                         max_texture_dimension2_d: result_recorded_limits_max_texture_dimension2_d,
+                        max_texture_dimension3_d: result_recorded_limits_max_texture_dimension3_d,
+                        max_texture_array_layers: result_recorded_limits_max_texture_array_layers,
                         max_color_attachments: result_recorded_limits_max_color_attachments,
+                        max_color_attachment_bytes_per_sample:
+                            result_recorded_limits_max_color_attachment_bytes_per_sample,
                         max_sampled_textures_per_stage:
                             result_recorded_limits_max_sampled_textures_per_stage,
                         max_samplers_per_stage: result_recorded_limits_max_samplers_per_stage,
                         max_storage_buffers_per_stage:
                             result_recorded_limits_max_storage_buffers_per_stage,
+                        max_storage_textures_per_stage:
+                            result_recorded_limits_max_storage_textures_per_stage,
                         max_uniform_buffers_per_stage:
                             result_recorded_limits_max_uniform_buffers_per_stage,
+                        max_dynamic_uniform_buffers_per_pipeline_layout:
+                            result_recorded_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                        max_dynamic_storage_buffers_per_pipeline_layout:
+                            result_recorded_limits_max_dynamic_storage_buffers_per_pipeline_layout,
                         max_uniform_buffer_binding_size:
                             result_recorded_limits_max_uniform_buffer_binding_size,
                         max_storage_buffer_binding_size:
@@ -19712,6 +21682,27 @@ fn destack_gpu_adapter_info_vm_replay(
                             result_recorded_limits_min_storage_buffer_offset_alignment,
                         min_uniform_buffer_offset_alignment:
                             result_recorded_limits_min_uniform_buffer_offset_alignment,
+                        max_vertex_buffers: result_recorded_limits_max_vertex_buffers,
+                        max_vertex_attributes: result_recorded_limits_max_vertex_attributes,
+                        max_vertex_buffer_array_stride:
+                            result_recorded_limits_max_vertex_buffer_array_stride,
+                        max_buffer_size: result_recorded_limits_max_buffer_size,
+                        max_inter_stage_shader_components:
+                            result_recorded_limits_max_inter_stage_shader_components,
+                        max_inter_stage_shader_variables:
+                            result_recorded_limits_max_inter_stage_shader_variables,
+                        max_compute_workgroup_storage_size:
+                            result_recorded_limits_max_compute_workgroup_storage_size,
+                        max_compute_invocations_per_workgroup:
+                            result_recorded_limits_max_compute_invocations_per_workgroup,
+                        max_compute_workgroup_size_x:
+                            result_recorded_limits_max_compute_workgroup_size_x,
+                        max_compute_workgroup_size_y:
+                            result_recorded_limits_max_compute_workgroup_size_y,
+                        max_compute_workgroup_size_z:
+                            result_recorded_limits_max_compute_workgroup_size_z,
+                        max_compute_workgroups_per_dimension:
+                            result_recorded_limits_max_compute_workgroups_per_dimension,
                     };
                     let result_recorded = GpuAdapterInfoReplayRecord {
                         id: result_recorded_id,
@@ -19779,20 +21770,36 @@ fn destack_gpu_adapter_info_vm_replay(
                         let vm_result_features =
                             VmSlice::from_values(context, &vm_result_features_values)?;
                         let vm_result_limits_max_bind_groups = value.limits.max_bind_groups;
+                        let vm_result_limits_max_bindings_per_bind_group =
+                            value.limits.max_bindings_per_bind_group;
                         let vm_result_limits_max_push_constant_bytes =
                             value.limits.max_push_constant_bytes;
+                        let vm_result_limits_max_texture_dimension1_d =
+                            value.limits.max_texture_dimension1_d;
                         let vm_result_limits_max_texture_dimension2_d =
                             value.limits.max_texture_dimension2_d;
+                        let vm_result_limits_max_texture_dimension3_d =
+                            value.limits.max_texture_dimension3_d;
+                        let vm_result_limits_max_texture_array_layers =
+                            value.limits.max_texture_array_layers;
                         let vm_result_limits_max_color_attachments =
                             value.limits.max_color_attachments;
+                        let vm_result_limits_max_color_attachment_bytes_per_sample =
+                            value.limits.max_color_attachment_bytes_per_sample;
                         let vm_result_limits_max_sampled_textures_per_stage =
                             value.limits.max_sampled_textures_per_stage;
                         let vm_result_limits_max_samplers_per_stage =
                             value.limits.max_samplers_per_stage;
                         let vm_result_limits_max_storage_buffers_per_stage =
                             value.limits.max_storage_buffers_per_stage;
+                        let vm_result_limits_max_storage_textures_per_stage =
+                            value.limits.max_storage_textures_per_stage;
                         let vm_result_limits_max_uniform_buffers_per_stage =
                             value.limits.max_uniform_buffers_per_stage;
+                        let vm_result_limits_max_dynamic_uniform_buffers_per_pipeline_layout =
+                            value.limits.max_dynamic_uniform_buffers_per_pipeline_layout;
+                        let vm_result_limits_max_dynamic_storage_buffers_per_pipeline_layout =
+                            value.limits.max_dynamic_storage_buffers_per_pipeline_layout;
                         let vm_result_limits_max_uniform_buffer_binding_size =
                             value.limits.max_uniform_buffer_binding_size;
                         let vm_result_limits_max_storage_buffer_binding_size =
@@ -19801,18 +21808,53 @@ fn destack_gpu_adapter_info_vm_replay(
                             value.limits.min_storage_buffer_offset_alignment;
                         let vm_result_limits_min_uniform_buffer_offset_alignment =
                             value.limits.min_uniform_buffer_offset_alignment;
+                        let vm_result_limits_max_vertex_buffers = value.limits.max_vertex_buffers;
+                        let vm_result_limits_max_vertex_attributes =
+                            value.limits.max_vertex_attributes;
+                        let vm_result_limits_max_vertex_buffer_array_stride =
+                            value.limits.max_vertex_buffer_array_stride;
+                        let vm_result_limits_max_buffer_size = value.limits.max_buffer_size;
+                        let vm_result_limits_max_inter_stage_shader_components =
+                            value.limits.max_inter_stage_shader_components;
+                        let vm_result_limits_max_inter_stage_shader_variables =
+                            value.limits.max_inter_stage_shader_variables;
+                        let vm_result_limits_max_compute_workgroup_storage_size =
+                            value.limits.max_compute_workgroup_storage_size;
+                        let vm_result_limits_max_compute_invocations_per_workgroup =
+                            value.limits.max_compute_invocations_per_workgroup;
+                        let vm_result_limits_max_compute_workgroup_size_x =
+                            value.limits.max_compute_workgroup_size_x;
+                        let vm_result_limits_max_compute_workgroup_size_y =
+                            value.limits.max_compute_workgroup_size_y;
+                        let vm_result_limits_max_compute_workgroup_size_z =
+                            value.limits.max_compute_workgroup_size_z;
+                        let vm_result_limits_max_compute_workgroups_per_dimension =
+                            value.limits.max_compute_workgroups_per_dimension;
                         let vm_result_limits = GpuAdapterLimitsVm {
                             max_bind_groups: vm_result_limits_max_bind_groups,
+                            max_bindings_per_bind_group:
+                                vm_result_limits_max_bindings_per_bind_group,
                             max_push_constant_bytes: vm_result_limits_max_push_constant_bytes,
+                            max_texture_dimension1_d: vm_result_limits_max_texture_dimension1_d,
                             max_texture_dimension2_d: vm_result_limits_max_texture_dimension2_d,
+                            max_texture_dimension3_d: vm_result_limits_max_texture_dimension3_d,
+                            max_texture_array_layers: vm_result_limits_max_texture_array_layers,
                             max_color_attachments: vm_result_limits_max_color_attachments,
+                            max_color_attachment_bytes_per_sample:
+                                vm_result_limits_max_color_attachment_bytes_per_sample,
                             max_sampled_textures_per_stage:
                                 vm_result_limits_max_sampled_textures_per_stage,
                             max_samplers_per_stage: vm_result_limits_max_samplers_per_stage,
                             max_storage_buffers_per_stage:
                                 vm_result_limits_max_storage_buffers_per_stage,
+                            max_storage_textures_per_stage:
+                                vm_result_limits_max_storage_textures_per_stage,
                             max_uniform_buffers_per_stage:
                                 vm_result_limits_max_uniform_buffers_per_stage,
+                            max_dynamic_uniform_buffers_per_pipeline_layout:
+                                vm_result_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                            max_dynamic_storage_buffers_per_pipeline_layout:
+                                vm_result_limits_max_dynamic_storage_buffers_per_pipeline_layout,
                             max_uniform_buffer_binding_size:
                                 vm_result_limits_max_uniform_buffer_binding_size,
                             max_storage_buffer_binding_size:
@@ -19821,6 +21863,27 @@ fn destack_gpu_adapter_info_vm_replay(
                                 vm_result_limits_min_storage_buffer_offset_alignment,
                             min_uniform_buffer_offset_alignment:
                                 vm_result_limits_min_uniform_buffer_offset_alignment,
+                            max_vertex_buffers: vm_result_limits_max_vertex_buffers,
+                            max_vertex_attributes: vm_result_limits_max_vertex_attributes,
+                            max_vertex_buffer_array_stride:
+                                vm_result_limits_max_vertex_buffer_array_stride,
+                            max_buffer_size: vm_result_limits_max_buffer_size,
+                            max_inter_stage_shader_components:
+                                vm_result_limits_max_inter_stage_shader_components,
+                            max_inter_stage_shader_variables:
+                                vm_result_limits_max_inter_stage_shader_variables,
+                            max_compute_workgroup_storage_size:
+                                vm_result_limits_max_compute_workgroup_storage_size,
+                            max_compute_invocations_per_workgroup:
+                                vm_result_limits_max_compute_invocations_per_workgroup,
+                            max_compute_workgroup_size_x:
+                                vm_result_limits_max_compute_workgroup_size_x,
+                            max_compute_workgroup_size_y:
+                                vm_result_limits_max_compute_workgroup_size_y,
+                            max_compute_workgroup_size_z:
+                                vm_result_limits_max_compute_workgroup_size_z,
+                            max_compute_workgroups_per_dimension:
+                                vm_result_limits_max_compute_workgroups_per_dimension,
                         };
                         let vm_result = GpuAdapterInfoVm {
                             id: vm_result_id,
@@ -19874,19 +21937,35 @@ fn destack_gpu_adapter_limits_vm_replay(
                 if let Ok(value) = result {
                     let result_value: GpuAdapterLimitsVm = value.clone();
                     let result_recorded_max_bind_groups = result_value.max_bind_groups;
+                    let result_recorded_max_bindings_per_bind_group =
+                        result_value.max_bindings_per_bind_group;
                     let result_recorded_max_push_constant_bytes =
                         result_value.max_push_constant_bytes;
+                    let result_recorded_max_texture_dimension1_d =
+                        result_value.max_texture_dimension1_d;
                     let result_recorded_max_texture_dimension2_d =
                         result_value.max_texture_dimension2_d;
+                    let result_recorded_max_texture_dimension3_d =
+                        result_value.max_texture_dimension3_d;
+                    let result_recorded_max_texture_array_layers =
+                        result_value.max_texture_array_layers;
                     let result_recorded_max_color_attachments = result_value.max_color_attachments;
+                    let result_recorded_max_color_attachment_bytes_per_sample =
+                        result_value.max_color_attachment_bytes_per_sample;
                     let result_recorded_max_sampled_textures_per_stage =
                         result_value.max_sampled_textures_per_stage;
                     let result_recorded_max_samplers_per_stage =
                         result_value.max_samplers_per_stage;
                     let result_recorded_max_storage_buffers_per_stage =
                         result_value.max_storage_buffers_per_stage;
+                    let result_recorded_max_storage_textures_per_stage =
+                        result_value.max_storage_textures_per_stage;
                     let result_recorded_max_uniform_buffers_per_stage =
                         result_value.max_uniform_buffers_per_stage;
+                    let result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout =
+                        result_value.max_dynamic_uniform_buffers_per_pipeline_layout;
+                    let result_recorded_max_dynamic_storage_buffers_per_pipeline_layout =
+                        result_value.max_dynamic_storage_buffers_per_pipeline_layout;
                     let result_recorded_max_uniform_buffer_binding_size =
                         result_value.max_uniform_buffer_binding_size;
                     let result_recorded_max_storage_buffer_binding_size =
@@ -19895,18 +21974,51 @@ fn destack_gpu_adapter_limits_vm_replay(
                         result_value.min_storage_buffer_offset_alignment;
                     let result_recorded_min_uniform_buffer_offset_alignment =
                         result_value.min_uniform_buffer_offset_alignment;
+                    let result_recorded_max_vertex_buffers = result_value.max_vertex_buffers;
+                    let result_recorded_max_vertex_attributes = result_value.max_vertex_attributes;
+                    let result_recorded_max_vertex_buffer_array_stride =
+                        result_value.max_vertex_buffer_array_stride;
+                    let result_recorded_max_buffer_size = result_value.max_buffer_size;
+                    let result_recorded_max_inter_stage_shader_components =
+                        result_value.max_inter_stage_shader_components;
+                    let result_recorded_max_inter_stage_shader_variables =
+                        result_value.max_inter_stage_shader_variables;
+                    let result_recorded_max_compute_workgroup_storage_size =
+                        result_value.max_compute_workgroup_storage_size;
+                    let result_recorded_max_compute_invocations_per_workgroup =
+                        result_value.max_compute_invocations_per_workgroup;
+                    let result_recorded_max_compute_workgroup_size_x =
+                        result_value.max_compute_workgroup_size_x;
+                    let result_recorded_max_compute_workgroup_size_y =
+                        result_value.max_compute_workgroup_size_y;
+                    let result_recorded_max_compute_workgroup_size_z =
+                        result_value.max_compute_workgroup_size_z;
+                    let result_recorded_max_compute_workgroups_per_dimension =
+                        result_value.max_compute_workgroups_per_dimension;
                     let result_recorded = GpuAdapterLimits {
                         max_bind_groups: result_recorded_max_bind_groups,
+                        max_bindings_per_bind_group: result_recorded_max_bindings_per_bind_group,
                         max_push_constant_bytes: result_recorded_max_push_constant_bytes,
+                        max_texture_dimension1_d: result_recorded_max_texture_dimension1_d,
                         max_texture_dimension2_d: result_recorded_max_texture_dimension2_d,
+                        max_texture_dimension3_d: result_recorded_max_texture_dimension3_d,
+                        max_texture_array_layers: result_recorded_max_texture_array_layers,
                         max_color_attachments: result_recorded_max_color_attachments,
+                        max_color_attachment_bytes_per_sample:
+                            result_recorded_max_color_attachment_bytes_per_sample,
                         max_sampled_textures_per_stage:
                             result_recorded_max_sampled_textures_per_stage,
                         max_samplers_per_stage: result_recorded_max_samplers_per_stage,
                         max_storage_buffers_per_stage:
                             result_recorded_max_storage_buffers_per_stage,
+                        max_storage_textures_per_stage:
+                            result_recorded_max_storage_textures_per_stage,
                         max_uniform_buffers_per_stage:
                             result_recorded_max_uniform_buffers_per_stage,
+                        max_dynamic_uniform_buffers_per_pipeline_layout:
+                            result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout,
+                        max_dynamic_storage_buffers_per_pipeline_layout:
+                            result_recorded_max_dynamic_storage_buffers_per_pipeline_layout,
                         max_uniform_buffer_binding_size:
                             result_recorded_max_uniform_buffer_binding_size,
                         max_storage_buffer_binding_size:
@@ -19915,6 +22027,24 @@ fn destack_gpu_adapter_limits_vm_replay(
                             result_recorded_min_storage_buffer_offset_alignment,
                         min_uniform_buffer_offset_alignment:
                             result_recorded_min_uniform_buffer_offset_alignment,
+                        max_vertex_buffers: result_recorded_max_vertex_buffers,
+                        max_vertex_attributes: result_recorded_max_vertex_attributes,
+                        max_vertex_buffer_array_stride:
+                            result_recorded_max_vertex_buffer_array_stride,
+                        max_buffer_size: result_recorded_max_buffer_size,
+                        max_inter_stage_shader_components:
+                            result_recorded_max_inter_stage_shader_components,
+                        max_inter_stage_shader_variables:
+                            result_recorded_max_inter_stage_shader_variables,
+                        max_compute_workgroup_storage_size:
+                            result_recorded_max_compute_workgroup_storage_size,
+                        max_compute_invocations_per_workgroup:
+                            result_recorded_max_compute_invocations_per_workgroup,
+                        max_compute_workgroup_size_x: result_recorded_max_compute_workgroup_size_x,
+                        max_compute_workgroup_size_y: result_recorded_max_compute_workgroup_size_y,
+                        max_compute_workgroup_size_z: result_recorded_max_compute_workgroup_size_z,
+                        max_compute_workgroups_per_dimension:
+                            result_recorded_max_compute_workgroups_per_dimension,
                     };
                     let payload = GpuAdapterLimitsReplay {
                         result: Ok(result_recorded),
@@ -19938,16 +22068,29 @@ fn destack_gpu_adapter_limits_vm_replay(
                 match payload.result {
                     Ok(value) => {
                         let vm_result_max_bind_groups = value.max_bind_groups;
+                        let vm_result_max_bindings_per_bind_group =
+                            value.max_bindings_per_bind_group;
                         let vm_result_max_push_constant_bytes = value.max_push_constant_bytes;
+                        let vm_result_max_texture_dimension1_d = value.max_texture_dimension1_d;
                         let vm_result_max_texture_dimension2_d = value.max_texture_dimension2_d;
+                        let vm_result_max_texture_dimension3_d = value.max_texture_dimension3_d;
+                        let vm_result_max_texture_array_layers = value.max_texture_array_layers;
                         let vm_result_max_color_attachments = value.max_color_attachments;
+                        let vm_result_max_color_attachment_bytes_per_sample =
+                            value.max_color_attachment_bytes_per_sample;
                         let vm_result_max_sampled_textures_per_stage =
                             value.max_sampled_textures_per_stage;
                         let vm_result_max_samplers_per_stage = value.max_samplers_per_stage;
                         let vm_result_max_storage_buffers_per_stage =
                             value.max_storage_buffers_per_stage;
+                        let vm_result_max_storage_textures_per_stage =
+                            value.max_storage_textures_per_stage;
                         let vm_result_max_uniform_buffers_per_stage =
                             value.max_uniform_buffers_per_stage;
+                        let vm_result_max_dynamic_uniform_buffers_per_pipeline_layout =
+                            value.max_dynamic_uniform_buffers_per_pipeline_layout;
+                        let vm_result_max_dynamic_storage_buffers_per_pipeline_layout =
+                            value.max_dynamic_storage_buffers_per_pipeline_layout;
                         let vm_result_max_uniform_buffer_binding_size =
                             value.max_uniform_buffer_binding_size;
                         let vm_result_max_storage_buffer_binding_size =
@@ -19956,16 +22099,49 @@ fn destack_gpu_adapter_limits_vm_replay(
                             value.min_storage_buffer_offset_alignment;
                         let vm_result_min_uniform_buffer_offset_alignment =
                             value.min_uniform_buffer_offset_alignment;
+                        let vm_result_max_vertex_buffers = value.max_vertex_buffers;
+                        let vm_result_max_vertex_attributes = value.max_vertex_attributes;
+                        let vm_result_max_vertex_buffer_array_stride =
+                            value.max_vertex_buffer_array_stride;
+                        let vm_result_max_buffer_size = value.max_buffer_size;
+                        let vm_result_max_inter_stage_shader_components =
+                            value.max_inter_stage_shader_components;
+                        let vm_result_max_inter_stage_shader_variables =
+                            value.max_inter_stage_shader_variables;
+                        let vm_result_max_compute_workgroup_storage_size =
+                            value.max_compute_workgroup_storage_size;
+                        let vm_result_max_compute_invocations_per_workgroup =
+                            value.max_compute_invocations_per_workgroup;
+                        let vm_result_max_compute_workgroup_size_x =
+                            value.max_compute_workgroup_size_x;
+                        let vm_result_max_compute_workgroup_size_y =
+                            value.max_compute_workgroup_size_y;
+                        let vm_result_max_compute_workgroup_size_z =
+                            value.max_compute_workgroup_size_z;
+                        let vm_result_max_compute_workgroups_per_dimension =
+                            value.max_compute_workgroups_per_dimension;
                         let vm_result = GpuAdapterLimitsVm {
                             max_bind_groups: vm_result_max_bind_groups,
+                            max_bindings_per_bind_group: vm_result_max_bindings_per_bind_group,
                             max_push_constant_bytes: vm_result_max_push_constant_bytes,
+                            max_texture_dimension1_d: vm_result_max_texture_dimension1_d,
                             max_texture_dimension2_d: vm_result_max_texture_dimension2_d,
+                            max_texture_dimension3_d: vm_result_max_texture_dimension3_d,
+                            max_texture_array_layers: vm_result_max_texture_array_layers,
                             max_color_attachments: vm_result_max_color_attachments,
+                            max_color_attachment_bytes_per_sample:
+                                vm_result_max_color_attachment_bytes_per_sample,
                             max_sampled_textures_per_stage:
                                 vm_result_max_sampled_textures_per_stage,
                             max_samplers_per_stage: vm_result_max_samplers_per_stage,
                             max_storage_buffers_per_stage: vm_result_max_storage_buffers_per_stage,
+                            max_storage_textures_per_stage:
+                                vm_result_max_storage_textures_per_stage,
                             max_uniform_buffers_per_stage: vm_result_max_uniform_buffers_per_stage,
+                            max_dynamic_uniform_buffers_per_pipeline_layout:
+                                vm_result_max_dynamic_uniform_buffers_per_pipeline_layout,
+                            max_dynamic_storage_buffers_per_pipeline_layout:
+                                vm_result_max_dynamic_storage_buffers_per_pipeline_layout,
                             max_uniform_buffer_binding_size:
                                 vm_result_max_uniform_buffer_binding_size,
                             max_storage_buffer_binding_size:
@@ -19974,6 +22150,24 @@ fn destack_gpu_adapter_limits_vm_replay(
                                 vm_result_min_storage_buffer_offset_alignment,
                             min_uniform_buffer_offset_alignment:
                                 vm_result_min_uniform_buffer_offset_alignment,
+                            max_vertex_buffers: vm_result_max_vertex_buffers,
+                            max_vertex_attributes: vm_result_max_vertex_attributes,
+                            max_vertex_buffer_array_stride:
+                                vm_result_max_vertex_buffer_array_stride,
+                            max_buffer_size: vm_result_max_buffer_size,
+                            max_inter_stage_shader_components:
+                                vm_result_max_inter_stage_shader_components,
+                            max_inter_stage_shader_variables:
+                                vm_result_max_inter_stage_shader_variables,
+                            max_compute_workgroup_storage_size:
+                                vm_result_max_compute_workgroup_storage_size,
+                            max_compute_invocations_per_workgroup:
+                                vm_result_max_compute_invocations_per_workgroup,
+                            max_compute_workgroup_size_x: vm_result_max_compute_workgroup_size_x,
+                            max_compute_workgroup_size_y: vm_result_max_compute_workgroup_size_y,
+                            max_compute_workgroup_size_z: vm_result_max_compute_workgroup_size_z,
+                            max_compute_workgroups_per_dimension:
+                                vm_result_max_compute_workgroups_per_dimension,
                         };
                         Ok(vm_result)
                     }
@@ -20031,32 +22225,72 @@ fn destack_gpu_adapter_list_vm_replay(
                         let result_recorded_item_limits = {
                             if slots[13].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_limits", "limits")).boxed()); }
                             let slots = context.aggregate_slots(slots[13]).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 12 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_limits", "expected 12 fields")).boxed()); }
+                            if slots.len() != 32 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_limits", "expected 32 fields")).boxed()); }
                             let result_recorded_item_limits_max_bind_groups = decode_uint32(slots[0], "result_recorded_item_limits_max_bind_groups", "maxBindGroups")?;
-                            let result_recorded_item_limits_max_push_constant_bytes = decode_uint32(slots[1], "result_recorded_item_limits_max_push_constant_bytes", "maxPushConstantBytes")?;
-                            let result_recorded_item_limits_max_texture_dimension2_d = decode_uint32(slots[2], "result_recorded_item_limits_max_texture_dimension2_d", "maxTextureDimension2D")?;
-                            let result_recorded_item_limits_max_color_attachments = decode_uint32(slots[3], "result_recorded_item_limits_max_color_attachments", "maxColorAttachments")?;
-                            let result_recorded_item_limits_max_sampled_textures_per_stage = decode_uint32(slots[4], "result_recorded_item_limits_max_sampled_textures_per_stage", "maxSampledTexturesPerStage")?;
-                            let result_recorded_item_limits_max_samplers_per_stage = decode_uint32(slots[5], "result_recorded_item_limits_max_samplers_per_stage", "maxSamplersPerStage")?;
-                            let result_recorded_item_limits_max_storage_buffers_per_stage = decode_uint32(slots[6], "result_recorded_item_limits_max_storage_buffers_per_stage", "maxStorageBuffersPerStage")?;
-                            let result_recorded_item_limits_max_uniform_buffers_per_stage = decode_uint32(slots[7], "result_recorded_item_limits_max_uniform_buffers_per_stage", "maxUniformBuffersPerStage")?;
-                            let result_recorded_item_limits_max_uniform_buffer_binding_size = decode_uint64(slots[8], "result_recorded_item_limits_max_uniform_buffer_binding_size", "maxUniformBufferBindingSize")?;
-                            let result_recorded_item_limits_max_storage_buffer_binding_size = decode_uint64(slots[9], "result_recorded_item_limits_max_storage_buffer_binding_size", "maxStorageBufferBindingSize")?;
-                            let result_recorded_item_limits_min_storage_buffer_offset_alignment = decode_uint32(slots[10], "result_recorded_item_limits_min_storage_buffer_offset_alignment", "minStorageBufferOffsetAlignment")?;
-                            let result_recorded_item_limits_min_uniform_buffer_offset_alignment = decode_uint32(slots[11], "result_recorded_item_limits_min_uniform_buffer_offset_alignment", "minUniformBufferOffsetAlignment")?;
+                            let result_recorded_item_limits_max_bindings_per_bind_group = decode_uint32(slots[1], "result_recorded_item_limits_max_bindings_per_bind_group", "maxBindingsPerBindGroup")?;
+                            let result_recorded_item_limits_max_push_constant_bytes = decode_uint32(slots[2], "result_recorded_item_limits_max_push_constant_bytes", "maxPushConstantBytes")?;
+                            let result_recorded_item_limits_max_texture_dimension1_d = decode_uint32(slots[3], "result_recorded_item_limits_max_texture_dimension1_d", "maxTextureDimension1D")?;
+                            let result_recorded_item_limits_max_texture_dimension2_d = decode_uint32(slots[4], "result_recorded_item_limits_max_texture_dimension2_d", "maxTextureDimension2D")?;
+                            let result_recorded_item_limits_max_texture_dimension3_d = decode_uint32(slots[5], "result_recorded_item_limits_max_texture_dimension3_d", "maxTextureDimension3D")?;
+                            let result_recorded_item_limits_max_texture_array_layers = decode_uint32(slots[6], "result_recorded_item_limits_max_texture_array_layers", "maxTextureArrayLayers")?;
+                            let result_recorded_item_limits_max_color_attachments = decode_uint32(slots[7], "result_recorded_item_limits_max_color_attachments", "maxColorAttachments")?;
+                            let result_recorded_item_limits_max_color_attachment_bytes_per_sample = decode_uint32(slots[8], "result_recorded_item_limits_max_color_attachment_bytes_per_sample", "maxColorAttachmentBytesPerSample")?;
+                            let result_recorded_item_limits_max_sampled_textures_per_stage = decode_uint32(slots[9], "result_recorded_item_limits_max_sampled_textures_per_stage", "maxSampledTexturesPerStage")?;
+                            let result_recorded_item_limits_max_samplers_per_stage = decode_uint32(slots[10], "result_recorded_item_limits_max_samplers_per_stage", "maxSamplersPerStage")?;
+                            let result_recorded_item_limits_max_storage_buffers_per_stage = decode_uint32(slots[11], "result_recorded_item_limits_max_storage_buffers_per_stage", "maxStorageBuffersPerStage")?;
+                            let result_recorded_item_limits_max_storage_textures_per_stage = decode_uint32(slots[12], "result_recorded_item_limits_max_storage_textures_per_stage", "maxStorageTexturesPerStage")?;
+                            let result_recorded_item_limits_max_uniform_buffers_per_stage = decode_uint32(slots[13], "result_recorded_item_limits_max_uniform_buffers_per_stage", "maxUniformBuffersPerStage")?;
+                            let result_recorded_item_limits_max_dynamic_uniform_buffers_per_pipeline_layout = decode_uint32(slots[14], "result_recorded_item_limits_max_dynamic_uniform_buffers_per_pipeline_layout", "maxDynamicUniformBuffersPerPipelineLayout")?;
+                            let result_recorded_item_limits_max_dynamic_storage_buffers_per_pipeline_layout = decode_uint32(slots[15], "result_recorded_item_limits_max_dynamic_storage_buffers_per_pipeline_layout", "maxDynamicStorageBuffersPerPipelineLayout")?;
+                            let result_recorded_item_limits_max_uniform_buffer_binding_size = decode_uint64(slots[16], "result_recorded_item_limits_max_uniform_buffer_binding_size", "maxUniformBufferBindingSize")?;
+                            let result_recorded_item_limits_max_storage_buffer_binding_size = decode_uint64(slots[17], "result_recorded_item_limits_max_storage_buffer_binding_size", "maxStorageBufferBindingSize")?;
+                            let result_recorded_item_limits_min_storage_buffer_offset_alignment = decode_uint32(slots[18], "result_recorded_item_limits_min_storage_buffer_offset_alignment", "minStorageBufferOffsetAlignment")?;
+                            let result_recorded_item_limits_min_uniform_buffer_offset_alignment = decode_uint32(slots[19], "result_recorded_item_limits_min_uniform_buffer_offset_alignment", "minUniformBufferOffsetAlignment")?;
+                            let result_recorded_item_limits_max_vertex_buffers = decode_uint32(slots[20], "result_recorded_item_limits_max_vertex_buffers", "maxVertexBuffers")?;
+                            let result_recorded_item_limits_max_vertex_attributes = decode_uint32(slots[21], "result_recorded_item_limits_max_vertex_attributes", "maxVertexAttributes")?;
+                            let result_recorded_item_limits_max_vertex_buffer_array_stride = decode_uint32(slots[22], "result_recorded_item_limits_max_vertex_buffer_array_stride", "maxVertexBufferArrayStride")?;
+                            let result_recorded_item_limits_max_buffer_size = decode_uint64(slots[23], "result_recorded_item_limits_max_buffer_size", "maxBufferSize")?;
+                            let result_recorded_item_limits_max_inter_stage_shader_components = decode_uint32(slots[24], "result_recorded_item_limits_max_inter_stage_shader_components", "maxInterStageShaderComponents")?;
+                            let result_recorded_item_limits_max_inter_stage_shader_variables = decode_uint32(slots[25], "result_recorded_item_limits_max_inter_stage_shader_variables", "maxInterStageShaderVariables")?;
+                            let result_recorded_item_limits_max_compute_workgroup_storage_size = decode_uint32(slots[26], "result_recorded_item_limits_max_compute_workgroup_storage_size", "maxComputeWorkgroupStorageSize")?;
+                            let result_recorded_item_limits_max_compute_invocations_per_workgroup = decode_uint32(slots[27], "result_recorded_item_limits_max_compute_invocations_per_workgroup", "maxComputeInvocationsPerWorkgroup")?;
+                            let result_recorded_item_limits_max_compute_workgroup_size_x = decode_uint32(slots[28], "result_recorded_item_limits_max_compute_workgroup_size_x", "maxComputeWorkgroupSizeX")?;
+                            let result_recorded_item_limits_max_compute_workgroup_size_y = decode_uint32(slots[29], "result_recorded_item_limits_max_compute_workgroup_size_y", "maxComputeWorkgroupSizeY")?;
+                            let result_recorded_item_limits_max_compute_workgroup_size_z = decode_uint32(slots[30], "result_recorded_item_limits_max_compute_workgroup_size_z", "maxComputeWorkgroupSizeZ")?;
+                            let result_recorded_item_limits_max_compute_workgroups_per_dimension = decode_uint32(slots[31], "result_recorded_item_limits_max_compute_workgroups_per_dimension", "maxComputeWorkgroupsPerDimension")?;
                             GpuAdapterLimitsVm {
                                 max_bind_groups: result_recorded_item_limits_max_bind_groups,
+                                max_bindings_per_bind_group: result_recorded_item_limits_max_bindings_per_bind_group,
                                 max_push_constant_bytes: result_recorded_item_limits_max_push_constant_bytes,
+                                max_texture_dimension1_d: result_recorded_item_limits_max_texture_dimension1_d,
                                 max_texture_dimension2_d: result_recorded_item_limits_max_texture_dimension2_d,
+                                max_texture_dimension3_d: result_recorded_item_limits_max_texture_dimension3_d,
+                                max_texture_array_layers: result_recorded_item_limits_max_texture_array_layers,
                                 max_color_attachments: result_recorded_item_limits_max_color_attachments,
+                                max_color_attachment_bytes_per_sample: result_recorded_item_limits_max_color_attachment_bytes_per_sample,
                                 max_sampled_textures_per_stage: result_recorded_item_limits_max_sampled_textures_per_stage,
                                 max_samplers_per_stage: result_recorded_item_limits_max_samplers_per_stage,
                                 max_storage_buffers_per_stage: result_recorded_item_limits_max_storage_buffers_per_stage,
+                                max_storage_textures_per_stage: result_recorded_item_limits_max_storage_textures_per_stage,
                                 max_uniform_buffers_per_stage: result_recorded_item_limits_max_uniform_buffers_per_stage,
+                                max_dynamic_uniform_buffers_per_pipeline_layout: result_recorded_item_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                                max_dynamic_storage_buffers_per_pipeline_layout: result_recorded_item_limits_max_dynamic_storage_buffers_per_pipeline_layout,
                                 max_uniform_buffer_binding_size: result_recorded_item_limits_max_uniform_buffer_binding_size,
                                 max_storage_buffer_binding_size: result_recorded_item_limits_max_storage_buffer_binding_size,
                                 min_storage_buffer_offset_alignment: result_recorded_item_limits_min_storage_buffer_offset_alignment,
                                 min_uniform_buffer_offset_alignment: result_recorded_item_limits_min_uniform_buffer_offset_alignment,
+                                max_vertex_buffers: result_recorded_item_limits_max_vertex_buffers,
+                                max_vertex_attributes: result_recorded_item_limits_max_vertex_attributes,
+                                max_vertex_buffer_array_stride: result_recorded_item_limits_max_vertex_buffer_array_stride,
+                                max_buffer_size: result_recorded_item_limits_max_buffer_size,
+                                max_inter_stage_shader_components: result_recorded_item_limits_max_inter_stage_shader_components,
+                                max_inter_stage_shader_variables: result_recorded_item_limits_max_inter_stage_shader_variables,
+                                max_compute_workgroup_storage_size: result_recorded_item_limits_max_compute_workgroup_storage_size,
+                                max_compute_invocations_per_workgroup: result_recorded_item_limits_max_compute_invocations_per_workgroup,
+                                max_compute_workgroup_size_x: result_recorded_item_limits_max_compute_workgroup_size_x,
+                                max_compute_workgroup_size_y: result_recorded_item_limits_max_compute_workgroup_size_y,
+                                max_compute_workgroup_size_z: result_recorded_item_limits_max_compute_workgroup_size_z,
+                                max_compute_workgroups_per_dimension: result_recorded_item_limits_max_compute_workgroups_per_dimension,
                             }
                         };
                         GpuAdapterInfoVm {
@@ -20112,30 +22346,70 @@ fn destack_gpu_adapter_list_vm_replay(
                         result_recorded_item_recorded_features.push(result_recorded_item_recorded_features_item_recorded);
                     }
                     let result_recorded_item_recorded_limits_max_bind_groups = result_recorded_item.limits.max_bind_groups;
+                    let result_recorded_item_recorded_limits_max_bindings_per_bind_group = result_recorded_item.limits.max_bindings_per_bind_group;
                     let result_recorded_item_recorded_limits_max_push_constant_bytes = result_recorded_item.limits.max_push_constant_bytes;
+                    let result_recorded_item_recorded_limits_max_texture_dimension1_d = result_recorded_item.limits.max_texture_dimension1_d;
                     let result_recorded_item_recorded_limits_max_texture_dimension2_d = result_recorded_item.limits.max_texture_dimension2_d;
+                    let result_recorded_item_recorded_limits_max_texture_dimension3_d = result_recorded_item.limits.max_texture_dimension3_d;
+                    let result_recorded_item_recorded_limits_max_texture_array_layers = result_recorded_item.limits.max_texture_array_layers;
                     let result_recorded_item_recorded_limits_max_color_attachments = result_recorded_item.limits.max_color_attachments;
+                    let result_recorded_item_recorded_limits_max_color_attachment_bytes_per_sample = result_recorded_item.limits.max_color_attachment_bytes_per_sample;
                     let result_recorded_item_recorded_limits_max_sampled_textures_per_stage = result_recorded_item.limits.max_sampled_textures_per_stage;
                     let result_recorded_item_recorded_limits_max_samplers_per_stage = result_recorded_item.limits.max_samplers_per_stage;
                     let result_recorded_item_recorded_limits_max_storage_buffers_per_stage = result_recorded_item.limits.max_storage_buffers_per_stage;
+                    let result_recorded_item_recorded_limits_max_storage_textures_per_stage = result_recorded_item.limits.max_storage_textures_per_stage;
                     let result_recorded_item_recorded_limits_max_uniform_buffers_per_stage = result_recorded_item.limits.max_uniform_buffers_per_stage;
+                    let result_recorded_item_recorded_limits_max_dynamic_uniform_buffers_per_pipeline_layout = result_recorded_item.limits.max_dynamic_uniform_buffers_per_pipeline_layout;
+                    let result_recorded_item_recorded_limits_max_dynamic_storage_buffers_per_pipeline_layout = result_recorded_item.limits.max_dynamic_storage_buffers_per_pipeline_layout;
                     let result_recorded_item_recorded_limits_max_uniform_buffer_binding_size = result_recorded_item.limits.max_uniform_buffer_binding_size;
                     let result_recorded_item_recorded_limits_max_storage_buffer_binding_size = result_recorded_item.limits.max_storage_buffer_binding_size;
                     let result_recorded_item_recorded_limits_min_storage_buffer_offset_alignment = result_recorded_item.limits.min_storage_buffer_offset_alignment;
                     let result_recorded_item_recorded_limits_min_uniform_buffer_offset_alignment = result_recorded_item.limits.min_uniform_buffer_offset_alignment;
+                    let result_recorded_item_recorded_limits_max_vertex_buffers = result_recorded_item.limits.max_vertex_buffers;
+                    let result_recorded_item_recorded_limits_max_vertex_attributes = result_recorded_item.limits.max_vertex_attributes;
+                    let result_recorded_item_recorded_limits_max_vertex_buffer_array_stride = result_recorded_item.limits.max_vertex_buffer_array_stride;
+                    let result_recorded_item_recorded_limits_max_buffer_size = result_recorded_item.limits.max_buffer_size;
+                    let result_recorded_item_recorded_limits_max_inter_stage_shader_components = result_recorded_item.limits.max_inter_stage_shader_components;
+                    let result_recorded_item_recorded_limits_max_inter_stage_shader_variables = result_recorded_item.limits.max_inter_stage_shader_variables;
+                    let result_recorded_item_recorded_limits_max_compute_workgroup_storage_size = result_recorded_item.limits.max_compute_workgroup_storage_size;
+                    let result_recorded_item_recorded_limits_max_compute_invocations_per_workgroup = result_recorded_item.limits.max_compute_invocations_per_workgroup;
+                    let result_recorded_item_recorded_limits_max_compute_workgroup_size_x = result_recorded_item.limits.max_compute_workgroup_size_x;
+                    let result_recorded_item_recorded_limits_max_compute_workgroup_size_y = result_recorded_item.limits.max_compute_workgroup_size_y;
+                    let result_recorded_item_recorded_limits_max_compute_workgroup_size_z = result_recorded_item.limits.max_compute_workgroup_size_z;
+                    let result_recorded_item_recorded_limits_max_compute_workgroups_per_dimension = result_recorded_item.limits.max_compute_workgroups_per_dimension;
                     let result_recorded_item_recorded_limits = GpuAdapterLimits {
                         max_bind_groups: result_recorded_item_recorded_limits_max_bind_groups,
+                        max_bindings_per_bind_group: result_recorded_item_recorded_limits_max_bindings_per_bind_group,
                         max_push_constant_bytes: result_recorded_item_recorded_limits_max_push_constant_bytes,
+                        max_texture_dimension1_d: result_recorded_item_recorded_limits_max_texture_dimension1_d,
                         max_texture_dimension2_d: result_recorded_item_recorded_limits_max_texture_dimension2_d,
+                        max_texture_dimension3_d: result_recorded_item_recorded_limits_max_texture_dimension3_d,
+                        max_texture_array_layers: result_recorded_item_recorded_limits_max_texture_array_layers,
                         max_color_attachments: result_recorded_item_recorded_limits_max_color_attachments,
+                        max_color_attachment_bytes_per_sample: result_recorded_item_recorded_limits_max_color_attachment_bytes_per_sample,
                         max_sampled_textures_per_stage: result_recorded_item_recorded_limits_max_sampled_textures_per_stage,
                         max_samplers_per_stage: result_recorded_item_recorded_limits_max_samplers_per_stage,
                         max_storage_buffers_per_stage: result_recorded_item_recorded_limits_max_storage_buffers_per_stage,
+                        max_storage_textures_per_stage: result_recorded_item_recorded_limits_max_storage_textures_per_stage,
                         max_uniform_buffers_per_stage: result_recorded_item_recorded_limits_max_uniform_buffers_per_stage,
+                        max_dynamic_uniform_buffers_per_pipeline_layout: result_recorded_item_recorded_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                        max_dynamic_storage_buffers_per_pipeline_layout: result_recorded_item_recorded_limits_max_dynamic_storage_buffers_per_pipeline_layout,
                         max_uniform_buffer_binding_size: result_recorded_item_recorded_limits_max_uniform_buffer_binding_size,
                         max_storage_buffer_binding_size: result_recorded_item_recorded_limits_max_storage_buffer_binding_size,
                         min_storage_buffer_offset_alignment: result_recorded_item_recorded_limits_min_storage_buffer_offset_alignment,
                         min_uniform_buffer_offset_alignment: result_recorded_item_recorded_limits_min_uniform_buffer_offset_alignment,
+                        max_vertex_buffers: result_recorded_item_recorded_limits_max_vertex_buffers,
+                        max_vertex_attributes: result_recorded_item_recorded_limits_max_vertex_attributes,
+                        max_vertex_buffer_array_stride: result_recorded_item_recorded_limits_max_vertex_buffer_array_stride,
+                        max_buffer_size: result_recorded_item_recorded_limits_max_buffer_size,
+                        max_inter_stage_shader_components: result_recorded_item_recorded_limits_max_inter_stage_shader_components,
+                        max_inter_stage_shader_variables: result_recorded_item_recorded_limits_max_inter_stage_shader_variables,
+                        max_compute_workgroup_storage_size: result_recorded_item_recorded_limits_max_compute_workgroup_storage_size,
+                        max_compute_invocations_per_workgroup: result_recorded_item_recorded_limits_max_compute_invocations_per_workgroup,
+                        max_compute_workgroup_size_x: result_recorded_item_recorded_limits_max_compute_workgroup_size_x,
+                        max_compute_workgroup_size_y: result_recorded_item_recorded_limits_max_compute_workgroup_size_y,
+                        max_compute_workgroup_size_z: result_recorded_item_recorded_limits_max_compute_workgroup_size_z,
+                        max_compute_workgroups_per_dimension: result_recorded_item_recorded_limits_max_compute_workgroups_per_dimension,
                     };
                     let result_recorded_item_recorded = GpuAdapterInfoReplayRecord {
                         id: result_recorded_item_recorded_id,
@@ -20206,30 +22480,70 @@ fn destack_gpu_adapter_list_vm_replay(
                         }
                         let vm_result_item_value_features = VmSlice::from_values(context, &vm_result_item_value_features_values)?;
                         let vm_result_item_value_limits_max_bind_groups = vm_result_item.limits.max_bind_groups;
+                        let vm_result_item_value_limits_max_bindings_per_bind_group = vm_result_item.limits.max_bindings_per_bind_group;
                         let vm_result_item_value_limits_max_push_constant_bytes = vm_result_item.limits.max_push_constant_bytes;
+                        let vm_result_item_value_limits_max_texture_dimension1_d = vm_result_item.limits.max_texture_dimension1_d;
                         let vm_result_item_value_limits_max_texture_dimension2_d = vm_result_item.limits.max_texture_dimension2_d;
+                        let vm_result_item_value_limits_max_texture_dimension3_d = vm_result_item.limits.max_texture_dimension3_d;
+                        let vm_result_item_value_limits_max_texture_array_layers = vm_result_item.limits.max_texture_array_layers;
                         let vm_result_item_value_limits_max_color_attachments = vm_result_item.limits.max_color_attachments;
+                        let vm_result_item_value_limits_max_color_attachment_bytes_per_sample = vm_result_item.limits.max_color_attachment_bytes_per_sample;
                         let vm_result_item_value_limits_max_sampled_textures_per_stage = vm_result_item.limits.max_sampled_textures_per_stage;
                         let vm_result_item_value_limits_max_samplers_per_stage = vm_result_item.limits.max_samplers_per_stage;
                         let vm_result_item_value_limits_max_storage_buffers_per_stage = vm_result_item.limits.max_storage_buffers_per_stage;
+                        let vm_result_item_value_limits_max_storage_textures_per_stage = vm_result_item.limits.max_storage_textures_per_stage;
                         let vm_result_item_value_limits_max_uniform_buffers_per_stage = vm_result_item.limits.max_uniform_buffers_per_stage;
+                        let vm_result_item_value_limits_max_dynamic_uniform_buffers_per_pipeline_layout = vm_result_item.limits.max_dynamic_uniform_buffers_per_pipeline_layout;
+                        let vm_result_item_value_limits_max_dynamic_storage_buffers_per_pipeline_layout = vm_result_item.limits.max_dynamic_storage_buffers_per_pipeline_layout;
                         let vm_result_item_value_limits_max_uniform_buffer_binding_size = vm_result_item.limits.max_uniform_buffer_binding_size;
                         let vm_result_item_value_limits_max_storage_buffer_binding_size = vm_result_item.limits.max_storage_buffer_binding_size;
                         let vm_result_item_value_limits_min_storage_buffer_offset_alignment = vm_result_item.limits.min_storage_buffer_offset_alignment;
                         let vm_result_item_value_limits_min_uniform_buffer_offset_alignment = vm_result_item.limits.min_uniform_buffer_offset_alignment;
+                        let vm_result_item_value_limits_max_vertex_buffers = vm_result_item.limits.max_vertex_buffers;
+                        let vm_result_item_value_limits_max_vertex_attributes = vm_result_item.limits.max_vertex_attributes;
+                        let vm_result_item_value_limits_max_vertex_buffer_array_stride = vm_result_item.limits.max_vertex_buffer_array_stride;
+                        let vm_result_item_value_limits_max_buffer_size = vm_result_item.limits.max_buffer_size;
+                        let vm_result_item_value_limits_max_inter_stage_shader_components = vm_result_item.limits.max_inter_stage_shader_components;
+                        let vm_result_item_value_limits_max_inter_stage_shader_variables = vm_result_item.limits.max_inter_stage_shader_variables;
+                        let vm_result_item_value_limits_max_compute_workgroup_storage_size = vm_result_item.limits.max_compute_workgroup_storage_size;
+                        let vm_result_item_value_limits_max_compute_invocations_per_workgroup = vm_result_item.limits.max_compute_invocations_per_workgroup;
+                        let vm_result_item_value_limits_max_compute_workgroup_size_x = vm_result_item.limits.max_compute_workgroup_size_x;
+                        let vm_result_item_value_limits_max_compute_workgroup_size_y = vm_result_item.limits.max_compute_workgroup_size_y;
+                        let vm_result_item_value_limits_max_compute_workgroup_size_z = vm_result_item.limits.max_compute_workgroup_size_z;
+                        let vm_result_item_value_limits_max_compute_workgroups_per_dimension = vm_result_item.limits.max_compute_workgroups_per_dimension;
                         let vm_result_item_value_limits = GpuAdapterLimitsVm {
                             max_bind_groups: vm_result_item_value_limits_max_bind_groups,
+                            max_bindings_per_bind_group: vm_result_item_value_limits_max_bindings_per_bind_group,
                             max_push_constant_bytes: vm_result_item_value_limits_max_push_constant_bytes,
+                            max_texture_dimension1_d: vm_result_item_value_limits_max_texture_dimension1_d,
                             max_texture_dimension2_d: vm_result_item_value_limits_max_texture_dimension2_d,
+                            max_texture_dimension3_d: vm_result_item_value_limits_max_texture_dimension3_d,
+                            max_texture_array_layers: vm_result_item_value_limits_max_texture_array_layers,
                             max_color_attachments: vm_result_item_value_limits_max_color_attachments,
+                            max_color_attachment_bytes_per_sample: vm_result_item_value_limits_max_color_attachment_bytes_per_sample,
                             max_sampled_textures_per_stage: vm_result_item_value_limits_max_sampled_textures_per_stage,
                             max_samplers_per_stage: vm_result_item_value_limits_max_samplers_per_stage,
                             max_storage_buffers_per_stage: vm_result_item_value_limits_max_storage_buffers_per_stage,
+                            max_storage_textures_per_stage: vm_result_item_value_limits_max_storage_textures_per_stage,
                             max_uniform_buffers_per_stage: vm_result_item_value_limits_max_uniform_buffers_per_stage,
+                            max_dynamic_uniform_buffers_per_pipeline_layout: vm_result_item_value_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                            max_dynamic_storage_buffers_per_pipeline_layout: vm_result_item_value_limits_max_dynamic_storage_buffers_per_pipeline_layout,
                             max_uniform_buffer_binding_size: vm_result_item_value_limits_max_uniform_buffer_binding_size,
                             max_storage_buffer_binding_size: vm_result_item_value_limits_max_storage_buffer_binding_size,
                             min_storage_buffer_offset_alignment: vm_result_item_value_limits_min_storage_buffer_offset_alignment,
                             min_uniform_buffer_offset_alignment: vm_result_item_value_limits_min_uniform_buffer_offset_alignment,
+                            max_vertex_buffers: vm_result_item_value_limits_max_vertex_buffers,
+                            max_vertex_attributes: vm_result_item_value_limits_max_vertex_attributes,
+                            max_vertex_buffer_array_stride: vm_result_item_value_limits_max_vertex_buffer_array_stride,
+                            max_buffer_size: vm_result_item_value_limits_max_buffer_size,
+                            max_inter_stage_shader_components: vm_result_item_value_limits_max_inter_stage_shader_components,
+                            max_inter_stage_shader_variables: vm_result_item_value_limits_max_inter_stage_shader_variables,
+                            max_compute_workgroup_storage_size: vm_result_item_value_limits_max_compute_workgroup_storage_size,
+                            max_compute_invocations_per_workgroup: vm_result_item_value_limits_max_compute_invocations_per_workgroup,
+                            max_compute_workgroup_size_x: vm_result_item_value_limits_max_compute_workgroup_size_x,
+                            max_compute_workgroup_size_y: vm_result_item_value_limits_max_compute_workgroup_size_y,
+                            max_compute_workgroup_size_z: vm_result_item_value_limits_max_compute_workgroup_size_z,
+                            max_compute_workgroups_per_dimension: vm_result_item_value_limits_max_compute_workgroups_per_dimension,
                         };
                         let vm_result_item_value = GpuAdapterInfoVm {
                             id: vm_result_item_value_id,
@@ -20247,7 +22561,7 @@ fn destack_gpu_adapter_list_vm_replay(
                             features: vm_result_item_value_features,
                             limits: vm_result_item_value_limits,
                         };
-                        let vm_result_item_value_encoded = { let field_0 = vm_result_item_value.id.value(); let field_1 = vm_result_item_value.name.value(); let field_2 = vm_result_item_value.vendor.value(); let field_3 = vm_result_item_value.driver.value(); let field_4 = vm_result_item_value.driver_version.value(); let field_5 = vm::Value::uint(vm_result_item_value.backend as u8 as u64, 8); let field_6 = vm::Value::uint(vm_result_item_value.adapter_type as u8 as u64, 8); let field_7 = vm::Value::uint(vm_result_item_value.vendor_id as u64, 32); let field_8 = vm::Value::uint(vm_result_item_value.device_id as u64, 32); let field_9 = vm::Value::uint(vm_result_item_value.subgroup_min_size as u64, 32); let field_10 = vm::Value::uint(vm_result_item_value.subgroup_max_size as u64, 32); let field_11 = vm::Value::bool(vm_result_item_value.is_fallback); let field_12 = vm_result_item_value.features.to_value(context); let field_13 = { let field_0 = vm::Value::uint(vm_result_item_value.limits.max_bind_groups as u64, 32); let field_1 = vm::Value::uint(vm_result_item_value.limits.max_push_constant_bytes as u64, 32); let field_2 = vm::Value::uint(vm_result_item_value.limits.max_texture_dimension2_d as u64, 32); let field_3 = vm::Value::uint(vm_result_item_value.limits.max_color_attachments as u64, 32); let field_4 = vm::Value::uint(vm_result_item_value.limits.max_sampled_textures_per_stage as u64, 32); let field_5 = vm::Value::uint(vm_result_item_value.limits.max_samplers_per_stage as u64, 32); let field_6 = vm::Value::uint(vm_result_item_value.limits.max_storage_buffers_per_stage as u64, 32); let field_7 = vm::Value::uint(vm_result_item_value.limits.max_uniform_buffers_per_stage as u64, 32); let field_8 = vm::Value::uint(vm_result_item_value.limits.max_uniform_buffer_binding_size, 64); let field_9 = vm::Value::uint(vm_result_item_value.limits.max_storage_buffer_binding_size, 64); let field_10 = vm::Value::uint(vm_result_item_value.limits.min_storage_buffer_offset_alignment as u64, 32); let field_11 = vm::Value::uint(vm_result_item_value.limits.min_uniform_buffer_offset_alignment as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9, field_10, field_11]) }; context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9, field_10, field_11, field_12, field_13]) };
+                        let vm_result_item_value_encoded = { let field_0 = vm_result_item_value.id.value(); let field_1 = vm_result_item_value.name.value(); let field_2 = vm_result_item_value.vendor.value(); let field_3 = vm_result_item_value.driver.value(); let field_4 = vm_result_item_value.driver_version.value(); let field_5 = vm::Value::uint(vm_result_item_value.backend as u8 as u64, 8); let field_6 = vm::Value::uint(vm_result_item_value.adapter_type as u8 as u64, 8); let field_7 = vm::Value::uint(vm_result_item_value.vendor_id as u64, 32); let field_8 = vm::Value::uint(vm_result_item_value.device_id as u64, 32); let field_9 = vm::Value::uint(vm_result_item_value.subgroup_min_size as u64, 32); let field_10 = vm::Value::uint(vm_result_item_value.subgroup_max_size as u64, 32); let field_11 = vm::Value::bool(vm_result_item_value.is_fallback); let field_12 = vm_result_item_value.features.to_value(context); let field_13 = { let field_0 = vm::Value::uint(vm_result_item_value.limits.max_bind_groups as u64, 32); let field_1 = vm::Value::uint(vm_result_item_value.limits.max_bindings_per_bind_group as u64, 32); let field_2 = vm::Value::uint(vm_result_item_value.limits.max_push_constant_bytes as u64, 32); let field_3 = vm::Value::uint(vm_result_item_value.limits.max_texture_dimension1_d as u64, 32); let field_4 = vm::Value::uint(vm_result_item_value.limits.max_texture_dimension2_d as u64, 32); let field_5 = vm::Value::uint(vm_result_item_value.limits.max_texture_dimension3_d as u64, 32); let field_6 = vm::Value::uint(vm_result_item_value.limits.max_texture_array_layers as u64, 32); let field_7 = vm::Value::uint(vm_result_item_value.limits.max_color_attachments as u64, 32); let field_8 = vm::Value::uint(vm_result_item_value.limits.max_color_attachment_bytes_per_sample as u64, 32); let field_9 = vm::Value::uint(vm_result_item_value.limits.max_sampled_textures_per_stage as u64, 32); let field_10 = vm::Value::uint(vm_result_item_value.limits.max_samplers_per_stage as u64, 32); let field_11 = vm::Value::uint(vm_result_item_value.limits.max_storage_buffers_per_stage as u64, 32); let field_12 = vm::Value::uint(vm_result_item_value.limits.max_storage_textures_per_stage as u64, 32); let field_13 = vm::Value::uint(vm_result_item_value.limits.max_uniform_buffers_per_stage as u64, 32); let field_14 = vm::Value::uint(vm_result_item_value.limits.max_dynamic_uniform_buffers_per_pipeline_layout as u64, 32); let field_15 = vm::Value::uint(vm_result_item_value.limits.max_dynamic_storage_buffers_per_pipeline_layout as u64, 32); let field_16 = vm::Value::uint(vm_result_item_value.limits.max_uniform_buffer_binding_size, 64); let field_17 = vm::Value::uint(vm_result_item_value.limits.max_storage_buffer_binding_size, 64); let field_18 = vm::Value::uint(vm_result_item_value.limits.min_storage_buffer_offset_alignment as u64, 32); let field_19 = vm::Value::uint(vm_result_item_value.limits.min_uniform_buffer_offset_alignment as u64, 32); let field_20 = vm::Value::uint(vm_result_item_value.limits.max_vertex_buffers as u64, 32); let field_21 = vm::Value::uint(vm_result_item_value.limits.max_vertex_attributes as u64, 32); let field_22 = vm::Value::uint(vm_result_item_value.limits.max_vertex_buffer_array_stride as u64, 32); let field_23 = vm::Value::uint(vm_result_item_value.limits.max_buffer_size, 64); let field_24 = vm::Value::uint(vm_result_item_value.limits.max_inter_stage_shader_components as u64, 32); let field_25 = vm::Value::uint(vm_result_item_value.limits.max_inter_stage_shader_variables as u64, 32); let field_26 = vm::Value::uint(vm_result_item_value.limits.max_compute_workgroup_storage_size as u64, 32); let field_27 = vm::Value::uint(vm_result_item_value.limits.max_compute_invocations_per_workgroup as u64, 32); let field_28 = vm::Value::uint(vm_result_item_value.limits.max_compute_workgroup_size_x as u64, 32); let field_29 = vm::Value::uint(vm_result_item_value.limits.max_compute_workgroup_size_y as u64, 32); let field_30 = vm::Value::uint(vm_result_item_value.limits.max_compute_workgroup_size_z as u64, 32); let field_31 = vm::Value::uint(vm_result_item_value.limits.max_compute_workgroups_per_dimension as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16, field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24, field_25, field_26, field_27, field_28, field_29, field_30, field_31]) }; context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9, field_10, field_11, field_12, field_13]) };
                         vm_result_values.push(vm_result_item_value_encoded);
                     }
                     let vm_result_data = context.allocate_raw_values(vm_result_values);
@@ -20673,7 +22987,7 @@ fn destack_gpu_command_bind_compute_pipeline_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -20730,7 +23044,7 @@ fn destack_gpu_command_bind_render_pipeline_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -20865,8 +23179,9 @@ fn destack_gpu_command_compute_pass_begin_vm_replay(
             },
             |context, result| {
                 let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
+                if let Ok(value) = result {
+                    let result_value: resource::GpuComputePassHandle = value.clone();
+                    let result_recorded = result_value;
                     let payload = GpuCommandComputePassBeginReplay {
                         result: Ok(result_recorded),
                     };
@@ -20887,7 +23202,10 @@ fn destack_gpu_command_compute_pass_begin_vm_replay(
                 let _ = &context;
                 // replay result
                 match payload.result {
-                    Ok(()) => Ok(()),
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
                     Err(error) => Err(RuntimeError::from(error).boxed()),
                 }
             },
@@ -20901,7 +23219,7 @@ fn destack_gpu_command_compute_pass_end_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -20949,6 +23267,183 @@ fn destack_gpu_command_compute_pass_end_vm_replay(
             },
         );
     let result = encode_destack_gpu_command_compute_pass_end_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_gpu_command_compute_pass_insert_debug_marker_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::GpuComputePassHandle,
+    marker: vm::StringHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
+            runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_gpu_command_compute_pass_insert_debug_marker(
+                        runtime, context, handle, marker,
+                    )
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_gpu_command_compute_pass_insert_debug_marker(
+                        runtime, context, handle, marker,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = GpuCommandComputePassInsertDebugMarkerReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        GpuCommandComputePassInsertDebugMarkerReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result =
+        encode_destack_gpu_command_compute_pass_insert_debug_marker_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_gpu_command_compute_pass_pop_debug_group_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::GpuComputePassHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
+            runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_gpu_command_compute_pass_pop_debug_group(
+                        runtime, context, handle,
+                    )
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_gpu_command_compute_pass_pop_debug_group(
+                        runtime, context, handle,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = GpuCommandComputePassPopDebugGroupReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        GpuCommandComputePassPopDebugGroupReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_gpu_command_compute_pass_pop_debug_group_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_gpu_command_compute_pass_push_debug_group_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::GpuComputePassHandle,
+    label: vm::StringHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
+            runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_gpu_command_compute_pass_push_debug_group(
+                        runtime, context, handle, label,
+                    )
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_gpu_command_compute_pass_push_debug_group(
+                        runtime, context, handle, label,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = GpuCommandComputePassPushDebugGroupReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        GpuCommandComputePassPushDebugGroupReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_gpu_command_compute_pass_push_debug_group_result(context, result)?;
     Ok(result)
 }
 
@@ -21237,7 +23732,7 @@ fn destack_gpu_command_dispatch_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
     groupx: u32,
     groupy: u32,
     groupz: u32,
@@ -21294,7 +23789,7 @@ fn destack_gpu_command_dispatch_indirect_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
 ) -> RuntimeResult<vm::Value> {
@@ -21352,7 +23847,7 @@ fn destack_gpu_command_draw_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     vertexcount: u32,
     instancecount: u32,
     firstvertex: u32,
@@ -21422,7 +23917,7 @@ fn destack_gpu_command_draw_indexed_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     indexcount: u32,
     instancecount: u32,
     firstindex: u32,
@@ -21495,7 +23990,7 @@ fn destack_gpu_command_draw_indexed_indirect_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -21555,7 +24050,7 @@ fn destack_gpu_command_draw_indirect_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -21786,7 +24281,7 @@ fn destack_gpu_command_execute_bundles_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     bundles: VmSlice<resource::GpuRenderBundleHandle>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -21900,7 +24395,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -21960,7 +24455,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     countbuffer: resource::GpuBufferHandle,
@@ -22041,7 +24536,7 @@ fn destack_gpu_command_multi_draw_indirect_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -22101,7 +24596,7 @@ fn destack_gpu_command_multi_draw_indirect_count_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     countbuffer: resource::GpuBufferHandle,
@@ -23492,8 +25987,9 @@ fn destack_gpu_command_render_pass_begin_vm_replay(
             },
             |context, result| {
                 let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
+                if let Ok(value) = result {
+                    let result_value: resource::GpuRenderPassHandle = value.clone();
+                    let result_recorded = result_value;
                     let payload = GpuCommandRenderPassBeginReplay {
                         result: Ok(result_recorded),
                     };
@@ -23514,7 +26010,10 @@ fn destack_gpu_command_render_pass_begin_vm_replay(
                 let _ = &context;
                 // replay result
                 match payload.result {
-                    Ok(()) => Ok(()),
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
                     Err(error) => Err(RuntimeError::from(error).boxed()),
                 }
             },
@@ -23528,7 +26027,7 @@ fn destack_gpu_command_render_pass_end_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -23580,38 +26079,28 @@ fn destack_gpu_command_render_pass_end_vm_replay(
 }
 
 #[inline]
-fn destack_gpu_command_set_bind_group_vm_replay(
+fn destack_gpu_command_render_pass_insert_debug_marker_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
-    index: u32,
-    bindgroup: resource::GpuBindGroupHandle,
-    dynamicoffsets: VmSlice<u32>,
+    handle: resource::GpuRenderPassHandle,
+    marker: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_SET_BIND_GROUP,
-            runtime.replay_payload_for(GPU_COMMAND_SET_BIND_GROUP)?,
+            GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
+            runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?,
             context,
             |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_set_bind_group(
-                    runtime,
-                    context,
-                    handle,
-                    index,
-                    bindgroup,
-                    dynamicoffsets,
-                ),
+                RuntimeWorld::Host => {
+                    platform_vm::destack_gpu_command_render_pass_insert_debug_marker(
+                        runtime, context, handle, marker,
+                    )
+                }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_set_bind_group(
-                        runtime,
-                        context,
-                        handle,
-                        index,
-                        bindgroup,
-                        dynamicoffsets,
+                    platform_simulated_vm::destack_gpu_command_render_pass_insert_debug_marker(
+                        runtime, context, handle, marker,
                     )
                 }
             },
@@ -23619,7 +26108,7 @@ fn destack_gpu_command_set_bind_group_vm_replay(
                 let _ = &context;
                 if let Ok(()) = result {
                     let result_recorded = ();
-                    let payload = GpuCommandSetBindGroupReplay {
+                    let payload = GpuCommandRenderPassInsertDebugMarkerReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -23628,7 +26117,7 @@ fn destack_gpu_command_set_bind_group_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandSetBindGroupReplay { result }
+                        GpuCommandRenderPassInsertDebugMarkerReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -23644,7 +26133,123 @@ fn destack_gpu_command_set_bind_group_vm_replay(
                 }
             },
         );
-    let result = encode_destack_gpu_command_set_bind_group_result(context, result)?;
+    let result =
+        encode_destack_gpu_command_render_pass_insert_debug_marker_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_gpu_command_render_pass_pop_debug_group_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::GpuRenderPassHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP,
+            runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_gpu_command_render_pass_pop_debug_group(
+                    runtime, context, handle,
+                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_gpu_command_render_pass_pop_debug_group(
+                        runtime, context, handle,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = GpuCommandRenderPassPopDebugGroupReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        GpuCommandRenderPassPopDebugGroupReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_gpu_command_render_pass_pop_debug_group_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_gpu_command_render_pass_push_debug_group_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::GpuRenderPassHandle,
+    label: vm::StringHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
+            runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_gpu_command_render_pass_push_debug_group(
+                        runtime, context, handle, label,
+                    )
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_gpu_command_render_pass_push_debug_group(
+                        runtime, context, handle, label,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = GpuCommandRenderPassPushDebugGroupReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        GpuCommandRenderPassPushDebugGroupReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_gpu_command_render_pass_push_debug_group_result(context, result)?;
     Ok(result)
 }
 
@@ -23653,7 +26258,7 @@ fn destack_gpu_command_set_blend_constant_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     r: f64,
     g: f64,
     b: f64,
@@ -23709,11 +26314,80 @@ fn destack_gpu_command_set_blend_constant_vm_replay(
 }
 
 #[inline]
+fn destack_gpu_command_set_compute_bind_group_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::GpuComputePassHandle,
+    index: u32,
+    bindgroup: resource::GpuBindGroupHandle,
+    dynamicoffsets: VmSlice<u32>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            GPU_COMMAND_SET_COMPUTE_BIND_GROUP,
+            runtime.replay_payload_for(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_gpu_command_set_compute_bind_group(
+                    runtime,
+                    context,
+                    handle,
+                    index,
+                    bindgroup,
+                    dynamicoffsets,
+                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_gpu_command_set_compute_bind_group(
+                        runtime,
+                        context,
+                        handle,
+                        index,
+                        bindgroup,
+                        dynamicoffsets,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = GpuCommandSetComputeBindGroupReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        GpuCommandSetComputeBindGroupReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_gpu_command_set_compute_bind_group_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_gpu_command_set_index_buffer_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     format: GpuIndexFormat,
     offset: u64,
@@ -23769,11 +26443,80 @@ fn destack_gpu_command_set_index_buffer_vm_replay(
 }
 
 #[inline]
+fn destack_gpu_command_set_render_bind_group_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::GpuRenderPassHandle,
+    index: u32,
+    bindgroup: resource::GpuBindGroupHandle,
+    dynamicoffsets: VmSlice<u32>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            GPU_COMMAND_SET_RENDER_BIND_GROUP,
+            runtime.replay_payload_for(GPU_COMMAND_SET_RENDER_BIND_GROUP)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_gpu_command_set_render_bind_group(
+                    runtime,
+                    context,
+                    handle,
+                    index,
+                    bindgroup,
+                    dynamicoffsets,
+                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_gpu_command_set_render_bind_group(
+                        runtime,
+                        context,
+                        handle,
+                        index,
+                        bindgroup,
+                        dynamicoffsets,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = GpuCommandSetRenderBindGroupReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        GpuCommandSetRenderBindGroupReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_gpu_command_set_render_bind_group_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_gpu_command_set_scissor_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     x: u32,
     y: u32,
     width: u32,
@@ -23831,7 +26574,7 @@ fn destack_gpu_command_set_stencil_reference_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     reference: u32,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -23888,7 +26631,7 @@ fn destack_gpu_command_set_vertex_buffer_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     slot: u32,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -23948,7 +26691,7 @@ fn destack_gpu_command_set_viewport_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     x: f64,
     y: f64,
     width: f64,
@@ -24253,214 +26996,224 @@ fn destack_gpu_device_info_vm_replay(
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_DEVICE_INFO,
-            runtime.replay_payload_for(GPU_DEVICE_INFO)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_device_info(runtime, context, device)
+    let result = runtime.replay().run_binding_with_context_and_payload_policy(
+        GPU_DEVICE_INFO,
+        runtime.replay_payload_for(GPU_DEVICE_INFO)?,
+        context,
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_gpu_device_info(runtime, context, device),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_device_info(runtime, context, device),
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: GpuDeviceInfoVm = value.clone();
+                let result_recorded_backend = result_value.backend;
+                let result_recorded_enabled_features_raw = result_value.enabled_features.raw_values(context)?;
+                let mut result_recorded_enabled_features = Vec::with_capacity(result_recorded_enabled_features_raw.len());
+                for result_recorded_enabled_features_item_value in result_recorded_enabled_features_raw {
+                    let result_recorded_enabled_features_item_inner = decode_uint32(result_recorded_enabled_features_item_value, "result_recorded_enabled_features_item_inner", "item")?;
+                    let result_recorded_enabled_features_item = GpuFeatureId(result_recorded_enabled_features_item_inner);
+                    let result_recorded_enabled_features_item_recorded = result_recorded_enabled_features_item;
+                    result_recorded_enabled_features.push(result_recorded_enabled_features_item_recorded);
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_device_info(runtime, context, device)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: GpuDeviceInfoVm = value.clone();
-                    let result_recorded_backend = result_value.backend;
-                    let result_recorded_enabled_features_raw =
-                        result_value.enabled_features.raw_values(context)?;
-                    let mut result_recorded_enabled_features =
-                        Vec::with_capacity(result_recorded_enabled_features_raw.len());
-                    for result_recorded_enabled_features_item_value in
-                        result_recorded_enabled_features_raw
-                    {
-                        let result_recorded_enabled_features_item_inner = decode_uint32(
-                            result_recorded_enabled_features_item_value,
-                            "result_recorded_enabled_features_item_inner",
-                            "item",
-                        )?;
-                        let result_recorded_enabled_features_item =
-                            GpuFeatureId(result_recorded_enabled_features_item_inner);
-                        let result_recorded_enabled_features_item_recorded =
-                            result_recorded_enabled_features_item;
-                        result_recorded_enabled_features
-                            .push(result_recorded_enabled_features_item_recorded);
-                    }
-                    let result_recorded_effective_limits_max_bind_groups =
-                        result_value.effective_limits.max_bind_groups;
-                    let result_recorded_effective_limits_max_push_constant_bytes =
-                        result_value.effective_limits.max_push_constant_bytes;
-                    let result_recorded_effective_limits_max_texture_dimension2_d =
-                        result_value.effective_limits.max_texture_dimension2_d;
-                    let result_recorded_effective_limits_max_color_attachments =
-                        result_value.effective_limits.max_color_attachments;
-                    let result_recorded_effective_limits_max_sampled_textures_per_stage =
-                        result_value.effective_limits.max_sampled_textures_per_stage;
-                    let result_recorded_effective_limits_max_samplers_per_stage =
-                        result_value.effective_limits.max_samplers_per_stage;
-                    let result_recorded_effective_limits_max_storage_buffers_per_stage =
-                        result_value.effective_limits.max_storage_buffers_per_stage;
-                    let result_recorded_effective_limits_max_uniform_buffers_per_stage =
-                        result_value.effective_limits.max_uniform_buffers_per_stage;
-                    let result_recorded_effective_limits_max_uniform_buffer_binding_size =
-                        result_value
-                            .effective_limits
-                            .max_uniform_buffer_binding_size;
-                    let result_recorded_effective_limits_max_storage_buffer_binding_size =
-                        result_value
-                            .effective_limits
-                            .max_storage_buffer_binding_size;
-                    let result_recorded_effective_limits_min_storage_buffer_offset_alignment =
-                        result_value
-                            .effective_limits
-                            .min_storage_buffer_offset_alignment;
-                    let result_recorded_effective_limits_min_uniform_buffer_offset_alignment =
-                        result_value
-                            .effective_limits
-                            .min_uniform_buffer_offset_alignment;
-                    let result_recorded_effective_limits = GpuAdapterLimits {
-                        max_bind_groups: result_recorded_effective_limits_max_bind_groups,
-                        max_push_constant_bytes:
-                            result_recorded_effective_limits_max_push_constant_bytes,
-                        max_texture_dimension2_d:
-                            result_recorded_effective_limits_max_texture_dimension2_d,
-                        max_color_attachments:
-                            result_recorded_effective_limits_max_color_attachments,
-                        max_sampled_textures_per_stage:
-                            result_recorded_effective_limits_max_sampled_textures_per_stage,
-                        max_samplers_per_stage:
-                            result_recorded_effective_limits_max_samplers_per_stage,
-                        max_storage_buffers_per_stage:
-                            result_recorded_effective_limits_max_storage_buffers_per_stage,
-                        max_uniform_buffers_per_stage:
-                            result_recorded_effective_limits_max_uniform_buffers_per_stage,
-                        max_uniform_buffer_binding_size:
-                            result_recorded_effective_limits_max_uniform_buffer_binding_size,
-                        max_storage_buffer_binding_size:
-                            result_recorded_effective_limits_max_storage_buffer_binding_size,
-                        min_storage_buffer_offset_alignment:
-                            result_recorded_effective_limits_min_storage_buffer_offset_alignment,
-                        min_uniform_buffer_offset_alignment:
-                            result_recorded_effective_limits_min_uniform_buffer_offset_alignment,
-                    };
-                    let result_recorded_queue_count = result_value.queue_count;
-                    let result_recorded_has_timeline_sync = result_value.has_timeline_sync;
-                    let result_recorded_has_timestamp_queries = result_value.has_timestamp_queries;
-                    let result_recorded_has_push_constants = result_value.has_push_constants;
-                    let result_recorded = GpuDeviceInfoReplayRecord {
-                        backend: result_recorded_backend,
-                        enabled_features: result_recorded_enabled_features,
-                        effective_limits: result_recorded_effective_limits,
-                        queue_count: result_recorded_queue_count,
-                        has_timeline_sync: result_recorded_has_timeline_sync,
-                        has_timestamp_queries: result_recorded_has_timestamp_queries,
-                        has_push_constants: result_recorded_has_push_constants,
-                    };
-                    let payload = GpuDeviceInfoReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                let result_recorded_effective_limits_max_bind_groups = result_value.effective_limits.max_bind_groups;
+                let result_recorded_effective_limits_max_bindings_per_bind_group = result_value.effective_limits.max_bindings_per_bind_group;
+                let result_recorded_effective_limits_max_push_constant_bytes = result_value.effective_limits.max_push_constant_bytes;
+                let result_recorded_effective_limits_max_texture_dimension1_d = result_value.effective_limits.max_texture_dimension1_d;
+                let result_recorded_effective_limits_max_texture_dimension2_d = result_value.effective_limits.max_texture_dimension2_d;
+                let result_recorded_effective_limits_max_texture_dimension3_d = result_value.effective_limits.max_texture_dimension3_d;
+                let result_recorded_effective_limits_max_texture_array_layers = result_value.effective_limits.max_texture_array_layers;
+                let result_recorded_effective_limits_max_color_attachments = result_value.effective_limits.max_color_attachments;
+                let result_recorded_effective_limits_max_color_attachment_bytes_per_sample = result_value.effective_limits.max_color_attachment_bytes_per_sample;
+                let result_recorded_effective_limits_max_sampled_textures_per_stage = result_value.effective_limits.max_sampled_textures_per_stage;
+                let result_recorded_effective_limits_max_samplers_per_stage = result_value.effective_limits.max_samplers_per_stage;
+                let result_recorded_effective_limits_max_storage_buffers_per_stage = result_value.effective_limits.max_storage_buffers_per_stage;
+                let result_recorded_effective_limits_max_storage_textures_per_stage = result_value.effective_limits.max_storage_textures_per_stage;
+                let result_recorded_effective_limits_max_uniform_buffers_per_stage = result_value.effective_limits.max_uniform_buffers_per_stage;
+                let result_recorded_effective_limits_max_dynamic_uniform_buffers_per_pipeline_layout = result_value.effective_limits.max_dynamic_uniform_buffers_per_pipeline_layout;
+                let result_recorded_effective_limits_max_dynamic_storage_buffers_per_pipeline_layout = result_value.effective_limits.max_dynamic_storage_buffers_per_pipeline_layout;
+                let result_recorded_effective_limits_max_uniform_buffer_binding_size = result_value.effective_limits.max_uniform_buffer_binding_size;
+                let result_recorded_effective_limits_max_storage_buffer_binding_size = result_value.effective_limits.max_storage_buffer_binding_size;
+                let result_recorded_effective_limits_min_storage_buffer_offset_alignment = result_value.effective_limits.min_storage_buffer_offset_alignment;
+                let result_recorded_effective_limits_min_uniform_buffer_offset_alignment = result_value.effective_limits.min_uniform_buffer_offset_alignment;
+                let result_recorded_effective_limits_max_vertex_buffers = result_value.effective_limits.max_vertex_buffers;
+                let result_recorded_effective_limits_max_vertex_attributes = result_value.effective_limits.max_vertex_attributes;
+                let result_recorded_effective_limits_max_vertex_buffer_array_stride = result_value.effective_limits.max_vertex_buffer_array_stride;
+                let result_recorded_effective_limits_max_buffer_size = result_value.effective_limits.max_buffer_size;
+                let result_recorded_effective_limits_max_inter_stage_shader_components = result_value.effective_limits.max_inter_stage_shader_components;
+                let result_recorded_effective_limits_max_inter_stage_shader_variables = result_value.effective_limits.max_inter_stage_shader_variables;
+                let result_recorded_effective_limits_max_compute_workgroup_storage_size = result_value.effective_limits.max_compute_workgroup_storage_size;
+                let result_recorded_effective_limits_max_compute_invocations_per_workgroup = result_value.effective_limits.max_compute_invocations_per_workgroup;
+                let result_recorded_effective_limits_max_compute_workgroup_size_x = result_value.effective_limits.max_compute_workgroup_size_x;
+                let result_recorded_effective_limits_max_compute_workgroup_size_y = result_value.effective_limits.max_compute_workgroup_size_y;
+                let result_recorded_effective_limits_max_compute_workgroup_size_z = result_value.effective_limits.max_compute_workgroup_size_z;
+                let result_recorded_effective_limits_max_compute_workgroups_per_dimension = result_value.effective_limits.max_compute_workgroups_per_dimension;
+                let result_recorded_effective_limits = GpuAdapterLimits {
+                    max_bind_groups: result_recorded_effective_limits_max_bind_groups,
+                    max_bindings_per_bind_group: result_recorded_effective_limits_max_bindings_per_bind_group,
+                    max_push_constant_bytes: result_recorded_effective_limits_max_push_constant_bytes,
+                    max_texture_dimension1_d: result_recorded_effective_limits_max_texture_dimension1_d,
+                    max_texture_dimension2_d: result_recorded_effective_limits_max_texture_dimension2_d,
+                    max_texture_dimension3_d: result_recorded_effective_limits_max_texture_dimension3_d,
+                    max_texture_array_layers: result_recorded_effective_limits_max_texture_array_layers,
+                    max_color_attachments: result_recorded_effective_limits_max_color_attachments,
+                    max_color_attachment_bytes_per_sample: result_recorded_effective_limits_max_color_attachment_bytes_per_sample,
+                    max_sampled_textures_per_stage: result_recorded_effective_limits_max_sampled_textures_per_stage,
+                    max_samplers_per_stage: result_recorded_effective_limits_max_samplers_per_stage,
+                    max_storage_buffers_per_stage: result_recorded_effective_limits_max_storage_buffers_per_stage,
+                    max_storage_textures_per_stage: result_recorded_effective_limits_max_storage_textures_per_stage,
+                    max_uniform_buffers_per_stage: result_recorded_effective_limits_max_uniform_buffers_per_stage,
+                    max_dynamic_uniform_buffers_per_pipeline_layout: result_recorded_effective_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                    max_dynamic_storage_buffers_per_pipeline_layout: result_recorded_effective_limits_max_dynamic_storage_buffers_per_pipeline_layout,
+                    max_uniform_buffer_binding_size: result_recorded_effective_limits_max_uniform_buffer_binding_size,
+                    max_storage_buffer_binding_size: result_recorded_effective_limits_max_storage_buffer_binding_size,
+                    min_storage_buffer_offset_alignment: result_recorded_effective_limits_min_storage_buffer_offset_alignment,
+                    min_uniform_buffer_offset_alignment: result_recorded_effective_limits_min_uniform_buffer_offset_alignment,
+                    max_vertex_buffers: result_recorded_effective_limits_max_vertex_buffers,
+                    max_vertex_attributes: result_recorded_effective_limits_max_vertex_attributes,
+                    max_vertex_buffer_array_stride: result_recorded_effective_limits_max_vertex_buffer_array_stride,
+                    max_buffer_size: result_recorded_effective_limits_max_buffer_size,
+                    max_inter_stage_shader_components: result_recorded_effective_limits_max_inter_stage_shader_components,
+                    max_inter_stage_shader_variables: result_recorded_effective_limits_max_inter_stage_shader_variables,
+                    max_compute_workgroup_storage_size: result_recorded_effective_limits_max_compute_workgroup_storage_size,
+                    max_compute_invocations_per_workgroup: result_recorded_effective_limits_max_compute_invocations_per_workgroup,
+                    max_compute_workgroup_size_x: result_recorded_effective_limits_max_compute_workgroup_size_x,
+                    max_compute_workgroup_size_y: result_recorded_effective_limits_max_compute_workgroup_size_y,
+                    max_compute_workgroup_size_z: result_recorded_effective_limits_max_compute_workgroup_size_z,
+                    max_compute_workgroups_per_dimension: result_recorded_effective_limits_max_compute_workgroups_per_dimension,
+                };
+                let result_recorded_queue_count = result_value.queue_count;
+                let result_recorded_has_timeline_sync = result_value.has_timeline_sync;
+                let result_recorded_has_timestamp_queries = result_value.has_timestamp_queries;
+                let result_recorded_has_push_constants = result_value.has_push_constants;
+                let result_recorded = GpuDeviceInfoReplayRecord {
+                    backend: result_recorded_backend,
+                    enabled_features: result_recorded_enabled_features,
+                    effective_limits: result_recorded_effective_limits,
+                    queue_count: result_recorded_queue_count,
+                    has_timeline_sync: result_recorded_has_timeline_sync,
+                    has_timestamp_queries: result_recorded_has_timestamp_queries,
+                    has_push_constants: result_recorded_has_push_constants,
+                };
+                let payload = GpuDeviceInfoReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuDeviceInfoReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_backend = value.backend;
-                        let mut vm_result_enabled_features_values =
-                            Vec::with_capacity(value.enabled_features.len());
-                        for vm_result_enabled_features_item in value.enabled_features.iter() {
-                            let vm_result_enabled_features_item = *vm_result_enabled_features_item;
-                            let vm_result_enabled_features_item_value =
-                                vm_result_enabled_features_item;
-                            vm_result_enabled_features_values
-                                .push(vm_result_enabled_features_item_value);
-                        }
-                        let vm_result_enabled_features =
-                            VmSlice::from_values(context, &vm_result_enabled_features_values)?;
-                        let vm_result_effective_limits_max_bind_groups =
-                            value.effective_limits.max_bind_groups;
-                        let vm_result_effective_limits_max_push_constant_bytes =
-                            value.effective_limits.max_push_constant_bytes;
-                        let vm_result_effective_limits_max_texture_dimension2_d =
-                            value.effective_limits.max_texture_dimension2_d;
-                        let vm_result_effective_limits_max_color_attachments =
-                            value.effective_limits.max_color_attachments;
-                        let vm_result_effective_limits_max_sampled_textures_per_stage =
-                            value.effective_limits.max_sampled_textures_per_stage;
-                        let vm_result_effective_limits_max_samplers_per_stage =
-                            value.effective_limits.max_samplers_per_stage;
-                        let vm_result_effective_limits_max_storage_buffers_per_stage =
-                            value.effective_limits.max_storage_buffers_per_stage;
-                        let vm_result_effective_limits_max_uniform_buffers_per_stage =
-                            value.effective_limits.max_uniform_buffers_per_stage;
-                        let vm_result_effective_limits_max_uniform_buffer_binding_size =
-                            value.effective_limits.max_uniform_buffer_binding_size;
-                        let vm_result_effective_limits_max_storage_buffer_binding_size =
-                            value.effective_limits.max_storage_buffer_binding_size;
-                        let vm_result_effective_limits_min_storage_buffer_offset_alignment =
-                            value.effective_limits.min_storage_buffer_offset_alignment;
-                        let vm_result_effective_limits_min_uniform_buffer_offset_alignment =
-                            value.effective_limits.min_uniform_buffer_offset_alignment;
-                        let vm_result_effective_limits = GpuAdapterLimitsVm {
-                            max_bind_groups: vm_result_effective_limits_max_bind_groups,
-                            max_push_constant_bytes:
-                                vm_result_effective_limits_max_push_constant_bytes,
-                            max_texture_dimension2_d:
-                                vm_result_effective_limits_max_texture_dimension2_d,
-                            max_color_attachments: vm_result_effective_limits_max_color_attachments,
-                            max_sampled_textures_per_stage:
-                                vm_result_effective_limits_max_sampled_textures_per_stage,
-                            max_samplers_per_stage:
-                                vm_result_effective_limits_max_samplers_per_stage,
-                            max_storage_buffers_per_stage:
-                                vm_result_effective_limits_max_storage_buffers_per_stage,
-                            max_uniform_buffers_per_stage:
-                                vm_result_effective_limits_max_uniform_buffers_per_stage,
-                            max_uniform_buffer_binding_size:
-                                vm_result_effective_limits_max_uniform_buffer_binding_size,
-                            max_storage_buffer_binding_size:
-                                vm_result_effective_limits_max_storage_buffer_binding_size,
-                            min_storage_buffer_offset_alignment:
-                                vm_result_effective_limits_min_storage_buffer_offset_alignment,
-                            min_uniform_buffer_offset_alignment:
-                                vm_result_effective_limits_min_uniform_buffer_offset_alignment,
-                        };
-                        let vm_result_queue_count = value.queue_count;
-                        let vm_result_has_timeline_sync = value.has_timeline_sync;
-                        let vm_result_has_timestamp_queries = value.has_timestamp_queries;
-                        let vm_result_has_push_constants = value.has_push_constants;
-                        let vm_result = GpuDeviceInfoVm {
-                            backend: vm_result_backend,
-                            enabled_features: vm_result_enabled_features,
-                            effective_limits: vm_result_effective_limits,
-                            queue_count: vm_result_queue_count,
-                            has_timeline_sync: vm_result_has_timeline_sync,
-                            has_timestamp_queries: vm_result_has_timestamp_queries,
-                            has_push_constants: vm_result_has_push_constants,
-                        };
-                        Ok(vm_result)
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuDeviceInfoReplay {
+                        result,
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_backend = value.backend;
+                    let mut vm_result_enabled_features_values = Vec::with_capacity(value.enabled_features.len());
+                    for vm_result_enabled_features_item in value.enabled_features.iter() {
+                        let vm_result_enabled_features_item = *vm_result_enabled_features_item;
+                        let vm_result_enabled_features_item_value = vm_result_enabled_features_item;
+                        vm_result_enabled_features_values.push(vm_result_enabled_features_item_value);
+                    }
+                    let vm_result_enabled_features = VmSlice::from_values(context, &vm_result_enabled_features_values)?;
+                    let vm_result_effective_limits_max_bind_groups = value.effective_limits.max_bind_groups;
+                    let vm_result_effective_limits_max_bindings_per_bind_group = value.effective_limits.max_bindings_per_bind_group;
+                    let vm_result_effective_limits_max_push_constant_bytes = value.effective_limits.max_push_constant_bytes;
+                    let vm_result_effective_limits_max_texture_dimension1_d = value.effective_limits.max_texture_dimension1_d;
+                    let vm_result_effective_limits_max_texture_dimension2_d = value.effective_limits.max_texture_dimension2_d;
+                    let vm_result_effective_limits_max_texture_dimension3_d = value.effective_limits.max_texture_dimension3_d;
+                    let vm_result_effective_limits_max_texture_array_layers = value.effective_limits.max_texture_array_layers;
+                    let vm_result_effective_limits_max_color_attachments = value.effective_limits.max_color_attachments;
+                    let vm_result_effective_limits_max_color_attachment_bytes_per_sample = value.effective_limits.max_color_attachment_bytes_per_sample;
+                    let vm_result_effective_limits_max_sampled_textures_per_stage = value.effective_limits.max_sampled_textures_per_stage;
+                    let vm_result_effective_limits_max_samplers_per_stage = value.effective_limits.max_samplers_per_stage;
+                    let vm_result_effective_limits_max_storage_buffers_per_stage = value.effective_limits.max_storage_buffers_per_stage;
+                    let vm_result_effective_limits_max_storage_textures_per_stage = value.effective_limits.max_storage_textures_per_stage;
+                    let vm_result_effective_limits_max_uniform_buffers_per_stage = value.effective_limits.max_uniform_buffers_per_stage;
+                    let vm_result_effective_limits_max_dynamic_uniform_buffers_per_pipeline_layout = value.effective_limits.max_dynamic_uniform_buffers_per_pipeline_layout;
+                    let vm_result_effective_limits_max_dynamic_storage_buffers_per_pipeline_layout = value.effective_limits.max_dynamic_storage_buffers_per_pipeline_layout;
+                    let vm_result_effective_limits_max_uniform_buffer_binding_size = value.effective_limits.max_uniform_buffer_binding_size;
+                    let vm_result_effective_limits_max_storage_buffer_binding_size = value.effective_limits.max_storage_buffer_binding_size;
+                    let vm_result_effective_limits_min_storage_buffer_offset_alignment = value.effective_limits.min_storage_buffer_offset_alignment;
+                    let vm_result_effective_limits_min_uniform_buffer_offset_alignment = value.effective_limits.min_uniform_buffer_offset_alignment;
+                    let vm_result_effective_limits_max_vertex_buffers = value.effective_limits.max_vertex_buffers;
+                    let vm_result_effective_limits_max_vertex_attributes = value.effective_limits.max_vertex_attributes;
+                    let vm_result_effective_limits_max_vertex_buffer_array_stride = value.effective_limits.max_vertex_buffer_array_stride;
+                    let vm_result_effective_limits_max_buffer_size = value.effective_limits.max_buffer_size;
+                    let vm_result_effective_limits_max_inter_stage_shader_components = value.effective_limits.max_inter_stage_shader_components;
+                    let vm_result_effective_limits_max_inter_stage_shader_variables = value.effective_limits.max_inter_stage_shader_variables;
+                    let vm_result_effective_limits_max_compute_workgroup_storage_size = value.effective_limits.max_compute_workgroup_storage_size;
+                    let vm_result_effective_limits_max_compute_invocations_per_workgroup = value.effective_limits.max_compute_invocations_per_workgroup;
+                    let vm_result_effective_limits_max_compute_workgroup_size_x = value.effective_limits.max_compute_workgroup_size_x;
+                    let vm_result_effective_limits_max_compute_workgroup_size_y = value.effective_limits.max_compute_workgroup_size_y;
+                    let vm_result_effective_limits_max_compute_workgroup_size_z = value.effective_limits.max_compute_workgroup_size_z;
+                    let vm_result_effective_limits_max_compute_workgroups_per_dimension = value.effective_limits.max_compute_workgroups_per_dimension;
+                    let vm_result_effective_limits = GpuAdapterLimitsVm {
+                        max_bind_groups: vm_result_effective_limits_max_bind_groups,
+                        max_bindings_per_bind_group: vm_result_effective_limits_max_bindings_per_bind_group,
+                        max_push_constant_bytes: vm_result_effective_limits_max_push_constant_bytes,
+                        max_texture_dimension1_d: vm_result_effective_limits_max_texture_dimension1_d,
+                        max_texture_dimension2_d: vm_result_effective_limits_max_texture_dimension2_d,
+                        max_texture_dimension3_d: vm_result_effective_limits_max_texture_dimension3_d,
+                        max_texture_array_layers: vm_result_effective_limits_max_texture_array_layers,
+                        max_color_attachments: vm_result_effective_limits_max_color_attachments,
+                        max_color_attachment_bytes_per_sample: vm_result_effective_limits_max_color_attachment_bytes_per_sample,
+                        max_sampled_textures_per_stage: vm_result_effective_limits_max_sampled_textures_per_stage,
+                        max_samplers_per_stage: vm_result_effective_limits_max_samplers_per_stage,
+                        max_storage_buffers_per_stage: vm_result_effective_limits_max_storage_buffers_per_stage,
+                        max_storage_textures_per_stage: vm_result_effective_limits_max_storage_textures_per_stage,
+                        max_uniform_buffers_per_stage: vm_result_effective_limits_max_uniform_buffers_per_stage,
+                        max_dynamic_uniform_buffers_per_pipeline_layout: vm_result_effective_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                        max_dynamic_storage_buffers_per_pipeline_layout: vm_result_effective_limits_max_dynamic_storage_buffers_per_pipeline_layout,
+                        max_uniform_buffer_binding_size: vm_result_effective_limits_max_uniform_buffer_binding_size,
+                        max_storage_buffer_binding_size: vm_result_effective_limits_max_storage_buffer_binding_size,
+                        min_storage_buffer_offset_alignment: vm_result_effective_limits_min_storage_buffer_offset_alignment,
+                        min_uniform_buffer_offset_alignment: vm_result_effective_limits_min_uniform_buffer_offset_alignment,
+                        max_vertex_buffers: vm_result_effective_limits_max_vertex_buffers,
+                        max_vertex_attributes: vm_result_effective_limits_max_vertex_attributes,
+                        max_vertex_buffer_array_stride: vm_result_effective_limits_max_vertex_buffer_array_stride,
+                        max_buffer_size: vm_result_effective_limits_max_buffer_size,
+                        max_inter_stage_shader_components: vm_result_effective_limits_max_inter_stage_shader_components,
+                        max_inter_stage_shader_variables: vm_result_effective_limits_max_inter_stage_shader_variables,
+                        max_compute_workgroup_storage_size: vm_result_effective_limits_max_compute_workgroup_storage_size,
+                        max_compute_invocations_per_workgroup: vm_result_effective_limits_max_compute_invocations_per_workgroup,
+                        max_compute_workgroup_size_x: vm_result_effective_limits_max_compute_workgroup_size_x,
+                        max_compute_workgroup_size_y: vm_result_effective_limits_max_compute_workgroup_size_y,
+                        max_compute_workgroup_size_z: vm_result_effective_limits_max_compute_workgroup_size_z,
+                        max_compute_workgroups_per_dimension: vm_result_effective_limits_max_compute_workgroups_per_dimension,
+                    };
+                    let vm_result_queue_count = value.queue_count;
+                    let vm_result_has_timeline_sync = value.has_timeline_sync;
+                    let vm_result_has_timestamp_queries = value.has_timestamp_queries;
+                    let vm_result_has_push_constants = value.has_push_constants;
+                    let vm_result = GpuDeviceInfoVm {
+                        backend: vm_result_backend,
+                        enabled_features: vm_result_enabled_features,
+                        effective_limits: vm_result_effective_limits,
+                        queue_count: vm_result_queue_count,
+                        has_timeline_sync: vm_result_has_timeline_sync,
+                        has_timestamp_queries: vm_result_has_timestamp_queries,
+                        has_push_constants: vm_result_has_push_constants,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_device_info_result(context, result)?;
     Ok(result)
 }
@@ -24491,19 +27244,35 @@ fn destack_gpu_device_limits_vm_replay(
                 if let Ok(value) = result {
                     let result_value: GpuAdapterLimitsVm = value.clone();
                     let result_recorded_max_bind_groups = result_value.max_bind_groups;
+                    let result_recorded_max_bindings_per_bind_group =
+                        result_value.max_bindings_per_bind_group;
                     let result_recorded_max_push_constant_bytes =
                         result_value.max_push_constant_bytes;
+                    let result_recorded_max_texture_dimension1_d =
+                        result_value.max_texture_dimension1_d;
                     let result_recorded_max_texture_dimension2_d =
                         result_value.max_texture_dimension2_d;
+                    let result_recorded_max_texture_dimension3_d =
+                        result_value.max_texture_dimension3_d;
+                    let result_recorded_max_texture_array_layers =
+                        result_value.max_texture_array_layers;
                     let result_recorded_max_color_attachments = result_value.max_color_attachments;
+                    let result_recorded_max_color_attachment_bytes_per_sample =
+                        result_value.max_color_attachment_bytes_per_sample;
                     let result_recorded_max_sampled_textures_per_stage =
                         result_value.max_sampled_textures_per_stage;
                     let result_recorded_max_samplers_per_stage =
                         result_value.max_samplers_per_stage;
                     let result_recorded_max_storage_buffers_per_stage =
                         result_value.max_storage_buffers_per_stage;
+                    let result_recorded_max_storage_textures_per_stage =
+                        result_value.max_storage_textures_per_stage;
                     let result_recorded_max_uniform_buffers_per_stage =
                         result_value.max_uniform_buffers_per_stage;
+                    let result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout =
+                        result_value.max_dynamic_uniform_buffers_per_pipeline_layout;
+                    let result_recorded_max_dynamic_storage_buffers_per_pipeline_layout =
+                        result_value.max_dynamic_storage_buffers_per_pipeline_layout;
                     let result_recorded_max_uniform_buffer_binding_size =
                         result_value.max_uniform_buffer_binding_size;
                     let result_recorded_max_storage_buffer_binding_size =
@@ -24512,18 +27281,51 @@ fn destack_gpu_device_limits_vm_replay(
                         result_value.min_storage_buffer_offset_alignment;
                     let result_recorded_min_uniform_buffer_offset_alignment =
                         result_value.min_uniform_buffer_offset_alignment;
+                    let result_recorded_max_vertex_buffers = result_value.max_vertex_buffers;
+                    let result_recorded_max_vertex_attributes = result_value.max_vertex_attributes;
+                    let result_recorded_max_vertex_buffer_array_stride =
+                        result_value.max_vertex_buffer_array_stride;
+                    let result_recorded_max_buffer_size = result_value.max_buffer_size;
+                    let result_recorded_max_inter_stage_shader_components =
+                        result_value.max_inter_stage_shader_components;
+                    let result_recorded_max_inter_stage_shader_variables =
+                        result_value.max_inter_stage_shader_variables;
+                    let result_recorded_max_compute_workgroup_storage_size =
+                        result_value.max_compute_workgroup_storage_size;
+                    let result_recorded_max_compute_invocations_per_workgroup =
+                        result_value.max_compute_invocations_per_workgroup;
+                    let result_recorded_max_compute_workgroup_size_x =
+                        result_value.max_compute_workgroup_size_x;
+                    let result_recorded_max_compute_workgroup_size_y =
+                        result_value.max_compute_workgroup_size_y;
+                    let result_recorded_max_compute_workgroup_size_z =
+                        result_value.max_compute_workgroup_size_z;
+                    let result_recorded_max_compute_workgroups_per_dimension =
+                        result_value.max_compute_workgroups_per_dimension;
                     let result_recorded = GpuAdapterLimits {
                         max_bind_groups: result_recorded_max_bind_groups,
+                        max_bindings_per_bind_group: result_recorded_max_bindings_per_bind_group,
                         max_push_constant_bytes: result_recorded_max_push_constant_bytes,
+                        max_texture_dimension1_d: result_recorded_max_texture_dimension1_d,
                         max_texture_dimension2_d: result_recorded_max_texture_dimension2_d,
+                        max_texture_dimension3_d: result_recorded_max_texture_dimension3_d,
+                        max_texture_array_layers: result_recorded_max_texture_array_layers,
                         max_color_attachments: result_recorded_max_color_attachments,
+                        max_color_attachment_bytes_per_sample:
+                            result_recorded_max_color_attachment_bytes_per_sample,
                         max_sampled_textures_per_stage:
                             result_recorded_max_sampled_textures_per_stage,
                         max_samplers_per_stage: result_recorded_max_samplers_per_stage,
                         max_storage_buffers_per_stage:
                             result_recorded_max_storage_buffers_per_stage,
+                        max_storage_textures_per_stage:
+                            result_recorded_max_storage_textures_per_stage,
                         max_uniform_buffers_per_stage:
                             result_recorded_max_uniform_buffers_per_stage,
+                        max_dynamic_uniform_buffers_per_pipeline_layout:
+                            result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout,
+                        max_dynamic_storage_buffers_per_pipeline_layout:
+                            result_recorded_max_dynamic_storage_buffers_per_pipeline_layout,
                         max_uniform_buffer_binding_size:
                             result_recorded_max_uniform_buffer_binding_size,
                         max_storage_buffer_binding_size:
@@ -24532,6 +27334,24 @@ fn destack_gpu_device_limits_vm_replay(
                             result_recorded_min_storage_buffer_offset_alignment,
                         min_uniform_buffer_offset_alignment:
                             result_recorded_min_uniform_buffer_offset_alignment,
+                        max_vertex_buffers: result_recorded_max_vertex_buffers,
+                        max_vertex_attributes: result_recorded_max_vertex_attributes,
+                        max_vertex_buffer_array_stride:
+                            result_recorded_max_vertex_buffer_array_stride,
+                        max_buffer_size: result_recorded_max_buffer_size,
+                        max_inter_stage_shader_components:
+                            result_recorded_max_inter_stage_shader_components,
+                        max_inter_stage_shader_variables:
+                            result_recorded_max_inter_stage_shader_variables,
+                        max_compute_workgroup_storage_size:
+                            result_recorded_max_compute_workgroup_storage_size,
+                        max_compute_invocations_per_workgroup:
+                            result_recorded_max_compute_invocations_per_workgroup,
+                        max_compute_workgroup_size_x: result_recorded_max_compute_workgroup_size_x,
+                        max_compute_workgroup_size_y: result_recorded_max_compute_workgroup_size_y,
+                        max_compute_workgroup_size_z: result_recorded_max_compute_workgroup_size_z,
+                        max_compute_workgroups_per_dimension:
+                            result_recorded_max_compute_workgroups_per_dimension,
                     };
                     let payload = GpuDeviceLimitsReplay {
                         result: Ok(result_recorded),
@@ -24555,16 +27375,29 @@ fn destack_gpu_device_limits_vm_replay(
                 match payload.result {
                     Ok(value) => {
                         let vm_result_max_bind_groups = value.max_bind_groups;
+                        let vm_result_max_bindings_per_bind_group =
+                            value.max_bindings_per_bind_group;
                         let vm_result_max_push_constant_bytes = value.max_push_constant_bytes;
+                        let vm_result_max_texture_dimension1_d = value.max_texture_dimension1_d;
                         let vm_result_max_texture_dimension2_d = value.max_texture_dimension2_d;
+                        let vm_result_max_texture_dimension3_d = value.max_texture_dimension3_d;
+                        let vm_result_max_texture_array_layers = value.max_texture_array_layers;
                         let vm_result_max_color_attachments = value.max_color_attachments;
+                        let vm_result_max_color_attachment_bytes_per_sample =
+                            value.max_color_attachment_bytes_per_sample;
                         let vm_result_max_sampled_textures_per_stage =
                             value.max_sampled_textures_per_stage;
                         let vm_result_max_samplers_per_stage = value.max_samplers_per_stage;
                         let vm_result_max_storage_buffers_per_stage =
                             value.max_storage_buffers_per_stage;
+                        let vm_result_max_storage_textures_per_stage =
+                            value.max_storage_textures_per_stage;
                         let vm_result_max_uniform_buffers_per_stage =
                             value.max_uniform_buffers_per_stage;
+                        let vm_result_max_dynamic_uniform_buffers_per_pipeline_layout =
+                            value.max_dynamic_uniform_buffers_per_pipeline_layout;
+                        let vm_result_max_dynamic_storage_buffers_per_pipeline_layout =
+                            value.max_dynamic_storage_buffers_per_pipeline_layout;
                         let vm_result_max_uniform_buffer_binding_size =
                             value.max_uniform_buffer_binding_size;
                         let vm_result_max_storage_buffer_binding_size =
@@ -24573,16 +27406,49 @@ fn destack_gpu_device_limits_vm_replay(
                             value.min_storage_buffer_offset_alignment;
                         let vm_result_min_uniform_buffer_offset_alignment =
                             value.min_uniform_buffer_offset_alignment;
+                        let vm_result_max_vertex_buffers = value.max_vertex_buffers;
+                        let vm_result_max_vertex_attributes = value.max_vertex_attributes;
+                        let vm_result_max_vertex_buffer_array_stride =
+                            value.max_vertex_buffer_array_stride;
+                        let vm_result_max_buffer_size = value.max_buffer_size;
+                        let vm_result_max_inter_stage_shader_components =
+                            value.max_inter_stage_shader_components;
+                        let vm_result_max_inter_stage_shader_variables =
+                            value.max_inter_stage_shader_variables;
+                        let vm_result_max_compute_workgroup_storage_size =
+                            value.max_compute_workgroup_storage_size;
+                        let vm_result_max_compute_invocations_per_workgroup =
+                            value.max_compute_invocations_per_workgroup;
+                        let vm_result_max_compute_workgroup_size_x =
+                            value.max_compute_workgroup_size_x;
+                        let vm_result_max_compute_workgroup_size_y =
+                            value.max_compute_workgroup_size_y;
+                        let vm_result_max_compute_workgroup_size_z =
+                            value.max_compute_workgroup_size_z;
+                        let vm_result_max_compute_workgroups_per_dimension =
+                            value.max_compute_workgroups_per_dimension;
                         let vm_result = GpuAdapterLimitsVm {
                             max_bind_groups: vm_result_max_bind_groups,
+                            max_bindings_per_bind_group: vm_result_max_bindings_per_bind_group,
                             max_push_constant_bytes: vm_result_max_push_constant_bytes,
+                            max_texture_dimension1_d: vm_result_max_texture_dimension1_d,
                             max_texture_dimension2_d: vm_result_max_texture_dimension2_d,
+                            max_texture_dimension3_d: vm_result_max_texture_dimension3_d,
+                            max_texture_array_layers: vm_result_max_texture_array_layers,
                             max_color_attachments: vm_result_max_color_attachments,
+                            max_color_attachment_bytes_per_sample:
+                                vm_result_max_color_attachment_bytes_per_sample,
                             max_sampled_textures_per_stage:
                                 vm_result_max_sampled_textures_per_stage,
                             max_samplers_per_stage: vm_result_max_samplers_per_stage,
                             max_storage_buffers_per_stage: vm_result_max_storage_buffers_per_stage,
+                            max_storage_textures_per_stage:
+                                vm_result_max_storage_textures_per_stage,
                             max_uniform_buffers_per_stage: vm_result_max_uniform_buffers_per_stage,
+                            max_dynamic_uniform_buffers_per_pipeline_layout:
+                                vm_result_max_dynamic_uniform_buffers_per_pipeline_layout,
+                            max_dynamic_storage_buffers_per_pipeline_layout:
+                                vm_result_max_dynamic_storage_buffers_per_pipeline_layout,
                             max_uniform_buffer_binding_size:
                                 vm_result_max_uniform_buffer_binding_size,
                             max_storage_buffer_binding_size:
@@ -24591,6 +27457,24 @@ fn destack_gpu_device_limits_vm_replay(
                                 vm_result_min_storage_buffer_offset_alignment,
                             min_uniform_buffer_offset_alignment:
                                 vm_result_min_uniform_buffer_offset_alignment,
+                            max_vertex_buffers: vm_result_max_vertex_buffers,
+                            max_vertex_attributes: vm_result_max_vertex_attributes,
+                            max_vertex_buffer_array_stride:
+                                vm_result_max_vertex_buffer_array_stride,
+                            max_buffer_size: vm_result_max_buffer_size,
+                            max_inter_stage_shader_components:
+                                vm_result_max_inter_stage_shader_components,
+                            max_inter_stage_shader_variables:
+                                vm_result_max_inter_stage_shader_variables,
+                            max_compute_workgroup_storage_size:
+                                vm_result_max_compute_workgroup_storage_size,
+                            max_compute_invocations_per_workgroup:
+                                vm_result_max_compute_invocations_per_workgroup,
+                            max_compute_workgroup_size_x: vm_result_max_compute_workgroup_size_x,
+                            max_compute_workgroup_size_y: vm_result_max_compute_workgroup_size_y,
+                            max_compute_workgroup_size_z: vm_result_max_compute_workgroup_size_z,
+                            max_compute_workgroups_per_dimension:
+                                vm_result_max_compute_workgroups_per_dimension,
                         };
                         Ok(vm_result)
                     }
@@ -26460,11 +29344,67 @@ fn destack_gpu_resource_texture_view_destroy_vm_replay(
 }
 
 #[inline]
+fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    computepass: resource::GpuComputePassHandle,
+    queryset: resource::GpuQuerySetHandle,
+    queryindex: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_and_payload_policy(
+        GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY,
+        runtime.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
+        context,
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_gpu_command_begin_compute_pipeline_statistics_query(runtime, context, computepass, queryset, queryindex),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_command_begin_compute_pipeline_statistics_query(runtime, context, computepass, queryset, queryindex),
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuSyncCommandBeginComputePipelineStatisticsQueryReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncCommandBeginComputePipelineStatisticsQueryReplay {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_gpu_sync_command_begin_compute_pipeline_statistics_query_result(
+        context, result,
+    )?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_gpu_sync_command_begin_occlusion_query_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    commandlist: resource::GpuCommandListHandle,
+    renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<vm::Value> {
@@ -26476,19 +29416,11 @@ fn destack_gpu_sync_command_begin_occlusion_query_vm_replay(
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_gpu_command_begin_occlusion_query(
-                    runtime,
-                    context,
-                    commandlist,
-                    queryset,
-                    queryindex,
+                    runtime, context, renderpass, queryset, queryindex,
                 ),
                 RuntimeWorld::Simulated => {
                     platform_simulated_vm::destack_gpu_command_begin_occlusion_query(
-                        runtime,
-                        context,
-                        commandlist,
-                        queryset,
-                        queryindex,
+                        runtime, context, renderpass, queryset, queryindex,
                     )
                 }
             },
@@ -26526,71 +29458,112 @@ fn destack_gpu_sync_command_begin_occlusion_query_vm_replay(
 }
 
 #[inline]
-fn destack_gpu_sync_command_begin_pipeline_statistics_query_vm_replay(
+fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    commandlist: resource::GpuCommandListHandle,
+    renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_COMMAND_BEGIN_PIPELINE_STATISTICS_QUERY,
-            runtime.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_PIPELINE_STATISTICS_QUERY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_command_begin_pipeline_statistics_query(
-                        runtime,
-                        context,
-                        commandlist,
-                        queryset,
-                        queryindex,
-                    )
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_begin_pipeline_statistics_query(
-                        runtime,
-                        context,
-                        commandlist,
-                        queryset,
-                        queryindex,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuSyncCommandBeginPipelineStatisticsQueryReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_and_payload_policy(
+        GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY,
+        runtime.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?,
+        context,
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_gpu_command_begin_render_pipeline_statistics_query(runtime, context, renderpass, queryset, queryindex),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_command_begin_render_pipeline_statistics_query(runtime, context, renderpass, queryset, queryindex),
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuSyncCommandBeginRenderPipelineStatisticsQueryReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncCommandBeginPipelineStatisticsQueryReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncCommandBeginRenderPipelineStatisticsQueryReplay {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result =
-        encode_destack_gpu_sync_command_begin_pipeline_statistics_query_result(context, result)?;
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_gpu_sync_command_begin_render_pipeline_statistics_query_result(
+        context, result,
+    )?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    computepass: resource::GpuComputePassHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_and_payload_policy(
+        GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
+        runtime.replay_payload_for(GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
+        context,
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_gpu_command_end_compute_pipeline_statistics_query(runtime, context, computepass),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_command_end_compute_pipeline_statistics_query(runtime, context, computepass),
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuSyncCommandEndComputePipelineStatisticsQueryReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncCommandEndComputePipelineStatisticsQueryReplay {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_gpu_sync_command_end_compute_pipeline_statistics_query_result(
+        context, result,
+    )?;
     Ok(result)
 }
 
@@ -26599,7 +29572,7 @@ fn destack_gpu_sync_command_end_occlusion_query_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    commandlist: resource::GpuCommandListHandle,
+    renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -26609,15 +29582,11 @@ fn destack_gpu_sync_command_end_occlusion_query_vm_replay(
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_gpu_command_end_occlusion_query(
-                    runtime,
-                    context,
-                    commandlist,
+                    runtime, context, renderpass,
                 ),
                 RuntimeWorld::Simulated => {
                     platform_simulated_vm::destack_gpu_command_end_occlusion_query(
-                        runtime,
-                        context,
-                        commandlist,
+                        runtime, context, renderpass,
                     )
                 }
             },
@@ -26655,31 +29624,27 @@ fn destack_gpu_sync_command_end_occlusion_query_vm_replay(
 }
 
 #[inline]
-fn destack_gpu_sync_command_end_pipeline_statistics_query_vm_replay(
+fn destack_gpu_sync_command_end_render_pipeline_statistics_query_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    commandlist: resource::GpuCommandListHandle,
+    renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_COMMAND_END_PIPELINE_STATISTICS_QUERY,
-            runtime.replay_payload_for(GPU_SYNC_COMMAND_END_PIPELINE_STATISTICS_QUERY)?,
+            GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
+            runtime.replay_payload_for(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_command_end_pipeline_statistics_query(
-                        runtime,
-                        context,
-                        commandlist,
+                    platform_vm::destack_gpu_command_end_render_pipeline_statistics_query(
+                        runtime, context, renderpass,
                     )
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_end_pipeline_statistics_query(
-                        runtime,
-                        context,
-                        commandlist,
+                    platform_simulated_vm::destack_gpu_command_end_render_pipeline_statistics_query(
+                        runtime, context, renderpass,
                     )
                 }
             },
@@ -26687,7 +29652,7 @@ fn destack_gpu_sync_command_end_pipeline_statistics_query_vm_replay(
                 let _ = &context;
                 if let Ok(()) = result {
                     let result_recorded = ();
-                    let payload = GpuSyncCommandEndPipelineStatisticsQueryReplay {
+                    let payload = GpuSyncCommandEndRenderPipelineStatisticsQueryReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -26696,7 +29661,7 @@ fn destack_gpu_sync_command_end_pipeline_statistics_query_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncCommandEndPipelineStatisticsQueryReplay { result }
+                        GpuSyncCommandEndRenderPipelineStatisticsQueryReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -26712,8 +29677,9 @@ fn destack_gpu_sync_command_end_pipeline_statistics_query_vm_replay(
                 }
             },
         );
-    let result =
-        encode_destack_gpu_sync_command_end_pipeline_statistics_query_result(context, result)?;
+    let result = encode_destack_gpu_sync_command_end_render_pipeline_statistics_query_result(
+        context, result,
+    )?;
     Ok(result)
 }
 
@@ -27790,6 +30756,80 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         binding!(
             registry,
             isolate,
+            GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, marker) =
+                        decode_destack_gpu_command_compute_pass_insert_debug_marker_args(
+                            context, args,
+                        )?;
+
+                    // execute binding
+                    runtime.check_policy(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?;
+                    let world = runtime
+                        .check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?;
+                    destack_gpu_command_compute_pass_insert_debug_marker_vm_replay(
+                        runtime, context, world, handle, marker,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_gpu_command_compute_pass_pop_debug_group_args(
+                        context, args,
+                    )?;
+
+                    // execute binding
+                    runtime.check_policy(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?;
+                    let world = runtime
+                        .check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?;
+                    destack_gpu_command_compute_pass_pop_debug_group_vm_replay(
+                        runtime, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, label) =
+                        decode_destack_gpu_command_compute_pass_push_debug_group_args(
+                            context, args,
+                        )?;
+
+                    // execute binding
+                    runtime.check_policy(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?;
+                    let world = runtime
+                        .check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?;
+                    destack_gpu_command_compute_pass_push_debug_group_vm_replay(
+                        runtime, context, world, handle, label,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             GPU_COMMAND_COPY_BUFFER,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
@@ -28834,24 +31874,69 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         binding!(
             registry,
             isolate,
-            GPU_COMMAND_SET_BIND_GROUP,
+            GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (handle, index, bindgroup, dynamicoffsets) =
-                        decode_destack_gpu_command_set_bind_group_args(context, args)?;
+                    let (handle, marker) =
+                        decode_destack_gpu_command_render_pass_insert_debug_marker_args(
+                            context, args,
+                        )?;
 
                     // execute binding
-                    runtime.check_policy(GPU_COMMAND_SET_BIND_GROUP)?;
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_SET_BIND_GROUP)?;
-                    destack_gpu_command_set_bind_group_vm_replay(
-                        runtime,
-                        context,
-                        world,
-                        handle,
-                        index,
-                        bindgroup,
-                        dynamicoffsets,
+                    runtime.check_policy(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?;
+                    let world = runtime
+                        .check_and_resolve_world(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?;
+                    destack_gpu_command_render_pass_insert_debug_marker_vm_replay(
+                        runtime, context, world, handle, marker,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_gpu_command_render_pass_pop_debug_group_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?;
+                    let world =
+                        runtime.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?;
+                    destack_gpu_command_render_pass_pop_debug_group_vm_replay(
+                        runtime, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, label) =
+                        decode_destack_gpu_command_render_pass_push_debug_group_args(
+                            context, args,
+                        )?;
+
+                    // execute binding
+                    runtime.check_policy(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?;
+                    let world = runtime
+                        .check_and_resolve_world(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?;
+                    destack_gpu_command_render_pass_push_debug_group_vm_replay(
+                        runtime, context, world, handle, label,
                     )
                 })
                 .map_err(Into::into)
@@ -28884,6 +31969,35 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         binding!(
             registry,
             isolate,
+            GPU_COMMAND_SET_COMPUTE_BIND_GROUP,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, index, bindgroup, dynamicoffsets) =
+                        decode_destack_gpu_command_set_compute_bind_group_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?;
+                    let world =
+                        runtime.check_and_resolve_world(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?;
+                    destack_gpu_command_set_compute_bind_group_vm_replay(
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        index,
+                        bindgroup,
+                        dynamicoffsets,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             GPU_COMMAND_SET_INDEX_BUFFER,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
@@ -28896,6 +32010,35 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_SET_INDEX_BUFFER)?;
                     destack_gpu_command_set_index_buffer_vm_replay(
                         runtime, context, world, handle, buffer, format, offset, size,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            GPU_COMMAND_SET_RENDER_BIND_GROUP,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, index, bindgroup, dynamicoffsets) =
+                        decode_destack_gpu_command_set_render_bind_group_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(GPU_COMMAND_SET_RENDER_BIND_GROUP)?;
+                    let world =
+                        runtime.check_and_resolve_world(GPU_COMMAND_SET_RENDER_BIND_GROUP)?;
+                    destack_gpu_command_set_render_bind_group_vm_replay(
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        index,
+                        bindgroup,
+                        dynamicoffsets,
                     )
                 })
                 .map_err(Into::into)
@@ -29885,11 +33028,30 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         binding!(
             registry,
             isolate,
+            GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                // decode args
+                let (computepass, queryset, queryindex) = decode_destack_gpu_sync_command_begin_compute_pipeline_statistics_query_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?;
+                let world = runtime.check_and_resolve_world(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?;
+                destack_gpu_sync_command_begin_compute_pipeline_statistics_query_vm_replay(runtime, context, world, computepass, queryset, queryindex)
+            })
+            .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (commandlist, queryset, queryindex) =
+                    let (renderpass, queryset, queryindex) =
                         decode_destack_gpu_sync_command_begin_occlusion_query_args(context, args)?;
 
                     // execute binding
@@ -29897,12 +33059,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let world =
                         runtime.check_and_resolve_world(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?;
                     destack_gpu_sync_command_begin_occlusion_query_vm_replay(
-                        runtime,
-                        context,
-                        world,
-                        commandlist,
-                        queryset,
-                        queryindex,
+                        runtime, context, world, renderpass, queryset, queryindex,
                     )
                 })
                 .map_err(Into::into)
@@ -29913,27 +33070,44 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         binding!(
             registry,
             isolate,
-            GPU_SYNC_COMMAND_BEGIN_PIPELINE_STATISTICS_QUERY,
+            GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                // decode args
+                let (renderpass, queryset, queryindex) = decode_destack_gpu_sync_command_begin_render_pipeline_statistics_query_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?;
+                let world = runtime.check_and_resolve_world(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?;
+                destack_gpu_sync_command_begin_render_pipeline_statistics_query_vm_replay(runtime, context, world, renderpass, queryset, queryindex)
+            })
+            .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (commandlist, queryset, queryindex) =
-                        decode_destack_gpu_sync_command_begin_pipeline_statistics_query_args(
+                    let (computepass,) =
+                        decode_destack_gpu_sync_command_end_compute_pipeline_statistics_query_args(
                             context, args,
                         )?;
 
                     // execute binding
-                    runtime.check_policy(GPU_SYNC_COMMAND_BEGIN_PIPELINE_STATISTICS_QUERY)?;
+                    runtime.check_policy(GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY)?;
                     let world = runtime.check_and_resolve_world(
-                        GPU_SYNC_COMMAND_BEGIN_PIPELINE_STATISTICS_QUERY,
+                        GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
                     )?;
-                    destack_gpu_sync_command_begin_pipeline_statistics_query_vm_replay(
+                    destack_gpu_sync_command_end_compute_pipeline_statistics_query_vm_replay(
                         runtime,
                         context,
                         world,
-                        commandlist,
-                        queryset,
-                        queryindex,
+                        computepass,
                     )
                 })
                 .map_err(Into::into)
@@ -29948,7 +33122,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (commandlist,) =
+                    let (renderpass,) =
                         decode_destack_gpu_sync_command_end_occlusion_query_args(context, args)?;
 
                     // execute binding
@@ -29956,10 +33130,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let world =
                         runtime.check_and_resolve_world(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?;
                     destack_gpu_sync_command_end_occlusion_query_vm_replay(
-                        runtime,
-                        context,
-                        world,
-                        commandlist,
+                        runtime, context, world, renderpass,
                     )
                 })
                 .map_err(Into::into)
@@ -29970,24 +33141,22 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         binding!(
             registry,
             isolate,
-            GPU_SYNC_COMMAND_END_PIPELINE_STATISTICS_QUERY,
+            GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (commandlist,) =
-                        decode_destack_gpu_sync_command_end_pipeline_statistics_query_args(
+                    let (renderpass,) =
+                        decode_destack_gpu_sync_command_end_render_pipeline_statistics_query_args(
                             context, args,
                         )?;
 
                     // execute binding
-                    runtime.check_policy(GPU_SYNC_COMMAND_END_PIPELINE_STATISTICS_QUERY)?;
-                    let world = runtime
-                        .check_and_resolve_world(GPU_SYNC_COMMAND_END_PIPELINE_STATISTICS_QUERY)?;
-                    destack_gpu_sync_command_end_pipeline_statistics_query_vm_replay(
-                        runtime,
-                        context,
-                        world,
-                        commandlist,
+                    runtime.check_policy(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?;
+                    let world = runtime.check_and_resolve_world(
+                        GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
+                    )?;
+                    destack_gpu_sync_command_end_render_pipeline_statistics_query_vm_replay(
+                        runtime, context, world, renderpass,
                     )
                 })
                 .map_err(Into::into)

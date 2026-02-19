@@ -2294,7 +2294,7 @@ pub const INPUT_DEVICE_CAPABILITIES: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2307,7 +2307,7 @@ pub const INPUT_DEVICE_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["input.read"],
-        BindingScope::Hybrid,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -2333,7 +2333,7 @@ pub const INPUT_DEVICE_LIST: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["input.read"],
-        BindingScope::Hybrid,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -2359,7 +2359,7 @@ pub const INPUT_DEVICE_OPEN: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["input.read"],
-        BindingScope::Hybrid,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -2385,7 +2385,7 @@ pub const INPUT_EVENT_MONITOR_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["input.read"],
-        BindingScope::Hybrid,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -2411,7 +2411,7 @@ pub const INPUT_EVENT_MONITOR_OPEN: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["input.read"],
-        BindingScope::Hybrid,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -2436,7 +2436,7 @@ pub const INPUT_EVENT_MONITOR_READ: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2448,7 +2448,7 @@ pub const INPUT_EVENT_MONITOR_TRY_READ: BindingDescriptor = BindingDescriptor::e
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2461,7 +2461,7 @@ pub const INPUT_EVENT_READ: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["input.read"],
-        BindingScope::Hybrid,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -2486,7 +2486,7 @@ pub const INPUT_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::externa
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2498,7 +2498,7 @@ pub const INPUT_EVENT_SET_EXCLUSIVE_GRAB: BindingDescriptor = BindingDescriptor:
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.grab"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2510,7 +2510,7 @@ pub const INPUT_EVENT_SET_READ_MODE: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2523,7 +2523,7 @@ pub const INPUT_EVENT_TRY_READ: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["input.read"],
-        BindingScope::Hybrid,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -2548,7 +2548,7 @@ pub const INPUT_GAMEPAD_SET_LIGHT: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2560,7 +2560,7 @@ pub const INPUT_GAMEPAD_SET_PLAYER_INDEX: BindingDescriptor = BindingDescriptor:
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2572,7 +2572,7 @@ pub const INPUT_GAMEPAD_STATE: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2584,7 +2584,7 @@ pub const INPUT_HAPTICS_EFFECTS: BindingDescriptor = BindingDescriptor::external
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.haptics"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2596,7 +2596,7 @@ pub const INPUT_HAPTICS_PLAY: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.haptics"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2609,7 +2609,7 @@ pub const INPUT_HAPTICS_STOP: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["input.haptics"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -2634,7 +2634,7 @@ pub const INPUT_KEYBOARD_STATE: BindingDescriptor = BindingDescriptor::external_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2646,7 +2646,7 @@ pub const INPUT_POINTER_CAPTURE: BindingDescriptor = BindingDescriptor::external
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.grab"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2658,7 +2658,7 @@ pub const INPUT_POINTER_RELATIVE_STATE: BindingDescriptor = BindingDescriptor::e
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2670,7 +2670,7 @@ pub const INPUT_POINTER_SET_GRAB_MODE: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.grab"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2682,7 +2682,7 @@ pub const INPUT_POINTER_SET_RELATIVE_MODE: BindingDescriptor = BindingDescriptor
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2694,7 +2694,7 @@ pub const INPUT_POINTER_STATE: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2706,7 +2706,7 @@ pub const INPUT_POINTER_WARP: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2718,7 +2718,7 @@ pub const INPUT_RAWHID_GET_FEATURE: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2730,7 +2730,7 @@ pub const INPUT_RAWHID_READ: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2742,7 +2742,7 @@ pub const INPUT_RAWHID_SET_FEATURE: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2754,7 +2754,7 @@ pub const INPUT_RAWHID_TRY_READ: BindingDescriptor = BindingDescriptor::external
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2766,7 +2766,7 @@ pub const INPUT_RAWHID_WRITE: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2778,7 +2778,7 @@ pub const INPUT_SENSOR_CONFIGURE: BindingDescriptor = BindingDescriptor::externa
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2790,7 +2790,7 @@ pub const INPUT_SENSOR_LIST: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2802,7 +2802,7 @@ pub const INPUT_SENSOR_READ: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2814,7 +2814,7 @@ pub const INPUT_SENSOR_TRY_READ: BindingDescriptor = BindingDescriptor::external
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2826,7 +2826,7 @@ pub const INPUT_TEXT_GET_AREA: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.text"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2839,7 +2839,7 @@ pub const INPUT_TEXT_IS_ACTIVE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["input.text"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -2864,7 +2864,7 @@ pub const INPUT_TEXT_READ_COMPOSITION: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.text"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2876,7 +2876,7 @@ pub const INPUT_TEXT_SET_AREA: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.text"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2888,7 +2888,7 @@ pub const INPUT_TEXT_START: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.text"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2900,7 +2900,7 @@ pub const INPUT_TEXT_STOP: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.text"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2912,7 +2912,7 @@ pub const INPUT_TEXT_TRY_READ_COMPOSITION: BindingDescriptor = BindingDescriptor
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.text"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -2924,7 +2924,7 @@ pub const INPUT_TOUCH_STATE: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);

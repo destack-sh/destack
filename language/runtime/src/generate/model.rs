@@ -6,11 +6,9 @@ use destack_dir::EnumBackingType;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BindingScope {
     /// Binding executes through direct host platform operations.
-    Os,
+    Host,
     /// Binding executes entirely inside runtime policy and state.
     Runtime,
-    /// Binding may cross both runtime and host boundaries.
-    Hybrid,
 }
 
 /// Blocking behavior classification for bindings.

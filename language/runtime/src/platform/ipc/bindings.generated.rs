@@ -830,7 +830,7 @@ pub const IPC_MESSAGE_QUEUE_CLOSE: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.message"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -842,7 +842,7 @@ pub const IPC_MESSAGE_QUEUE_OPEN: BindingDescriptor = BindingDescriptor::externa
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.message"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -854,7 +854,7 @@ pub const IPC_MESSAGE_QUEUE_RECEIVE: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.message"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -866,7 +866,7 @@ pub const IPC_MESSAGE_QUEUE_SEND: BindingDescriptor = BindingDescriptor::externa
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.message"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -879,7 +879,7 @@ pub const IPC_MESSAGE_QUEUE_UNLINK: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["ipc.message"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -905,7 +905,7 @@ pub const IPC_PIPE_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["ipc.pipe"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -931,7 +931,7 @@ pub const IPC_PIPE_OPEN: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["ipc.pipe"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -956,7 +956,7 @@ pub const IPC_PIPE_READ: BindingDescriptor = BindingDescriptor::external_with_re
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.pipe"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -968,7 +968,7 @@ pub const IPC_PIPE_WRITE: BindingDescriptor = BindingDescriptor::external_with_r
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.pipe"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -980,7 +980,7 @@ pub const IPC_SHARED_MEMORY_CLOSE: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.sharedMemory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -992,7 +992,7 @@ pub const IPC_SHARED_MEMORY_CREATE: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.sharedMemory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1004,7 +1004,7 @@ pub const IPC_SHARED_MEMORY_MAP: BindingDescriptor = BindingDescriptor::external
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.sharedMemory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1016,7 +1016,7 @@ pub const IPC_SHARED_MEMORY_OPEN: BindingDescriptor = BindingDescriptor::externa
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.sharedMemory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1028,7 +1028,7 @@ pub const IPC_SHARED_MEMORY_UNMAP: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.sharedMemory"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1040,7 +1040,7 @@ pub const IPC_SYNC_FUTEX_WAIT: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.futex"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1052,7 +1052,7 @@ pub const IPC_SYNC_FUTEX_WAKE: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.futex"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1064,7 +1064,7 @@ pub const IPC_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.semaphore"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1076,7 +1076,7 @@ pub const IPC_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.semaphore"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1088,7 +1088,7 @@ pub const IPC_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.semaphore"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1100,7 +1100,7 @@ pub const IPC_UNIX_RECEIVE: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.fdPass", "ipc.unix"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
@@ -1112,7 +1112,7 @@ pub const IPC_UNIX_SEND: BindingDescriptor = BindingDescriptor::external_with_re
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.fdPass", "ipc.unix"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);

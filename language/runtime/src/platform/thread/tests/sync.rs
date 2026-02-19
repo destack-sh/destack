@@ -4,7 +4,9 @@ use super::{
 };
 
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::resource::{BarrierHandle, ThreadSemaphoreHandle};
+use crate::platform::resource::{
+    BarrierHandle, CondVarHandle, MutexHandle, ResourceId, RwLockHandle, ThreadSemaphoreHandle,
+};
 
 /// Create, lock, and unlock one mutex handle.
 #[cfg(any(unix, windows))]
@@ -163,6 +165,76 @@ fn test_thread_address_wait_wake_roundtrip() {
         if let Err(error) = wake_all_result {
             assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)?;
         }
+
+        Ok(())
+    });
+}
+
+/// Reject synchronization operations for unknown synchronization handles.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_thread_sync_rejects_unknown_handles() {
+    with_harness_context(|mut context| {
+        let unknown_mutex = MutexHandle(ResourceId(0));
+        let unknown_rwlock = RwLockHandle(ResourceId(0));
+        let unknown_condvar = CondVarHandle(ResourceId(0));
+        let unknown_semaphore = ThreadSemaphoreHandle(ResourceId(0));
+        let unknown_barrier = BarrierHandle(ResourceId(0));
+
+        let mutex_lock_result = context.destack_thread_mutex_lock(unknown_mutex, 0);
+        assert_platform_error_code(mutex_lock_result, PlatformErrorCode::InvalidArgumentValue)?;
+
+        let mutex_unlock_result = context.destack_thread_mutex_unlock(unknown_mutex);
+        assert_platform_error_code(mutex_unlock_result, PlatformErrorCode::InvalidArgumentValue)?;
+
+        let read_lock_result = context.destack_thread_rwlock_read_lock(unknown_rwlock, 0);
+        assert_platform_error_code(read_lock_result, PlatformErrorCode::InvalidArgumentValue)?;
+
+        let write_lock_result = context.destack_thread_rwlock_write_lock(unknown_rwlock, 0);
+        assert_platform_error_code(write_lock_result, PlatformErrorCode::InvalidArgumentValue)?;
+
+        let rwlock_unlock_result = context.destack_thread_rwlock_unlock(unknown_rwlock);
+        assert_platform_error_code(
+            rwlock_unlock_result,
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        let condvar_wait_result =
+            context.destack_thread_cond_var_wait(unknown_condvar, unknown_mutex, 0);
+        assert_platform_error_code(condvar_wait_result, PlatformErrorCode::InvalidArgumentValue)?;
+
+        let condvar_notify_one_result = context.destack_thread_cond_var_notify_one(unknown_condvar);
+        assert_platform_error_code(
+            condvar_notify_one_result,
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        let condvar_notify_all_result = context.destack_thread_cond_var_notify_all(unknown_condvar);
+        assert_platform_error_code(
+            condvar_notify_all_result,
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        let semaphore_wait_result = context.destack_thread_semaphore_wait(unknown_semaphore, 0);
+        assert_platform_error_code(
+            semaphore_wait_result,
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        let semaphore_post_result = context.destack_thread_semaphore_post(unknown_semaphore, 1);
+        assert_platform_error_code(
+            semaphore_post_result,
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        let barrier_wait_result = context.destack_thread_barrier_wait(unknown_barrier, 0);
+        assert_platform_error_codes(
+            barrier_wait_result,
+            &[
+                PlatformErrorCode::InvalidArgumentValue,
+                PlatformErrorCode::NotSupported,
+            ],
+        )?;
 
         Ok(())
     });

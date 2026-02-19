@@ -1361,7 +1361,7 @@ pub const IO_COMPLETION_CANCEL: BindingDescriptor = BindingDescriptor::external_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.completion"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1374,7 +1374,7 @@ pub const IO_COMPLETION_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.completion"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1399,7 +1399,7 @@ pub const IO_COMPLETION_ENTER: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.submit"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1412,7 +1412,7 @@ pub const IO_COMPLETION_OPEN: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.completion"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1437,7 +1437,7 @@ pub const IO_COMPLETION_SUBMIT: BindingDescriptor = BindingDescriptor::external_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.submit"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1449,7 +1449,7 @@ pub const IO_COMPLETION_SUBMIT_BATCH: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.submit"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1461,7 +1461,7 @@ pub const IO_COMPLETION_WAIT: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.completion"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1473,7 +1473,7 @@ pub const IO_CONTROL_FCNTL: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1485,7 +1485,7 @@ pub const IO_CONTROL_IOCTL: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1498,7 +1498,7 @@ pub const IO_DEVICE_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.device.read", "io.device.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1523,7 +1523,7 @@ pub const IO_DEVICE_CONTROL: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.device.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1535,7 +1535,7 @@ pub const IO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_r
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.device.read", "io.device.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1547,7 +1547,7 @@ pub const IO_DEVICE_READ: BindingDescriptor = BindingDescriptor::external_with_r
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.device.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1559,7 +1559,7 @@ pub const IO_DEVICE_WRITE: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.device.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1571,7 +1571,7 @@ pub const IO_EVENT_ATTACH: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.event"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1584,7 +1584,7 @@ pub const IO_EVENT_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.event"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1610,7 +1610,7 @@ pub const IO_EVENT_OPEN: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.event"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1635,7 +1635,7 @@ pub const IO_EVENT_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.event"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1648,7 +1648,7 @@ pub const IO_POLL_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.poll"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1673,7 +1673,7 @@ pub const IO_POLL_DEREGISTER: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.poll"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1685,7 +1685,7 @@ pub const IO_POLL_OPEN: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.poll"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
 .with_host_platforms(&[
@@ -1710,7 +1710,7 @@ pub const IO_POLL_REGISTER: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.poll"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1722,7 +1722,7 @@ pub const IO_POLL_UPDATE: BindingDescriptor = BindingDescriptor::external_with_r
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.poll"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1734,7 +1734,7 @@ pub const IO_POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.poll"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1747,7 +1747,7 @@ pub const IO_URING_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.uring"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&["linux"]);
@@ -1760,7 +1760,7 @@ pub const IO_URING_FEATURES: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.uring"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&["linux"]);
@@ -1772,7 +1772,7 @@ pub const IO_URING_OPEN: BindingDescriptor = BindingDescriptor::external_with_re
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.uring"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["linux"]);
@@ -1784,7 +1784,7 @@ pub const IO_URING_REGISTER_BUFFERS: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.register"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["linux"]);
@@ -1796,7 +1796,7 @@ pub const IO_URING_REGISTER_FILES: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.register"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["linux"]);
@@ -1809,7 +1809,7 @@ pub const IO_URING_UNREGISTER_BUFFERS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.register"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&["linux"]);
@@ -1822,7 +1822,7 @@ pub const IO_URING_UNREGISTER_FILES: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.register"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&["linux"]);

@@ -86,7 +86,8 @@ pub(super) fn keyboard_state(
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` where keyboard snapshots are unavailable.
-/// Uses backend-specific key-state tables from evdev or terminal backends on Unix and console or raw-input key-state paths on Windows.
+/// Uses backend-specific key-state tables from evdev or terminal backends on Unix.
+/// Uses console or raw-input key-state paths on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

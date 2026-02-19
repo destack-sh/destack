@@ -1,4 +1,6 @@
 #[cfg(any(unix, windows))]
+mod basic;
+#[cfg(any(unix, windows))]
 mod local;
 #[cfg(any(unix, windows))]
 mod priority;

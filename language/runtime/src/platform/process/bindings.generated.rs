@@ -3059,7 +3059,7 @@ pub const PROCESS_CWD_CHDIR: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.workdir.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -3085,7 +3085,7 @@ pub const PROCESS_CWD_GET: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.workdir.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -3252,7 +3252,7 @@ pub const PROCESS_EXEC_FEXEC: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.exec"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -3264,7 +3264,7 @@ pub const PROCESS_EXEC_PATH: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.exec"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -3276,7 +3276,7 @@ pub const PROCESS_EXEC_PATHAT: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.exec"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -3289,7 +3289,7 @@ pub const PROCESS_EXIT_TERMINATE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.run"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3315,7 +3315,7 @@ pub const PROCESS_FD_PROCESS_FD_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.handle"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3340,7 +3340,7 @@ pub const PROCESS_FD_PROCESS_FD_OPEN: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.handle"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -3352,7 +3352,7 @@ pub const PROCESS_FD_PROCESS_FD_SEND_SIGNAL: BindingDescriptor = BindingDescript
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.signal.send"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -3364,7 +3364,7 @@ pub const PROCESS_FD_PROCESS_FD_TRY_WAIT: BindingDescriptor = BindingDescriptor:
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.wait"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -3376,7 +3376,7 @@ pub const PROCESS_FD_PROCESS_FD_WAIT: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.wait"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -3389,7 +3389,7 @@ pub const PROCESS_FD_SIGNAL_FD_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.signal.receive"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3414,7 +3414,7 @@ pub const PROCESS_FD_SIGNAL_FD_OPEN: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.signal.receive"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -3427,7 +3427,7 @@ pub const PROCESS_FD_SIGNAL_FD_READ: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.signal.receive"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -3452,7 +3452,7 @@ pub const PROCESS_FD_SIGNAL_FD_SET_MASK: BindingDescriptor = BindingDescriptor::
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.signal.receive"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -3464,7 +3464,7 @@ pub const PROCESS_FD_SIGNAL_FD_TRY_READ: BindingDescriptor = BindingDescriptor::
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.signal.receive"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -3477,7 +3477,7 @@ pub const PROCESS_FD_STDIO_STDERR: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.stdio"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3503,7 +3503,7 @@ pub const PROCESS_FD_STDIO_STDIN: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.stdio"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3529,7 +3529,7 @@ pub const PROCESS_FD_STDIO_STDOUT: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.stdio"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3554,7 +3554,7 @@ pub const PROCESS_GROUP_CGROUP_GET_LIMIT: BindingDescriptor = BindingDescriptor:
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["process.cgroup"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["linux"]);
@@ -3567,7 +3567,7 @@ pub const PROCESS_GROUP_CGROUP_JOIN: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["process.cgroup"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&["linux"]);
@@ -3579,7 +3579,7 @@ pub const PROCESS_GROUP_CGROUP_SET_LIMIT: BindingDescriptor = BindingDescriptor:
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["process.cgroup"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["linux"]);
@@ -3591,7 +3591,7 @@ pub const PROCESS_GROUP_JOB_ASSIGN: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["process.cgroup"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["windows"]);
@@ -3603,7 +3603,7 @@ pub const PROCESS_GROUP_JOB_SET_LIMIT: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["process.cgroup"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["windows"]);
@@ -3616,7 +3616,7 @@ pub const PROCESS_IDS_EGID: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3642,7 +3642,7 @@ pub const PROCESS_IDS_EUID: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3668,7 +3668,7 @@ pub const PROCESS_IDS_GID: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3694,7 +3694,7 @@ pub const PROCESS_IDS_GROUP_IDS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3720,7 +3720,7 @@ pub const PROCESS_IDS_GROUPS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3746,7 +3746,7 @@ pub const PROCESS_IDS_PID: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3772,7 +3772,7 @@ pub const PROCESS_IDS_PPID: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3798,7 +3798,7 @@ pub const PROCESS_IDS_SET_EGID: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3824,7 +3824,7 @@ pub const PROCESS_IDS_SET_EUID: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3850,7 +3850,7 @@ pub const PROCESS_IDS_SET_GID: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3876,7 +3876,7 @@ pub const PROCESS_IDS_SET_GROUP_IDS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3902,7 +3902,7 @@ pub const PROCESS_IDS_SET_GROUPS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3928,7 +3928,7 @@ pub const PROCESS_IDS_SET_UID: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3954,7 +3954,7 @@ pub const PROCESS_IDS_SET_USER_IDS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3980,7 +3980,7 @@ pub const PROCESS_IDS_UID: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4006,7 +4006,7 @@ pub const PROCESS_IDS_USER_IDS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4032,7 +4032,7 @@ pub const PROCESS_ISOLATION_CHROOT: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["security.restrict"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -4056,7 +4056,7 @@ pub const PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER: BindingDescriptor = BindingD
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["security.filter"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["linux"]);
@@ -4069,7 +4069,7 @@ pub const PROCESS_ISOLATION_SET_HOST_NAME: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["process.namespace"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -4095,7 +4095,7 @@ pub const PROCESS_ISOLATION_SET_NETWORK_NAMESPACE: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["process.namespace"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&["linux"]);
@@ -4107,7 +4107,7 @@ pub const PROCESS_ISOLATION_SETNS: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["process.namespace"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["linux"]);
@@ -4120,7 +4120,7 @@ pub const PROCESS_ISOLATION_UNSHARE: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["process.namespace"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&["linux"]);
@@ -4132,7 +4132,7 @@ pub const PROCESS_LIMITS_GET_LIMIT: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.run"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4144,7 +4144,7 @@ pub const PROCESS_LIMITS_SET_LIMIT: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.run"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4157,7 +4157,7 @@ pub const PROCESS_SCHED_GET_AFFINITY: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.affinity"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4183,7 +4183,7 @@ pub const PROCESS_SCHED_GET_PRIORITY: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.priority"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4208,7 +4208,7 @@ pub const PROCESS_SCHED_GET_SCHEDULER: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.scheduler"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4220,7 +4220,7 @@ pub const PROCESS_SCHED_SET_AFFINITY: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.affinity"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4233,7 +4233,7 @@ pub const PROCESS_SCHED_SET_PRIORITY: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.priority"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4258,7 +4258,7 @@ pub const PROCESS_SCHED_SET_SCHEDULER: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.scheduler"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4271,7 +4271,7 @@ pub const PROCESS_SCHED_YIELD_NOW: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.scheduler"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4297,7 +4297,7 @@ pub const PROCESS_SESSION_GETPGID: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.session"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4323,7 +4323,7 @@ pub const PROCESS_SESSION_SETPGID: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.session"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4349,7 +4349,7 @@ pub const PROCESS_SESSION_SETSID: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.session"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4375,7 +4375,7 @@ pub const PROCESS_SIGNALS_KILL: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.signal.send"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -4401,7 +4401,7 @@ pub const PROCESS_SIGNALS_SIGNAL_MASK_READ: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.signal.receive"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -4426,7 +4426,7 @@ pub const PROCESS_SIGNALS_SIGNAL_MASK_UPDATE: BindingDescriptor = BindingDescrip
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.signal.receive"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4503,7 +4503,7 @@ pub const PROCESS_SIGNALS_SIGNAL_TRY_WAIT: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.signal.receive"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4555,7 +4555,7 @@ pub const PROCESS_SIGNALS_SIGNAL_WAIT: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.signal.receive"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -4580,7 +4580,7 @@ pub const PROCESS_SPAWN_START: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.spawn"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4592,7 +4592,7 @@ pub const PROCESS_SPAWN_WITH_ACTIONS: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.spawn", "process.spawn.actions"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4605,7 +4605,7 @@ pub const PROCESS_UMASK_SET: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.identity.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4630,7 +4630,7 @@ pub const PROCESS_WAIT_HANDLE: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.wait"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4642,7 +4642,7 @@ pub const PROCESS_WAIT_PID: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.wait"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4655,7 +4655,7 @@ pub const PROCESS_WAIT_TRY_WAIT: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.wait"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[

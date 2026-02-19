@@ -34,7 +34,7 @@ declare namespace time {
             replay: "recordable",
             capabilities: ["time.wall.sleep"],
             platforms: ["windows", "unix"],
-            scope: "hybrid",
+            scope: "runtime",
             blocking: "sometimes",
         },
     )
@@ -64,7 +64,7 @@ declare namespace time {
             replay: "recordable",
             capabilities: ["time.wall.sleep"],
             platforms: ["windows", "unix"],
-            scope: "hybrid",
+            scope: "runtime",
             blocking: "sometimes",
         },
     )
@@ -94,7 +94,7 @@ declare namespace time {
             replay: "recordable",
             capabilities: ["time.wall.sleep"],
             platforms: ["windows", "unix"],
-            scope: "hybrid",
+            scope: "runtime",
             blocking: "sometimes",
         },
     )
@@ -124,7 +124,7 @@ declare namespace time {
             replay: "recordable",
             capabilities: ["time.wall.sleep"],
             platforms: ["windows", "unix"],
-            scope: "hybrid",
+            scope: "runtime",
             blocking: "sometimes",
         },
     )

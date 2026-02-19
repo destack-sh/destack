@@ -96,7 +96,7 @@ declare namespace crypto {
             replay: "nonrecordable",
             capabilities: ["crypto.certificate.write"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -130,7 +130,7 @@ declare namespace crypto {
             replay: "nonrecordable",
             capabilities: ["crypto.certificate.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -163,7 +163,7 @@ declare namespace crypto {
             replay: "nonrecordable",
             capabilities: ["crypto.certificate.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -193,7 +193,7 @@ declare namespace crypto {
             replay: "nonrecordable",
             capabilities: ["crypto.certificate.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -225,7 +225,7 @@ declare namespace crypto {
             replay: "nonrecordable",
             capabilities: ["crypto.certificate.write"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

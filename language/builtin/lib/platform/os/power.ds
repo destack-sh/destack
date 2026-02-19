@@ -36,7 +36,7 @@ declare namespace os {
             replay: "recordable",
             capabilities: ["os.power"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -66,7 +66,7 @@ declare namespace os {
             replay: "nonrecordable",
             capabilities: ["os.power"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

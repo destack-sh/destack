@@ -33,7 +33,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -63,7 +63,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -93,7 +93,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -123,7 +123,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -153,7 +153,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -183,7 +183,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -213,7 +213,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -243,7 +243,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -273,7 +273,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -303,7 +303,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -333,7 +333,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -363,7 +363,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -397,7 +397,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -430,7 +430,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -463,7 +463,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -496,7 +496,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.sync"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -526,7 +526,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.wait"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -560,7 +560,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.wait"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -590,7 +590,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.wait"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

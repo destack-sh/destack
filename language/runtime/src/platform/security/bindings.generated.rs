@@ -463,7 +463,7 @@ pub const SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER: BindingDescriptor = BindingDe
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["security.filter"],
-    BindingScope::Hybrid,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);

@@ -93,7 +93,8 @@ pub(crate) unsafe fn destack_input_close(
 /// Device ordering and hotplug visibility follow host input subsystem semantics.
 ///
 /// # Platform
-/// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one discoverable input backend.
+/// Unix and Windows.
+/// Returns operation-level `notSupported` on hosts that do not expose one discoverable input backend.
 /// Uses evdev device-node enumeration on Linux.
 /// Uses global-session and terminal discovery on macOS.
 /// Uses terminal input discovery on other Unix hosts.
@@ -645,7 +646,8 @@ pub(crate) unsafe fn destack_input_haptics_stop(
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` where keyboard snapshots are unavailable.
-/// Uses backend-specific key-state tables from evdev or terminal backends on Unix and console or raw-input key-state paths on Windows.
+/// Uses backend-specific key-state tables from evdev or terminal backends on Unix.
+/// Uses console or raw-input key-state paths on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -959,7 +961,8 @@ pub(crate) unsafe fn destack_input_raw_hid_set_feature(
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` where raw-hid reports are unavailable.
-/// Uses nonblocking hidraw or equivalent raw report APIs on Unix and nonblocking raw-input hid report APIs on Windows.
+/// Uses nonblocking hidraw or equivalent raw report APIs on Unix.
+/// Uses nonblocking raw-input hid report APIs on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1143,7 +1146,8 @@ pub(crate) unsafe fn destack_input_sensor_try_read(
 
 /// Get text input area.
 ///
-/// Return the currently configured text input area and cursor position hint for one opened input device and one optional window target.
+/// Return the currently configured text input area and cursor position hint.
+/// Resolve state for one opened input device and one optional window target.
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
@@ -1267,8 +1271,10 @@ pub(crate) unsafe fn destack_input_text_set_area(
 /// Text conversion behavior follows host IME and keyboard policy for the selected target scope.
 ///
 /// # Platform
-/// Unix and Windows, with operation-level `notSupported` where text input sessions or one window scope are unavailable.
-/// Uses backend-specific text input activation primitives and host IME activation for global or window-scoped paths.
+/// Unix and Windows.
+/// Returns operation-level `notSupported` where text input sessions or one window scope are unavailable.
+/// Uses backend-specific text input activation primitives.
+/// Uses host IME activation for global or window-scoped paths.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -1356,7 +1362,8 @@ pub(crate) unsafe fn destack_input_text_try_read_composition(
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` where touch snapshots are unavailable.
-/// Uses backend-specific contact tables from evdev or libinput style paths on Unix and pointer-contact APIs on Windows.
+/// Uses backend-specific contact tables from evdev or libinput-style paths on Unix.
+/// Uses pointer-contact APIs on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

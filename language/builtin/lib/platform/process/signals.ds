@@ -50,7 +50,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.signal.send"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -200,7 +200,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.signal.receive"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -230,7 +230,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.signal.receive"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -263,7 +263,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.signal.receive"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -293,7 +293,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.signal.receive"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )

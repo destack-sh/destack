@@ -476,7 +476,7 @@ pub const OS_HOST_IDENTITY: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.hostname", "os.sysinfo"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -502,7 +502,7 @@ pub const OS_INFO_BOOT_TIME_UNIX_NS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.sysinfo"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -528,7 +528,7 @@ pub const OS_INFO_LOAD_AVERAGE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.sysinfo"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -553,7 +553,7 @@ pub const OS_INFO_SYSTEM_INFO: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.sysinfo"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -579,7 +579,7 @@ pub const OS_INFO_UPTIME_NS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.sysinfo"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -604,7 +604,7 @@ pub const OS_MOUNT_ADD: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["os.mount"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -617,7 +617,7 @@ pub const OS_MOUNT_LIST: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.mount"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -643,7 +643,7 @@ pub const OS_MOUNT_REMOVE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.mount"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -669,7 +669,7 @@ pub const OS_POWER_STATE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.power"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -695,7 +695,7 @@ pub const OS_POWER_SUSPEND: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["os.power"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[

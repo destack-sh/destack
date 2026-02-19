@@ -27,7 +27,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.local"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -57,7 +57,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.local"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -87,7 +87,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.local"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -117,7 +117,7 @@ declare namespace thread {
             replay: "nonrecordable",
             capabilities: ["thread.local"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

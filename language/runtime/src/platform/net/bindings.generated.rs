@@ -4623,7 +4623,7 @@ pub const NET_ADDRESS_LOCAL_ADDRESS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4649,7 +4649,7 @@ pub const NET_ADDRESS_PEER_ADDRESS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4675,7 +4675,7 @@ pub const NET_INTERFACE_INTERFACE_INDEX: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.interface"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -4701,7 +4701,7 @@ pub const NET_INTERFACE_INTERFACE_NAME: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.interface"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -4727,7 +4727,7 @@ pub const NET_INTERFACE_LIST_INTERFACES: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.interface"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -4752,7 +4752,7 @@ pub const NET_LISTENER_ACCEPT: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.accept"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4764,7 +4764,7 @@ pub const NET_LISTENER_BIND: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.listen"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4777,7 +4777,7 @@ pub const NET_LISTENER_CLOSE_LISTENER: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.close"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -4802,7 +4802,7 @@ pub const NET_LISTENER_LISTEN: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.listen"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4815,7 +4815,7 @@ pub const NET_OPTIONS_GET_BROADCAST: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4841,7 +4841,7 @@ pub const NET_OPTIONS_GET_LINGER: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4867,7 +4867,7 @@ pub const NET_OPTIONS_GET_ONLY_V6: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4893,7 +4893,7 @@ pub const NET_OPTIONS_GET_PACKET_MARK: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&["linux", "windows"]);
@@ -4906,7 +4906,7 @@ pub const NET_OPTIONS_GET_READ_TIMEOUT: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4932,7 +4932,7 @@ pub const NET_OPTIONS_GET_RECV_BUFFER: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4958,7 +4958,7 @@ pub const NET_OPTIONS_GET_SEND_BUFFER: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -4983,7 +4983,7 @@ pub const NET_OPTIONS_GET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::e
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4995,7 +4995,7 @@ pub const NET_OPTIONS_GET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::e
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5008,7 +5008,7 @@ pub const NET_OPTIONS_GET_TOS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -5034,7 +5034,7 @@ pub const NET_OPTIONS_GET_TTL: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -5060,7 +5060,7 @@ pub const NET_OPTIONS_GET_WRITE_TIMEOUT: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -5085,7 +5085,7 @@ pub const NET_OPTIONS_SET_BROADCAST: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5097,7 +5097,7 @@ pub const NET_OPTIONS_SET_LINGER: BindingDescriptor = BindingDescriptor::externa
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5109,7 +5109,7 @@ pub const NET_OPTIONS_SET_ONLY_V6: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5121,7 +5121,7 @@ pub const NET_OPTIONS_SET_PACKET_MARK: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["linux", "windows"]);
@@ -5133,7 +5133,7 @@ pub const NET_OPTIONS_SET_READ_TIMEOUT: BindingDescriptor = BindingDescriptor::e
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5145,7 +5145,7 @@ pub const NET_OPTIONS_SET_RECV_BUFFER: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5157,7 +5157,7 @@ pub const NET_OPTIONS_SET_SEND_BUFFER: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5169,7 +5169,7 @@ pub const NET_OPTIONS_SET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::e
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5181,7 +5181,7 @@ pub const NET_OPTIONS_SET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::e
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5194,7 +5194,7 @@ pub const NET_OPTIONS_SET_TOS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -5220,7 +5220,7 @@ pub const NET_OPTIONS_SET_TTL: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -5245,7 +5245,7 @@ pub const NET_OPTIONS_SET_WRITE_TIMEOUT: BindingDescriptor = BindingDescriptor::
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5258,7 +5258,7 @@ pub const NET_RAW_PACKET_CLEAR_FANOUT: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.raw"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -5278,7 +5278,7 @@ pub const NET_RAW_PACKET_CLEAR_FILTER: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.raw"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -5298,7 +5298,7 @@ pub const NET_RAW_PACKET_CLEAR_RING: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.raw"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -5317,7 +5317,7 @@ pub const NET_RAW_PACKET_OPEN: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.raw"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
@@ -5329,7 +5329,7 @@ pub const NET_RAW_PACKET_RECEIVE: BindingDescriptor = BindingDescriptor::externa
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.raw"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
@@ -5341,7 +5341,7 @@ pub const NET_RAW_PACKET_SEND: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.raw"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
@@ -5353,7 +5353,7 @@ pub const NET_RAW_PACKET_SET_FANOUT: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.raw"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
@@ -5365,7 +5365,7 @@ pub const NET_RAW_PACKET_SET_FILTER: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.raw"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
@@ -5377,7 +5377,7 @@ pub const NET_RAW_PACKET_SET_RX_RING: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.raw"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
@@ -5389,7 +5389,7 @@ pub const NET_RAW_PACKET_SET_TIMESTAMP_MODE: BindingDescriptor = BindingDescript
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.raw"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
@@ -5401,7 +5401,7 @@ pub const NET_RAW_PACKET_SET_TX_RING: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.raw"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
@@ -5413,7 +5413,7 @@ pub const NET_RAW_PACKET_STATS: BindingDescriptor = BindingDescriptor::external_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.raw"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
@@ -5425,7 +5425,7 @@ pub const NET_RAW_SET_HEADER_INCLUDED: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.raw"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5437,7 +5437,7 @@ pub const NET_RAW_SOCKET: BindingDescriptor = BindingDescriptor::external_with_r
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.raw"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5450,7 +5450,7 @@ pub const NET_RESOLVE_LOOKUP: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.dns"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -5475,7 +5475,7 @@ pub const NET_RESOLVE_REVERSE_LOOKUP: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.dns"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5488,7 +5488,7 @@ pub const NET_REUSE_GET_REUSE_ADDR: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -5514,7 +5514,7 @@ pub const NET_REUSE_GET_REUSE_PORT: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -5538,7 +5538,7 @@ pub const NET_REUSE_SET_REUSE_ADDR: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5550,7 +5550,7 @@ pub const NET_REUSE_SET_REUSE_PORT: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
@@ -5563,7 +5563,7 @@ pub const NET_ROUTE_ROUTE_ADD: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.route.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -5583,7 +5583,7 @@ pub const NET_ROUTE_ROUTE_DELETE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.route.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -5603,7 +5603,7 @@ pub const NET_ROUTE_ROUTE_LIST: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.route.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -5623,7 +5623,7 @@ pub const NET_SOCKET_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.close"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -5648,7 +5648,7 @@ pub const NET_SOCKET_CONNECT: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.connect"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5660,7 +5660,7 @@ pub const NET_SOCKET_OPEN: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5672,7 +5672,7 @@ pub const NET_SOCKET_OPEN_PAIR: BindingDescriptor = BindingDescriptor::external_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.connect"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5684,7 +5684,7 @@ pub const NET_SOCKET_READ: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.connect"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5696,7 +5696,7 @@ pub const NET_SOCKET_READV: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.connect"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5708,7 +5708,7 @@ pub const NET_SOCKET_RECV_FROM: BindingDescriptor = BindingDescriptor::external_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.udp"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5720,7 +5720,7 @@ pub const NET_SOCKET_RECV_MMSG: BindingDescriptor = BindingDescriptor::external_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.udp"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5732,7 +5732,7 @@ pub const NET_SOCKET_RECV_MSG: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5744,7 +5744,7 @@ pub const NET_SOCKET_SEND_MMSG: BindingDescriptor = BindingDescriptor::external_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.udp"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5756,7 +5756,7 @@ pub const NET_SOCKET_SEND_MSG: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5768,7 +5768,7 @@ pub const NET_SOCKET_SEND_TO: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.udp"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5780,7 +5780,7 @@ pub const NET_SOCKET_SET_NONBLOCKING: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5792,7 +5792,7 @@ pub const NET_SOCKET_SHUTDOWN: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.close"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5804,7 +5804,7 @@ pub const NET_SOCKET_WRITE: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.connect"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5816,7 +5816,7 @@ pub const NET_SOCKET_WRITEV: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.connect"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5828,7 +5828,7 @@ pub const NET_TCP_GET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::externa
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5841,7 +5841,7 @@ pub const NET_TCP_GET_NO_DELAY: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -5866,7 +5866,7 @@ pub const NET_TCP_SET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::externa
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5878,7 +5878,7 @@ pub const NET_TCP_SET_NO_DELAY: BindingDescriptor = BindingDescriptor::external_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5890,7 +5890,7 @@ pub const NET_UDP_BIND: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.udp"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5902,7 +5902,7 @@ pub const NET_UDP_CONNECT: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.udp"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5914,7 +5914,7 @@ pub const NET_UDP_GET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescrip
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.multicast"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5926,7 +5926,7 @@ pub const NET_UDP_GET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescrip
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.multicast"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -5939,7 +5939,7 @@ pub const NET_UDP_GET_MULTICAST_LOOP: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.multicast"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -5965,7 +5965,7 @@ pub const NET_UDP_GET_MULTICAST_TTL: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.multicast"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -5990,7 +5990,7 @@ pub const NET_UDP_JOIN_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescripto
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.multicast"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6002,7 +6002,7 @@ pub const NET_UDP_JOIN_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescripto
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.multicast"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6014,7 +6014,7 @@ pub const NET_UDP_JOIN_MULTICAST_V4: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.multicast"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6026,7 +6026,7 @@ pub const NET_UDP_JOIN_MULTICAST_V6: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.multicast"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6038,7 +6038,7 @@ pub const NET_UDP_LEAVE_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescript
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.multicast"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6050,7 +6050,7 @@ pub const NET_UDP_LEAVE_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescript
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.multicast"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6062,7 +6062,7 @@ pub const NET_UDP_LEAVE_MULTICAST_V4: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.multicast"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6074,7 +6074,7 @@ pub const NET_UDP_LEAVE_MULTICAST_V6: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.multicast"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6086,7 +6086,7 @@ pub const NET_UDP_RECV_FROM: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.udp"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6098,7 +6098,7 @@ pub const NET_UDP_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.udp"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6110,7 +6110,7 @@ pub const NET_UDP_SET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescrip
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.multicast"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6122,7 +6122,7 @@ pub const NET_UDP_SET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescrip
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.multicast"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6134,7 +6134,7 @@ pub const NET_UDP_SET_MULTICAST_LOOP: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.multicast"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6146,7 +6146,7 @@ pub const NET_UDP_SET_MULTICAST_TTL: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.multicast"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6159,7 +6159,7 @@ pub const NET_UDP_SOCKET: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.udp"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -6185,7 +6185,7 @@ pub const NET_UDS_UDS_ACCEPT: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.accept"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -6211,7 +6211,7 @@ pub const NET_UDS_UDS_CLOSE_LISTENER: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.close"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -6237,7 +6237,7 @@ pub const NET_UDS_UDS_CONNECT: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.connect"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -6262,7 +6262,7 @@ pub const NET_UDS_UDS_LISTEN: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["net.listen"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6275,7 +6275,7 @@ pub const NET_UDS_UDS_SOCKET_PAIR: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["net.connect"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[

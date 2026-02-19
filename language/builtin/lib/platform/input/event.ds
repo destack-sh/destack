@@ -275,7 +275,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "sometimes",
     })
     export function monitorOpen(): Result<InputMonitorHandle, PlatformError>;
@@ -302,7 +302,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "sometimes",
     })
     export function monitorClose(handle: InputMonitorHandle): Result<void, PlatformError>;
@@ -332,7 +332,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "sometimes",
     })
     export function monitorRead(handle: InputMonitorHandle): Result<InputMonitorEvent, PlatformError>;
@@ -362,7 +362,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "never",
     })
     export function monitorTryRead(handle: InputMonitorHandle): Result<InputMonitorEvent, PlatformError>;
@@ -394,7 +394,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "sometimes",
     })
     export function read(handle: InputDeviceHandle): Result<InputEvent, PlatformError>;
@@ -426,7 +426,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "never",
     })
     export function tryRead(handle: InputDeviceHandle): Result<InputEvent, PlatformError>;
@@ -455,7 +455,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "sometimes",
     })
     export function readBatch(
@@ -488,7 +488,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.grab"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function setExclusiveGrab(handle: InputDeviceHandle, enable: boolean): Result<void, PlatformError>;
@@ -517,7 +517,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.control"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function setReadMode(handle: InputDeviceHandle, mode: InputReadMode): Result<void, PlatformError>;

@@ -48,7 +48,7 @@ declare namespace ipc {
             replay: "recordable",
             capabilities: ["ipc.unix", "ipc.fdPass"],
             platforms: ["unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -82,7 +82,7 @@ declare namespace ipc {
             replay: "recordable",
             capabilities: ["ipc.unix", "ipc.fdPass"],
             platforms: ["unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

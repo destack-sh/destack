@@ -169,7 +169,8 @@ pub(crate) unsafe fn destack_input_raw_hid_set_feature(
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` where raw-hid reports are unavailable.
-/// Uses nonblocking hidraw or equivalent raw report APIs on Unix and nonblocking raw-input hid report APIs on Windows.
+/// Uses nonblocking hidraw or equivalent raw report APIs on Unix.
+/// Uses nonblocking raw-input hid report APIs on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

@@ -38,7 +38,7 @@ declare namespace os {
             replay: "recordable",
             capabilities: ["os.hostname", "os.sysinfo"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

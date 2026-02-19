@@ -57,7 +57,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.resolve.lookup", { effect: "external", replay: "recordable", capabilities: ["net.dns"], platforms: ["windows", "unix"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.resolve.lookup", { effect: "external", replay: "recordable", capabilities: ["net.dns"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function resolve(query: ResolveQuery): Result<Array<SocketAddress>, PlatformError>;
 
     /// Reverse lookup a raw socket address into host and service names.
@@ -77,7 +77,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.resolve.reverseLookup", { effect: "external", replay: "recordable", capabilities: ["net.dns"], platforms: ["windows", "unix"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.resolve.reverseLookup", { effect: "external", replay: "recordable", capabilities: ["net.dns"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function reverseLookup(
         address: SocketAddress,
         flags: ReverseLookupFlags,

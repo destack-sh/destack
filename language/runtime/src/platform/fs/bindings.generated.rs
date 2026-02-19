@@ -6849,7 +6849,7 @@ pub const FS_ATTRS_ACCESS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.metadata"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -6874,7 +6874,7 @@ pub const FS_ATTRS_ACCESSAT: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6887,7 +6887,7 @@ pub const FS_ATTRS_CHMOD: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.chmod"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -6912,7 +6912,7 @@ pub const FS_ATTRS_CHOWN: BindingDescriptor = BindingDescriptor::external_with_r
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.chown"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6925,7 +6925,7 @@ pub const FS_ATTRS_FCHMOD: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.chmod"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -6950,7 +6950,7 @@ pub const FS_ATTRS_FCHMODAT: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.chmod"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6962,7 +6962,7 @@ pub const FS_ATTRS_FCHOWN: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.chown"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6974,7 +6974,7 @@ pub const FS_ATTRS_FCHOWNAT: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.chown"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6986,7 +6986,7 @@ pub const FS_ATTRS_FUTIMES: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -6998,7 +6998,7 @@ pub const FS_ATTRS_LUTIMES: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7010,7 +7010,7 @@ pub const FS_ATTRS_UTIMENSAT: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7022,7 +7022,7 @@ pub const FS_ATTRS_UTIMES: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7035,7 +7035,7 @@ pub const FS_DIR_CLOSEDIR: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.handle"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7060,7 +7060,7 @@ pub const FS_DIR_DIRFD: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.handle"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
 .with_host_platforms(&[
@@ -7085,7 +7085,7 @@ pub const FS_DIR_MKDIR: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
 .with_host_platforms(&[
@@ -7110,7 +7110,7 @@ pub const FS_DIR_MKDIRAT: BindingDescriptor = BindingDescriptor::external_with_r
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7123,7 +7123,7 @@ pub const FS_DIR_MKDTEMP: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.temp"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7149,7 +7149,7 @@ pub const FS_DIR_OPENDIR: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7175,7 +7175,7 @@ pub const FS_DIR_READDIR: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7201,7 +7201,7 @@ pub const FS_DIR_READDIR_NEXT: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7227,7 +7227,7 @@ pub const FS_DIR_REWINDDIR: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7252,7 +7252,7 @@ pub const FS_DIR_RMDIR: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
 .with_host_platforms(&[
@@ -7278,7 +7278,7 @@ pub const FS_FILE_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.handle"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7303,7 +7303,7 @@ pub const FS_FILE_COPY_FILE_RANGE: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read", "fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7315,7 +7315,7 @@ pub const FS_FILE_DUP: BindingDescriptor = BindingDescriptor::external_with_requ
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.handle"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
 .with_host_platforms(&[
@@ -7340,7 +7340,7 @@ pub const FS_FILE_DUP2: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.handle"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7352,7 +7352,7 @@ pub const FS_FILE_DUP3: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.handle"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7364,7 +7364,7 @@ pub const FS_FILE_FADVISE: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7376,7 +7376,7 @@ pub const FS_FILE_FALLOCATE: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7389,7 +7389,7 @@ pub const FS_FILE_FDATASYNC: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.sync"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7415,7 +7415,7 @@ pub const FS_FILE_FSYNC: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.sync"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7440,7 +7440,7 @@ pub const FS_FILE_FTRUNCATE: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7453,7 +7453,7 @@ pub const FS_FILE_GET_FD_FLAGS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.handle"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7479,7 +7479,7 @@ pub const FS_FILE_GET_STATUS_FLAGS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.handle"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7504,7 +7504,7 @@ pub const FS_FILE_LOCK: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.lock"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
 .with_host_platforms(&[
@@ -7529,7 +7529,7 @@ pub const FS_FILE_OPEN: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read", "fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7541,7 +7541,7 @@ pub const FS_FILE_OPENAT: BindingDescriptor = BindingDescriptor::external_with_r
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read", "fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7553,7 +7553,7 @@ pub const FS_FILE_OPENAT2: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read", "fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7565,7 +7565,7 @@ pub const FS_FILE_PREAD: BindingDescriptor = BindingDescriptor::external_with_re
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7577,7 +7577,7 @@ pub const FS_FILE_PREADV: BindingDescriptor = BindingDescriptor::external_with_r
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7589,7 +7589,7 @@ pub const FS_FILE_PREADV2: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7601,7 +7601,7 @@ pub const FS_FILE_PWRITE: BindingDescriptor = BindingDescriptor::external_with_r
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7613,7 +7613,7 @@ pub const FS_FILE_PWRITEV: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7625,7 +7625,7 @@ pub const FS_FILE_PWRITEV2: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7637,7 +7637,7 @@ pub const FS_FILE_READ: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
 .with_host_platforms(&[
@@ -7662,7 +7662,7 @@ pub const FS_FILE_READV: BindingDescriptor = BindingDescriptor::external_with_re
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7674,7 +7674,7 @@ pub const FS_FILE_SEEK: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.handle"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7686,7 +7686,7 @@ pub const FS_FILE_SENDFILE: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read", "fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7698,7 +7698,7 @@ pub const FS_FILE_SET_FD_FLAGS: BindingDescriptor = BindingDescriptor::external_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.handle"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7710,7 +7710,7 @@ pub const FS_FILE_SET_STATUS_FLAGS: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.handle"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7722,7 +7722,7 @@ pub const FS_FILE_SPLICE: BindingDescriptor = BindingDescriptor::external_with_r
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.zero.copy"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7734,7 +7734,7 @@ pub const FS_FILE_SYNC_FILE_RANGE: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7747,7 +7747,7 @@ pub const FS_FILE_SYNCFS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.sync"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7772,7 +7772,7 @@ pub const FS_FILE_TEE: BindingDescriptor = BindingDescriptor::external_with_requ
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.zero.copy"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7785,7 +7785,7 @@ pub const FS_FILE_TRUNCATE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7810,7 +7810,7 @@ pub const FS_FILE_VMSPLICE: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.zero.copy"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7822,7 +7822,7 @@ pub const FS_FILE_WRITE: BindingDescriptor = BindingDescriptor::external_with_re
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7834,7 +7834,7 @@ pub const FS_FILE_WRITEV: BindingDescriptor = BindingDescriptor::external_with_r
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7846,7 +7846,7 @@ pub const FS_MMAP_MADVISE: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.mmap"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7858,7 +7858,7 @@ pub const FS_MMAP_MMAP_ANONYMOUS: BindingDescriptor = BindingDescriptor::externa
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.mmap"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7870,7 +7870,7 @@ pub const FS_MMAP_MMAP_FILE: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.mmap"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7882,7 +7882,7 @@ pub const FS_MMAP_MPROTECT: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.mmap"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7894,7 +7894,7 @@ pub const FS_MMAP_MSYNC: BindingDescriptor = BindingDescriptor::external_with_re
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.mmap"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7907,7 +7907,7 @@ pub const FS_MMAP_MUNMAP: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.mmap"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -7932,7 +7932,7 @@ pub const FS_PATH_COPYFILE: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read", "fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7944,7 +7944,7 @@ pub const FS_PATH_LINK: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.link"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
 .with_host_platforms(&[
@@ -7969,7 +7969,7 @@ pub const FS_PATH_LINKAT: BindingDescriptor = BindingDescriptor::external_with_r
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.link"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -7982,7 +7982,7 @@ pub const FS_PATH_MKFIFO: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.special"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8006,7 +8006,7 @@ pub const FS_PATH_MKFIFOAT: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.special"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
@@ -8018,7 +8018,7 @@ pub const FS_PATH_MKNOD: BindingDescriptor = BindingDescriptor::external_with_re
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.special"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
@@ -8030,7 +8030,7 @@ pub const FS_PATH_MKNODAT: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.special"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
@@ -8043,7 +8043,7 @@ pub const FS_PATH_READLINK: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.read"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8068,7 +8068,7 @@ pub const FS_PATH_READLINKAT: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8081,7 +8081,7 @@ pub const FS_PATH_REALPATH: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.metadata"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8107,7 +8107,7 @@ pub const FS_PATH_RENAME: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8132,7 +8132,7 @@ pub const FS_PATH_RENAMEAT: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8144,7 +8144,7 @@ pub const FS_PATH_RENAMEAT2: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8156,7 +8156,7 @@ pub const FS_PATH_SYMLINK: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.link"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8168,7 +8168,7 @@ pub const FS_PATH_SYMLINKAT: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.link"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8181,7 +8181,7 @@ pub const FS_PATH_UNLINK: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.write"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8206,7 +8206,7 @@ pub const FS_PATH_UNLINKAT: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8219,7 +8219,7 @@ pub const FS_STAT_FSTAT: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.metadata"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8245,7 +8245,7 @@ pub const FS_STAT_FSTATFS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.metadata"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8271,7 +8271,7 @@ pub const FS_STAT_LSTAT: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.metadata"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8296,7 +8296,7 @@ pub const FS_STAT_PATH: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
 .with_host_platforms(&[
@@ -8321,7 +8321,7 @@ pub const FS_STAT_PATHAT: BindingDescriptor = BindingDescriptor::external_with_r
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8334,7 +8334,7 @@ pub const FS_STAT_PATHFS: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.metadata"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8359,7 +8359,7 @@ pub const FS_STAT_PATHX: BindingDescriptor = BindingDescriptor::external_with_re
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8371,7 +8371,7 @@ pub const FS_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_re
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.watch"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["dragonfly", "freebsd", "linux", "macos", "netbsd", "openbsd", "windows"]);
@@ -8384,7 +8384,7 @@ pub const FS_WATCH_OPEN_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.watch"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8405,7 +8405,7 @@ pub const FS_WATCH_OPEN_READ: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.watch"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8425,7 +8425,7 @@ pub const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.watch"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["dragonfly", "freebsd", "linux", "macos", "netbsd", "openbsd", "windows"]);
@@ -8437,7 +8437,7 @@ pub const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8449,7 +8449,7 @@ pub const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8462,7 +8462,7 @@ pub const FS_XATTR_FLISTXATTR: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8488,7 +8488,7 @@ pub const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8513,7 +8513,7 @@ pub const FS_XATTR_FREMOVEXATTR: BindingDescriptor = BindingDescriptor::external
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8525,7 +8525,7 @@ pub const FS_XATTR_FREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8537,7 +8537,7 @@ pub const FS_XATTR_FSETXATTR: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8549,7 +8549,7 @@ pub const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8562,7 +8562,7 @@ pub const FS_XATTR_GETXATTR: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8587,7 +8587,7 @@ pub const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8600,7 +8600,7 @@ pub const FS_XATTR_LGETXATTR: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8625,7 +8625,7 @@ pub const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8638,7 +8638,7 @@ pub const FS_XATTR_LISTXATTR: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8664,7 +8664,7 @@ pub const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8690,7 +8690,7 @@ pub const FS_XATTR_LLISTXATTR: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8716,7 +8716,7 @@ pub const FS_XATTR_LLISTXATTR_BYTES: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8742,7 +8742,7 @@ pub const FS_XATTR_LREMOVEXATTR: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8767,7 +8767,7 @@ pub const FS_XATTR_LREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8779,7 +8779,7 @@ pub const FS_XATTR_LSETXATTR: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8791,7 +8791,7 @@ pub const FS_XATTR_LSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8804,7 +8804,7 @@ pub const FS_XATTR_REMOVEXATTR: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -8829,7 +8829,7 @@ pub const FS_XATTR_REMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8841,7 +8841,7 @@ pub const FS_XATTR_SETXATTR: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -8853,7 +8853,7 @@ pub const FS_XATTR_SETXATTR_BYTES: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);

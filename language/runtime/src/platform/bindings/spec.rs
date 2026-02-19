@@ -47,11 +47,9 @@ pub enum BindingReplayKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BindingScope {
     /// Binding executes via direct host platform operations.
-    Os,
+    Host,
     /// Binding executes entirely inside runtime-managed state.
     Runtime,
-    /// Binding may cross both runtime and host platform boundaries.
-    Hybrid,
 }
 
 /// Blocking behavior classification for runtime bindings.
@@ -324,7 +322,7 @@ impl BindingDescriptor {
             replay_kind,
             replay_payload,
             requires,
-            BindingScope::Hybrid,
+            BindingScope::Host,
             BindingBlocking::Sometimes,
         )
     }
@@ -421,7 +419,7 @@ impl BindingDescriptor {
             name,
             signature,
             requires,
-            BindingScope::Hybrid,
+            BindingScope::Runtime,
             BindingBlocking::Sometimes,
         )
     }
@@ -462,7 +460,7 @@ impl BindingDescriptor {
             name,
             signature,
             requires,
-            BindingScope::Hybrid,
+            BindingScope::Runtime,
             BindingBlocking::Sometimes,
         )
     }
@@ -512,7 +510,7 @@ impl BindingDescriptor {
             replay,
             replay_kind,
             requires,
-            BindingScope::Hybrid,
+            BindingScope::Host,
             BindingBlocking::Sometimes,
         )
     }
@@ -554,7 +552,7 @@ impl BindingDescriptor {
             replay_kind,
             replay_payload,
             &[],
-            BindingScope::Hybrid,
+            BindingScope::Host,
             BindingBlocking::Sometimes,
         )
     }

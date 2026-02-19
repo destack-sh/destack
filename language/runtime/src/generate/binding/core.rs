@@ -1689,9 +1689,8 @@ fn render_binding_replay_kind(kind: BindingReplayKind) -> String {
 /// Render a binding scope constant.
 fn render_binding_scope(scope: BindingScope) -> String {
     match scope {
-        BindingScope::Os => "BindingScope::Os".to_string(),
+        BindingScope::Host => "BindingScope::Host".to_string(),
         BindingScope::Runtime => "BindingScope::Runtime".to_string(),
-        BindingScope::Hybrid => "BindingScope::Hybrid".to_string(),
     }
 }
 

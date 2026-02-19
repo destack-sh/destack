@@ -64,6 +64,16 @@ export struct GpuCompilationInfo {
     messages: Slice<GpuCompilationMessage>;
 }
 
+/// Vertex attribute descriptor.
+export struct GpuVertexAttribute {
+    /// Vertex attribute format selector.
+    format: uint32;
+    /// Byte offset for this attribute within one vertex element.
+    offset: uint64;
+    /// Shader location index.
+    shaderLocation: uint32;
+}
+
 /// Vertex buffer layout descriptor.
 export struct GpuVertexBufferLayout {
     /// Vertex buffer slot index.
@@ -82,16 +92,6 @@ export enum GpuVertexStepMode {
     Vertex = 1,
     /// Advance attributes per instance.
     Instance = 2,
-}
-
-/// Vertex attribute descriptor.
-export struct GpuVertexAttribute {
-    /// Vertex attribute format selector.
-    format: uint32;
-    /// Byte offset for this attribute within one vertex element.
-    offset: uint64;
-    /// Shader location index.
-    shaderLocation: uint32;
 }
 
 /// Primitive topology selector.
@@ -325,6 +325,14 @@ export struct GpuMultisampleState {
     alphaToCoverageEnabled: boolean;
 }
 
+/// Pipeline constants descriptor.
+export struct GpuPipelineConstant {
+    /// Constant identifier key.
+    key: string;
+    /// Constant value as float64.
+    value: float64;
+}
+
 /// Fragment-state descriptor.
 export struct GpuFragmentState {
     /// Fragment shader-module handle.
@@ -363,14 +371,6 @@ export struct GpuComputeState {
     entry: string;
     /// Compute-stage specialization constants.
     constants: Slice<GpuPipelineConstant>;
-}
-
-/// Pipeline constants descriptor.
-export struct GpuPipelineConstant {
-    /// Constant identifier key.
-    key: string;
-    /// Constant value as float64.
-    value: float64;
 }
 
 /// Render-state descriptor.
@@ -453,7 +453,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.shader"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function shaderCreate(
@@ -484,7 +484,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.shader"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function shaderDestroy(handle: GpuShaderHandle): Result<void, PlatformError>;
@@ -511,7 +511,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.shader"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function shaderCompilationInfo(
@@ -541,7 +541,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.compute"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function computePipelineCreate(
@@ -571,7 +571,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function renderPipelineCreate(
@@ -601,7 +601,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.bind"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function pipelineBindGroupLayout(
@@ -631,7 +631,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.compute", "gpu.render"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function pipelineDestroy(handle: GpuPipelineHandle): Result<void, PlatformError>;

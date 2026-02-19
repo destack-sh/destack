@@ -43,7 +43,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "never",
     })
     export function keyboardState(handle: InputDeviceHandle): Result<InputKeyboardState, PlatformError>;

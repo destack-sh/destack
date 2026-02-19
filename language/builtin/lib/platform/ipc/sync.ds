@@ -27,7 +27,7 @@ declare namespace ipc {
             replay: "recordable",
             capabilities: ["ipc.semaphore"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -57,7 +57,7 @@ declare namespace ipc {
             replay: "recordable",
             capabilities: ["ipc.semaphore"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -87,7 +87,7 @@ declare namespace ipc {
             replay: "recordable",
             capabilities: ["ipc.semaphore"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -117,7 +117,7 @@ declare namespace ipc {
             replay: "recordable",
             capabilities: ["ipc.futex"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -152,7 +152,7 @@ declare namespace ipc {
             replay: "recordable",
             capabilities: ["ipc.futex"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

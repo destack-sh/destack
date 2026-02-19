@@ -385,7 +385,8 @@ pub(crate) unsafe fn destack_input_close(
 /// Device ordering and hotplug visibility follow host input subsystem semantics.
 ///
 /// # Platform
-/// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one discoverable input backend.
+/// Unix and Windows.
+/// Returns operation-level `notSupported` on hosts that do not expose one discoverable input backend.
 /// Uses evdev device-node enumeration on Linux.
 /// Uses global-session and terminal discovery on macOS.
 /// Uses terminal input discovery on other Unix hosts.

@@ -46,7 +46,7 @@ declare namespace tls {
             replay: "recordable",
             capabilities: ["tls.session"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -80,7 +80,7 @@ declare namespace tls {
             replay: "recordable",
             capabilities: ["tls.handshake"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -110,7 +110,7 @@ declare namespace tls {
             replay: "nonrecordable",
             capabilities: ["tls.session"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -143,7 +143,7 @@ declare namespace tls {
             replay: "nonrecordable",
             capabilities: ["tls.session"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -176,7 +176,7 @@ declare namespace tls {
             replay: "recordable",
             capabilities: ["tls.session"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -206,7 +206,7 @@ declare namespace tls {
             replay: "recordable",
             capabilities: ["tls.session"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -236,7 +236,7 @@ declare namespace tls {
             replay: "recordable",
             capabilities: ["tls.session"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -266,7 +266,7 @@ declare namespace tls {
             replay: "nonrecordable",
             capabilities: ["tls.certificate.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -296,7 +296,7 @@ declare namespace tls {
             replay: "nonrecordable",
             capabilities: ["tls.session", "tls.exporter"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -331,7 +331,7 @@ declare namespace tls {
             replay: "recordable",
             capabilities: ["tls.session", "tls.resumption"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

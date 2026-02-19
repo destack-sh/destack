@@ -57,7 +57,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.haptics"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function hapticsEffects(handle: InputDeviceHandle): Result<Array<InputHapticEffectType>, PlatformError>;
@@ -84,7 +84,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.haptics"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function hapticsPlay(
@@ -114,7 +114,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.haptics"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function hapticsStop(handle: InputDeviceHandle): Result<void, PlatformError>;

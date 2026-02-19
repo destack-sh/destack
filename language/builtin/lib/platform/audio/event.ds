@@ -53,7 +53,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.device.monitor"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function eventOpen(): Result<AudioEventHandle, PlatformError>;
@@ -80,7 +80,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.device.monitor"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function eventClose(handle: AudioEventHandle): Result<void, PlatformError>;
@@ -107,7 +107,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.device.monitor"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function eventRead(
@@ -137,7 +137,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.device.monitor"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function eventTryRead(handle: AudioEventHandle): Result<AudioDeviceEvent, PlatformError>;
