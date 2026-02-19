@@ -379,12 +379,12 @@ impl Compiler {
         Some(symbols)
     }
 
-    /// Collect static parameter metadata for a symbol (in this or another module).
-    pub(crate) fn collect_static_parameter(
+    /// Resolve static parameter metadata for a symbol (in this or another module).
+    pub(crate) fn resolve_static_parameter(
         &self,
         module: &Module,
         symbol_id: GlobalSymbolId,
-        fallback_source_id: LocalNodeIdAny,
+        source_id: LocalNodeIdAny,
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -398,11 +398,11 @@ impl Compiler {
             tree,
             symbols,
             |owner_module, owner_tree, owner_symbols| {
-                self.collect_static_parameter_in_module(
+                self.resolve_static_parameter_in_module(
                     owner_module,
                     profile,
                     symbol_id,
-                    fallback_source_id,
+                    source_id,
                     owner_tree,
                     owner_symbols,
                     types,
@@ -410,28 +410,23 @@ impl Compiler {
             },
         );
 
-        // fall back when parameter metadata is unavailable
+        // synthesize unknown metadata when parameter details are unavailable
         parameter.unwrap_or_else(|| {
             let kind = self
                 .static_parameter_kind_for_symbol(module, profile, symbol_id, tree, symbols, types);
-            self.fallback_static_parameter(symbol_id, kind, fallback_source_id, types)
+            self.synthesize_unknown_static_parameter(symbol_id, kind, source_id, types)
         })
     }
 
-    /// Build a fallback static parameter when metadata cannot be resolved.
-    pub(crate) fn fallback_static_parameter(
+    /// Synthesize an unknown static parameter when metadata cannot be resolved.
+    pub(crate) fn synthesize_unknown_static_parameter(
         &self,
         symbol: GlobalSymbolId,
         kind: StaticParameterKind,
         source_id: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> StaticParameter {
-        let unknown_ty_id = types.insert_type_from_any(
-            Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            },
-            source_id,
-        );
+        let unknown_ty_id = self.synthesize_unknown_type_for_source(source_id, types);
 
         StaticParameter {
             symbol,
@@ -440,6 +435,20 @@ impl Compiler {
             default_expression: None,
             kind,
         }
+    }
+
+    /// Synthesize an unknown type id for one source node.
+    fn synthesize_unknown_type_for_source(
+        &self,
+        source_id: LocalNodeIdAny,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            },
+            source_id,
+        )
     }
 
     /// Evaluate a static parameter constraint while preserving symbolic bounds.
@@ -516,10 +525,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
-        // fallback to unknown when constraints are missing or unavailable
-        let unknown_type = Type::TypeLiteral {
-            value: TypeLiteral::Unknown,
-        };
+        // synthesize unknown when constraints are missing or unavailable
 
         // reuse cached constraints when available
         if let Some(cached) = types.get_static_parameter_constraint_type(symbol) {
@@ -528,7 +534,7 @@ impl Compiler {
 
         // avoid recursive constraint resolution
         if types.is_static_parameter_constraint_in_progress(symbol) {
-            return Some(types.insert_type_from_any(unknown_type.clone(), source_id));
+            return Some(self.synthesize_unknown_type_for_source(source_id, types));
         }
 
         // mark constraint resolution as in progress
@@ -547,7 +553,7 @@ impl Compiler {
                 // read the declared constraint type or fall back to unknown
                 let declared_type_id = types
                     .get_declared_type_id(primary_declaration)
-                    .unwrap_or_else(|| types.insert_type_from_any(unknown_type.clone(), source_id));
+                    .unwrap_or_else(|| self.synthesize_unknown_type_for_source(source_id, types));
 
                 // evaluate unevaluated constraint types on demand
                 let needs_evaluation =
@@ -565,7 +571,7 @@ impl Compiler {
                         )
                         .is_err()
                     {
-                        Some(types.insert_type_from_any(unknown_type.clone(), source_id))
+                        Some(self.synthesize_unknown_type_for_source(source_id, types))
                     } else {
                         Some(declared_type_id)
                     }
@@ -573,7 +579,7 @@ impl Compiler {
                     Some(declared_type_id)
                 }
             } else {
-                Some(types.insert_type_from_any(unknown_type.clone(), source_id))
+                Some(self.synthesize_unknown_type_for_source(source_id, types))
             }
         } else {
             // resolve remote static parameter constraints by importing the declared type
@@ -615,7 +621,7 @@ impl Compiler {
                             let remote_declared_type =
                                 owner_types.get_type(remote_declared_type_id);
                             if matches!(remote_declared_type, Type::Unevaluated(_)) {
-                                Some(types.insert_type_from_any(unknown_type.clone(), source_id))
+                                Some(self.synthesize_unknown_type_for_source(source_id, types))
                             } else {
                                 Some(self.import_type_from_remote_for_node(
                                     source_id,
@@ -626,10 +632,10 @@ impl Compiler {
                                 ))
                             }
                         } else {
-                            Some(types.insert_type_from_any(unknown_type.clone(), source_id))
+                            Some(self.synthesize_unknown_type_for_source(source_id, types))
                         }
                     } else {
-                        Some(types.insert_type_from_any(unknown_type.clone(), source_id))
+                        Some(self.synthesize_unknown_type_for_source(source_id, types))
                     }
                 },
             )
@@ -645,13 +651,13 @@ impl Compiler {
         resolved
     }
 
-    /// Collect static parameter metadata from a module.
-    fn collect_static_parameter_in_module(
+    /// Resolve static parameter metadata from a module.
+    fn resolve_static_parameter_in_module(
         &self,
         module: &Module,
         profile: ProfileId,
         symbol_id: GlobalSymbolId,
-        fallback_source_id: LocalNodeIdAny,
+        source_id: LocalNodeIdAny,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -697,17 +703,14 @@ impl Compiler {
 
                 let remote_declared_type = remote_types.get_type(remote_declared_type_id);
                 self.import_type_from_remote_for_node(
-                    fallback_source_id,
+                    source_id,
                     remote_declared_type,
                     &remote_types,
                     symbol_id,
                     types,
                 )
             } else {
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                };
-                types.insert_type_from_any(ty, fallback_source_id)
+                self.synthesize_unknown_type_for_source(source_id, types)
             }
         };
 

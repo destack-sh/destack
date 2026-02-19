@@ -1567,7 +1567,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Assign,
-            RelationMode::TYPE_OPS,
+            RelationMode::RUNTIME_GUARD,
         );
         let target_type_id = self.normalize_apparent_type(
             module,
@@ -1576,7 +1576,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Assign,
-            RelationMode::TYPE_OPS,
+            RelationMode::RUNTIME_GUARD,
         );
 
         // constant true when the guard is already satisfied
@@ -1621,7 +1621,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Assign,
-            RelationMode::TYPE_OPS,
+            RelationMode::RUNTIME_GUARD,
         );
 
         // accept unions when all members are runtime checkable
@@ -1667,7 +1667,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Assign,
-            RelationMode::TYPE_OPS,
+            RelationMode::RUNTIME_GUARD,
         );
 
         match types.get_type(type_id) {

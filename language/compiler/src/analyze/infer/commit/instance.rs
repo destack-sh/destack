@@ -12,8 +12,8 @@ use super::key::InstanceMatch;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Whether a symbol is instantiable (i.e. can have an instance type).
-    pub(crate) fn symbol_is_instantiable(&self, symbol: GlobalSymbolId) -> bool {
+    /// Query whether a symbol is instantiable (i.e. can have an instance type).
+    pub(crate) fn query_symbol_is_instantiable(&self, symbol: GlobalSymbolId) -> bool {
         matches!(
             symbol.ty(),
             SymbolType::Class
@@ -40,7 +40,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalInstanceId>> {
         // skip non-instantiable symbols
-        if !self.symbol_is_instantiable(symbol) {
+        if !self.query_symbol_is_instantiable(symbol) {
             return Ok(None);
         }
 

@@ -3195,7 +3195,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Flow,
-            RelationMode::TYPE_OPS,
+            RelationMode::INDEX_ACCESS,
             &mut visited,
         );
         let Some(missing_key) = resolution.missing_keys.first() else {

@@ -385,7 +385,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Assign,
-            RelationMode::TYPE_OPS,
+            RelationMode::OBJECT_SHAPE,
         );
         match types.get_type(type_id) {
             Type::Array { element, .. } => *element,
@@ -2167,7 +2167,7 @@ impl Compiler {
                                 symbols,
                                 types,
                                 NormalizationMode::Assign,
-                                RelationMode::TYPE_OPS,
+                                RelationMode::EXPECTED_TYPE,
                             )
                         });
                 let expected_is_tuple = expected_ty_id.is_some_and(|expected_ty_id| {
@@ -2346,7 +2346,7 @@ impl Compiler {
                                 symbols,
                                 types,
                                 NormalizationMode::Assign,
-                                RelationMode::TYPE_OPS,
+                                RelationMode::EXPECTED_TYPE,
                             )
                         });
                 let expected_element_types =
@@ -5277,7 +5277,7 @@ impl Compiler {
                     symbols,
                     types,
                     NormalizationMode::Assign,
-                    RelationMode::TYPE_OPS,
+                    RelationMode::OBJECT_SHAPE,
                     &mut normalize_visited,
                 );
 

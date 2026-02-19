@@ -61,11 +61,11 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
-        relation_mode: RelationMode,
+        _relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // key queries should always use type operations semantics
-        let relation_mode = relation_mode.for_type_ops();
+        let relation_mode = RelationMode::TYPE_OPERATOR;
 
         // TODO #Cleanup: move this instantiation gate into structural normalization, keep keyof unevaluated until inference binds parameters
         // preserve keyof when the operand still depends on instantiation
@@ -549,11 +549,11 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
-        relation_mode: RelationMode,
+        _relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // conditional types use type operations semantics
-        let relation_mode = relation_mode.for_type_ops();
+        let relation_mode = RelationMode::TYPE_OPERATOR;
 
         // normalize the condition operands
         let original_left = left;
@@ -856,11 +856,11 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
-        relation_mode: RelationMode,
+        _relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // index access uses type operations semantics
-        let relation_mode = relation_mode.for_type_ops();
+        let relation_mode = RelationMode::INDEX_ACCESS;
 
         let resolution = self.resolve_index_access_types(
             module,
@@ -915,11 +915,11 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
-        relation_mode: RelationMode,
+        _relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> IndexAccessResolution {
         // index access uses type operations semantics
-        let relation_mode = relation_mode.for_type_ops();
+        let relation_mode = RelationMode::INDEX_ACCESS;
 
         // resolve apparent operand types before index evaluation
         let left = self.apparent_type(module, profile, left, symbols, types, relation_mode);
@@ -1466,7 +1466,7 @@ impl Compiler {
                                 symbols,
                                 types,
                                 NormalizationMode::Assign,
-                                RelationMode::TYPE_OPS,
+                                RelationMode::ALIAS_EXPANSION,
                                 &mut visited_alias,
                             )
                         {
@@ -1563,7 +1563,7 @@ impl Compiler {
                                 symbols,
                                 types,
                                 NormalizationMode::Assign,
-                                RelationMode::TYPE_OPS,
+                                RelationMode::ALIAS_EXPANSION,
                                 &mut visited_alias,
                             )
                         {
@@ -1739,11 +1739,11 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
-        relation_mode: RelationMode,
+        _relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // mapped key queries should use type operations semantics
-        let relation_mode = relation_mode.for_type_ops();
+        let relation_mode = RelationMode::OBJECT_SHAPE;
 
         let TypeMappedParameter {
             name,
@@ -2485,7 +2485,7 @@ impl Compiler {
                                 symbols,
                                 types,
                                 NormalizationMode::Assign,
-                                RelationMode::TYPE_OPS,
+                                RelationMode::ALIAS_EXPANSION,
                                 &mut visited_alias,
                             )
                         {
@@ -2573,7 +2573,7 @@ impl Compiler {
                                 symbols,
                                 types,
                                 NormalizationMode::Assign,
-                                RelationMode::TYPE_OPS,
+                                RelationMode::ALIAS_EXPANSION,
                                 &mut visited_alias,
                             )
                         {

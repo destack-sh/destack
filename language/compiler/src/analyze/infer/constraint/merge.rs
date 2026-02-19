@@ -54,7 +54,7 @@ impl Compiler {
                         symbols,
                         types,
                         NormalizationMode::Assign,
-                        RelationMode::TYPE_OPS,
+                        RelationMode::OBJECT_SHAPE,
                     );
 
                     // short circuit on any or unknown spreads
@@ -202,7 +202,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Assign,
-            RelationMode::TYPE_OPS,
+            RelationMode::OBJECT_SHAPE,
         );
 
         // derive shapes based on the normalized type

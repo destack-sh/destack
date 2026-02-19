@@ -2236,7 +2236,7 @@ impl Compiler {
                             symbols,
                             types,
                             NormalizationMode::Assign,
-                            RelationMode::TYPE_OPS,
+                            RelationMode::STATIC_EVAL,
                         );
                         right_type_id = self.normalize_type_with_relation(
                             module,
@@ -2245,7 +2245,7 @@ impl Compiler {
                             symbols,
                             types,
                             NormalizationMode::Assign,
-                            RelationMode::TYPE_OPS,
+                            RelationMode::STATIC_EVAL,
                         );
 
                         let options = self.analyze_context_options_for_module(module.id);
@@ -2353,7 +2353,7 @@ impl Compiler {
                     symbols,
                     types,
                     NormalizationMode::Assign,
-                    RelationMode::TYPE_OPS,
+                    RelationMode::STATIC_EVAL,
                 );
                 right_type_id = self.normalize_type_with_relation(
                     module,
@@ -2362,7 +2362,7 @@ impl Compiler {
                     symbols,
                     types,
                     NormalizationMode::Assign,
-                    RelationMode::TYPE_OPS,
+                    RelationMode::STATIC_EVAL,
                 );
 
                 // choose the branch using extends assignability semantics
@@ -2700,7 +2700,7 @@ impl Compiler {
                             symbols,
                             types,
                             NormalizationMode::Assign,
-                            RelationMode::TYPE_OPS,
+                            RelationMode::STATIC_EVAL,
                         );
 
                         let projected_value = match types.get_type(value_type_id) {

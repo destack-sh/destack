@@ -366,7 +366,7 @@ impl Compiler {
         let symbol = GlobalSymbolId::new(symbol.module_id, symbol.local_id.with_type(symbol_type));
 
         // skip symbols that cannot have instance types
-        if !self.symbol_is_instantiable(symbol) {
+        if !self.query_symbol_is_instantiable(symbol) {
             return Ok(None);
         }
 

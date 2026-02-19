@@ -36,8 +36,8 @@ impl RelationFlags {
         use_contextual_type: false,
     };
 
-    /// Relation flags for type operations that query keys and shapes.
-    pub(crate) const TYPE_OPS: Self = Self {
+    /// Relation flags for constraint-like structural checks.
+    pub(crate) const CONSTRAINT: Self = Self {
         use_apparent_type: true,
         allow_fresh_literals: false,
         prefer_non_widening: false,
@@ -55,22 +55,32 @@ pub(crate) struct RelationMode {
 }
 
 impl RelationMode {
+    /// Base relation mode for constraint-like structural checks.
+    pub(crate) const CONSTRAINT: Self = Self {
+        kind: RelationKind::Constraint,
+        flags: RelationFlags::CONSTRAINT,
+    };
     /// Relation mode for assignability style relations.
     pub(crate) const ASSIGN: Self = Self {
         kind: RelationKind::Assignable,
         flags: RelationFlags::ASSIGN,
     };
-
-    /// Relation mode for type operations that query keys and shapes.
-    pub(crate) const TYPE_OPS: Self = Self {
-        kind: RelationKind::Constraint,
-        flags: RelationFlags::TYPE_OPS,
-    };
-
-    /// Return the relation mode to use for type operators.
-    pub(crate) fn for_type_ops(self) -> Self {
-        Self::TYPE_OPS
-    }
+    /// Relation mode for operator compatibility checks.
+    pub(crate) const OPERATOR_COMPAT: Self = Self::CONSTRAINT;
+    /// Relation mode for contextual expected-type normalization checks.
+    pub(crate) const EXPECTED_TYPE: Self = Self::CONSTRAINT;
+    /// Relation mode for object-shape normalization checks.
+    pub(crate) const OBJECT_SHAPE: Self = Self::CONSTRAINT;
+    /// Relation mode for index-access key and member-shape checks.
+    pub(crate) const INDEX_ACCESS: Self = Self::CONSTRAINT;
+    /// Relation mode for declare-time static type-evaluation checks.
+    pub(crate) const STATIC_EVAL: Self = Self::CONSTRAINT;
+    /// Relation mode for runtime guard compatibility checks.
+    pub(crate) const RUNTIME_GUARD: Self = Self::CONSTRAINT;
+    /// Relation mode for type-operator key and membership checks.
+    pub(crate) const TYPE_OPERATOR: Self = Self::CONSTRAINT;
+    /// Relation mode for alias-expansion normalization checks.
+    pub(crate) const ALIAS_EXPANSION: Self = Self::CONSTRAINT;
 
     /// Return a cache key representing this relation mode.
     pub(crate) fn cache_key(self) -> u64 {
@@ -97,7 +107,7 @@ impl RelationMode {
 
     /// Return true when normalization caching is valid for this relation mode.
     pub(crate) fn is_cacheable(self) -> bool {
-        // NOTE #Suspicious: only ASSIGN is cacheable even though TYPE_OPS is deterministic
+        // NOTE #Suspicious: only ASSIGN is cacheable even though CONSTRAINT is deterministic
         self == Self::ASSIGN
     }
 }
