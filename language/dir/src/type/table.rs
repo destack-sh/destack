@@ -1378,6 +1378,19 @@ impl TypeTable {
         self.instances.get(instance_id.0)
     }
 
+    /// Return the number of committed instances.
+    pub fn instance_count(&self) -> usize {
+        self.instances.iter().count()
+    }
+
+    /// Iterate committed instances with their local ids.
+    pub fn iter_instances(&self) -> impl Iterator<Item = (LocalInstanceId, &Instance)> + '_ {
+        self.instances
+            .iter()
+            .enumerate()
+            .map(|(index, instance)| (LocalInstanceId::new(index as u32), instance))
+    }
+
     /// Get a mutable instance by its id.
     pub fn get_instance_mut(&mut self, instance_id: LocalInstanceId) -> &mut Instance {
         self.instances.get_mut(instance_id.0)

@@ -9,12 +9,12 @@ use destack_base::StringId;
 use destack_dir::{
     AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, Constraint, Declaration,
     DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem,
-    DependencyKind, DynamicKey, Expression, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable,
-    IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, Mutability, NodeTree, NodeType,
-    NormalizationMode, Parameter, Pattern, PrimitiveType, StaticArgument, StaticExpression,
-    StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeField, TypeLiteral, TypeTable,
-    WhereClause, EnumField,
+    DependencyKind, DynamicKey, EnumField, Expression, FunctionCardinality, FunctionKind,
+    FunctionMode, FunctionSignature, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope,
+    InferTable, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, Mutability, NodeTree,
+    NodeType, NormalizationMode, Parameter, Pattern, PrimitiveType, StaticArgument,
+    StaticExpression, StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeField,
+    TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 

@@ -10,7 +10,7 @@ use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
 use super::{
-    AnalyzeReadStage, CanonicalSymbolMode, NormalizationMode, RelationMode, TypeCollector,
+    AnalyzeDependencyStage, CanonicalSymbolMode, NormalizationMode, RelationMode, TypeCollector,
     TypeWalkContext, TypeWalkKey,
 };
 use crate::{AnalyzeOptions, AnalyzeResult, Compiler, ElaborateError, ElaborateResult};
@@ -1196,7 +1196,7 @@ impl Compiler {
                 module,
                 profile,
                 current.module_id,
-                AnalyzeReadStage::Declare,
+                AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(current.local_id);
                     if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
@@ -1765,7 +1765,7 @@ impl Compiler {
                         parameter_symbol.module_id,
                         tree,
                         symbols,
-                        AnalyzeReadStage::Declare,
+                        AnalyzeDependencyStage::Declare,
                         |_, owner_tree, owner_symbols| {
                             self.static_parameter_kind_for_symbol_in_module(
                                 *parameter_symbol,

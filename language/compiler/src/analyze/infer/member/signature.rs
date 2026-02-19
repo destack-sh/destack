@@ -50,31 +50,39 @@ impl Compiler {
         };
 
         // instantiate member static arguments when present
-        let (resolved_member_ty_id, resolved_static_arguments) =
+        let (resolved_member_ty_id, resolved_static_arguments, resolved_static_parameter_symbols) =
             if let Some(static_argument_ids) = static_arguments {
-                let (resolved_member_ty_id, resolved_static_arguments) = self
-                    .apply_member_static_arguments(
-                        module,
-                        expression_id,
-                        member_symbol,
-                        member_ty_id,
-                        static_argument_ids,
-                        substitutions,
-                        profile,
-                        options,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                    )?;
-                (resolved_member_ty_id, resolved_static_arguments)
+                let (
+                    resolved_member_ty_id,
+                    resolved_static_arguments,
+                    resolved_static_parameter_symbols,
+                ) = self.apply_member_static_arguments(
+                    module,
+                    expression_id,
+                    member_symbol,
+                    member_ty_id,
+                    static_argument_ids,
+                    substitutions,
+                    profile,
+                    options,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                )?;
+                (
+                    resolved_member_ty_id,
+                    resolved_static_arguments,
+                    resolved_static_parameter_symbols,
+                )
             } else {
-                (member_ty_id, Vec::new())
+                (member_ty_id, Vec::new(), Vec::new())
             };
 
         Ok(ResolvedMemberAccessType {
             type_id: resolved_member_ty_id,
             static_arguments: resolved_static_arguments,
+            static_parameter_symbols: resolved_static_parameter_symbols,
         })
     }
 
@@ -93,7 +101,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
-    ) -> AnalyzeResult<(LocalTypeId, Vec<StaticArgument>)> {
+    ) -> AnalyzeResult<(LocalTypeId, Vec<StaticArgument>, Vec<GlobalSymbolId>)> {
         match types.get_type(member_ty_id).clone() {
             Type::Function { .. } => {
                 let instantiated = self.instantiate_member_signature_for_static_arguments(
@@ -110,13 +118,18 @@ impl Compiler {
                     types,
                     infer,
                 )?;
-                Ok((instantiated.type_id, instantiated.static_arguments))
+                Ok((
+                    instantiated.type_id,
+                    instantiated.static_arguments,
+                    instantiated.static_parameter_symbols,
+                ))
             }
             Type::Object {
                 call_signatures, ..
             } => {
                 let mut resolved_signatures = Vec::new();
                 let mut resolved_static_arguments = Vec::new();
+                let mut resolved_static_parameter_symbols = Vec::new();
 
                 for signature_id in call_signatures {
                     if !matches!(types.get_type(signature_id), Type::Function { .. }) {
@@ -139,13 +152,15 @@ impl Compiler {
                     )?;
                     if resolved_static_arguments.is_empty() {
                         resolved_static_arguments = instantiated.static_arguments.clone();
+                        resolved_static_parameter_symbols =
+                            instantiated.static_parameter_symbols.clone();
                     }
                     resolved_signatures.push(instantiated.type_id);
                 }
 
                 if resolved_signatures.is_empty() {
                     self.error_invalid_member_static_arguments(module, profile, expression_id);
-                    Ok((member_ty_id, Vec::new()))
+                    Ok((member_ty_id, Vec::new(), Vec::new()))
                 } else {
                     let overload_set = Type::Object {
                         fields: Vec::new(),
@@ -154,12 +169,16 @@ impl Compiler {
                         index_signatures: Vec::new(),
                     };
                     let overload_set_ty_id = types.insert_type_from(overload_set, expression_id);
-                    Ok((overload_set_ty_id, resolved_static_arguments))
+                    Ok((
+                        overload_set_ty_id,
+                        resolved_static_arguments,
+                        resolved_static_parameter_symbols,
+                    ))
                 }
             }
             _ => {
                 self.error_invalid_member_static_arguments(module, profile, expression_id);
-                Ok((member_ty_id, Vec::new()))
+                Ok((member_ty_id, Vec::new(), Vec::new()))
             }
         }
     }
@@ -183,7 +202,7 @@ impl Compiler {
         let Type::Function {
             asynchrony,
             cardinality,
-            static_parameters,
+            mut static_parameters,
             this_parameter,
             dynamic_parameters,
             return_type,
@@ -193,8 +212,41 @@ impl Compiler {
             return Ok(InstantiatedMemberSignature {
                 type_id: signature_ty_id,
                 static_arguments: Vec::new(),
+                static_parameter_symbols: Vec::new(),
             });
         };
+
+        // recover missing static parameter placeholders from source signatures
+        if static_parameters.is_empty() {
+            let source_id = types.get_type_source(signature_ty_id);
+            if let Ok(member_id) = source_id.try_into_typed::<Member>() {
+                let member = tree.get(member_id);
+                if let Member::Method { signature, .. } = member
+                    && signature.generics.as_ref().is_some()
+                {
+                    static_parameters = self.static_parameter_placeholders_for_signature(
+                        module, signature, tree, types,
+                    );
+                }
+            } else if let Ok(declaration_id) = source_id.try_into_typed::<Declaration>() {
+                let declaration = tree.get(declaration_id);
+                if let Declaration::Function { signature, .. } = declaration
+                    && signature.generics.as_ref().is_some()
+                {
+                    static_parameters = self.static_parameter_placeholders_for_signature(
+                        module, signature, tree, types,
+                    );
+                }
+            }
+        }
+
+        let static_parameter_symbols = static_parameters
+            .iter()
+            .filter_map(|parameter| match types.get_type(*parameter) {
+                Type::Reference { symbol, .. } => Some(*symbol),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
 
         let resolved = self.resolve_function_signature(
             module,
@@ -208,7 +260,7 @@ impl Compiler {
             &dynamic_parameters,
             return_type,
             None,
-            SignatureResolutionMode::Checking,
+            SignatureResolutionMode::Check,
             false,
             profile,
             options,
@@ -240,6 +292,7 @@ impl Compiler {
         Ok(InstantiatedMemberSignature {
             type_id: instantiated_type_id,
             static_arguments: resolved.static_arguments,
+            static_parameter_symbols,
         })
     }
 

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::analyze::common::{AnalyzeReadStage, CanonicalSymbolMode};
+use crate::analyze::common::{AnalyzeDependencyStage, CanonicalSymbolMode};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Extension, ExtensionKind, GlobalSymbolId, Lineage, SymbolTable, SymbolType, TypeTable,
@@ -46,7 +46,7 @@ impl Compiler {
                 profile,
                 target_symbol.module_id,
                 types,
-                AnalyzeReadStage::Declare,
+                AnalyzeDependencyStage::Declare,
                 |_, target_types| {
                     if let Some(extension_ids) =
                         target_types.get_extensions_for_target(target_symbol)
@@ -77,7 +77,7 @@ impl Compiler {
                 profile,
                 canonical_target.module_id,
                 symbols,
-                AnalyzeReadStage::Declare,
+                AnalyzeDependencyStage::Declare,
                 |target_module, target_symbols| {
                     let symbol_entry = target_symbols.get_symbol(canonical_target.local_id);
                     let should_scan_global_group = if canonical_target.module_id == module.id {
@@ -149,7 +149,7 @@ impl Compiler {
         self.with_module_types_by_id_for_stage(
             profile,
             extension_symbol.module_id,
-            AnalyzeReadStage::Declare,
+            AnalyzeDependencyStage::Declare,
             |_, types| {
                 let extension_id = types.get_extension_id_for_symbol(extension_symbol)?;
 
@@ -201,7 +201,7 @@ impl Compiler {
         self.with_module_types_by_id_for_stage(
             profile,
             extension_symbol.module_id,
-            AnalyzeReadStage::Declare,
+            AnalyzeDependencyStage::Declare,
             |_, owner_types| Some(owner_types.get_lineage(lineage_id).clone()),
         )
         .map_err(AnalyzeError::from)

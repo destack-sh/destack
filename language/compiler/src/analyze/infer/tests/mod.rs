@@ -7,6 +7,7 @@ mod enums;
 mod extension;
 mod flow;
 mod generic;
+mod instance;
 mod literal;
 mod member;
 mod module;

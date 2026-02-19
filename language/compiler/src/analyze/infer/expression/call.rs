@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::SignatureResolutionMode;
 use super::member::{MemberLookupMode, MemberReceiverContext, MemberResolution};
-use crate::analyze::common::CanonicalSymbolMode;
+use crate::analyze::common::{CanonicalSymbolMode, StaticSubstitutionEnvironment};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
@@ -25,6 +25,10 @@ pub(crate) struct ResolvedMemberFunction {
     pub(crate) member_symbol: Option<GlobalSymbolId>,
     /// Static arguments used for the member instance.
     pub(crate) instance_arguments: Vec<StaticArgument>,
+    /// Static parameter symbols of the resolved signature in argument order.
+    pub(crate) signature_static_parameter_symbols: Vec<GlobalSymbolId>,
+    /// Bound substitutions already represented by instance base arguments.
+    pub(crate) bound_substitutions: HashMap<GlobalSymbolId, LocalTypeId>,
     /// Whether the member was found on the receiver type.
     pub(crate) has_member: bool,
 }
@@ -38,8 +42,8 @@ struct UnionMemberCallCandidate {
     symbol: GlobalSymbolId,
     /// The resolved call signature for this candidate.
     signature: ResolvedSignature,
-    /// The static arguments for instancing this member.
-    instance_arguments: Vec<StaticArgument>,
+    /// The substitution environment for instancing this member.
+    instance_environment: Option<StaticSubstitutionEnvironment>,
 }
 
 /// Context for member calls inferred from a call expression.
@@ -51,8 +55,6 @@ struct MemberCallContext {
     receiver_ty_id: LocalTypeId,
     /// The member key used for lookup.
     member_key: StaticKey,
-    /// Static arguments supplied on the member expression.
-    member_static_arguments: Option<Vec<LocalNodeId<Argument>>>,
 }
 
 /// Queried callee state for call-expression inference.
@@ -115,14 +117,19 @@ struct NewExpressionResolution {
 #[derive(Debug)]
 enum CallExpressionSignatureResolution {
     /// A concrete signature was resolved.
-    Resolved(ResolvedSignature),
+    Resolved {
+        /// The selected signature type id.
+        signature_ty_id: LocalTypeId,
+        /// The resolved signature.
+        signature: ResolvedSignature,
+    },
     /// The call falls back to a precomputed type.
     Fallback(LocalTypeId),
 }
 
-/// Prepared member-call typing context shared by call-resolution paths.
+/// Resolved member-call typing context shared by call-resolution paths.
 #[derive(Debug)]
-struct PreparedMemberCallType {
+struct ResolvedMemberCallTypeContext {
     /// The inferred member type after substitution.
     member_ty_id: Option<LocalTypeId>,
     /// The merged substitutions inherited from receiver and extension context.
@@ -1292,7 +1299,7 @@ impl Compiler {
 
     /// Prepare member-call typing context shared by member call resolution paths.
     #[allow(clippy::too_many_arguments)]
-    fn prepare_member_call_type(
+    fn resolve_member_call_type_context(
         &self,
         module: &Module,
         receiver_expression_id: LocalNodeId<Expression>,
@@ -1306,9 +1313,9 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-    ) -> AnalyzeResult<PreparedMemberCallType> {
+    ) -> AnalyzeResult<ResolvedMemberCallTypeContext> {
         // inherit static arguments and substitutions from the receiver
-        let inherited = self.resolve_inherited_static_arguments(
+        let mut inherited = self.resolve_inherited_static_arguments(
             module,
             profile,
             receiver_expression_id.into_any(),
@@ -1319,6 +1326,19 @@ impl Compiler {
             symbols,
             types,
         )?;
+        if let Some(member_symbol) = member_symbol {
+            self.extend_owner_substitutions_from_inherited_arguments(
+                module,
+                profile,
+                receiver_expression_id.into_any(),
+                member_symbol,
+                &inherited.arguments,
+                &mut inherited.substitutions,
+                tree,
+                symbols,
+                types,
+            );
+        }
 
         // resolve extension substitutions for member symbols
         let extension_context = if let Some(member_symbol) = member_symbol {
@@ -1372,7 +1392,7 @@ impl Compiler {
             }
         });
 
-        Ok(PreparedMemberCallType {
+        Ok(ResolvedMemberCallTypeContext {
             member_ty_id,
             substitutions,
             instance_arguments,
@@ -1463,7 +1483,7 @@ impl Compiler {
         // prepare member call typing state for this element
         let lookup_mode = self
             .query_member_lookup_mode_for_receiver(context.receiver_nominal_symbol, &element_ty);
-        let prepared = self.prepare_member_call_type(
+        let resolved_context = self.resolve_member_call_type_context(
             context.module,
             context.receiver_expression_id,
             Some(element_id),
@@ -1477,7 +1497,7 @@ impl Compiler {
             context.symbols,
             types,
         )?;
-        let Some(member_ty_id) = prepared.member_ty_id else {
+        let Some(member_ty_id) = resolved_context.member_ty_id else {
             self.report_union_member_call_missing_member(context);
             return Ok(None);
         };
@@ -1488,25 +1508,37 @@ impl Compiler {
             element_id,
             member_symbol,
             member_ty_id,
-            &prepared,
+            &resolved_context,
             types,
             infer,
         )?;
         let Some(resolved) = resolved else {
             return Ok(None);
         };
+        let (signature_ty_id, resolved_signature) = resolved;
 
-        // append call signature static arguments to member instance arguments
-        let instance_arguments = self.infer_instance_arguments_with_suffix(
-            prepared.instance_arguments,
-            &resolved.static_arguments,
+        let signature_parameter_symbols =
+            self.query_signature_static_parameter_symbols(signature_ty_id, types);
+
+        // compose canonical member substitution environment from receiver and signature substitutions
+        let instance_environment = self.compose_member_instance_environment(
+            context.module,
+            context.profile,
+            member_symbol,
+            &resolved_context.instance_arguments,
+            &resolved_context.substitutions,
+            &resolved_signature.static_arguments,
+            &signature_parameter_symbols,
+            context.tree,
+            context.symbols,
+            types,
         );
 
         Ok(Some(UnionMemberCallCandidate {
             receiver_ty_id: element_id,
             symbol: member_symbol,
-            signature: resolved,
-            instance_arguments,
+            signature: resolved_signature,
+            instance_environment,
         }))
     }
 
@@ -1560,11 +1592,11 @@ impl Compiler {
         element_id: LocalTypeId,
         member_symbol: GlobalSymbolId,
         member_ty_id: LocalTypeId,
-        prepared: &PreparedMemberCallType,
+        resolved_context: &ResolvedMemberCallTypeContext,
         types: &mut TypeTable,
         infer: &mut InferTable,
-    ) -> AnalyzeResult<Option<ResolvedSignature>> {
-        // query callable signatures for the prepared member type
+    ) -> AnalyzeResult<Option<(LocalTypeId, ResolvedSignature)>> {
+        // query callable signatures for the resolved member type
         let call_signatures = self.call_signatures_for_type(member_ty_id, types);
         if call_signatures.is_empty() {
             self.report_union_member_call_non_callable(context);
@@ -1573,19 +1605,19 @@ impl Compiler {
 
         // select the best overload when multiple signatures exist
         let bound_substitutions =
-            (!prepared.substitutions.is_empty()).then_some(&prepared.substitutions);
+            (!resolved_context.substitutions.is_empty()).then_some(&resolved_context.substitutions);
         if call_signatures.len() > 1 {
             let selection = self.select_call_signature(
                 context.module,
                 context.expression_id,
                 Some(member_symbol),
                 context.static_arguments,
-                prepared.extension_arguments.as_deref(),
+                resolved_context.extension_arguments.as_deref(),
                 bound_substitutions,
                 &call_signatures,
                 context.dynamic_arguments,
                 Some(element_id),
-                SignatureResolutionMode::Inference,
+                SignatureResolutionMode::Synthesize,
                 context.profile,
                 context.options,
                 context.tree,
@@ -1593,12 +1625,12 @@ impl Compiler {
                 types,
                 infer,
             )?;
-            let Some((_signature_ty_id, resolved)) = selection else {
+            let Some((signature_ty_id, resolved)) = selection else {
                 self.report_union_member_call_no_overload(context);
                 return Ok(None);
             };
 
-            return Ok(Some(resolved));
+            return Ok(Some((signature_ty_id, resolved)));
         }
 
         // resolve the singleton signature directly
@@ -1608,13 +1640,13 @@ impl Compiler {
             context.expression_id,
             Some(member_symbol),
             context.static_arguments,
-            prepared.extension_arguments.as_deref(),
+            resolved_context.extension_arguments.as_deref(),
             bound_substitutions,
             Some(context.dynamic_arguments),
             signature_ty_id,
             Some(element_id),
             None,
-            SignatureResolutionMode::Inference,
+            SignatureResolutionMode::Synthesize,
             false,
             context.profile,
             context.options,
@@ -1628,7 +1660,7 @@ impl Compiler {
             return Ok(None);
         };
 
-        Ok(Some(resolved))
+        Ok(Some((signature_ty_id, resolved)))
     }
 
     /// Report a missing-member diagnostic for union member-call resolution.
@@ -1809,20 +1841,23 @@ impl Compiler {
 
             // infer and commit from the selected signature when available
             match signature_resolution {
-                CallExpressionSignatureResolution::Resolved(resolved_signature) => self
-                    .infer_resolved_call_expression(
-                        module,
-                        expression_id,
-                        dynamic_arguments,
-                        &call,
-                        resolved_signature,
-                        &options,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?,
+                CallExpressionSignatureResolution::Resolved {
+                    signature_ty_id,
+                    signature: resolved_signature,
+                } => self.infer_resolved_call_expression(
+                    module,
+                    expression_id,
+                    dynamic_arguments,
+                    &call,
+                    signature_ty_id,
+                    resolved_signature,
+                    &options,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?,
                 CallExpressionSignatureResolution::Fallback(type_id) => type_id,
             }
         };
@@ -1902,6 +1937,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         dynamic_arguments: &[LocalNodeId<Argument>],
         call: &CallExpressionResolution,
+        signature_ty_id: LocalTypeId,
         resolved_signature: ResolvedSignature,
         options: &AnalyzeOptions,
         tree: &NodeTree,
@@ -1956,9 +1992,13 @@ impl Compiler {
         // commit static or member resolution for downstream lowering
         self.commit_call_expression_resolution(
             module,
+            ctx.profile,
             expression_id,
             call,
+            signature_ty_id,
             resolved_signature,
+            tree,
+            symbols,
             types,
         );
 
@@ -2037,26 +2077,71 @@ impl Compiler {
     fn commit_call_expression_resolution(
         &self,
         module: &Module,
+        profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
         call: &CallExpressionResolution,
+        signature_ty_id: LocalTypeId,
         resolved_signature: ResolvedSignature,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) {
         // register the instance when the call resolves to a symbol
         let call_instance_id = call.callee_symbol.and_then(|callee_symbol| {
+            if call.call_member_resolution.is_none() {
+                let signature_parameter_symbols =
+                    self.query_signature_static_parameter_symbols(signature_ty_id, types);
+                let environment = StaticSubstitutionEnvironment::from_parameter_symbols(
+                    resolved_signature.static_arguments.clone(),
+                    signature_parameter_symbols,
+                    0,
+                )
+                .or_else(|| {
+                    self.instance_environment_for_symbol_arguments(
+                        module,
+                        profile,
+                        callee_symbol,
+                        resolved_signature.static_arguments.clone(),
+                        0,
+                        tree,
+                        symbols,
+                        types,
+                    )
+                })?;
+
+                return self.commit_instance_for_node_maybe(
+                    expression_id.into_global_any(module.id),
+                    callee_symbol,
+                    environment,
+                    types,
+                );
+            }
+
+            let signature_parameter_symbols =
+                self.query_signature_static_parameter_symbols(signature_ty_id, types);
             let base_instance_arguments = call
                 .member_instance_arguments
-                .clone()
-                .unwrap_or_else(|| call.inherited_static_arguments.clone());
-            let instance_arguments = self.infer_instance_arguments_with_suffix(
+                .as_deref()
+                .or(call.prefilled_static_arguments.as_deref())
+                .unwrap_or(call.inherited_static_arguments.as_slice());
+            let environment = self.compose_member_instance_environment(
+                module,
+                profile,
+                callee_symbol,
                 base_instance_arguments,
+                &call.inherited_substitutions,
                 &resolved_signature.static_arguments,
+                &signature_parameter_symbols,
+                tree,
+                symbols,
+                types,
             );
+            let environment = environment?;
 
-            self.commit_instance_for_node_if_arguments(
+            self.commit_instance_for_node_maybe(
                 expression_id.into_global_any(module.id),
                 callee_symbol,
-                instance_arguments,
+                environment,
                 types,
             )
         });
@@ -2305,9 +2390,8 @@ impl Compiler {
             receiver_id,
             receiver_ty_id,
             member_key,
-            member_static_arguments: member_static_arguments.clone(),
         });
-        let (inherited_static_arguments, inherited_substitutions) = self
+        let (inherited_static_arguments, mut inherited_substitutions) = self
             .resolve_member_call_inherited_static_context(
                 module,
                 receiver_id,
@@ -2332,6 +2416,19 @@ impl Compiler {
             symbols,
             types,
         )?;
+        if let Some(member_symbol) = member_symbol {
+            self.extend_owner_substitutions_from_inherited_arguments(
+                module,
+                ctx.profile,
+                receiver_id.into_any(),
+                member_symbol,
+                &inherited_static_arguments,
+                &mut inherited_substitutions,
+                tree,
+                symbols,
+                types,
+            );
+        }
 
         // query extension supplied static arguments for this member call
         let prefilled_static_arguments = self.query_member_call_prefilled_static_arguments(
@@ -2367,7 +2464,6 @@ impl Compiler {
             member_has_static_arguments,
             types,
         );
-
         Ok(CallExpressionResolution {
             callee_symbol: member_symbol,
             call_receiver_ty_id: Some(receiver_ty_id),
@@ -2660,13 +2756,16 @@ impl Compiler {
     fn query_call_signature_static_arguments<'a>(
         &self,
         static_arguments: Option<&'a [LocalNodeId<Argument>]>,
-        call: &CallExpressionResolution,
+        call: &'a CallExpressionResolution,
     ) -> Option<&'a [LocalNodeId<Argument>]> {
         if call.has_static_argument_conflict {
-            None
-        } else {
-            static_arguments
+            return None;
         }
+
+        if call.call_has_static_arguments {
+            return static_arguments;
+        }
+        None
     }
 
     /// Query effective static arguments for union member-call resolution.
@@ -2681,10 +2780,7 @@ impl Compiler {
         if call.call_has_static_arguments {
             return static_arguments;
         }
-
-        call.member_call_context
-            .as_ref()
-            .and_then(|context| context.member_static_arguments.as_deref())
+        None
     }
 
     /// Infer dynamic union member-call dispatch when the receiver is a union.
@@ -3021,11 +3117,9 @@ impl Compiler {
         let resolution_candidates = candidates
             .into_iter()
             .map(|candidate| {
-                let instance_id = self.commit_instance_for_symbol_if_arguments(
-                    candidate.symbol,
-                    candidate.instance_arguments,
-                    types,
-                );
+                let instance_id = candidate.instance_environment.and_then(|environment| {
+                    self.commit_instance_for_symbol_maybe(candidate.symbol, environment, types)
+                });
                 ResolutionCandidate {
                     key: Some(DispatchKey::single(candidate.receiver_ty_id)),
                     target_symbol: candidate.symbol,
@@ -3248,20 +3342,22 @@ impl Compiler {
 
             // infer and commit from the selected constructor signature
             match signature_resolution {
-                CallExpressionSignatureResolution::Resolved(resolved_signature) => self
-                    .infer_resolved_new_expression(
-                        module,
-                        expression_id,
-                        &target,
-                        dynamic_arguments,
-                        resolved_signature,
-                        &options,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?,
+                CallExpressionSignatureResolution::Resolved {
+                    signature_ty_id: _,
+                    signature: resolved_signature,
+                } => self.infer_resolved_new_expression(
+                    module,
+                    expression_id,
+                    &target,
+                    dynamic_arguments,
+                    resolved_signature,
+                    &options,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?,
                 CallExpressionSignatureResolution::Fallback(type_id) => type_id,
             }
         };
@@ -3401,7 +3497,7 @@ impl Compiler {
             signature_ty_ids,
             dynamic_arguments,
             receiver_ty_id_for_signature,
-            SignatureResolutionMode::Inference,
+            SignatureResolutionMode::Synthesize,
             ctx.profile,
             options,
             tree,
@@ -3409,8 +3505,11 @@ impl Compiler {
             types,
             infer,
         )?;
-        if let Some((_signature_ty_id, resolved)) = selection {
-            return Ok(CallExpressionSignatureResolution::Resolved(resolved));
+        if let Some((signature_ty_id, resolved)) = selection {
+            return Ok(CallExpressionSignatureResolution::Resolved {
+                signature_ty_id,
+                signature: resolved,
+            });
         }
 
         // report overload errors on ambiguous calls
@@ -3449,7 +3548,7 @@ impl Compiler {
             signature_ty_id,
             receiver_ty_id_for_signature,
             expected_return_type,
-            SignatureResolutionMode::Inference,
+            SignatureResolutionMode::Synthesize,
             false,
             ctx.profile,
             options,
@@ -3459,7 +3558,10 @@ impl Compiler {
             infer,
         )?;
         if let Some(resolved) = resolved {
-            Ok(CallExpressionSignatureResolution::Resolved(resolved))
+            Ok(CallExpressionSignatureResolution::Resolved {
+                signature_ty_id,
+                signature: resolved,
+            })
         } else {
             Ok(CallExpressionSignatureResolution::Fallback(
                 self.unknown_call_expression_type(expression_id, types),
@@ -3541,10 +3643,20 @@ impl Compiler {
 
         // register the constructor instance when static arguments were resolved
         let constructor_instance_id = target.callee_symbol.and_then(|callee_symbol| {
-            self.commit_instance_for_node_if_arguments(
-                expression_id.into_global_any(module.id),
+            let environment = self.instance_environment_for_symbol_arguments(
+                module,
+                ctx.profile,
                 callee_symbol,
                 resolved_signature.static_arguments.clone(),
+                0,
+                tree,
+                symbols,
+                types,
+            )?;
+            self.commit_instance_for_node_maybe(
+                expression_id.into_global_any(module.id),
+                callee_symbol,
+                environment,
                 types,
             )
         });
@@ -3731,6 +3843,7 @@ impl Compiler {
             static_argument_ids,
             prefilled_static_arguments,
             &static_parameters,
+            bound_substitutions,
             profile,
             tree,
             symbols,
@@ -3816,6 +3929,7 @@ impl Compiler {
         static_argument_ids: Option<&[LocalNodeId<Argument>]>,
         prefilled_static_arguments: Option<&[StaticArgument]>,
         static_parameters: &[StaticParameter],
+        bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -3829,27 +3943,56 @@ impl Compiler {
             .collect::<Vec<_>>();
         let prefilled_arguments = prefilled_static_arguments.unwrap_or(&[]);
         let prefilled_count = prefilled_arguments.len().min(static_parameters.len());
-        let parameters_for_call = static_parameters.get(prefilled_count..).unwrap_or_default();
+        let mut assigned_arguments: Vec<Option<StaticArgument>> =
+            vec![None; static_parameters.len()];
+
+        // assign explicitly prefilled arguments first
+        for (index, argument) in prefilled_arguments.iter().take(prefilled_count).enumerate() {
+            assigned_arguments[index] = Some(argument.clone());
+        }
+
+        // reserve already bound substitution slots before assigning call-site arguments
+        if let Some(bound_substitutions) = bound_substitutions {
+            for (index, parameter) in static_parameters.iter().enumerate() {
+                if assigned_arguments[index].is_some() {
+                    continue;
+                }
+                let Some(substitution_type_id) = bound_substitutions.get(&parameter.symbol) else {
+                    continue;
+                };
+                assigned_arguments[index] = Some(StaticArgument::Evaluated {
+                    name: parameter.name,
+                    value: StaticExpression::Type {
+                        ty: *substitution_type_id,
+                    },
+                });
+            }
+        }
+
+        // map call-site arguments onto the remaining unbound static parameter slots
+        let mut call_slot_indexes = Vec::new();
+        let mut parameters_for_call = Vec::new();
+        for (index, parameter) in static_parameters.iter().enumerate() {
+            if assigned_arguments[index].is_some() {
+                continue;
+            }
+            call_slot_indexes.push(index);
+            parameters_for_call.push(parameter.clone());
+        }
         let assigned_for_call = self.assign_static_argument_values(
             module,
             profile,
             node_id,
             &argument_values,
-            parameters_for_call,
+            &parameters_for_call,
             tree,
             symbols,
         );
-        let mut assigned_arguments: Vec<Option<StaticArgument>> =
-            vec![None; static_parameters.len()];
 
-        for (index, argument) in prefilled_arguments.iter().take(prefilled_count).enumerate() {
-            assigned_arguments[index] = Some(argument.clone());
-        }
         for (index, argument) in assigned_for_call.into_iter().enumerate() {
-            let target_index = prefilled_count + index;
-            if target_index >= assigned_arguments.len() {
+            let Some(target_index) = call_slot_indexes.get(index).copied() else {
                 break;
-            }
+            };
             if assigned_arguments[target_index].is_none() {
                 assigned_arguments[target_index] = argument;
             }
@@ -4010,7 +4153,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, StaticArgument>>> {
         // only infer from return types in inference mode
-        if mode != SignatureResolutionMode::Inference {
+        if mode != SignatureResolutionMode::Synthesize {
             return Ok(None);
         }
         let Some(return_type) = return_type else {
@@ -4172,7 +4315,7 @@ impl Compiler {
 
         // defer value argument failure when the caller allows missing value slots
         if static_parameter.kind == StaticParameterKind::Value
-            && mode == SignatureResolutionMode::Inference
+            && mode == SignatureResolutionMode::Synthesize
             && allow_missing_value_arguments
         {
             return Ok(None);
@@ -4417,8 +4560,8 @@ impl Compiler {
         );
         let lookup_mode = receiver_context.lookup_mode;
 
-        // prepare member-call typing context for this receiver
-        let prepared = self.prepare_member_call_type(
+        // resolve member-call typing context for this receiver
+        let resolved_context = self.resolve_member_call_type_context(
             module,
             receiver_expression_id,
             receiver_ty_id,
@@ -4432,10 +4575,10 @@ impl Compiler {
             symbols,
             types,
         )?;
-        let has_member = prepared.member_ty_id.is_some();
+        let has_member = resolved_context.member_ty_id.is_some();
 
-        // bail of we don't know the member type
-        let Some(member_ty_id) = prepared.member_ty_id else {
+        // bail if we don't know the member type
+        let Some(member_ty_id) = resolved_context.member_ty_id else {
             return Ok(Some(ResolvedMemberFunction {
                 signature: ResolvedSignature {
                     dynamic_parameters: Vec::new(),
@@ -4444,7 +4587,9 @@ impl Compiler {
                 },
                 member_resolution,
                 member_symbol,
-                instance_arguments: prepared.instance_arguments,
+                instance_arguments: resolved_context.instance_arguments,
+                signature_static_parameter_symbols: Vec::new(),
+                bound_substitutions: HashMap::new(),
                 has_member: false,
             }));
         };
@@ -4459,19 +4604,26 @@ impl Compiler {
         else {
             return Ok(None);
         };
+        let signature_static_parameter_symbols = static_parameters
+            .iter()
+            .filter_map(|parameter| match types.get_type(*parameter) {
+                Type::Reference { symbol, .. } => Some(*symbol),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
         let signature = self.resolve_function_signature(
             module,
             expression_id.into_any(),
             member_symbol,
             None,
             None,
-            (!prepared.substitutions.is_empty()).then_some(&prepared.substitutions),
+            (!resolved_context.substitutions.is_empty()).then_some(&resolved_context.substitutions),
             None,
             &static_parameters,
             &dynamic_parameters,
             return_type,
             None,
-            SignatureResolutionMode::Checking,
+            SignatureResolutionMode::Check,
             false,
             profile,
             options,
@@ -4485,7 +4637,9 @@ impl Compiler {
             signature,
             member_resolution,
             member_symbol,
-            instance_arguments: prepared.instance_arguments,
+            instance_arguments: resolved_context.instance_arguments,
+            signature_static_parameter_symbols,
+            bound_substitutions: resolved_context.substitutions,
             has_member,
         }))
     }
@@ -4494,20 +4648,31 @@ impl Compiler {
     pub(crate) fn commit_member_call_instance_id(
         &self,
         module: &Module,
+        profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
         resolved: &ResolvedMemberFunction,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<LocalInstanceId> {
         resolved.member_symbol.and_then(|member_symbol| {
-            let instance_arguments = self.infer_instance_arguments_with_suffix(
-                resolved.instance_arguments.clone(),
+            let environment = self.compose_member_instance_environment(
+                module,
+                profile,
+                member_symbol,
+                &resolved.instance_arguments,
+                &resolved.bound_substitutions,
                 &resolved.signature.static_arguments,
-            );
+                &resolved.signature_static_parameter_symbols,
+                tree,
+                symbols,
+                types,
+            )?;
 
-            self.commit_instance_for_node_if_arguments(
+            self.commit_instance_for_node_maybe(
                 expression_id.into_global_any(module.id),
                 member_symbol,
-                instance_arguments,
+                environment,
                 types,
             )
         })
@@ -4519,13 +4684,23 @@ impl Compiler {
     pub(crate) fn commit_member_call_resolution(
         &self,
         module: &Module,
+        profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
         receiver_ty_id: LocalTypeId,
         resolved: &ResolvedMemberFunction,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<LocalInstanceId> {
-        let instance_id =
-            self.commit_member_call_instance_id(module, expression_id, resolved, types);
+        let instance_id = self.commit_member_call_instance_id(
+            module,
+            profile,
+            expression_id,
+            resolved,
+            tree,
+            symbols,
+            types,
+        );
 
         // record member resolution
         self.commit_member_resolution(

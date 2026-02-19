@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::analyze::common::{
-    AnalyzeReadStage, CanonicalSymbolMode, REWRITER_TAG_ASSOCIATED_ALIAS, TypeRewriteCache,
+    AnalyzeDependencyStage, CanonicalSymbolMode, REWRITER_TAG_ASSOCIATED_ALIAS, TypeRewriteCache,
     TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
 };
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler};
@@ -718,7 +718,7 @@ impl Compiler {
                 lookup_symbol.module_id,
                 tree,
                 symbols,
-                AnalyzeReadStage::Declare,
+                AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     self.resolve_static_member_symbol_in_tables(
                         owner_module,
@@ -951,7 +951,7 @@ impl Compiler {
                     heritage_expression_id.module_id,
                     tree,
                     symbols,
-                    AnalyzeReadStage::Declare,
+                    AnalyzeDependencyStage::Declare,
                     |owner_module,
                      owner_tree,
                      owner_symbols|
@@ -1179,7 +1179,7 @@ impl Compiler {
                 canonical_receiver_symbol.module_id,
                 tree,
                 symbols,
-                AnalyzeReadStage::Declare,
+                AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     let mut declared = Vec::new();
                     for declaration_id in owner_tree.iter_node_ids_of_type::<Declaration>() {
@@ -1231,7 +1231,7 @@ impl Compiler {
                     extension_symbol.module_id,
                     tree,
                     symbols,
-                    AnalyzeReadStage::Declare,
+                    AnalyzeDependencyStage::Declare,
                     |owner_module,
                      owner_tree,
                      owner_symbols|
@@ -1308,7 +1308,7 @@ impl Compiler {
             receiver_symbol.module_id,
             tree,
             symbols,
-            AnalyzeReadStage::Declare,
+            AnalyzeDependencyStage::Declare,
             |owner_module, owner_tree, owner_symbols| {
                 // resolve receiver declaration and heritage
                 let symbol_entry = owner_symbols.get_symbol(receiver_symbol.local_id);
@@ -1606,7 +1606,7 @@ impl Compiler {
                 owner_symbol.module_id,
                 tree,
                 symbols,
-                AnalyzeReadStage::Declare,
+                AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     let mut members = Vec::new();
                     let symbol_entry = owner_symbols.get_symbol(owner_symbol.local_id);
@@ -1658,7 +1658,7 @@ impl Compiler {
                     canonical_receiver_symbol.module_id,
                     tree,
                     symbols,
-                    AnalyzeReadStage::Declare,
+                    AnalyzeDependencyStage::Declare,
                     |receiver_module, receiver_tree, receiver_symbols| {
                         self.resolve_static_member_symbol_in_tables(
                             receiver_module,
@@ -1772,7 +1772,7 @@ impl Compiler {
                 symbol.module_id,
                 tree,
                 symbols,
-                AnalyzeReadStage::Declare,
+                AnalyzeDependencyStage::Declare,
                 |_, _, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
                     if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
@@ -1801,7 +1801,7 @@ impl Compiler {
             typed_symbol.module_id,
             tree,
             symbols,
-            AnalyzeReadStage::Declare,
+            AnalyzeDependencyStage::Declare,
             |owner_module, _owner_tree, _owner_symbols| {
                 let owner_types = owner_module.dir(profile).types.read();
                 let remote_target_id = owner_types.get_alias_target_type_id(typed_symbol)?;
@@ -2173,7 +2173,7 @@ impl Compiler {
                 target_symbol.module_id,
                 tree,
                 symbols,
-                AnalyzeReadStage::Declare,
+                AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(target_symbol.local_id);
                     let Some(primary_declaration) = symbol_entry.primary_declaration else {
@@ -2287,7 +2287,7 @@ impl Compiler {
                     target_symbol.module_id,
                     tree,
                     symbols,
-                    AnalyzeReadStage::Declare,
+                    AnalyzeDependencyStage::Declare,
                     |owner_module, owner_tree, owner_symbols| {
                         self.collect_static_parameter_symbols(
                             owner_module,
@@ -2403,7 +2403,7 @@ impl Compiler {
                     module,
                     profile,
                     target_symbol.module_id,
-                    AnalyzeReadStage::Declare,
+                    AnalyzeDependencyStage::Declare,
                     |owner_module,
                      owner_tree,
                      owner_symbols|

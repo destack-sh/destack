@@ -530,7 +530,7 @@ impl Compiler {
         self.with_module_tree_symbols_by_id_for_stage(
             profile,
             symbol.module_id,
-            AnalyzeReadStage::Declare,
+            AnalyzeDependencyStage::Declare,
             |remote_module, remote_tree, remote_symbols| {
                 let remote_dir = remote_module.dir(profile);
                 let mut remote_types = remote_dir.types.write();

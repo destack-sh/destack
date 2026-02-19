@@ -113,9 +113,12 @@ impl Compiler {
         if !resolved.has_member {
             self.commit_member_call_resolution(
                 module,
+                ctx.profile,
                 expression_id,
                 right_ty_id,
                 &resolved,
+                tree,
+                symbols,
                 types,
             );
             self.error(AnalyzeError::NoOverload {
@@ -141,7 +144,16 @@ impl Compiler {
         }
 
         // finalize resolution and instance registration
-        self.commit_member_call_resolution(module, expression_id, right_ty_id, &resolved, types);
+        self.commit_member_call_resolution(
+            module,
+            ctx.profile,
+            expression_id,
+            right_ty_id,
+            &resolved,
+            tree,
+            symbols,
+            types,
+        );
 
         let return_ty_id = resolved.signature.return_type.unwrap_or_else(|| {
             types.insert_type_from(

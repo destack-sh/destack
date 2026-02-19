@@ -58,7 +58,8 @@ export const y = x;
         .expect("expected y symbol in b.ts");
     let has_declared_type = test
         .compiler
-        .remote_symbol_has_declared_value_type(profile, y_symbol);
+        .remote_symbol_has_declared_value_type(profile, y_symbol)
+        .expect("annotation query should not error");
     assert!(
         !has_declared_type,
         "expected unannotated export y to have no declared value type"

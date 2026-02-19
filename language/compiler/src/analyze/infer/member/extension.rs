@@ -1,6 +1,56 @@
 use super::*;
 
 impl Compiler {
+    /// Extend substitutions with owner-parameter slots derived from inherited arguments.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn extend_owner_substitutions_from_inherited_arguments(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        member_symbol: GlobalSymbolId,
+        inherited_arguments: &[StaticArgument],
+        substitutions: &mut HashMap<GlobalSymbolId, LocalTypeId>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) {
+        // skip when no inherited arguments are available
+        if inherited_arguments.is_empty() {
+            return;
+        }
+
+        // resolve owner static parameters for the member symbol
+        let Some(owner_symbol) =
+            self.owner_symbol_for_member_symbol(module, profile, member_symbol, symbols)
+        else {
+            return;
+        };
+        let Some(owner_parameters) = self.collect_static_parameter_symbols(
+            module,
+            owner_symbol,
+            profile,
+            tree,
+            symbols,
+            types,
+        ) else {
+            return;
+        };
+        if owner_parameters.is_empty() {
+            return;
+        }
+
+        // bind inherited arguments into missing owner parameter substitutions by position
+        for (parameter_symbol, argument) in owner_parameters.iter().zip(inherited_arguments.iter())
+        {
+            if substitutions.contains_key(parameter_symbol) {
+                continue;
+            }
+            let argument_type_id = self.convert_static_argument_type(argument, source_id, types);
+            substitutions.insert(*parameter_symbol, argument_type_id);
+        }
+    }
+
     /// Merge inherited and extension substitutions for member lookup.
     pub(crate) fn merge_member_substitutions(
         &self,
@@ -20,23 +70,39 @@ impl Compiler {
     pub(crate) fn commit_member_instance_for_arguments(
         &self,
         module: &Module,
+        profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
         member_symbol: GlobalSymbolId,
         inherited: &InheritedStaticArguments,
         extension_context: Option<&ExtensionMemberContext>,
         resolved_arguments: &[StaticArgument],
+        signature_parameter_symbols: &[GlobalSymbolId],
+        tree: &NodeTree,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<destack_dir::LocalInstanceId> {
+        let substitutions = self.merge_member_substitutions(inherited, extension_context);
         let base_instance_arguments = self.infer_member_instance_base_arguments(
             &inherited.arguments,
             extension_context.map(|context| context.arguments.as_slice()),
         );
-        let instance_arguments =
-            self.infer_instance_arguments_with_suffix(base_instance_arguments, resolved_arguments);
-        self.commit_instance_for_node_if_arguments(
+        let environment = self.compose_member_instance_environment(
+            module,
+            profile,
+            member_symbol,
+            &base_instance_arguments,
+            &substitutions,
+            resolved_arguments,
+            signature_parameter_symbols,
+            tree,
+            symbols,
+            types,
+        )?;
+
+        self.commit_instance_for_node_maybe(
             expression_id.into_global_any(module.id),
             member_symbol,
-            instance_arguments,
+            environment,
             types,
         )
     }
