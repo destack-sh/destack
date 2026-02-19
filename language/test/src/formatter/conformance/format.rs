@@ -67,7 +67,7 @@ pub(super) fn run_formatter_case(
     let second_pass = match format_once(path, &first_pass, file_type, formatter_options, show_diff)
     {
         Ok(formatted) => formatted,
-        Err(_) => return TestOutcome::FailedParse,
+        Err(_) => return TestOutcome::FailedIdempotence,
     };
 
     let first_pass = normalize_output(&first_pass);
