@@ -380,7 +380,7 @@ pub(super) fn poll_register(
 
     // decode interests and resolve the target handle
     let (interests, flags) = decode_interest(interest)?;
-    let target_handle = io_host::host_resolve_poll_target_handle(context, target)?;
+    let target_handle = io_host::host_poll_resolve_target_handle(context, target)?;
 
     // forward registration into the selected backend
     let mut poller = poll.poller.lock();
@@ -703,7 +703,7 @@ fn completion_request(
     // build one proactor request payload
     let request = match operation.kind {
         CompletionOperationKind::Read => {
-            let target = io_host::host_resolve_completion_target_handle(
+            let target = io_host::host_completion_resolve_target_handle(
                 context,
                 operation.target,
                 "destack.io.completion.submit",
@@ -734,7 +734,7 @@ fn completion_request(
             }
         }
         CompletionOperationKind::Write => {
-            let target = io_host::host_resolve_completion_target_handle(
+            let target = io_host::host_completion_resolve_target_handle(
                 context,
                 operation.target,
                 "destack.io.completion.submit",
@@ -765,7 +765,7 @@ fn completion_request(
             }
         }
         CompletionOperationKind::Accept => {
-            let target = io_host::host_resolve_completion_target_handle(
+            let target = io_host::host_completion_resolve_target_handle(
                 context,
                 operation.target,
                 "destack.io.completion.submit",
@@ -780,7 +780,7 @@ fn completion_request(
             }
         }
         CompletionOperationKind::Connect => {
-            let target = io_host::host_resolve_completion_target_handle(
+            let target = io_host::host_completion_resolve_target_handle(
                 context,
                 operation.target,
                 "destack.io.completion.submit",
@@ -818,7 +818,7 @@ fn completion_request(
             }
         }
         CompletionOperationKind::Fsync => {
-            let target = io_host::host_resolve_completion_target_handle(
+            let target = io_host::host_completion_resolve_target_handle(
                 context,
                 operation.target,
                 "destack.io.completion.submit",
@@ -830,7 +830,7 @@ fn completion_request(
             }
         }
         CompletionOperationKind::Send => {
-            let target = io_host::host_resolve_completion_target_handle(
+            let target = io_host::host_completion_resolve_target_handle(
                 context,
                 operation.target,
                 "destack.io.completion.submit",
@@ -856,7 +856,7 @@ fn completion_request(
             }
         }
         CompletionOperationKind::Receive => {
-            let target = io_host::host_resolve_completion_target_handle(
+            let target = io_host::host_completion_resolve_target_handle(
                 context,
                 operation.target,
                 "destack.io.completion.submit",
@@ -959,7 +959,7 @@ fn completion_event_from_backend(
     match completion.data {
         ProactorCompletionData::Accept { handle, .. } => {
             flags |= COMPLETION_FLAG_ACCEPT;
-            result = io_host::host_register_accepted_handle(context, handle)?;
+            result = io_host::host_completion_register_accepted_handle(context, handle)?;
         }
         ProactorCompletionData::Timeout => {
             flags |= COMPLETION_FLAG_TIMEOUT;
@@ -991,7 +991,7 @@ pub(super) fn completion_open(
     }
 
     // create one host completion backend
-    let proactor = io_host::host_create_completion_proactor(entries)?;
+    let proactor = io_host::host_completion_create_proactor(entries)?;
     let resource = Arc::new(CompletionResource::new(proactor));
 
     // store one runtime completion resource

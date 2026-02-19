@@ -8,7 +8,11 @@ use parking_lot::{Condvar, Mutex};
 use super::core as input_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::input::{InputEvent, InputEventAction, InputEventKind, InputReadMode};
+use crate::platform::input::{
+    InputAxisInfo, InputButtonInfo, InputDeviceCapabilities, InputDeviceCapabilityKind, InputEvent,
+    InputEventAction, InputEventKind, InputKeyEventPayload, InputPointerButtonEventPayload,
+    InputPointerMotionEventPayload, InputReadMode, InputScrollEventPayload,
+};
 use crate::platform::resource::ResourceKind;
 use crate::platform::{PlatformError, resource};
 use crate::runtime::RuntimeCallContext;
@@ -63,6 +67,27 @@ const KCG_EVENT_TAP_DISABLED_BY_TIMEOUT: u32 = 0xffff_fffe;
 /// CoreGraphics event type for one tap disabled by user-input packet.
 const KCG_EVENT_TAP_DISABLED_BY_USER_INPUT: u32 = 0xffff_ffff;
 
+/// CoreGraphics keycode for left command.
+const KCG_KEYCODE_LEFT_COMMAND: u32 = 55;
+/// CoreGraphics keycode for right command.
+const KCG_KEYCODE_RIGHT_COMMAND: u32 = 54;
+/// CoreGraphics keycode for left shift.
+const KCG_KEYCODE_LEFT_SHIFT: u32 = 56;
+/// CoreGraphics keycode for right shift.
+const KCG_KEYCODE_RIGHT_SHIFT: u32 = 60;
+/// CoreGraphics keycode for left option.
+const KCG_KEYCODE_LEFT_OPTION: u32 = 58;
+/// CoreGraphics keycode for right option.
+const KCG_KEYCODE_RIGHT_OPTION: u32 = 61;
+/// CoreGraphics keycode for left control.
+const KCG_KEYCODE_LEFT_CONTROL: u32 = 59;
+/// CoreGraphics keycode for right control.
+const KCG_KEYCODE_RIGHT_CONTROL: u32 = 62;
+/// CoreGraphics keycode for caps lock.
+const KCG_KEYCODE_CAPS_LOCK: u32 = 57;
+/// CoreGraphics keycode for function modifier.
+const KCG_KEYCODE_FUNCTION: u32 = 63;
+
 /// CoreGraphics field id for mouse button number.
 const KCG_MOUSE_EVENT_BUTTON_NUMBER: i32 = 3;
 /// CoreGraphics field id for keyboard autorepeat.
@@ -80,6 +105,19 @@ const KCG_SESSION_EVENT_TAP: u32 = 1;
 const KCG_HEAD_INSERT_EVENT_TAP: u32 = 0;
 /// CoreGraphics listen-only event tap option.
 const KCG_EVENT_TAP_OPTION_LISTEN_ONLY: u32 = 1;
+
+/// CoreGraphics modifier flag for caps-lock state.
+const KCG_EVENT_FLAG_MASK_CAPS_LOCK: u64 = 1 << 16;
+/// CoreGraphics modifier flag for shift state.
+const KCG_EVENT_FLAG_MASK_SHIFT: u64 = 1 << 17;
+/// CoreGraphics modifier flag for control state.
+const KCG_EVENT_FLAG_MASK_CONTROL: u64 = 1 << 18;
+/// CoreGraphics modifier flag for option state.
+const KCG_EVENT_FLAG_MASK_OPTION: u64 = 1 << 19;
+/// CoreGraphics modifier flag for command state.
+const KCG_EVENT_FLAG_MASK_COMMAND: u64 = 1 << 20;
+/// CoreGraphics modifier flag for function-key state.
+const KCG_EVENT_FLAG_MASK_FUNCTION: u64 = 1 << 23;
 
 /// CoreFoundation run-loop source order for event taps.
 const KCF_RUN_LOOP_SOURCE_ORDER: libc::c_long = 0;
@@ -182,6 +220,8 @@ struct MacosTapPacket {
     wheel_x: f64,
     /// Vertical wheel delta.
     wheel_y: f64,
+    /// Current pointer-button bitset.
+    buttons: u32,
     /// Modifier flags bitset.
     modifiers: u32,
     /// Whether this packet is one repeat event.
@@ -208,6 +248,8 @@ struct MacosTapQueues {
     next_subscription_id: u64,
     /// Per-subscription event queues.
     subscriptions: HashMap<u64, VecDeque<MacosTapPacket>>,
+    /// Current pressed pointer-button bitset.
+    pointer_buttons: u32,
 }
 
 impl MacosTapQueues {
@@ -217,6 +259,7 @@ impl MacosTapQueues {
             startup: MacosTapStartupState::Pending,
             next_subscription_id: 1,
             subscriptions: HashMap::new(),
+            pointer_buttons: 0,
         }
     }
 }
@@ -443,22 +486,171 @@ fn wait_pop_subscription_event(subscription_id: u64) -> RuntimeResult<Option<Mac
 
 /// Convert one queued packet into one runtime input event payload.
 fn packet_to_input_event(context: &RuntimeCallContext, packet: MacosTapPacket) -> InputEvent {
-    InputEvent {
-        kind: packet.kind,
-        timestamp_ns: packet.timestamp_ns,
-        sequence: 0,
-        device_id: context.store_string(MACOS_INPUT_SESSION_ID),
-        action: packet.action,
-        code: packet.code,
-        scan_code: packet.scan_code,
-        value: packet.value,
-        x: packet.x,
-        y: packet.y,
-        wheel_x: packet.wheel_x,
-        wheel_y: packet.wheel_y,
-        modifiers: packet.modifiers,
-        repeat: packet.repeat,
-        text: context.store_string(input_core::UNIX_INPUT_EMPTY_TEXT),
+    let mut payload = input_core::empty_unix_event_payload(context);
+    match packet.kind {
+        InputEventKind::Key => {
+            payload.key = InputKeyEventPayload {
+                action: packet.action,
+                backend_code: packet.code,
+                backend_scan_code: packet.scan_code,
+                backend_value: packet.value,
+                modifiers: packet.modifiers,
+                repeat: packet.repeat,
+            };
+        }
+        InputEventKind::PointerMotion => {
+            payload.pointer_motion = InputPointerMotionEventPayload {
+                x: packet.x,
+                y: packet.y,
+                buttons: packet.buttons,
+                modifiers: packet.modifiers,
+            };
+        }
+        InputEventKind::PointerButton => {
+            payload.pointer_button = InputPointerButtonEventPayload {
+                action: packet.action,
+                backend_code: packet.code,
+                backend_value: packet.value,
+                x: packet.x,
+                y: packet.y,
+                modifiers: packet.modifiers,
+            };
+        }
+        InputEventKind::Scroll => {
+            payload.scroll = InputScrollEventPayload {
+                wheel_x: packet.wheel_x,
+                wheel_y: packet.wheel_y,
+                x: packet.x,
+                y: packet.y,
+                modifiers: packet.modifiers,
+            };
+        }
+        _ => {}
+    }
+
+    input_core::build_unix_input_event(
+        context,
+        packet.kind,
+        packet.timestamp_ns,
+        0,
+        MACOS_INPUT_SESSION_ID,
+        payload,
+    )
+}
+
+/// Return one CoreGraphics flag-mask bit for one modifier-key keycode.
+fn modifier_flag_mask_for_keycode(key_code: u32) -> Option<u64> {
+    match key_code {
+        KCG_KEYCODE_LEFT_SHIFT | KCG_KEYCODE_RIGHT_SHIFT => Some(KCG_EVENT_FLAG_MASK_SHIFT),
+        KCG_KEYCODE_LEFT_CONTROL | KCG_KEYCODE_RIGHT_CONTROL => Some(KCG_EVENT_FLAG_MASK_CONTROL),
+        KCG_KEYCODE_LEFT_OPTION | KCG_KEYCODE_RIGHT_OPTION => Some(KCG_EVENT_FLAG_MASK_OPTION),
+        KCG_KEYCODE_LEFT_COMMAND | KCG_KEYCODE_RIGHT_COMMAND => Some(KCG_EVENT_FLAG_MASK_COMMAND),
+        KCG_KEYCODE_CAPS_LOCK => Some(KCG_EVENT_FLAG_MASK_CAPS_LOCK),
+        KCG_KEYCODE_FUNCTION => Some(KCG_EVENT_FLAG_MASK_FUNCTION),
+        _ => None,
+    }
+}
+
+/// Decode one flags-changed packet into key-action semantics.
+fn flags_changed_action_and_value(
+    key_code: u32,
+    modifiers: u64,
+) -> Option<(InputEventAction, i64)> {
+    let mask = modifier_flag_mask_for_keycode(key_code)?;
+    if (modifiers & mask) != 0 {
+        return Some((InputEventAction::Press, 1));
+    }
+
+    Some((InputEventAction::Release, 0))
+}
+
+/// Return one capability payload for the macOS global-session backend.
+pub(super) fn query_macos_session_capabilities(
+    context: &RuntimeCallContext,
+) -> InputDeviceCapabilities {
+    // expose keyboard and pointer lanes from the global event-tap stream
+    let kinds = vec![
+        InputDeviceCapabilityKind::Keyboard,
+        InputDeviceCapabilityKind::Pointer,
+    ];
+
+    // expose pointer axes and wheel lanes for cursor and scroll semantics
+    let axes = vec![
+        InputAxisInfo {
+            code: 0,
+            minimum: 0.0,
+            maximum: 0.0,
+            flat: 0.0,
+            fuzz: 0.0,
+            resolution: 0.0,
+        },
+        InputAxisInfo {
+            code: 1,
+            minimum: 0.0,
+            maximum: 0.0,
+            flat: 0.0,
+            fuzz: 0.0,
+            resolution: 0.0,
+        },
+        InputAxisInfo {
+            code: KCG_SCROLL_WHEEL_EVENT_DELTA_AXIS1 as u32,
+            minimum: 0.0,
+            maximum: 0.0,
+            flat: 0.0,
+            fuzz: 0.0,
+            resolution: 0.0,
+        },
+        InputAxisInfo {
+            code: KCG_SCROLL_WHEEL_EVENT_DELTA_AXIS2 as u32,
+            minimum: 0.0,
+            maximum: 0.0,
+            flat: 0.0,
+            fuzz: 0.0,
+            resolution: 0.0,
+        },
+    ];
+
+    // expose primary pointer-button lanes used by the session event tap
+    let buttons = vec![
+        InputButtonInfo {
+            code: 0,
+            analog: false,
+        },
+        InputButtonInfo {
+            code: 1,
+            analog: false,
+        },
+        InputButtonInfo {
+            code: 2,
+            analog: false,
+        },
+        InputButtonInfo {
+            code: 3,
+            analog: false,
+        },
+        InputButtonInfo {
+            code: 4,
+            analog: false,
+        },
+    ];
+
+    InputDeviceCapabilities {
+        kinds: context.store_array(kinds),
+        axes: context.store_array(axes),
+        buttons: context.store_array(buttons),
+        supports_relative_pointer: false,
+        supports_pointer_grab: false,
+        supports_pointer_capture: false,
+        supports_pointer_warp: false,
+        supports_text_input: false,
+        supports_composition: false,
+        supports_rumble: false,
+        supports_trigger_rumble: false,
+        supports_sensors: false,
+        supports_battery_state: false,
+        supports_light_control: false,
+        supports_raw_hid: false,
+        supports_player_index: false,
     }
 }
 
@@ -645,16 +837,43 @@ fn set_startup_failed(state: &MacosTapState, message: String) {
 }
 
 /// Enqueue one packet to all active subscriber queues.
-fn enqueue_packet_to_subscribers(packet: MacosTapPacket) {
-    let state = macos_tap_state();
-    let mut queues = state.queues.lock();
+fn enqueue_packet_to_subscribers(queues: &mut MacosTapQueues, packet: &MacosTapPacket) {
     for queue in queues.subscriptions.values_mut() {
         if queue.len() >= MACOS_EVENT_QUEUE_LIMIT {
             queue.pop_front();
         }
         queue.push_back(packet.clone());
     }
-    state.wake.notify_all();
+}
+
+/// Return one pointer-button mask for one backend pointer button code.
+fn pointer_button_mask(code: u32) -> u32 {
+    if code >= 32 {
+        return 0;
+    }
+
+    1u32 << code
+}
+
+/// Update and stamp pointer-button state for one queued packet.
+fn stamp_pointer_button_state(queues: &mut MacosTapQueues, packet: &mut MacosTapPacket) {
+    // update persistent pressed state from pointer-button transitions
+    if packet.kind == InputEventKind::PointerButton {
+        let mask = pointer_button_mask(packet.code);
+        if packet.action == InputEventAction::Press {
+            queues.pointer_buttons |= mask;
+        } else if packet.action == InputEventAction::Release {
+            queues.pointer_buttons &= !mask;
+        }
+
+        packet.buttons = queues.pointer_buttons;
+        return;
+    }
+
+    // stamp current pressed-state context onto pointer motion and scroll packets
+    if packet.kind == InputEventKind::PointerMotion || packet.kind == InputEventKind::Scroll {
+        packet.buttons = queues.pointer_buttons;
+    }
 }
 
 /// Map one CoreGraphics event into one queued packet when supported.
@@ -701,6 +920,7 @@ fn map_tap_event(event_type: u32, event: CGEventRef) -> Option<MacosTapPacket> {
                 y: point.y,
                 wheel_x: 0.0,
                 wheel_y: 0.0,
+                buttons: 0,
                 modifiers,
                 repeat: is_repeat,
             })
@@ -746,6 +966,7 @@ fn map_tap_event(event_type: u32, event: CGEventRef) -> Option<MacosTapPacket> {
                 y: point.y,
                 wheel_x: 0.0,
                 wheel_y: 0.0,
+                buttons: 0,
                 modifiers,
                 repeat: false,
             })
@@ -764,6 +985,7 @@ fn map_tap_event(event_type: u32, event: CGEventRef) -> Option<MacosTapPacket> {
             y: point.y,
             wheel_x: 0.0,
             wheel_y: 0.0,
+            buttons: 0,
             modifiers,
             repeat: false,
         }),
@@ -785,24 +1007,37 @@ fn map_tap_event(event_type: u32, event: CGEventRef) -> Option<MacosTapPacket> {
                 y: point.y,
                 wheel_x: wheel_x as f64,
                 wheel_y: wheel_y as f64,
+                buttons: 0,
                 modifiers,
                 repeat: false,
             })
         }
-        KCG_EVENT_FLAGS_CHANGED => Some(MacosTapPacket {
-            timestamp_ns,
-            kind: InputEventKind::Device,
-            action: InputEventAction::Move,
-            code: event_type,
-            scan_code: event_type,
-            value: modifiers as i64,
-            x: point.x,
-            y: point.y,
-            wheel_x: 0.0,
-            wheel_y: 0.0,
-            modifiers,
-            repeat: false,
-        }),
+        KCG_EVENT_FLAGS_CHANGED => {
+            let key_code =
+                unsafe { CGEventGetIntegerValueField(event, KCG_KEYBOARD_EVENT_KEYCODE) };
+            if key_code < 0 {
+                return None;
+            }
+
+            let key_code = key_code as u32;
+            let (action, value) = flags_changed_action_and_value(key_code, modifiers as u64)?;
+
+            Some(MacosTapPacket {
+                timestamp_ns,
+                kind: InputEventKind::Key,
+                action,
+                code: key_code,
+                scan_code: key_code,
+                value,
+                x: point.x,
+                y: point.y,
+                wheel_x: 0.0,
+                wheel_y: 0.0,
+                buttons: 0,
+                modifiers,
+                repeat: false,
+            })
+        }
         _ => None,
     }
 }
@@ -828,9 +1063,48 @@ unsafe extern "C" fn event_tap_callback(
     }
 
     // map supported events and enqueue for subscribers
-    if let Some(packet) = map_tap_event(event_type, event) {
-        enqueue_packet_to_subscribers(packet);
+    if let Some(mut packet) = map_tap_event(event_type, event) {
+        let state = macos_tap_state();
+        let mut queues = state.queues.lock();
+        stamp_pointer_button_state(&mut queues, &mut packet);
+        enqueue_packet_to_subscribers(&mut queues, &packet);
+        state.wake.notify_all();
     }
 
     event
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Map shift keycodes to the shift modifier flag.
+    #[test]
+    fn test_modifier_flag_mask_for_keycode_maps_shift_variants() {
+        assert_eq!(
+            modifier_flag_mask_for_keycode(KCG_KEYCODE_LEFT_SHIFT),
+            Some(KCG_EVENT_FLAG_MASK_SHIFT)
+        );
+        assert_eq!(
+            modifier_flag_mask_for_keycode(KCG_KEYCODE_RIGHT_SHIFT),
+            Some(KCG_EVENT_FLAG_MASK_SHIFT)
+        );
+    }
+
+    /// Decode flags-changed packets into press and release actions.
+    #[test]
+    fn test_flags_changed_action_and_value_maps_press_and_release() {
+        let press =
+            flags_changed_action_and_value(KCG_KEYCODE_LEFT_CONTROL, KCG_EVENT_FLAG_MASK_CONTROL);
+        assert_eq!(press, Some((InputEventAction::Press, 1)));
+
+        let release = flags_changed_action_and_value(KCG_KEYCODE_LEFT_CONTROL, 0);
+        assert_eq!(release, Some((InputEventAction::Release, 0)));
+    }
+
+    /// Reject unknown keycodes in flags-changed mapping.
+    #[test]
+    fn test_flags_changed_action_and_value_rejects_unknown_keycode() {
+        assert_eq!(flags_changed_action_and_value(999, 0), None);
+    }
 }

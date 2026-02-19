@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -89,13 +89,14 @@ pub(crate) fn run() {
         &platform_modules,
         options.domains.as_ref(),
     );
+    let analysis_modules = selected_modules.clone();
 
     // run analysis passes before extraction
     analyze_platform_modules(
         &context.compiler,
         &context.program,
         profile_id,
-        &platform_modules,
+        &analysis_modules,
     );
 
     // validate diagnostics before rendering output
@@ -270,193 +271,21 @@ fn analyze_platform_modules(
     });
     assert_task_complete(resolve_outcome, "ResolveLibs", program);
 
-    // analyze module declarations in dependency order
-    let modules_to_analyze = order_modules_for_analysis(program, platform_modules);
-
     // analyze module declarations sequentially
-    for module_id in modules_to_analyze {
-        let module = program.modules.get(module_id);
+    for module_id in platform_modules {
+        let module = program.modules.get(*module_id);
         let module = module.read();
         eprintln!(
             "generate-bindings: analyzing module {module_id:?} ({})",
             module.uri
         );
         let outcome = compiler.run_task(AnalyzeTask::AnalyzeModuleDeclare {
-            module: compiler.module_stamp(module_id),
+            module: compiler.module_stamp(*module_id),
             profile: profile_stamp,
         });
         let task_name = format!("AnalyzeModuleDeclare({module_id:?})");
         assert_task_complete(outcome, &task_name, program);
     }
-}
-
-/// Sort modules so direct imports are analyzed before dependents.
-fn order_modules_for_analysis(
-    program: &Program,
-    platform_modules: &[destack_source::ModuleId],
-) -> Vec<destack_source::ModuleId> {
-    // track module ids by normalized file path
-    let mut module_path_map = HashMap::new();
-    for module_id in platform_modules {
-        let module = program.modules.get(*module_id);
-        let module = module.read();
-        if let Some(path) = module.path.as_ref() {
-            module_path_map.insert(normalize_path(path), *module_id);
-        }
-    }
-
-    // build direct dependency edges for relative imports
-    let mut dependencies: HashMap<destack_source::ModuleId, Vec<destack_source::ModuleId>> =
-        HashMap::new();
-    for module_id in platform_modules {
-        let module = program.modules.get(*module_id);
-        let module = module.read();
-
-        let Some(module_path) = module.path.as_ref() else {
-            dependencies.insert(*module_id, Vec::new());
-            continue;
-        };
-
-        let source = std::fs::read_to_string(module_path).unwrap_or_default();
-        let mut module_dependencies = Vec::new();
-        let parent = module_path
-            .parent()
-            .unwrap_or_else(|| std::path::Path::new(""));
-
-        for specifier in extract_relative_specifiers(&source) {
-            let resolved = resolve_relative_specifier(parent, &specifier);
-            if let Some(dependency_id) = module_path_map.get(&resolved) {
-                if *dependency_id != *module_id {
-                    module_dependencies.push(*dependency_id);
-                }
-            }
-        }
-
-        dependencies.insert(*module_id, module_dependencies);
-    }
-
-    // topologically order the module graph: imports first
-    let mut ordered = Vec::new();
-    let mut visiting = HashSet::new();
-    let mut visited = HashSet::new();
-    for module_id in platform_modules {
-        visit_module_for_order(
-            *module_id,
-            &dependencies,
-            &mut visiting,
-            &mut visited,
-            &mut ordered,
-        );
-    }
-
-    ordered
-}
-
-/// Visit one module in DFS order and append it after dependencies.
-fn visit_module_for_order(
-    module_id: destack_source::ModuleId,
-    dependencies: &HashMap<destack_source::ModuleId, Vec<destack_source::ModuleId>>,
-    visiting: &mut HashSet<destack_source::ModuleId>,
-    visited: &mut HashSet<destack_source::ModuleId>,
-    ordered: &mut Vec<destack_source::ModuleId>,
-) {
-    // skip modules that are already fully processed
-    if visited.contains(&module_id) {
-        return;
-    }
-
-    // stop on cycles: retain stable order for cycle members
-    if !visiting.insert(module_id) {
-        return;
-    }
-
-    // visit dependencies first
-    if let Some(module_dependencies) = dependencies.get(&module_id) {
-        for dependency_id in module_dependencies {
-            visit_module_for_order(*dependency_id, dependencies, visiting, visited, ordered);
-        }
-    }
-
-    // append this module and mark complete
-    visiting.remove(&module_id);
-    visited.insert(module_id);
-    ordered.push(module_id);
-}
-
-/// Extract relative import specifiers from a module source string.
-fn extract_relative_specifiers(source: &str) -> Vec<String> {
-    let mut specifiers = Vec::new();
-    for line in source.lines() {
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
-        }
-        if !(line.starts_with("import ") || line.starts_with("export ")) {
-            continue;
-        }
-
-        if let Some(specifier) = extract_specifier_from_line(line) {
-            if specifier.starts_with('.') {
-                specifiers.push(specifier);
-            }
-        }
-    }
-
-    specifiers
-}
-
-/// Extract one module specifier from an import/export line.
-fn extract_specifier_from_line(line: &str) -> Option<String> {
-    // from "..."
-    if let Some(index) = line.find("from \"") {
-        let rest = &line[index + 6..];
-        let end = rest.find('"')?;
-        return Some(rest[..end].to_string());
-    }
-    // from '...'
-    if let Some(index) = line.find("from '") {
-        let rest = &line[index + 6..];
-        let end = rest.find('\'')?;
-        return Some(rest[..end].to_string());
-    }
-    // import "..."
-    if let Some(index) = line.find('"') {
-        let rest = &line[index + 1..];
-        let end = rest.find('"')?;
-        return Some(rest[..end].to_string());
-    }
-    // import '...'
-    if let Some(index) = line.find('\'') {
-        let rest = &line[index + 1..];
-        let end = rest.find('\'')?;
-        return Some(rest[..end].to_string());
-    }
-
-    None
-}
-
-/// Resolve one relative specifier to a normalized file path.
-fn resolve_relative_specifier(base: &std::path::Path, specifier: &str) -> PathBuf {
-    let mut joined = base.join(specifier);
-    if joined.extension().is_none() {
-        joined.set_extension("ds");
-    }
-    normalize_path(&joined)
-}
-
-/// Normalize a path for stable dependency map lookups.
-fn normalize_path(path: &std::path::Path) -> PathBuf {
-    let mut normalized = PathBuf::new();
-    for component in path.components() {
-        match component {
-            std::path::Component::CurDir => {}
-            std::path::Component::ParentDir => {
-                normalized.pop();
-            }
-            _ => normalized.push(component.as_os_str()),
-        }
-    }
-    normalized
 }
 
 /// Assert that a compiler task completed successfully.

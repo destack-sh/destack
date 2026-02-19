@@ -9,7 +9,11 @@ use super::macos as input_macos;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputDeviceInfo, InputDeviceKind, InputEvent, InputEventAction, InputEventKind, InputReadMode,
+    InputCompositionEventPayload, InputDeviceEventPayload, InputDeviceInfo, InputDeviceKind,
+    InputEvent, InputEventAction, InputEventKind, InputEventPayload, InputGamepadEventPayload,
+    InputKeyEventPayload, InputPointerButtonEventPayload, InputPointerMotionEventPayload,
+    InputReadMode, InputScrollEventPayload, InputSensorEventPayload, InputTextEventPayload,
+    InputTouchEventPayload,
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform, resource};
@@ -29,6 +33,92 @@ const UNIX_INPUT_STDIN_ALIAS: &str = "stdin";
 const UNIX_INPUT_TTY_NAME: &str = "unix terminal input";
 /// Empty text payload for non-text events.
 pub(super) const UNIX_INPUT_EMPTY_TEXT: &str = "";
+
+/// Build one zeroed payload shell for event-kind projection.
+pub(super) fn empty_unix_event_payload(context: &RuntimeCallContext) -> InputEventPayload {
+    let empty_text = context.store_string(UNIX_INPUT_EMPTY_TEXT);
+    InputEventPayload {
+        key: InputKeyEventPayload {
+            action: InputEventAction::Cancel,
+            backend_code: 0,
+            backend_scan_code: 0,
+            backend_value: 0,
+            modifiers: 0,
+            repeat: false,
+        },
+        pointer_motion: InputPointerMotionEventPayload {
+            x: 0.0,
+            y: 0.0,
+            buttons: 0,
+            modifiers: 0,
+        },
+        pointer_button: InputPointerButtonEventPayload {
+            action: InputEventAction::Cancel,
+            backend_code: 0,
+            backend_value: 0,
+            x: 0.0,
+            y: 0.0,
+            modifiers: 0,
+        },
+        scroll: InputScrollEventPayload {
+            wheel_x: 0.0,
+            wheel_y: 0.0,
+            x: 0.0,
+            y: 0.0,
+            modifiers: 0,
+        },
+        touch: InputTouchEventPayload {
+            action: InputEventAction::Cancel,
+            contact_id: 0,
+            x: 0.0,
+            y: 0.0,
+            pressure: 0.0,
+        },
+        gamepad: InputGamepadEventPayload {
+            action: InputEventAction::Cancel,
+            backend_code: 0,
+            backend_value: 0,
+        },
+        text: InputTextEventPayload { text: empty_text },
+        device: InputDeviceEventPayload {
+            action: InputEventAction::Cancel,
+            backend_code: 0,
+            backend_value: 0,
+        },
+        sensor: InputSensorEventPayload {
+            action: InputEventAction::Cancel,
+            backend_code: 0,
+            backend_value: 0,
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        },
+        composition: InputCompositionEventPayload {
+            action: InputEventAction::Cancel,
+            text: empty_text,
+            selection_start: 0,
+            selection_end: 0,
+        },
+    }
+}
+
+/// Build one typed input event from one prepared payload.
+pub(super) fn build_unix_input_event(
+    context: &RuntimeCallContext,
+    kind: InputEventKind,
+    timestamp_ns: u64,
+    sequence: u64,
+    device_id: &str,
+    payload: InputEventPayload,
+) -> InputEvent {
+    InputEvent {
+        kind,
+        timestamp_ns,
+        sequence,
+        device_id: context.store_string(device_id),
+        payload,
+    }
+}
 
 /// Backend kind for one Unix input binding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -50,11 +140,16 @@ pub(super) struct UnixInputBinding {
     pub(super) read_mode: InputReadMode,
     /// Stable runtime device identifier used in emitted events.
     pub(super) device_id: String,
+    /// Classified device kind for backend-specific event mapping.
+    pub(super) device_kind: InputDeviceKind,
     /// Next per-handle event sequence number.
     pub(super) next_sequence: u64,
     /// Current Linux modifier-state bitset for this stream.
     #[cfg(target_os = "linux")]
     pub(super) linux_modifiers: u32,
+    /// Current Linux pointer-button bitset for this stream.
+    #[cfg(target_os = "linux")]
+    pub(super) linux_pointer_buttons: u32,
     /// Original terminal mode snapshot for tty-backed streams.
     pub(super) terminal_original_mode: Option<libc::termios>,
     /// Cached macOS session polling state.
@@ -140,9 +235,12 @@ pub(super) fn resolve_unix_input_binding(
                 backend: binding.backend,
                 read_mode: binding.read_mode,
                 device_id: binding.device_id.clone(),
+                device_kind: binding.device_kind,
                 next_sequence: binding.next_sequence,
                 #[cfg(target_os = "linux")]
                 linux_modifiers: binding.linux_modifiers,
+                #[cfg(target_os = "linux")]
+                linux_pointer_buttons: binding.linux_pointer_buttons,
                 terminal_original_mode: binding.terminal_original_mode,
                 #[cfg(target_os = "macos")]
                 macos_state: None,
@@ -326,7 +424,7 @@ pub(super) fn set_unix_grab(
     match backend {
         UnixInputBackend::Platform => set_platform_grab(descriptor, enable),
         UnixInputBackend::UnixTerminal => Err(RuntimeError::from(PlatformError::not_supported(
-            "destack.input.event.setGrab",
+            "destack.input.event.setExclusiveGrab",
         ))
         .boxed()),
     }
@@ -481,7 +579,10 @@ fn list_platform_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<Inpu
     let mut devices = Vec::new();
     devices.push(InputDeviceInfo {
         id: context.store_string(input_macos::MACOS_INPUT_SESSION_ID),
+        instance_id: context.store_string(input_macos::MACOS_INPUT_SESSION_ID),
+        hardware_id: context.store_string(input_macos::MACOS_INPUT_SESSION_ID),
         name: context.store_string(input_macos::MACOS_INPUT_SESSION_NAME),
+        transport: context.store_string("session"),
         kind: InputDeviceKind::Raw,
         vendor_id: 0,
         product_id: 0,
@@ -489,10 +590,15 @@ fn list_platform_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<Inpu
         button_count: input_macos::MACOS_SESSION_BUTTON_COUNT,
         axis_count: input_macos::MACOS_SESSION_AXIS_COUNT,
         connected: true,
-        supports_grab: false,
+        supports_exclusive_grab: false,
         supports_raw: true,
         supports_text: false,
         supports_rumble: false,
+        supports_battery: false,
+        supports_light: false,
+        supports_raw_hid: false,
+        is_virtual: false,
+        is_system: true,
     });
 
     if let Some(tty_device) = list_terminal_device(context)? {
@@ -547,11 +653,14 @@ fn read_platform_event(
                 descriptor,
                 nonblocking,
                 &binding.device_id,
+                binding.device_kind,
                 binding.linux_modifiers,
+                binding.linux_pointer_buttons,
             );
             match event {
-                Ok((event, modifiers)) => {
+                Ok((event, modifiers, pointer_buttons)) => {
                     binding.linux_modifiers = modifiers;
+                    binding.linux_pointer_buttons = pointer_buttons;
                     Some(Ok(event))
                 }
                 Err(error) => Some(Err(error)),
@@ -598,7 +707,7 @@ fn set_platform_grab(descriptor: Option<RawFd>, enable: bool) -> RuntimeResult<(
             Some(PlatformErrorCode::IoNotFound),
             None,
             None,
-            Some("destack.input.event.setGrab".to_string()),
+            Some("destack.input.event.setExclusiveGrab".to_string()),
             None,
             "input device handle is missing one descriptor".to_string(),
         ))
@@ -611,7 +720,10 @@ fn set_platform_grab(descriptor: Option<RawFd>, enable: bool) -> RuntimeResult<(
 /// Set exclusive-grab mode for one platform backend on non-Linux Unix hosts.
 #[cfg(all(unix, not(target_os = "linux")))]
 fn set_platform_grab(_descriptor: Option<RawFd>, _enable: bool) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.event.setGrab")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.event.setExclusiveGrab",
+    ))
+    .boxed())
 }
 
 /// Set read mode for one platform backend on Linux and macOS.
@@ -669,7 +781,10 @@ fn list_terminal_device(context: &RuntimeCallContext) -> RuntimeResult<Option<In
 
     Ok(Some(InputDeviceInfo {
         id: context.store_string(UNIX_INPUT_TTY_ID),
+        instance_id: context.store_string(UNIX_INPUT_TTY_ID),
+        hardware_id: context.store_string(UNIX_INPUT_TTY_ID),
         name: context.store_string(UNIX_INPUT_TTY_NAME),
+        transport: context.store_string("tty"),
         kind: InputDeviceKind::Keyboard,
         vendor_id: 0,
         product_id: 0,
@@ -677,10 +792,15 @@ fn list_terminal_device(context: &RuntimeCallContext) -> RuntimeResult<Option<In
         button_count: 0,
         axis_count: 0,
         connected: true,
-        supports_grab: false,
+        supports_exclusive_grab: false,
         supports_raw: true,
         supports_text: true,
         supports_rumble: false,
+        supports_battery: false,
+        supports_light: false,
+        supports_raw_hid: false,
+        is_virtual: false,
+        is_system: true,
     }))
 }
 
@@ -777,33 +897,38 @@ fn read_terminal_event(
         1
     };
 
-    Ok(InputEvent {
+    let text = if kind == InputEventKind::Text {
+        let bytes = [byte];
+        let value = String::from_utf8_lossy(&bytes);
+        Some(value.to_string())
+    } else {
+        None
+    };
+
+    let mut payload = empty_unix_event_payload(context);
+    if kind == InputEventKind::Text {
+        payload.text = InputTextEventPayload {
+            text: context.store_string(text.as_deref().unwrap_or(UNIX_INPUT_EMPTY_TEXT)),
+        };
+    } else {
+        payload.key = InputKeyEventPayload {
+            action: InputEventAction::Press,
+            backend_code: byte as u32,
+            backend_scan_code: byte as u32,
+            backend_value: value,
+            modifiers: 0,
+            repeat: false,
+        };
+    }
+
+    Ok(build_unix_input_event(
+        context,
         kind,
-        timestamp_ns: monotonic_timestamp_ns(),
-        sequence: 0,
-        device_id: context.store_string(device_id),
-        action: if kind == InputEventKind::Text {
-            InputEventAction::Text
-        } else {
-            InputEventAction::Press
-        },
-        code: byte as u32,
-        scan_code: byte as u32,
-        value,
-        x: 0.0,
-        y: 0.0,
-        wheel_x: 0.0,
-        wheel_y: 0.0,
-        modifiers: 0,
-        repeat: false,
-        text: if kind == InputEventKind::Text {
-            let text = [byte];
-            let text = String::from_utf8_lossy(&text);
-            context.store_string(text.as_ref())
-        } else {
-            context.store_string(UNIX_INPUT_EMPTY_TEXT)
-        },
-    })
+        monotonic_timestamp_ns(),
+        0,
+        device_id,
+        payload,
+    ))
 }
 
 /// Return one monotonic host timestamp in nanoseconds.

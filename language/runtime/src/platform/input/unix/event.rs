@@ -1,4 +1,4 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 #[cfg(target_os = "linux")]
 use std::ffi::CStr;
 #[cfg(target_os = "linux")]
@@ -11,11 +11,16 @@ use std::thread;
 use std::time::Duration;
 
 use super::core as input_core;
+#[cfg(target_os = "linux")]
+use super::linux as input_linux;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(target_os = "linux")]
 use crate::platform::core as core_platform;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::input::{InputEvent, InputEventAction, InputEventKind, InputReadMode};
+use crate::platform::input::{
+    InputDeviceKind, InputEvent, InputEventAction, InputMonitorEvent, InputMonitorEventKind,
+    InputReadMode,
+};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 #[cfg(target_os = "linux")]
 use crate::platform::resource::{ResourceFinalizer, ResourceId};
@@ -24,8 +29,6 @@ use crate::runtime::RuntimeCallContext;
 
 /// Resource-table label for opened input-monitor entries.
 const INPUT_MONITOR_RESOURCE_LABEL: &str = "input.monitor";
-/// Empty text payload for monitor events.
-const INPUT_MONITOR_EMPTY_TEXT: &str = "";
 /// Linux monitor root path for event-node discovery.
 #[cfg(target_os = "linux")]
 const INPUT_MONITOR_LINUX_PATH: &str = "/dev/input";
@@ -38,9 +41,11 @@ const INPUT_MONITOR_INOTIFY_BUFFER_SIZE: usize = 4096;
 
 /// Monitor event payload queued by unix monitor polling.
 #[derive(Debug, Clone)]
-struct InputMonitorEvent {
+struct MonitorDeltaEvent {
     /// Stable runtime device identifier.
     device_id: String,
+    /// Classified device kind for this topology transition.
+    device_kind: InputDeviceKind,
     /// Connection state transition.
     action: InputEventAction,
 }
@@ -50,8 +55,10 @@ struct InputMonitorEvent {
 struct UnixInputMonitorBinding {
     /// Known device set from the previous poll snapshot.
     known_devices: Vec<String>,
+    /// Known device kinds keyed by stable device id.
+    known_device_kinds: HashMap<String, InputDeviceKind>,
     /// Pending connect or disconnect events.
-    pending_events: VecDeque<InputMonitorEvent>,
+    pending_events: VecDeque<MonitorDeltaEvent>,
     /// Next per-monitor event sequence number.
     next_sequence: u64,
     /// Linux inotify descriptor used for monitor events.
@@ -121,13 +128,22 @@ fn validate_monitor_handle(
     Ok(())
 }
 
-/// List monitor-visible device identifiers as stable sorted strings.
-fn list_monitor_device_ids(context: &RuntimeCallContext) -> RuntimeResult<Vec<String>> {
+/// Snapshot record for one monitor-visible device.
+#[derive(Debug, Clone)]
+struct MonitorDeviceSnapshot {
+    /// Stable runtime device identifier.
+    device_id: String,
+    /// Classified runtime device kind.
+    device_kind: InputDeviceKind,
+}
+
+/// List monitor-visible devices as stable sorted identifiers with kinds.
+fn list_monitor_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<MonitorDeviceSnapshot>> {
     #[cfg(target_os = "linux")]
     {
         let _ = context;
 
-        // list linux event node paths without probing full device metadata
+        // list linux event node paths and classify each visible endpoint
         let entries = match fs::read_dir(INPUT_MONITOR_LINUX_PATH) {
             Ok(entries) => entries,
             Err(error) => {
@@ -147,7 +163,7 @@ fn list_monitor_device_ids(context: &RuntimeCallContext) -> RuntimeResult<Vec<St
             }
         };
 
-        let mut ids = Vec::new();
+        let mut devices = Vec::new();
         for entry in entries {
             let entry = entry.map_err(|error| {
                 RuntimeError::from(PlatformError::io_with(
@@ -171,38 +187,50 @@ fn list_monitor_device_ids(context: &RuntimeCallContext) -> RuntimeResult<Vec<St
 
             let id = format!("{INPUT_MONITOR_LINUX_PATH}/{name}");
             if Path::new(&id).exists() {
-                ids.push(id);
+                devices.push(MonitorDeviceSnapshot {
+                    device_kind: input_linux::linux_device_kind_for_path(&id),
+                    device_id: id,
+                });
             }
         }
-        ids.sort_unstable();
-        ids.dedup();
-        return Ok(ids);
+        devices.sort_unstable_by(|left, right| left.device_id.cmp(&right.device_id));
+        devices.dedup_by(|left, right| left.device_id == right.device_id);
+        return Ok(devices);
     }
 
     #[cfg(not(target_os = "linux"))]
     {
         let devices = input_core::list_unix_devices(context)?;
-        let mut ids = Vec::with_capacity(devices.len());
+        let mut snapshots = Vec::with_capacity(devices.len());
         for device in devices {
             let id = unsafe { device.id.as_str()? };
-            ids.push(id.to_string());
+            snapshots.push(MonitorDeviceSnapshot {
+                device_id: id.to_string(),
+                device_kind: device.kind,
+            });
         }
-        ids.sort_unstable();
-        ids.dedup();
-        Ok(ids)
+        snapshots.sort_unstable_by(|left, right| left.device_id.cmp(&right.device_id));
+        snapshots.dedup_by(|left, right| left.device_id == right.device_id);
+        Ok(snapshots)
     }
 }
 
 /// Queue connect and disconnect deltas from one device snapshot.
-fn enqueue_monitor_delta(binding: &mut UnixInputMonitorBinding, current_devices: &[String]) {
+fn enqueue_monitor_delta(
+    binding: &mut UnixInputMonitorBinding,
+    current_devices: &[MonitorDeviceSnapshot],
+) {
     // build previous and current membership sets
     let previous: HashSet<&str> = binding.known_devices.iter().map(String::as_str).collect();
-    let current: HashSet<&str> = current_devices.iter().map(String::as_str).collect();
+    let current: HashSet<&str> = current_devices
+        .iter()
+        .map(|device| device.device_id.as_str())
+        .collect();
 
     // collect newly discovered devices
     let mut connect_events = Vec::new();
     for device_id in current_devices {
-        if !previous.contains(device_id.as_str()) {
+        if !previous.contains(device_id.device_id.as_str()) {
             connect_events.push(device_id.clone());
         }
     }
@@ -216,13 +244,18 @@ fn enqueue_monitor_delta(binding: &mut UnixInputMonitorBinding, current_devices:
     }
 
     // enqueue connect transitions
-    for device_id in connect_events {
-        enqueue_monitor_action(binding, device_id, InputEventAction::Connect);
+    for device in connect_events {
+        enqueue_monitor_action(
+            binding,
+            device.device_id,
+            InputEventAction::Connect,
+            Some(device.device_kind),
+        );
     }
 
     // enqueue disconnect transitions
     for device_id in disconnect_events {
-        enqueue_monitor_action(binding, device_id, InputEventAction::Disconnect);
+        enqueue_monitor_action(binding, device_id, InputEventAction::Disconnect, None);
     }
 }
 
@@ -231,6 +264,7 @@ fn enqueue_monitor_action(
     binding: &mut UnixInputMonitorBinding,
     device_id: String,
     action: InputEventAction,
+    device_kind: Option<InputDeviceKind>,
 ) {
     // skip duplicate connect transitions
     if action == InputEventAction::Connect && binding.known_devices.contains(&device_id) {
@@ -244,17 +278,34 @@ fn enqueue_monitor_action(
 
     // apply connect and disconnect membership changes
     if action == InputEventAction::Connect {
+        let device_kind = device_kind.unwrap_or(InputDeviceKind::Raw);
         binding.known_devices.push(device_id.clone());
         binding.known_devices.sort_unstable();
         binding.known_devices.dedup();
-    } else if action == InputEventAction::Disconnect {
-        binding.known_devices.retain(|known| known != &device_id);
-    }
+        binding
+            .known_device_kinds
+            .insert(device_id.clone(), device_kind);
 
-    // enqueue one monitor event packet
-    binding
-        .pending_events
-        .push_back(InputMonitorEvent { device_id, action });
+        // enqueue one monitor event packet
+        binding.pending_events.push_back(MonitorDeltaEvent {
+            device_id,
+            device_kind,
+            action,
+        });
+    } else if action == InputEventAction::Disconnect {
+        let disconnected_kind = binding
+            .known_device_kinds
+            .remove(&device_id)
+            .unwrap_or(InputDeviceKind::Raw);
+        binding.known_devices.retain(|known| known != &device_id);
+
+        // enqueue one monitor event packet
+        binding.pending_events.push_back(MonitorDeltaEvent {
+            device_id,
+            device_kind: disconnected_kind,
+            action,
+        });
+    }
 }
 
 /// Open one inotify watcher for input monitor events.
@@ -359,15 +410,22 @@ fn drain_linux_monitor_watch(binding: &mut UnixInputMonitorBinding) -> RuntimeRe
                     let mask = event.mask;
 
                     if (mask & (libc::IN_CREATE | libc::IN_MOVED_TO)) != 0 {
+                        let device_kind = input_linux::linux_device_kind_for_path(&device_id);
                         enqueue_monitor_action(
                             binding,
                             device_id.clone(),
                             InputEventAction::Connect,
+                            Some(device_kind),
                         );
                     }
 
                     if (mask & (libc::IN_DELETE | libc::IN_MOVED_FROM)) != 0 {
-                        enqueue_monitor_action(binding, device_id, InputEventAction::Disconnect);
+                        enqueue_monitor_action(
+                            binding,
+                            device_id,
+                            InputEventAction::Disconnect,
+                            None,
+                        );
                     }
                 }
             }
@@ -405,37 +463,53 @@ fn wait_for_monitor_watch_event(descriptor: RawFd) -> RuntimeResult<()> {
     }
 }
 
-/// Convert one monitor packet into one runtime input event.
-fn monitor_event_to_input_event(
+/// Convert one monitor packet into one runtime monitor event.
+fn monitor_kind_from_action(action: InputEventAction) -> InputMonitorEventKind {
+    match action {
+        InputEventAction::Connect => InputMonitorEventKind::Connect,
+        InputEventAction::Disconnect => InputMonitorEventKind::Disconnect,
+        _ => InputMonitorEventKind::Change,
+    }
+}
+
+/// Build one monitor event payload from one topology delta.
+fn build_unix_monitor_event(
     context: &RuntimeCallContext,
-    event: InputMonitorEvent,
-    code: u32,
+    timestamp_ns: u64,
     sequence: u64,
-) -> InputEvent {
+    device_id: &str,
+    device_kind: InputDeviceKind,
+    action: InputEventAction,
+) -> InputMonitorEvent {
+    let kind = monitor_kind_from_action(action);
+    let connected = !matches!(kind, InputMonitorEventKind::Disconnect);
+    InputMonitorEvent {
+        kind,
+        timestamp_ns,
+        sequence,
+        device_id: context.store_string(device_id),
+        device_kind,
+        connected,
+    }
+}
+
+/// Convert one monitor packet into one runtime monitor event.
+fn monitor_event_to_output(
+    context: &RuntimeCallContext,
+    event: MonitorDeltaEvent,
+    sequence: u64,
+) -> InputMonitorEvent {
     // stamp event payload with one monotonic timestamp
     let timestamp = input_core::monotonic_timestamp_ns();
 
-    InputEvent {
-        kind: InputEventKind::Device,
-        timestamp_ns: timestamp,
+    build_unix_monitor_event(
+        context,
+        timestamp,
         sequence,
-        device_id: context.store_string(&event.device_id),
-        action: event.action,
-        code,
-        scan_code: code,
-        value: if event.action == InputEventAction::Connect {
-            1
-        } else {
-            0
-        },
-        x: 0.0,
-        y: 0.0,
-        wheel_x: 0.0,
-        wheel_y: 0.0,
-        modifiers: 0,
-        repeat: false,
-        text: context.store_string(INPUT_MONITOR_EMPTY_TEXT),
-    }
+        &event.device_id,
+        event.device_kind,
+        event.action,
+    )
 }
 
 /// Poll monitor state until one event is available or would-block.
@@ -444,7 +518,7 @@ fn poll_monitor_event(
     handle: resource::InputMonitorHandle,
     nonblocking: bool,
     operation: &'static str,
-) -> RuntimeResult<InputEvent> {
+) -> RuntimeResult<InputMonitorEvent> {
     loop {
         // drain watcher queues and attempt one queue pop
         let next = context
@@ -493,12 +567,12 @@ fn poll_monitor_event(
         match next {
             // return one queued monitor event
             Some(Some(Ok((Some((event, sequence)), _, _)))) => {
-                return Ok(monitor_event_to_input_event(context, event, 0, sequence));
+                return Ok(monitor_event_to_output(context, event, sequence));
             }
 
             // when no watch backend exists, rescan device ids and enqueue topology deltas
             Some(Some(Ok((None, _, true)))) => {
-                let current_devices = list_monitor_device_ids(context)?;
+                let current_devices = list_monitor_devices(context)?;
                 let next = context
                     .runtime()
                     .resources
@@ -526,7 +600,7 @@ fn poll_monitor_event(
 
                 match next {
                     Some(Some(Some((event, sequence)))) => {
-                        return Ok(monitor_event_to_input_event(context, event, 0, sequence));
+                        return Ok(monitor_event_to_output(context, event, sequence));
                     }
                     Some(Some(None)) => {
                         if nonblocking {
@@ -590,11 +664,14 @@ fn poll_monitor_event(
 /// Read one pending input event from one opened device stream.
 /// Per-device streams report control and motion events for that device and exclude global device topology events.
 /// Backend framing packets are filtered from this semantic stream.
-/// Queue pressure can report one device cancel packet that carries overflow details in code and value.
+/// Queue pressure can report one device cancel packet through the typed payload.
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
-/// Uses evdev event reads on Linux, event-tap queue reads on macOS, terminal-byte event reads on other Unix hosts, and ReadConsoleInputW queue reads or raw-state polling on Windows.
+/// Uses evdev event reads on Linux.
+/// Uses event-tap queue reads on macOS.
+/// Uses terminal-byte event reads on other Unix hosts.
+/// Uses `ReadConsoleInputW` queue reads or raw-state polling on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -671,7 +748,10 @@ pub(crate) unsafe fn destack_input_monitor_close(
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
-/// Uses inotify-backed `/dev/input` monitor events on Linux with snapshot fallback when watcher setup is unavailable, session and terminal-device scans on macOS and other Unix hosts, and raw-input device-change subscriptions on Windows.
+/// Uses inotify-backed `/dev/input` monitor events on Linux.
+/// Falls back to snapshot scans on Linux when watcher setup is unavailable.
+/// Uses session and terminal-device scans on macOS and other Unix hosts.
+/// Uses raw-input device-change subscriptions on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -691,14 +771,21 @@ pub(crate) unsafe fn destack_input_monitor_open(
     }
 
     // create one monitor payload from current device snapshot
-    let known_devices = list_monitor_device_ids(context)?;
+    let known_devices = list_monitor_devices(context)?;
+    let mut known_device_ids = Vec::with_capacity(known_devices.len());
+    let mut known_device_kinds = HashMap::with_capacity(known_devices.len());
+    for device in known_devices {
+        known_device_ids.push(device.device_id.clone());
+        known_device_kinds.insert(device.device_id, device.device_kind);
+    }
     #[cfg(target_os = "linux")]
     let watch_descriptor = open_linux_monitor_watch()?;
 
     let entry = ResourceEntry::new(ResourceKind::Input)
         .with_label(INPUT_MONITOR_RESOURCE_LABEL)
         .with_payload(UnixInputMonitorBinding {
-            known_devices,
+            known_devices: known_device_ids,
+            known_device_kinds,
             pending_events: VecDeque::new(),
             next_sequence: 1,
             #[cfg(target_os = "linux")]
@@ -723,11 +810,14 @@ pub(crate) unsafe fn destack_input_monitor_open(
 /// Read one global input monitor event.
 ///
 /// Read one pending monitor event from the global input monitor stream.
-/// This stream is the canonical source for device connect and disconnect events.
+/// This stream is the canonical source for device connect, disconnect, and metadata-change events.
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
-/// Uses blocking reads from inotify-backed Linux monitor queues with snapshot fallback on watcherless hosts, terminal or session monitor streams on Unix hosts, and raw-input monitor queues on Windows.
+/// Uses blocking reads from inotify-backed Linux monitor queues.
+/// Falls back to snapshot scans on Linux when watcher setup is unavailable.
+/// Uses terminal or session monitor streams on Unix hosts.
+/// Uses raw-input monitor queues on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -739,7 +829,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_read(
     context: &RuntimeCallContext,
-    out: *mut InputEvent,
+    out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     // validate output pointer
@@ -767,7 +857,10 @@ pub(crate) unsafe fn destack_input_monitor_read(
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
-/// Uses nonblocking reads from inotify-backed Linux monitor queues with snapshot fallback on watcherless hosts, terminal or session monitor streams on Unix hosts, and raw-input monitor queues on Windows.
+/// Uses nonblocking reads from inotify-backed Linux monitor queues.
+/// Falls back to snapshot scans on Linux when watcher setup is unavailable.
+/// Uses terminal or session monitor streams on Unix hosts.
+/// Uses raw-input monitor queues on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -779,7 +872,7 @@ pub(crate) unsafe fn destack_input_monitor_read(
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_try_read(
     context: &RuntimeCallContext,
-    out: *mut InputEvent,
+    out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     // validate output pointer
@@ -803,11 +896,14 @@ pub(crate) unsafe fn destack_input_monitor_try_read(
 /// Enable or disable exclusive device grab.
 ///
 /// Toggle exclusive-grab mode for one input device when the host backend supports it.
+/// This is one device-wide exclusivity control and is distinct from pointer confinement or locking modes.
 /// Grabs can prevent event delivery to other clients.
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` where exclusive grab is not defined by host policy.
-/// Uses EVIOCGRAB on Linux, returns notSupported for global-session and terminal-backed Unix input, and uses SetConsoleMode capture toggles on Windows console input.
+/// Uses `EVIOCGRAB` on Linux.
+/// Returns `notSupported` for global-session and terminal-backed Unix input.
+/// Uses `SetConsoleMode` capture toggles on Windows console input.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -817,14 +913,17 @@ pub(crate) unsafe fn destack_input_monitor_try_read(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_input_set_grab(
+pub(crate) unsafe fn destack_input_set_exclusive_grab(
     context: &RuntimeCallContext,
     handle: resource::InputDeviceHandle,
     enable: bool,
 ) -> RuntimeResult<()> {
     // resolve binding and apply backend-specific grab semantics
-    let binding =
-        input_core::resolve_unix_input_binding(context, handle, "destack.input.event.setGrab")?;
+    let binding = input_core::resolve_unix_input_binding(
+        context,
+        handle,
+        "destack.input.event.setExclusiveGrab",
+    )?;
     input_core::set_unix_grab(binding.descriptor, binding.backend, enable)
 }
 
@@ -833,7 +932,7 @@ pub(crate) unsafe fn destack_input_set_grab(
 /// Read up to `maxEvents` events from one opened device stream in one call.
 /// Batch ordering matches backend delivery order and excludes global device topology events.
 /// Backend framing packets are filtered from this semantic stream.
-/// Queue pressure can report one device cancel packet that carries overflow details in code and value.
+/// Queue pressure can report one device cancel packet through the typed payload.
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
@@ -915,7 +1014,9 @@ pub(crate) unsafe fn destack_input_read_batch(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses per-stream runtime mode selection on Linux evdev and macOS session backends, termios raw and cooked mode updates on Unix TTY paths, and SetConsoleMode updates on Windows.
+/// Uses per-stream runtime mode selection on Linux evdev and macOS session backends.
+/// Uses termios raw and cooked mode updates on Unix TTY paths.
+/// Uses `SetConsoleMode` updates on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -939,11 +1040,14 @@ pub(crate) unsafe fn destack_input_set_read_mode(
 /// Poll one pending input event from one opened device stream and return immediately when no event is queued.
 /// Empty queue state is reported through ioWouldBlock.
 /// Backend framing packets are filtered from this semantic stream.
-/// Queue pressure can report one device cancel packet that carries overflow details in code and value.
+/// Queue pressure can report one device cancel packet through the typed payload.
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
-/// Uses nonblocking evdev reads on Linux, nonblocking event-tap queue reads on macOS, nonblocking terminal-byte reads on other Unix hosts, and nonblocking console queue reads or raw-state polling on Windows.
+/// Uses nonblocking evdev reads on Linux.
+/// Uses nonblocking event-tap queue reads on macOS.
+/// Uses nonblocking terminal-byte reads on other Unix hosts.
+/// Uses nonblocking console queue reads or raw-state polling on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -990,6 +1094,7 @@ mod tests {
     fn empty_monitor_binding() -> UnixInputMonitorBinding {
         UnixInputMonitorBinding {
             known_devices: Vec::new(),
+            known_device_kinds: HashMap::new(),
             pending_events: VecDeque::new(),
             next_sequence: 1,
             #[cfg(target_os = "linux")]
@@ -1002,8 +1107,14 @@ mod tests {
     fn test_enqueue_monitor_delta_collects_connect_and_disconnect() {
         let mut binding = empty_monitor_binding();
         binding.known_devices = vec!["/dev/input/event0".to_string()];
+        binding
+            .known_device_kinds
+            .insert("/dev/input/event0".to_string(), InputDeviceKind::Keyboard);
 
-        let current = vec!["/dev/input/event1".to_string()];
+        let current = vec![MonitorDeviceSnapshot {
+            device_id: "/dev/input/event1".to_string(),
+            device_kind: InputDeviceKind::Mouse,
+        }];
         enqueue_monitor_delta(&mut binding, &current);
 
         let first = binding
@@ -1012,6 +1123,7 @@ mod tests {
             .expect("connect event expected");
         assert_eq!(first.action, InputEventAction::Connect);
         assert_eq!(first.device_id, "/dev/input/event1");
+        assert_eq!(first.device_kind, InputDeviceKind::Mouse);
 
         let second = binding
             .pending_events
@@ -1019,6 +1131,7 @@ mod tests {
             .expect("disconnect event expected");
         assert_eq!(second.action, InputEventAction::Disconnect);
         assert_eq!(second.device_id, "/dev/input/event0");
+        assert_eq!(second.device_kind, InputDeviceKind::Keyboard);
     }
 
     /// Ignore duplicate connect and disconnect transitions.
@@ -1029,11 +1142,13 @@ mod tests {
             &mut binding,
             "/dev/input/event2".to_string(),
             InputEventAction::Connect,
+            Some(InputDeviceKind::Mouse),
         );
         enqueue_monitor_action(
             &mut binding,
             "/dev/input/event2".to_string(),
             InputEventAction::Connect,
+            Some(InputDeviceKind::Mouse),
         );
         assert_eq!(binding.pending_events.len(), 1);
 
@@ -1041,11 +1156,13 @@ mod tests {
             &mut binding,
             "/dev/input/event2".to_string(),
             InputEventAction::Disconnect,
+            None,
         );
         enqueue_monitor_action(
             &mut binding,
             "/dev/input/event2".to_string(),
             InputEventAction::Disconnect,
+            None,
         );
         assert_eq!(binding.pending_events.len(), 2);
     }

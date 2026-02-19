@@ -82,7 +82,8 @@ declare namespace input {
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` where sensor streams are unavailable.
-    /// Uses backend-specific sensor capability tables from evdev and hidraw class stacks on Unix and HID sensor or controller APIs on Windows.
+    /// Uses backend-specific sensor capability tables from evdev and hidraw class stacks on Unix.
+    /// Uses HID sensor or controller APIs on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.

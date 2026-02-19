@@ -10,8 +10,32 @@ use crate::platform::bindings::{
     NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
 };
 use crate::platform::input::{
-    InputDeviceInfo, InputDeviceInfoReplayRecord, InputDeviceInfoVm, InputDeviceKind, InputEvent,
-    InputEventAction, InputEventKind, InputEventReplayRecord, InputEventVm, InputReadMode,
+    InputAxisInfo, InputAxisInfoVm, InputButtonInfo, InputButtonInfoVm, InputCompositionEvent,
+    InputCompositionEventPayload, InputCompositionEventPayloadReplayRecord,
+    InputCompositionEventPayloadVm, InputCompositionEventReplayRecord, InputCompositionEventVm,
+    InputDeviceCapabilities, InputDeviceCapabilitiesReplayRecord, InputDeviceCapabilitiesVm,
+    InputDeviceCapabilityKind, InputDeviceEventPayload, InputDeviceEventPayloadVm, InputDeviceInfo,
+    InputDeviceInfoReplayRecord, InputDeviceInfoVm, InputDeviceKind, InputEvent, InputEventAction,
+    InputEventKind, InputEventPayload, InputEventPayloadReplayRecord, InputEventPayloadVm,
+    InputEventReplayRecord, InputEventVm, InputGamepadBatteryInfo, InputGamepadBatteryInfoVm,
+    InputGamepadButtonState, InputGamepadButtonStateVm, InputGamepadEventPayload,
+    InputGamepadEventPayloadVm, InputGamepadState, InputGamepadStateReplayRecord,
+    InputGamepadStateVm, InputGamepadTouchState, InputGamepadTouchStateVm,
+    InputHapticEffectParameters, InputHapticEffectParametersVm, InputHapticEffectType,
+    InputHapticsResult, InputKeyEventPayload, InputKeyEventPayloadVm, InputKeyboardState,
+    InputKeyboardStateReplayRecord, InputKeyboardStateVm, InputMonitorEvent,
+    InputMonitorEventReplayRecord, InputMonitorEventVm, InputPointerButtonEventPayload,
+    InputPointerButtonEventPayloadVm, InputPointerGrabMode, InputPointerMotionEventPayload,
+    InputPointerMotionEventPayloadVm, InputPointerState, InputPointerStateVm, InputRawHidReport,
+    InputRawHidReportReplayRecord, InputRawHidReportVm, InputReadMode, InputScrollEventPayload,
+    InputScrollEventPayloadVm, InputSensorConfig, InputSensorConfigVm, InputSensorEffectiveConfig,
+    InputSensorEffectiveConfigVm, InputSensorEventPayload, InputSensorEventPayloadVm,
+    InputSensorInfo, InputSensorInfoVm, InputSensorKind, InputSensorSample, InputSensorSampleVm,
+    InputTextEventPayload, InputTextEventPayloadReplayRecord, InputTextEventPayloadVm,
+    InputTextInputArea, InputTextInputAreaVm, InputTextInputType, InputTouchContactPhase,
+    InputTouchContactState, InputTouchContactStateVm, InputTouchEventPayload,
+    InputTouchEventPayloadVm, InputTouchState, InputTouchStateReplayRecord, InputTouchStateVm,
+    InputWindowTarget, InputWindowTargetVm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
@@ -99,6 +123,16 @@ fn decode_uint(
     Ok(raw)
 }
 
+/// Decode an i32 argument.
+#[allow(dead_code)]
+fn decode_int32(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<i32> {
+    Ok(decode_int(value, name, expected, 32)? as i32)
+}
+
 /// Decode an i64 argument.
 #[allow(dead_code)]
 fn decode_int64(
@@ -171,6 +205,60 @@ fn decode_string(
     }
 
     Ok(vm::StringHandle::new(value))
+}
+
+/// Decode a slice argument.
+fn decode_slice<T>(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<VmSlice<T>> {
+    VmSlice::<T>::from_value(context, value, name, expected)
+}
+
+/// Decode arguments for destack.input.device.capabilities.
+#[inline]
+fn decode_destack_input_device_capabilities_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.input.device.capabilities.
+#[inline]
+fn encode_destack_input_device_capabilities_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<InputDeviceCapabilitiesVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = value.kinds.to_value(context);
+        let field_1 = value.axes.to_value(context);
+        let field_2 = value.buttons.to_value(context);
+        let field_3 = vm::Value::bool(value.supports_relative_pointer);
+        let field_4 = vm::Value::bool(value.supports_pointer_grab);
+        let field_5 = vm::Value::bool(value.supports_pointer_capture);
+        let field_6 = vm::Value::bool(value.supports_pointer_warp);
+        let field_7 = vm::Value::bool(value.supports_text_input);
+        let field_8 = vm::Value::bool(value.supports_composition);
+        let field_9 = vm::Value::bool(value.supports_rumble);
+        let field_10 = vm::Value::bool(value.supports_trigger_rumble);
+        let field_11 = vm::Value::bool(value.supports_sensors);
+        let field_12 = vm::Value::bool(value.supports_battery_state);
+        let field_13 = vm::Value::bool(value.supports_light_control);
+        let field_14 = vm::Value::bool(value.supports_raw_hid);
+        let field_15 = vm::Value::bool(value.supports_player_index);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13, field_14, field_15,
+        ])
+    })
 }
 
 /// Decode arguments for destack.input.device.close.
@@ -275,28 +363,16 @@ fn decode_destack_input_event_monitor_read_args(
 #[inline]
 fn encode_destack_input_event_monitor_read_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<InputEventVm>,
+    result: RuntimeResult<InputMonitorEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
         let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
         let field_1 = vm::Value::uint(value.timestamp_ns, 64);
         let field_2 = vm::Value::uint(value.sequence, 64);
         let field_3 = value.device_id.value();
-        let field_4 = vm::Value::uint(value.action as u8 as u64, 8);
-        let field_5 = vm::Value::uint(value.code as u64, 32);
-        let field_6 = vm::Value::uint(value.scan_code as u64, 32);
-        let field_7 = vm::Value::int(value.value, 64);
-        let field_8 = vm::Value::float64(value.x);
-        let field_9 = vm::Value::float64(value.y);
-        let field_10 = vm::Value::float64(value.wheel_x);
-        let field_11 = vm::Value::float64(value.wheel_y);
-        let field_12 = vm::Value::uint(value.modifiers as u64, 32);
-        let field_13 = vm::Value::bool(value.repeat);
-        let field_14 = value.text.value();
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11, field_12, field_13, field_14,
-        ])
+        let field_4 = vm::Value::uint(value.device_kind as u8 as u64, 8);
+        let field_5 = vm::Value::bool(value.connected);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
     })
 }
 
@@ -318,28 +394,16 @@ fn decode_destack_input_event_monitor_try_read_args(
 #[inline]
 fn encode_destack_input_event_monitor_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<InputEventVm>,
+    result: RuntimeResult<InputMonitorEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
         let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
         let field_1 = vm::Value::uint(value.timestamp_ns, 64);
         let field_2 = vm::Value::uint(value.sequence, 64);
         let field_3 = value.device_id.value();
-        let field_4 = vm::Value::uint(value.action as u8 as u64, 8);
-        let field_5 = vm::Value::uint(value.code as u64, 32);
-        let field_6 = vm::Value::uint(value.scan_code as u64, 32);
-        let field_7 = vm::Value::int(value.value, 64);
-        let field_8 = vm::Value::float64(value.x);
-        let field_9 = vm::Value::float64(value.y);
-        let field_10 = vm::Value::float64(value.wheel_x);
-        let field_11 = vm::Value::float64(value.wheel_y);
-        let field_12 = vm::Value::uint(value.modifiers as u64, 32);
-        let field_13 = vm::Value::bool(value.repeat);
-        let field_14 = value.text.value();
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11, field_12, field_13, field_14,
-        ])
+        let field_4 = vm::Value::uint(value.device_kind as u8 as u64, 8);
+        let field_5 = vm::Value::bool(value.connected);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
     })
 }
 
@@ -368,21 +432,89 @@ fn encode_destack_input_event_read_result(
         let field_1 = vm::Value::uint(value.timestamp_ns, 64);
         let field_2 = vm::Value::uint(value.sequence, 64);
         let field_3 = value.device_id.value();
-        let field_4 = vm::Value::uint(value.action as u8 as u64, 8);
-        let field_5 = vm::Value::uint(value.code as u64, 32);
-        let field_6 = vm::Value::uint(value.scan_code as u64, 32);
-        let field_7 = vm::Value::int(value.value, 64);
-        let field_8 = vm::Value::float64(value.x);
-        let field_9 = vm::Value::float64(value.y);
-        let field_10 = vm::Value::float64(value.wheel_x);
-        let field_11 = vm::Value::float64(value.wheel_y);
-        let field_12 = vm::Value::uint(value.modifiers as u64, 32);
-        let field_13 = vm::Value::bool(value.repeat);
-        let field_14 = value.text.value();
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11, field_12, field_13, field_14,
-        ])
+        let field_4 = {
+            let field_0 = {
+                let field_0 = vm::Value::uint(value.payload.key.action as u8 as u64, 8);
+                let field_1 = vm::Value::uint(value.payload.key.backend_code as u64, 32);
+                let field_2 = vm::Value::uint(value.payload.key.backend_scan_code as u64, 32);
+                let field_3 = vm::Value::int(value.payload.key.backend_value, 64);
+                let field_4 = vm::Value::uint(value.payload.key.modifiers as u64, 32);
+                let field_5 = vm::Value::bool(value.payload.key.repeat);
+                context
+                    .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+            };
+            let field_1 = {
+                let field_0 = vm::Value::float64(value.payload.pointer_motion.x);
+                let field_1 = vm::Value::float64(value.payload.pointer_motion.y);
+                let field_2 = vm::Value::uint(value.payload.pointer_motion.buttons as u64, 32);
+                let field_3 = vm::Value::uint(value.payload.pointer_motion.modifiers as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+            };
+            let field_2 = {
+                let field_0 = vm::Value::uint(value.payload.pointer_button.action as u8 as u64, 8);
+                let field_1 = vm::Value::uint(value.payload.pointer_button.backend_code as u64, 32);
+                let field_2 = vm::Value::int(value.payload.pointer_button.backend_value, 64);
+                let field_3 = vm::Value::float64(value.payload.pointer_button.x);
+                let field_4 = vm::Value::float64(value.payload.pointer_button.y);
+                let field_5 = vm::Value::uint(value.payload.pointer_button.modifiers as u64, 32);
+                context
+                    .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+            };
+            let field_3 = {
+                let field_0 = vm::Value::float64(value.payload.scroll.wheel_x);
+                let field_1 = vm::Value::float64(value.payload.scroll.wheel_y);
+                let field_2 = vm::Value::float64(value.payload.scroll.x);
+                let field_3 = vm::Value::float64(value.payload.scroll.y);
+                let field_4 = vm::Value::uint(value.payload.scroll.modifiers as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+            };
+            let field_4 = {
+                let field_0 = vm::Value::uint(value.payload.touch.action as u8 as u64, 8);
+                let field_1 = vm::Value::uint(value.payload.touch.contact_id as u64, 32);
+                let field_2 = vm::Value::float64(value.payload.touch.x);
+                let field_3 = vm::Value::float64(value.payload.touch.y);
+                let field_4 = vm::Value::float64(value.payload.touch.pressure);
+                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+            };
+            let field_5 = {
+                let field_0 = vm::Value::uint(value.payload.gamepad.action as u8 as u64, 8);
+                let field_1 = vm::Value::uint(value.payload.gamepad.backend_code as u64, 32);
+                let field_2 = vm::Value::int(value.payload.gamepad.backend_value, 64);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            let field_6 = {
+                let field_0 = value.payload.text.text.value();
+                context.allocate_aggregate(vec![field_0])
+            };
+            let field_7 = {
+                let field_0 = vm::Value::uint(value.payload.device.action as u8 as u64, 8);
+                let field_1 = vm::Value::uint(value.payload.device.backend_code as u64, 32);
+                let field_2 = vm::Value::int(value.payload.device.backend_value, 64);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            let field_8 = {
+                let field_0 = vm::Value::uint(value.payload.sensor.action as u8 as u64, 8);
+                let field_1 = vm::Value::uint(value.payload.sensor.backend_code as u64, 32);
+                let field_2 = vm::Value::int(value.payload.sensor.backend_value, 64);
+                let field_3 = vm::Value::float64(value.payload.sensor.x);
+                let field_4 = vm::Value::float64(value.payload.sensor.y);
+                let field_5 = vm::Value::float64(value.payload.sensor.z);
+                context
+                    .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+            };
+            let field_9 = {
+                let field_0 = vm::Value::uint(value.payload.composition.action as u8 as u64, 8);
+                let field_1 = value.payload.composition.text.value();
+                let field_2 = vm::Value::int(value.payload.composition.selection_start as i64, 32);
+                let field_3 = vm::Value::int(value.payload.composition.selection_end as i64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+            };
+            context.allocate_aggregate(vec![
+                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+                field_9,
+            ])
+        };
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
     })
 }
 
@@ -411,9 +543,9 @@ fn encode_destack_input_event_read_batch_result(
     result.map(|value| value.to_value(context))
 }
 
-/// Decode arguments for destack.input.event.setGrab.
+/// Decode arguments for destack.input.event.setExclusiveGrab.
 #[inline]
-fn decode_destack_input_event_set_grab_args(
+fn decode_destack_input_event_set_exclusive_grab_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::InputDeviceHandle, bool)> {
@@ -427,9 +559,9 @@ fn decode_destack_input_event_set_grab_args(
     Ok((handle, enable))
 }
 
-/// Encode the result for destack.input.event.setGrab.
+/// Encode the result for destack.input.event.setExclusiveGrab.
 #[inline]
-fn encode_destack_input_event_set_grab_result(
+fn encode_destack_input_event_set_exclusive_grab_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -497,22 +629,1364 @@ fn encode_destack_input_event_try_read_result(
         let field_1 = vm::Value::uint(value.timestamp_ns, 64);
         let field_2 = vm::Value::uint(value.sequence, 64);
         let field_3 = value.device_id.value();
-        let field_4 = vm::Value::uint(value.action as u8 as u64, 8);
-        let field_5 = vm::Value::uint(value.code as u64, 32);
-        let field_6 = vm::Value::uint(value.scan_code as u64, 32);
-        let field_7 = vm::Value::int(value.value, 64);
-        let field_8 = vm::Value::float64(value.x);
-        let field_9 = vm::Value::float64(value.y);
-        let field_10 = vm::Value::float64(value.wheel_x);
-        let field_11 = vm::Value::float64(value.wheel_y);
-        let field_12 = vm::Value::uint(value.modifiers as u64, 32);
-        let field_13 = vm::Value::bool(value.repeat);
-        let field_14 = value.text.value();
+        let field_4 = {
+            let field_0 = {
+                let field_0 = vm::Value::uint(value.payload.key.action as u8 as u64, 8);
+                let field_1 = vm::Value::uint(value.payload.key.backend_code as u64, 32);
+                let field_2 = vm::Value::uint(value.payload.key.backend_scan_code as u64, 32);
+                let field_3 = vm::Value::int(value.payload.key.backend_value, 64);
+                let field_4 = vm::Value::uint(value.payload.key.modifiers as u64, 32);
+                let field_5 = vm::Value::bool(value.payload.key.repeat);
+                context
+                    .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+            };
+            let field_1 = {
+                let field_0 = vm::Value::float64(value.payload.pointer_motion.x);
+                let field_1 = vm::Value::float64(value.payload.pointer_motion.y);
+                let field_2 = vm::Value::uint(value.payload.pointer_motion.buttons as u64, 32);
+                let field_3 = vm::Value::uint(value.payload.pointer_motion.modifiers as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+            };
+            let field_2 = {
+                let field_0 = vm::Value::uint(value.payload.pointer_button.action as u8 as u64, 8);
+                let field_1 = vm::Value::uint(value.payload.pointer_button.backend_code as u64, 32);
+                let field_2 = vm::Value::int(value.payload.pointer_button.backend_value, 64);
+                let field_3 = vm::Value::float64(value.payload.pointer_button.x);
+                let field_4 = vm::Value::float64(value.payload.pointer_button.y);
+                let field_5 = vm::Value::uint(value.payload.pointer_button.modifiers as u64, 32);
+                context
+                    .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+            };
+            let field_3 = {
+                let field_0 = vm::Value::float64(value.payload.scroll.wheel_x);
+                let field_1 = vm::Value::float64(value.payload.scroll.wheel_y);
+                let field_2 = vm::Value::float64(value.payload.scroll.x);
+                let field_3 = vm::Value::float64(value.payload.scroll.y);
+                let field_4 = vm::Value::uint(value.payload.scroll.modifiers as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+            };
+            let field_4 = {
+                let field_0 = vm::Value::uint(value.payload.touch.action as u8 as u64, 8);
+                let field_1 = vm::Value::uint(value.payload.touch.contact_id as u64, 32);
+                let field_2 = vm::Value::float64(value.payload.touch.x);
+                let field_3 = vm::Value::float64(value.payload.touch.y);
+                let field_4 = vm::Value::float64(value.payload.touch.pressure);
+                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+            };
+            let field_5 = {
+                let field_0 = vm::Value::uint(value.payload.gamepad.action as u8 as u64, 8);
+                let field_1 = vm::Value::uint(value.payload.gamepad.backend_code as u64, 32);
+                let field_2 = vm::Value::int(value.payload.gamepad.backend_value, 64);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            let field_6 = {
+                let field_0 = value.payload.text.text.value();
+                context.allocate_aggregate(vec![field_0])
+            };
+            let field_7 = {
+                let field_0 = vm::Value::uint(value.payload.device.action as u8 as u64, 8);
+                let field_1 = vm::Value::uint(value.payload.device.backend_code as u64, 32);
+                let field_2 = vm::Value::int(value.payload.device.backend_value, 64);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            let field_8 = {
+                let field_0 = vm::Value::uint(value.payload.sensor.action as u8 as u64, 8);
+                let field_1 = vm::Value::uint(value.payload.sensor.backend_code as u64, 32);
+                let field_2 = vm::Value::int(value.payload.sensor.backend_value, 64);
+                let field_3 = vm::Value::float64(value.payload.sensor.x);
+                let field_4 = vm::Value::float64(value.payload.sensor.y);
+                let field_5 = vm::Value::float64(value.payload.sensor.z);
+                context
+                    .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+            };
+            let field_9 = {
+                let field_0 = vm::Value::uint(value.payload.composition.action as u8 as u64, 8);
+                let field_1 = value.payload.composition.text.value();
+                let field_2 = vm::Value::int(value.payload.composition.selection_start as i64, 32);
+                let field_3 = vm::Value::int(value.payload.composition.selection_end as i64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+            };
+            context.allocate_aggregate(vec![
+                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+                field_9,
+            ])
+        };
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+    })
+}
+
+/// Decode arguments for destack.input.gamepad.setLight.
+#[inline]
+fn decode_destack_input_gamepad_set_light_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle, u8, u8, u8)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let red_value = arg_value(args, 1, "red", "uint8")?;
+    let red = decode_uint8(red_value, "red", "uint8")?;
+    let green_value = arg_value(args, 2, "green", "uint8")?;
+    let green = decode_uint8(green_value, "green", "uint8")?;
+    let blue_value = arg_value(args, 3, "blue", "uint8")?;
+    let blue = decode_uint8(blue_value, "blue", "uint8")?;
+    Ok((handle, red, green, blue))
+}
+
+/// Encode the result for destack.input.gamepad.setLight.
+#[inline]
+fn encode_destack_input_gamepad_set_light_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.input.gamepad.setPlayerIndex.
+#[inline]
+fn decode_destack_input_gamepad_set_player_index_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle, u8)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let playerindex_value = arg_value(args, 1, "playerindex", "uint8")?;
+    let playerindex = decode_uint8(playerindex_value, "playerindex", "uint8")?;
+    Ok((handle, playerindex))
+}
+
+/// Encode the result for destack.input.gamepad.setPlayerIndex.
+#[inline]
+fn encode_destack_input_gamepad_set_player_index_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.input.gamepad.state.
+#[inline]
+fn decode_destack_input_gamepad_state_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.input.gamepad.state.
+#[inline]
+fn encode_destack_input_gamepad_state_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<InputGamepadStateVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_1 = vm::Value::bool(value.connected);
+        let field_2 = vm::Value::uint(value.mapping as u8 as u64, 8);
+        let field_3 = vm::Value::uint(value.connection_type as u8 as u64, 8);
+        let field_4 = vm::Value::uint(value.player_index as u64, 8);
+        let field_5 = {
+            let field_0 = vm::Value::uint(value.battery.state as u8 as u64, 8);
+            let field_1 = vm::Value::float64(value.battery.level);
+            context.allocate_aggregate(vec![field_0, field_1])
+        };
+        let field_6 = vm::Value::bool(value.supports_rumble);
+        let field_7 = vm::Value::bool(value.supports_trigger_rumble);
+        let field_8 = value.axes.to_value(context);
+        let field_9 = value.buttons.to_value(context);
+        let field_10 = value.touches.to_value(context);
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11, field_12, field_13, field_14,
+            field_9, field_10,
         ])
     })
+}
+
+/// Decode arguments for destack.input.haptics.effects.
+#[inline]
+fn decode_destack_input_haptics_effects_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.input.haptics.effects.
+#[inline]
+fn encode_destack_input_haptics_effects_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<InputHapticEffectType>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.input.haptics.play.
+#[inline]
+fn decode_destack_input_haptics_play_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::InputDeviceHandle,
+    InputHapticEffectType,
+    InputHapticEffectParametersVm,
+)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let effect_value = arg_value(args, 1, "effect", "InputHapticEffectType")?;
+    let effect_raw = decode_uint8(effect_value, "effect_raw", "InputHapticEffectType")?;
+    let effect = match effect_raw {
+        1u8 => InputHapticEffectType::DualRumble,
+        2u8 => InputHapticEffectType::TriggerRumble,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "effect",
+                "unknown InputHapticEffectType value",
+            ))
+            .boxed());
+        }
+    };
+    let params_value = arg_value(args, 2, "params", "InputHapticEffectParameters")?;
+    let params = {
+        if params_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "params",
+                "InputHapticEffectParameters",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(params_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 6 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "params",
+                "expected 6 fields",
+            ))
+            .boxed());
+        }
+        let params_duration_ms = decode_uint64(slots[0], "params_duration_ms", "durationMs")?;
+        let params_start_delay_ms =
+            decode_uint64(slots[1], "params_start_delay_ms", "startDelayMs")?;
+        let params_strong_magnitude =
+            decode_float64(slots[2], "params_strong_magnitude", "strongMagnitude")?;
+        let params_weak_magnitude =
+            decode_float64(slots[3], "params_weak_magnitude", "weakMagnitude")?;
+        let params_left_trigger = decode_float64(slots[4], "params_left_trigger", "leftTrigger")?;
+        let params_right_trigger =
+            decode_float64(slots[5], "params_right_trigger", "rightTrigger")?;
+        InputHapticEffectParametersVm {
+            duration_ms: params_duration_ms,
+            start_delay_ms: params_start_delay_ms,
+            strong_magnitude: params_strong_magnitude,
+            weak_magnitude: params_weak_magnitude,
+            left_trigger: params_left_trigger,
+            right_trigger: params_right_trigger,
+        }
+    };
+    Ok((handle, effect, params))
+}
+
+/// Encode the result for destack.input.haptics.play.
+#[inline]
+fn encode_destack_input_haptics_play_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<InputHapticsResult>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+}
+
+/// Decode arguments for destack.input.haptics.stop.
+#[inline]
+fn decode_destack_input_haptics_stop_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.input.haptics.stop.
+#[inline]
+fn encode_destack_input_haptics_stop_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.input.keyboard.state.
+#[inline]
+fn decode_destack_input_keyboard_state_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.input.keyboard.state.
+#[inline]
+fn encode_destack_input_keyboard_state_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<InputKeyboardStateVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_1 = vm::Value::uint(value.sequence, 64);
+        let field_2 = value.device_id.value();
+        let field_3 = vm::Value::uint(value.modifiers as u64, 32);
+        let field_4 = value.pressed_codes.to_value(context);
+        let field_5 = value.pressed_scan_codes.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+    })
+}
+
+/// Decode arguments for destack.input.pointer.capture.
+#[inline]
+fn decode_destack_input_pointer_capture_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle, InputWindowTargetVm, bool)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let target_value = arg_value(args, 1, "target", "InputWindowTarget")?;
+    let target = {
+        if target_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "target",
+                "InputWindowTarget",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(target_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "target",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let target_window_inner_inner =
+            decode_uint64(slots[0], "target_window_inner_inner", "window")?;
+        let target_window_inner = resource::ResourceId(target_window_inner_inner);
+        let target_window = resource::WindowHandle(target_window_inner);
+        InputWindowTargetVm {
+            window: target_window,
+        }
+    };
+    let enabled_value = arg_value(args, 2, "enabled", "boolean")?;
+    let enabled = decode_bool(enabled_value, "enabled", "boolean")?;
+    Ok((handle, target, enabled))
+}
+
+/// Encode the result for destack.input.pointer.capture.
+#[inline]
+fn encode_destack_input_pointer_capture_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.input.pointer.relativeState.
+#[inline]
+fn decode_destack_input_pointer_relative_state_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.input.pointer.relativeState.
+#[inline]
+fn encode_destack_input_pointer_relative_state_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<InputPointerStateVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::float64(value.x);
+        let field_1 = vm::Value::float64(value.y);
+        let field_2 = vm::Value::uint(value.buttons as u64, 32);
+        let field_3 = vm::Value::uint(value.modifiers as u64, 32);
+        let field_4 = vm::Value::bool(value.has_pen_data);
+        let field_5 = vm::Value::float64(value.pressure);
+        let field_6 = vm::Value::float64(value.tangential_pressure);
+        let field_7 = vm::Value::float64(value.tilt_x);
+        let field_8 = vm::Value::float64(value.tilt_y);
+        let field_9 = vm::Value::float64(value.twist);
+        let field_10 = vm::Value::bool(value.in_contact);
+        let field_11 = vm::Value::bool(value.in_range);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11,
+        ])
+    })
+}
+
+/// Decode arguments for destack.input.pointer.setGrabMode.
+#[inline]
+fn decode_destack_input_pointer_set_grab_mode_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::InputDeviceHandle,
+    InputWindowTargetVm,
+    InputPointerGrabMode,
+)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let target_value = arg_value(args, 1, "target", "InputWindowTarget")?;
+    let target = {
+        if target_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "target",
+                "InputWindowTarget",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(target_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "target",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let target_window_inner_inner =
+            decode_uint64(slots[0], "target_window_inner_inner", "window")?;
+        let target_window_inner = resource::ResourceId(target_window_inner_inner);
+        let target_window = resource::WindowHandle(target_window_inner);
+        InputWindowTargetVm {
+            window: target_window,
+        }
+    };
+    let mode_value = arg_value(args, 2, "mode", "InputPointerGrabMode")?;
+    let mode_raw = decode_uint8(mode_value, "mode_raw", "InputPointerGrabMode")?;
+    let mode = match mode_raw {
+        0u8 => InputPointerGrabMode::None,
+        1u8 => InputPointerGrabMode::Confined,
+        2u8 => InputPointerGrabMode::Locked,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "mode",
+                "unknown InputPointerGrabMode value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((handle, target, mode))
+}
+
+/// Encode the result for destack.input.pointer.setGrabMode.
+#[inline]
+fn encode_destack_input_pointer_set_grab_mode_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.input.pointer.setRelativeMode.
+#[inline]
+fn decode_destack_input_pointer_set_relative_mode_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle, bool)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let enabled_value = arg_value(args, 1, "enabled", "boolean")?;
+    let enabled = decode_bool(enabled_value, "enabled", "boolean")?;
+    Ok((handle, enabled))
+}
+
+/// Encode the result for destack.input.pointer.setRelativeMode.
+#[inline]
+fn encode_destack_input_pointer_set_relative_mode_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.input.pointer.state.
+#[inline]
+fn decode_destack_input_pointer_state_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.input.pointer.state.
+#[inline]
+fn encode_destack_input_pointer_state_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<InputPointerStateVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::float64(value.x);
+        let field_1 = vm::Value::float64(value.y);
+        let field_2 = vm::Value::uint(value.buttons as u64, 32);
+        let field_3 = vm::Value::uint(value.modifiers as u64, 32);
+        let field_4 = vm::Value::bool(value.has_pen_data);
+        let field_5 = vm::Value::float64(value.pressure);
+        let field_6 = vm::Value::float64(value.tangential_pressure);
+        let field_7 = vm::Value::float64(value.tilt_x);
+        let field_8 = vm::Value::float64(value.tilt_y);
+        let field_9 = vm::Value::float64(value.twist);
+        let field_10 = vm::Value::bool(value.in_contact);
+        let field_11 = vm::Value::bool(value.in_range);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11,
+        ])
+    })
+}
+
+/// Decode arguments for destack.input.pointer.warp.
+#[inline]
+fn decode_destack_input_pointer_warp_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle, InputWindowTargetVm, f64, f64)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let target_value = arg_value(args, 1, "target", "InputWindowTarget")?;
+    let target = {
+        if target_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "target",
+                "InputWindowTarget",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(target_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "target",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let target_window_inner_inner =
+            decode_uint64(slots[0], "target_window_inner_inner", "window")?;
+        let target_window_inner = resource::ResourceId(target_window_inner_inner);
+        let target_window = resource::WindowHandle(target_window_inner);
+        InputWindowTargetVm {
+            window: target_window,
+        }
+    };
+    let x_value = arg_value(args, 2, "x", "float64")?;
+    let x = decode_float64(x_value, "x", "float64")?;
+    let y_value = arg_value(args, 3, "y", "float64")?;
+    let y = decode_float64(y_value, "y", "float64")?;
+    Ok((handle, target, x, y))
+}
+
+/// Encode the result for destack.input.pointer.warp.
+#[inline]
+fn encode_destack_input_pointer_warp_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.input.rawhid.getFeature.
+#[inline]
+fn decode_destack_input_rawhid_get_feature_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle, u8, u32)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let reportid_value = arg_value(args, 1, "reportid", "uint8")?;
+    let reportid = decode_uint8(reportid_value, "reportid", "uint8")?;
+    let maxbytes_value = arg_value(args, 2, "maxbytes", "uint32")?;
+    let maxbytes = decode_uint32(maxbytes_value, "maxbytes", "uint32")?;
+    Ok((handle, reportid, maxbytes))
+}
+
+/// Encode the result for destack.input.rawhid.getFeature.
+#[inline]
+fn encode_destack_input_rawhid_get_feature_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.input.rawhid.read.
+#[inline]
+fn decode_destack_input_rawhid_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle, u32, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let maxbytes_value = arg_value(args, 1, "maxbytes", "uint32")?;
+    let maxbytes = decode_uint32(maxbytes_value, "maxbytes", "uint32")?;
+    let timeoutns_value = arg_value(args, 2, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, maxbytes, timeoutns))
+}
+
+/// Encode the result for destack.input.rawhid.read.
+#[inline]
+fn encode_destack_input_rawhid_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<InputRawHidReportVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_1 = vm::Value::uint(value.sequence, 64);
+        let field_2 = vm::Value::uint(value.report_id as u64, 8);
+        let field_3 = value.data.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    })
+}
+
+/// Decode arguments for destack.input.rawhid.setFeature.
+#[inline]
+fn decode_destack_input_rawhid_set_feature_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle, u8, VmSlice<u8>)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let reportid_value = arg_value(args, 1, "reportid", "uint8")?;
+    let reportid = decode_uint8(reportid_value, "reportid", "uint8")?;
+    let data_value = arg_value(args, 2, "data", "Slice<uint8>")?;
+    let data = decode_slice::<u8>(context, data_value, "data", "Slice<uint8>")?;
+    Ok((handle, reportid, data))
+}
+
+/// Encode the result for destack.input.rawhid.setFeature.
+#[inline]
+fn encode_destack_input_rawhid_set_feature_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.input.rawhid.tryRead.
+#[inline]
+fn decode_destack_input_rawhid_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle, u32)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let maxbytes_value = arg_value(args, 1, "maxbytes", "uint32")?;
+    let maxbytes = decode_uint32(maxbytes_value, "maxbytes", "uint32")?;
+    Ok((handle, maxbytes))
+}
+
+/// Encode the result for destack.input.rawhid.tryRead.
+#[inline]
+fn encode_destack_input_rawhid_try_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<InputRawHidReportVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_1 = vm::Value::uint(value.sequence, 64);
+        let field_2 = vm::Value::uint(value.report_id as u64, 8);
+        let field_3 = value.data.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    })
+}
+
+/// Decode arguments for destack.input.rawhid.write.
+#[inline]
+fn decode_destack_input_rawhid_write_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle, u8, VmSlice<u8>)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let reportid_value = arg_value(args, 1, "reportid", "uint8")?;
+    let reportid = decode_uint8(reportid_value, "reportid", "uint8")?;
+    let data_value = arg_value(args, 2, "data", "Slice<uint8>")?;
+    let data = decode_slice::<u8>(context, data_value, "data", "Slice<uint8>")?;
+    Ok((handle, reportid, data))
+}
+
+/// Encode the result for destack.input.rawhid.write.
+#[inline]
+fn encode_destack_input_rawhid_write_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u32>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value as u64, 32))
+}
+
+/// Decode arguments for destack.input.sensor.configure.
+#[inline]
+fn decode_destack_input_sensor_configure_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::InputDeviceHandle,
+    InputSensorKind,
+    InputSensorConfigVm,
+)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let kind_value = arg_value(args, 1, "kind", "InputSensorKind")?;
+    let kind_raw = decode_uint8(kind_value, "kind_raw", "InputSensorKind")?;
+    let kind = match kind_raw {
+        1u8 => InputSensorKind::Accelerometer,
+        2u8 => InputSensorKind::Gyroscope,
+        3u8 => InputSensorKind::Magnetometer,
+        4u8 => InputSensorKind::Gravity,
+        5u8 => InputSensorKind::LinearAcceleration,
+        6u8 => InputSensorKind::Orientation,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "kind",
+                "unknown InputSensorKind value",
+            ))
+            .boxed());
+        }
+    };
+    let config_value = arg_value(args, 2, "config", "InputSensorConfig")?;
+    let config = {
+        if config_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "config",
+                "InputSensorConfig",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(config_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "config",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let config_enabled = decode_bool(slots[0], "config_enabled", "enabled")?;
+        let config_sample_rate_hz =
+            decode_float64(slots[1], "config_sample_rate_hz", "sampleRateHz")?;
+        let config_batch_latency_ms =
+            decode_uint32(slots[2], "config_batch_latency_ms", "batchLatencyMs")?;
+        let config_flags = decode_uint32(slots[3], "config_flags", "flags")?;
+        InputSensorConfigVm {
+            enabled: config_enabled,
+            sample_rate_hz: config_sample_rate_hz,
+            batch_latency_ms: config_batch_latency_ms,
+            flags: config_flags,
+        }
+    };
+    Ok((handle, kind, config))
+}
+
+/// Encode the result for destack.input.sensor.configure.
+#[inline]
+fn encode_destack_input_sensor_configure_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<InputSensorEffectiveConfigVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::bool(value.enabled);
+        let field_1 = vm::Value::float64(value.sample_rate_hz);
+        let field_2 = vm::Value::uint(value.batch_latency_ms as u64, 32);
+        let field_3 = vm::Value::uint(value.flags as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    })
+}
+
+/// Decode arguments for destack.input.sensor.list.
+#[inline]
+fn decode_destack_input_sensor_list_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.input.sensor.list.
+#[inline]
+fn encode_destack_input_sensor_list_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<InputSensorInfoVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.input.sensor.read.
+#[inline]
+fn decode_destack_input_sensor_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle, InputSensorKind)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let kind_value = arg_value(args, 1, "kind", "InputSensorKind")?;
+    let kind_raw = decode_uint8(kind_value, "kind_raw", "InputSensorKind")?;
+    let kind = match kind_raw {
+        1u8 => InputSensorKind::Accelerometer,
+        2u8 => InputSensorKind::Gyroscope,
+        3u8 => InputSensorKind::Magnetometer,
+        4u8 => InputSensorKind::Gravity,
+        5u8 => InputSensorKind::LinearAcceleration,
+        6u8 => InputSensorKind::Orientation,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "kind",
+                "unknown InputSensorKind value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((handle, kind))
+}
+
+/// Encode the result for destack.input.sensor.read.
+#[inline]
+fn encode_destack_input_sensor_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<InputSensorSampleVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_2 = vm::Value::float64(value.x);
+        let field_3 = vm::Value::float64(value.y);
+        let field_4 = vm::Value::float64(value.z);
+        let field_5 = vm::Value::float64(value.w);
+        let field_6 = vm::Value::uint(value.flags as u64, 32);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+        ])
+    })
+}
+
+/// Decode arguments for destack.input.sensor.tryRead.
+#[inline]
+fn decode_destack_input_sensor_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle, InputSensorKind)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let kind_value = arg_value(args, 1, "kind", "InputSensorKind")?;
+    let kind_raw = decode_uint8(kind_value, "kind_raw", "InputSensorKind")?;
+    let kind = match kind_raw {
+        1u8 => InputSensorKind::Accelerometer,
+        2u8 => InputSensorKind::Gyroscope,
+        3u8 => InputSensorKind::Magnetometer,
+        4u8 => InputSensorKind::Gravity,
+        5u8 => InputSensorKind::LinearAcceleration,
+        6u8 => InputSensorKind::Orientation,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "kind",
+                "unknown InputSensorKind value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((handle, kind))
+}
+
+/// Encode the result for destack.input.sensor.tryRead.
+#[inline]
+fn encode_destack_input_sensor_try_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<InputSensorSampleVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_2 = vm::Value::float64(value.x);
+        let field_3 = vm::Value::float64(value.y);
+        let field_4 = vm::Value::float64(value.z);
+        let field_5 = vm::Value::float64(value.w);
+        let field_6 = vm::Value::uint(value.flags as u64, 32);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+        ])
+    })
+}
+
+/// Decode arguments for destack.input.text.getArea.
+#[inline]
+fn decode_destack_input_text_get_area_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle, InputWindowTargetVm)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let target_value = arg_value(args, 1, "target", "InputWindowTarget")?;
+    let target = {
+        if target_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "target",
+                "InputWindowTarget",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(target_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "target",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let target_window_inner_inner =
+            decode_uint64(slots[0], "target_window_inner_inner", "window")?;
+        let target_window_inner = resource::ResourceId(target_window_inner_inner);
+        let target_window = resource::WindowHandle(target_window_inner);
+        InputWindowTargetVm {
+            window: target_window,
+        }
+    };
+    Ok((handle, target))
+}
+
+/// Encode the result for destack.input.text.getArea.
+#[inline]
+fn encode_destack_input_text_get_area_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<InputTextInputAreaVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::int(value.x as i64, 32);
+        let field_1 = vm::Value::int(value.y as i64, 32);
+        let field_2 = vm::Value::uint(value.width as u64, 32);
+        let field_3 = vm::Value::uint(value.height as u64, 32);
+        let field_4 = vm::Value::int(value.cursor as i64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+    })
+}
+
+/// Decode arguments for destack.input.text.isActive.
+#[inline]
+fn decode_destack_input_text_is_active_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.input.text.isActive.
+#[inline]
+fn encode_destack_input_text_is_active_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<bool>,
+) -> RuntimeResult<vm::Value> {
+    result.map(vm::Value::bool)
+}
+
+/// Decode arguments for destack.input.text.readComposition.
+#[inline]
+fn decode_destack_input_text_read_composition_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.input.text.readComposition.
+#[inline]
+fn encode_destack_input_text_read_composition_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<InputCompositionEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_1 = vm::Value::uint(value.sequence, 64);
+        let field_2 = value.device_id.value();
+        let field_3 = vm::Value::uint(value.action as u8 as u64, 8);
+        let field_4 = value.text.value();
+        let field_5 = vm::Value::int(value.selection_start as i64, 32);
+        let field_6 = vm::Value::int(value.selection_end as i64, 32);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+        ])
+    })
+}
+
+/// Decode arguments for destack.input.text.setArea.
+#[inline]
+fn decode_destack_input_text_set_area_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::InputDeviceHandle,
+    InputWindowTargetVm,
+    InputTextInputAreaVm,
+)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let target_value = arg_value(args, 1, "target", "InputWindowTarget")?;
+    let target = {
+        if target_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "target",
+                "InputWindowTarget",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(target_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "target",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let target_window_inner_inner =
+            decode_uint64(slots[0], "target_window_inner_inner", "window")?;
+        let target_window_inner = resource::ResourceId(target_window_inner_inner);
+        let target_window = resource::WindowHandle(target_window_inner);
+        InputWindowTargetVm {
+            window: target_window,
+        }
+    };
+    let area_value = arg_value(args, 2, "area", "InputTextInputArea")?;
+    let area = {
+        if area_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "area",
+                "InputTextInputArea",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(area_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "area",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let area_x = decode_int32(slots[0], "area_x", "x")?;
+        let area_y = decode_int32(slots[1], "area_y", "y")?;
+        let area_width = decode_uint32(slots[2], "area_width", "width")?;
+        let area_height = decode_uint32(slots[3], "area_height", "height")?;
+        let area_cursor = decode_int32(slots[4], "area_cursor", "cursor")?;
+        InputTextInputAreaVm {
+            x: area_x,
+            y: area_y,
+            width: area_width,
+            height: area_height,
+            cursor: area_cursor,
+        }
+    };
+    Ok((handle, target, area))
+}
+
+/// Encode the result for destack.input.text.setArea.
+#[inline]
+fn encode_destack_input_text_set_area_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.input.text.start.
+#[inline]
+fn decode_destack_input_text_start_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::InputDeviceHandle,
+    InputWindowTargetVm,
+    InputTextInputType,
+)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let target_value = arg_value(args, 1, "target", "InputWindowTarget")?;
+    let target = {
+        if target_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "target",
+                "InputWindowTarget",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(target_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "target",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let target_window_inner_inner =
+            decode_uint64(slots[0], "target_window_inner_inner", "window")?;
+        let target_window_inner = resource::ResourceId(target_window_inner_inner);
+        let target_window = resource::WindowHandle(target_window_inner);
+        InputWindowTargetVm {
+            window: target_window,
+        }
+    };
+    let inputtype_value = arg_value(args, 2, "inputtype", "InputTextInputType")?;
+    let inputtype_raw = decode_uint8(inputtype_value, "inputtype_raw", "InputTextInputType")?;
+    let inputtype = match inputtype_raw {
+        0u8 => InputTextInputType::Text,
+        1u8 => InputTextInputType::Number,
+        2u8 => InputTextInputType::Email,
+        3u8 => InputTextInputType::Url,
+        4u8 => InputTextInputType::Password,
+        5u8 => InputTextInputType::Phone,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "inputtype",
+                "unknown InputTextInputType value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((handle, target, inputtype))
+}
+
+/// Encode the result for destack.input.text.start.
+#[inline]
+fn encode_destack_input_text_start_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.input.text.stop.
+#[inline]
+fn decode_destack_input_text_stop_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle, InputWindowTargetVm)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    let target_value = arg_value(args, 1, "target", "InputWindowTarget")?;
+    let target = {
+        if target_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "target",
+                "InputWindowTarget",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(target_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "target",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let target_window_inner_inner =
+            decode_uint64(slots[0], "target_window_inner_inner", "window")?;
+        let target_window_inner = resource::ResourceId(target_window_inner_inner);
+        let target_window = resource::WindowHandle(target_window_inner);
+        InputWindowTargetVm {
+            window: target_window,
+        }
+    };
+    Ok((handle, target))
+}
+
+/// Encode the result for destack.input.text.stop.
+#[inline]
+fn encode_destack_input_text_stop_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.input.text.tryReadComposition.
+#[inline]
+fn decode_destack_input_text_try_read_composition_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.input.text.tryReadComposition.
+#[inline]
+fn encode_destack_input_text_try_read_composition_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<InputCompositionEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_1 = vm::Value::uint(value.sequence, 64);
+        let field_2 = value.device_id.value();
+        let field_3 = vm::Value::uint(value.action as u8 as u64, 8);
+        let field_4 = value.text.value();
+        let field_5 = vm::Value::int(value.selection_start as i64, 32);
+        let field_6 = vm::Value::int(value.selection_end as i64, 32);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+        ])
+    })
+}
+
+/// Decode arguments for destack.input.touch.state.
+#[inline]
+fn decode_destack_input_touch_state_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputDeviceHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::InputDeviceHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.input.touch.state.
+#[inline]
+fn encode_destack_input_touch_state_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<InputTouchStateVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_1 = vm::Value::uint(value.sequence, 64);
+        let field_2 = value.device_id.value();
+        let field_3 = value.contacts.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    })
+}
+
+/// Replay payload for destack.input.device.capabilities.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputDeviceCapabilitiesReplay {
+    /// Replay result payload.
+    pub result: Result<InputDeviceCapabilitiesReplayRecord, PlatformError>,
 }
 
 /// Replay payload for destack.input.device.close.
@@ -554,14 +2028,14 @@ struct InputEventMonitorOpenReplay {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputEventMonitorReadReplay {
     /// Replay result payload.
-    pub result: Result<InputEventReplayRecord, PlatformError>,
+    pub result: Result<InputMonitorEventReplayRecord, PlatformError>,
 }
 
 /// Replay payload for destack.input.event.monitorTryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputEventMonitorTryReadReplay {
     /// Replay result payload.
-    pub result: Result<InputEventReplayRecord, PlatformError>,
+    pub result: Result<InputMonitorEventReplayRecord, PlatformError>,
 }
 
 /// Replay payload for destack.input.event.read.
@@ -578,9 +2052,9 @@ struct InputEventReadBatchReplay {
     pub result: Result<Vec<InputEventReplayRecord>, PlatformError>,
 }
 
-/// Replay payload for destack.input.event.setGrab.
+/// Replay payload for destack.input.event.setExclusiveGrab.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct InputEventSetGrabReplay {
+struct InputEventSetExclusiveGrabReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
@@ -598,6 +2072,228 @@ struct InputEventTryReadReplay {
     /// Replay result payload.
     pub result: Result<InputEventReplayRecord, PlatformError>,
 }
+
+/// Replay payload for destack.input.gamepad.setLight.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputGamepadSetLightReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.input.gamepad.setPlayerIndex.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputGamepadSetPlayerIndexReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.input.gamepad.state.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputGamepadStateReplay {
+    /// Replay result payload.
+    pub result: Result<InputGamepadStateReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.input.haptics.effects.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputHapticsEffectsReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<InputHapticEffectType>, PlatformError>,
+}
+
+/// Replay payload for destack.input.haptics.play.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputHapticsPlayReplay {
+    /// Replay result payload.
+    pub result: Result<InputHapticsResult, PlatformError>,
+}
+
+/// Replay payload for destack.input.haptics.stop.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputHapticsStopReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.input.keyboard.state.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputKeyboardStateReplay {
+    /// Replay result payload.
+    pub result: Result<InputKeyboardStateReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.input.pointer.capture.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputPointerCaptureReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.input.pointer.relativeState.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputPointerRelativeStateReplay {
+    /// Replay result payload.
+    pub result: Result<InputPointerState, PlatformError>,
+}
+
+/// Replay payload for destack.input.pointer.setGrabMode.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputPointerSetGrabModeReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.input.pointer.setRelativeMode.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputPointerSetRelativeModeReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.input.pointer.state.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputPointerStateReplay {
+    /// Replay result payload.
+    pub result: Result<InputPointerState, PlatformError>,
+}
+
+/// Replay payload for destack.input.pointer.warp.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputPointerWarpReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.input.rawhid.getFeature.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputRawhidGetFeatureReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<u8>, PlatformError>,
+}
+
+/// Replay payload for destack.input.rawhid.read.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputRawhidReadReplay {
+    /// Replay result payload.
+    pub result: Result<InputRawHidReportReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.input.rawhid.setFeature.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputRawhidSetFeatureReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.input.rawhid.tryRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputRawhidTryReadReplay {
+    /// Replay result payload.
+    pub result: Result<InputRawHidReportReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.input.rawhid.write.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputRawhidWriteReplay {
+    /// Replay result payload.
+    pub result: Result<u32, PlatformError>,
+}
+
+/// Replay payload for destack.input.sensor.configure.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputSensorConfigureReplay {
+    /// Replay result payload.
+    pub result: Result<InputSensorEffectiveConfig, PlatformError>,
+}
+
+/// Replay payload for destack.input.sensor.list.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputSensorListReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<InputSensorInfo>, PlatformError>,
+}
+
+/// Replay payload for destack.input.sensor.read.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputSensorReadReplay {
+    /// Replay result payload.
+    pub result: Result<InputSensorSample, PlatformError>,
+}
+
+/// Replay payload for destack.input.sensor.tryRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputSensorTryReadReplay {
+    /// Replay result payload.
+    pub result: Result<InputSensorSample, PlatformError>,
+}
+
+/// Replay payload for destack.input.text.getArea.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputTextGetAreaReplay {
+    /// Replay result payload.
+    pub result: Result<InputTextInputArea, PlatformError>,
+}
+
+/// Replay payload for destack.input.text.isActive.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputTextIsActiveReplay {
+    /// Replay result payload.
+    pub result: Result<bool, PlatformError>,
+}
+
+/// Replay payload for destack.input.text.readComposition.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputTextReadCompositionReplay {
+    /// Replay result payload.
+    pub result: Result<InputCompositionEventReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.input.text.setArea.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputTextSetAreaReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.input.text.start.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputTextStartReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.input.text.stop.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputTextStopReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.input.text.tryReadComposition.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputTextTryReadCompositionReplay {
+    /// Replay result payload.
+    pub result: Result<InputCompositionEventReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.input.touch.state.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputTouchStateReplay {
+    /// Replay result payload.
+    pub result: Result<InputTouchStateReplayRecord, PlatformError>,
+}
+
+/// Binding descriptor for destack.input.device.capabilities.
+pub const INPUT_DEVICE_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.device.capabilities",
+    "export function capabilities(handle: InputDeviceHandle): Result<InputDeviceCapabilities, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.read"],
+    BindingScope::Hybrid,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.device.close.
 pub const INPUT_DEVICE_CLOSE: BindingDescriptor =
@@ -732,7 +2428,7 @@ pub const INPUT_EVENT_MONITOR_OPEN: BindingDescriptor =
 /// Binding descriptor for destack.input.event.monitorRead.
 pub const INPUT_EVENT_MONITOR_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.event.monitorRead",
-    "export function monitorRead(handle: InputMonitorHandle): Result<InputEvent, PlatformError>",
+    "export function monitorRead(handle: InputMonitorHandle): Result<InputMonitorEvent, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
@@ -744,7 +2440,7 @@ pub const INPUT_EVENT_MONITOR_READ: BindingDescriptor = BindingDescriptor::exter
 /// Binding descriptor for destack.input.event.monitorTryRead.
 pub const INPUT_EVENT_MONITOR_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.event.monitorTryRead",
-    "export function monitorTryRead(handle: InputMonitorHandle): Result<InputEvent, PlatformError>",
+    "export function monitorTryRead(handle: InputMonitorHandle): Result<InputMonitorEvent, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
@@ -791,10 +2487,10 @@ pub const INPUT_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::externa
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.input.event.setGrab.
-pub const INPUT_EVENT_SET_GRAB: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.input.event.setGrab",
-    "export function setGrab(handle: InputDeviceHandle, enable: boolean): Result<void, PlatformError>",
+/// Binding descriptor for destack.input.event.setExclusiveGrab.
+pub const INPUT_EVENT_SET_EXCLUSIVE_GRAB: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.event.setExclusiveGrab",
+    "export function setExclusiveGrab(handle: InputDeviceHandle, enable: boolean): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.grab"],
@@ -841,8 +2537,397 @@ pub const INPUT_EVENT_TRY_READ: BindingDescriptor =
         "windows",
     ]);
 
+/// Binding descriptor for destack.input.gamepad.setLight.
+pub const INPUT_GAMEPAD_SET_LIGHT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.gamepad.setLight",
+    "export function gamepadSetLight(handle: InputDeviceHandle, red: uint8, green: uint8, blue: uint8): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.gamepad.setPlayerIndex.
+pub const INPUT_GAMEPAD_SET_PLAYER_INDEX: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.gamepad.setPlayerIndex",
+    "export function gamepadSetPlayerIndex(handle: InputDeviceHandle, playerIndex: uint8): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.gamepad.state.
+pub const INPUT_GAMEPAD_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.gamepad.state",
+    "export function gamepadState(handle: InputDeviceHandle): Result<InputGamepadState, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.read"],
+    BindingScope::Hybrid,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.haptics.effects.
+pub const INPUT_HAPTICS_EFFECTS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.haptics.effects",
+    "export function hapticsEffects(handle: InputDeviceHandle): Result<InputHapticEffectType[], PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.haptics"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.haptics.play.
+pub const INPUT_HAPTICS_PLAY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.haptics.play",
+    "export function hapticsPlay(handle: InputDeviceHandle, effect: InputHapticEffectType, params: InputHapticEffectParameters): Result<InputHapticsResult, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.haptics"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.haptics.stop.
+pub const INPUT_HAPTICS_STOP: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.input.haptics.stop",
+        "export function hapticsStop(handle: InputDeviceHandle): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["input.haptics"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.input.keyboard.state.
+pub const INPUT_KEYBOARD_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.keyboard.state",
+    "export function keyboardState(handle: InputDeviceHandle): Result<InputKeyboardState, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.read"],
+    BindingScope::Hybrid,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.pointer.capture.
+pub const INPUT_POINTER_CAPTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.pointer.capture",
+    "export function pointerCapture(handle: InputDeviceHandle, target: InputWindowTarget, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.grab"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.pointer.relativeState.
+pub const INPUT_POINTER_RELATIVE_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.pointer.relativeState",
+    "export function pointerRelativeState(handle: InputDeviceHandle): Result<InputPointerState, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.read"],
+    BindingScope::Hybrid,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.pointer.setGrabMode.
+pub const INPUT_POINTER_SET_GRAB_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.pointer.setGrabMode",
+    "export function pointerSetGrabMode(handle: InputDeviceHandle, target: InputWindowTarget, mode: InputPointerGrabMode): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.grab"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.pointer.setRelativeMode.
+pub const INPUT_POINTER_SET_RELATIVE_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.pointer.setRelativeMode",
+    "export function pointerSetRelativeMode(handle: InputDeviceHandle, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.pointer.state.
+pub const INPUT_POINTER_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.pointer.state",
+    "export function pointerState(handle: InputDeviceHandle): Result<InputPointerState, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.read"],
+    BindingScope::Hybrid,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.pointer.warp.
+pub const INPUT_POINTER_WARP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.pointer.warp",
+    "export function pointerWarp(handle: InputDeviceHandle, target: InputWindowTarget, x: float64, y: float64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.rawhid.getFeature.
+pub const INPUT_RAWHID_GET_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.rawhid.getFeature",
+    "export function rawHidGetFeature(handle: InputDeviceHandle, reportId: uint8, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.rawhid.read.
+pub const INPUT_RAWHID_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.rawhid.read",
+    "export function rawHidRead(handle: InputDeviceHandle, maxBytes: uint32, timeoutNs: uint64): Result<InputRawHidReport, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.read"],
+    BindingScope::Hybrid,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.rawhid.setFeature.
+pub const INPUT_RAWHID_SET_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.rawhid.setFeature",
+    "export function rawHidSetFeature(handle: InputDeviceHandle, reportId: uint8, data: Slice<uint8>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.rawhid.tryRead.
+pub const INPUT_RAWHID_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.rawhid.tryRead",
+    "export function rawHidTryRead(handle: InputDeviceHandle, maxBytes: uint32): Result<InputRawHidReport, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.read"],
+    BindingScope::Hybrid,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.rawhid.write.
+pub const INPUT_RAWHID_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.rawhid.write",
+    "export function rawHidWrite(handle: InputDeviceHandle, reportId: uint8, data: Slice<uint8>): Result<uint32, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.sensor.configure.
+pub const INPUT_SENSOR_CONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.sensor.configure",
+    "export function sensorConfigure(handle: InputDeviceHandle, kind: InputSensorKind, config: InputSensorConfig): Result<InputSensorEffectiveConfig, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.sensor.list.
+pub const INPUT_SENSOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.sensor.list",
+    "export function sensorList(handle: InputDeviceHandle): Result<InputSensorInfo[], PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.read"],
+    BindingScope::Hybrid,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.sensor.read.
+pub const INPUT_SENSOR_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.sensor.read",
+    "export function sensorRead(handle: InputDeviceHandle, kind: InputSensorKind): Result<InputSensorSample, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.read"],
+    BindingScope::Hybrid,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.sensor.tryRead.
+pub const INPUT_SENSOR_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.sensor.tryRead",
+    "export function sensorTryRead(handle: InputDeviceHandle, kind: InputSensorKind): Result<InputSensorSample, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.read"],
+    BindingScope::Hybrid,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.text.getArea.
+pub const INPUT_TEXT_GET_AREA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.text.getArea",
+    "export function textGetArea(handle: InputDeviceHandle, target: InputWindowTarget): Result<InputTextInputArea, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.text"],
+    BindingScope::Hybrid,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.text.isActive.
+pub const INPUT_TEXT_IS_ACTIVE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.input.text.isActive",
+        "export function textIsActive(handle: InputDeviceHandle): Result<boolean, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["input.text"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.input.text.readComposition.
+pub const INPUT_TEXT_READ_COMPOSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.text.readComposition",
+    "export function textReadComposition(handle: InputDeviceHandle): Result<InputCompositionEvent, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.text"],
+    BindingScope::Hybrid,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.text.setArea.
+pub const INPUT_TEXT_SET_AREA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.text.setArea",
+    "export function textSetArea(handle: InputDeviceHandle, target: InputWindowTarget, area: InputTextInputArea): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.text"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.text.start.
+pub const INPUT_TEXT_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.text.start",
+    "export function textStart(handle: InputDeviceHandle, target: InputWindowTarget, inputType: InputTextInputType): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.text"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.text.stop.
+pub const INPUT_TEXT_STOP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.text.stop",
+    "export function textStop(handle: InputDeviceHandle, target: InputWindowTarget): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.text"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.text.tryReadComposition.
+pub const INPUT_TEXT_TRY_READ_COMPOSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.text.tryReadComposition",
+    "export function textTryReadComposition(handle: InputDeviceHandle): Result<InputCompositionEvent, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.text"],
+    BindingScope::Hybrid,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.touch.state.
+pub const INPUT_TOUCH_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.touch.state",
+    "export function touchState(handle: InputDeviceHandle): Result<InputTouchState, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.read"],
+    BindingScope::Hybrid,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptors for input.
 pub const BINDINGS: &[BindingDescriptor] = &[
+    INPUT_DEVICE_CAPABILITIES,
     INPUT_DEVICE_CLOSE,
     INPUT_DEVICE_LIST,
     INPUT_DEVICE_OPEN,
@@ -852,15 +2937,50 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     INPUT_EVENT_MONITOR_TRY_READ,
     INPUT_EVENT_READ,
     INPUT_EVENT_READ_BATCH,
-    INPUT_EVENT_SET_GRAB,
+    INPUT_EVENT_SET_EXCLUSIVE_GRAB,
     INPUT_EVENT_SET_READ_MODE,
     INPUT_EVENT_TRY_READ,
+    INPUT_GAMEPAD_SET_LIGHT,
+    INPUT_GAMEPAD_SET_PLAYER_INDEX,
+    INPUT_GAMEPAD_STATE,
+    INPUT_HAPTICS_EFFECTS,
+    INPUT_HAPTICS_PLAY,
+    INPUT_HAPTICS_STOP,
+    INPUT_KEYBOARD_STATE,
+    INPUT_POINTER_CAPTURE,
+    INPUT_POINTER_RELATIVE_STATE,
+    INPUT_POINTER_SET_GRAB_MODE,
+    INPUT_POINTER_SET_RELATIVE_MODE,
+    INPUT_POINTER_STATE,
+    INPUT_POINTER_WARP,
+    INPUT_RAWHID_GET_FEATURE,
+    INPUT_RAWHID_READ,
+    INPUT_RAWHID_SET_FEATURE,
+    INPUT_RAWHID_TRY_READ,
+    INPUT_RAWHID_WRITE,
+    INPUT_SENSOR_CONFIGURE,
+    INPUT_SENSOR_LIST,
+    INPUT_SENSOR_READ,
+    INPUT_SENSOR_TRY_READ,
+    INPUT_TEXT_GET_AREA,
+    INPUT_TEXT_IS_ACTIVE,
+    INPUT_TEXT_READ_COMPOSITION,
+    INPUT_TEXT_SET_AREA,
+    INPUT_TEXT_START,
+    INPUT_TEXT_STOP,
+    INPUT_TEXT_TRY_READ_COMPOSITION,
+    INPUT_TOUCH_STATE,
 ];
 
 /// Native binding set for input.
 pub const INPUT_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "input",
     bindings: &[
+        NativeBinding::new(
+            INPUT_DEVICE_CAPABILITIES,
+            "destack.input.device.capabilities",
+            destack_input_device_capabilities as *const (),
+        ),
         NativeBinding::new(
             INPUT_DEVICE_CLOSE,
             "destack.input.device.close",
@@ -907,9 +3027,9 @@ pub const INPUT_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_input_event_read_batch as *const (),
         ),
         NativeBinding::new(
-            INPUT_EVENT_SET_GRAB,
-            "destack.input.event.setGrab",
-            destack_input_event_set_grab as *const (),
+            INPUT_EVENT_SET_EXCLUSIVE_GRAB,
+            "destack.input.event.setExclusiveGrab",
+            destack_input_event_set_exclusive_grab as *const (),
         ),
         NativeBinding::new(
             INPUT_EVENT_SET_READ_MODE,
@@ -921,10 +3041,366 @@ pub const INPUT_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             "destack.input.event.tryRead",
             destack_input_event_try_read as *const (),
         ),
+        NativeBinding::new(
+            INPUT_GAMEPAD_SET_LIGHT,
+            "destack.input.gamepad.setLight",
+            destack_input_gamepad_set_light as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_GAMEPAD_SET_PLAYER_INDEX,
+            "destack.input.gamepad.setPlayerIndex",
+            destack_input_gamepad_set_player_index as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_GAMEPAD_STATE,
+            "destack.input.gamepad.state",
+            destack_input_gamepad_state as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_HAPTICS_EFFECTS,
+            "destack.input.haptics.effects",
+            destack_input_haptics_effects as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_HAPTICS_PLAY,
+            "destack.input.haptics.play",
+            destack_input_haptics_play as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_HAPTICS_STOP,
+            "destack.input.haptics.stop",
+            destack_input_haptics_stop as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_KEYBOARD_STATE,
+            "destack.input.keyboard.state",
+            destack_input_keyboard_state as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_POINTER_CAPTURE,
+            "destack.input.pointer.capture",
+            destack_input_pointer_capture as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_POINTER_RELATIVE_STATE,
+            "destack.input.pointer.relativeState",
+            destack_input_pointer_relative_state as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_POINTER_SET_GRAB_MODE,
+            "destack.input.pointer.setGrabMode",
+            destack_input_pointer_set_grab_mode as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_POINTER_SET_RELATIVE_MODE,
+            "destack.input.pointer.setRelativeMode",
+            destack_input_pointer_set_relative_mode as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_POINTER_STATE,
+            "destack.input.pointer.state",
+            destack_input_pointer_state as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_POINTER_WARP,
+            "destack.input.pointer.warp",
+            destack_input_pointer_warp as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_RAWHID_GET_FEATURE,
+            "destack.input.rawhid.getFeature",
+            destack_input_rawhid_get_feature as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_RAWHID_READ,
+            "destack.input.rawhid.read",
+            destack_input_rawhid_read as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_RAWHID_SET_FEATURE,
+            "destack.input.rawhid.setFeature",
+            destack_input_rawhid_set_feature as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_RAWHID_TRY_READ,
+            "destack.input.rawhid.tryRead",
+            destack_input_rawhid_try_read as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_RAWHID_WRITE,
+            "destack.input.rawhid.write",
+            destack_input_rawhid_write as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_SENSOR_CONFIGURE,
+            "destack.input.sensor.configure",
+            destack_input_sensor_configure as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_SENSOR_LIST,
+            "destack.input.sensor.list",
+            destack_input_sensor_list as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_SENSOR_READ,
+            "destack.input.sensor.read",
+            destack_input_sensor_read as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_SENSOR_TRY_READ,
+            "destack.input.sensor.tryRead",
+            destack_input_sensor_try_read as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_TEXT_GET_AREA,
+            "destack.input.text.getArea",
+            destack_input_text_get_area as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_TEXT_IS_ACTIVE,
+            "destack.input.text.isActive",
+            destack_input_text_is_active as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_TEXT_READ_COMPOSITION,
+            "destack.input.text.readComposition",
+            destack_input_text_read_composition as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_TEXT_SET_AREA,
+            "destack.input.text.setArea",
+            destack_input_text_set_area as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_TEXT_START,
+            "destack.input.text.start",
+            destack_input_text_start as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_TEXT_STOP,
+            "destack.input.text.stop",
+            destack_input_text_stop as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_TEXT_TRY_READ_COMPOSITION,
+            "destack.input.text.tryReadComposition",
+            destack_input_text_try_read_composition as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_TOUCH_STATE,
+            "destack.input.touch.state",
+            destack_input_touch_state as *const (),
+        ),
     ],
 };
 
 /// Native replay implementations for input bindings.
+#[inline]
+fn destack_input_device_capabilities_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut InputDeviceCapabilities,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_DEVICE_CAPABILITIES,
+        context.replay_payload_for(INPUT_DEVICE_CAPABILITIES)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_capabilities(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_capabilities(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_kinds_raw = unsafe { result_value.kinds.as_slice()? };
+                let mut result_recorded_kinds = Vec::with_capacity(result_recorded_kinds_raw.len());
+                for result_recorded_kinds_item_value in result_recorded_kinds_raw {
+                    let result_recorded_kinds_item = *result_recorded_kinds_item_value;
+                    let result_recorded_kinds_item_recorded = result_recorded_kinds_item;
+                    result_recorded_kinds.push(result_recorded_kinds_item_recorded);
+                }
+                let result_recorded_axes_raw = unsafe { result_value.axes.as_slice()? };
+                let mut result_recorded_axes = Vec::with_capacity(result_recorded_axes_raw.len());
+                for result_recorded_axes_item_value in result_recorded_axes_raw {
+                    let result_recorded_axes_item = *result_recorded_axes_item_value;
+                    let result_recorded_axes_item_recorded_code = result_recorded_axes_item.code;
+                    let result_recorded_axes_item_recorded_minimum =
+                        result_recorded_axes_item.minimum;
+                    let result_recorded_axes_item_recorded_maximum =
+                        result_recorded_axes_item.maximum;
+                    let result_recorded_axes_item_recorded_flat = result_recorded_axes_item.flat;
+                    let result_recorded_axes_item_recorded_fuzz = result_recorded_axes_item.fuzz;
+                    let result_recorded_axes_item_recorded_resolution =
+                        result_recorded_axes_item.resolution;
+                    let result_recorded_axes_item_recorded = InputAxisInfo {
+                        code: result_recorded_axes_item_recorded_code,
+                        minimum: result_recorded_axes_item_recorded_minimum,
+                        maximum: result_recorded_axes_item_recorded_maximum,
+                        flat: result_recorded_axes_item_recorded_flat,
+                        fuzz: result_recorded_axes_item_recorded_fuzz,
+                        resolution: result_recorded_axes_item_recorded_resolution,
+                    };
+                    result_recorded_axes.push(result_recorded_axes_item_recorded);
+                }
+                let result_recorded_buttons_raw = unsafe { result_value.buttons.as_slice()? };
+                let mut result_recorded_buttons =
+                    Vec::with_capacity(result_recorded_buttons_raw.len());
+                for result_recorded_buttons_item_value in result_recorded_buttons_raw {
+                    let result_recorded_buttons_item = *result_recorded_buttons_item_value;
+                    let result_recorded_buttons_item_recorded_code =
+                        result_recorded_buttons_item.code;
+                    let result_recorded_buttons_item_recorded_analog =
+                        result_recorded_buttons_item.analog;
+                    let result_recorded_buttons_item_recorded = InputButtonInfo {
+                        code: result_recorded_buttons_item_recorded_code,
+                        analog: result_recorded_buttons_item_recorded_analog,
+                    };
+                    result_recorded_buttons.push(result_recorded_buttons_item_recorded);
+                }
+                let result_recorded_supports_relative_pointer =
+                    result_value.supports_relative_pointer;
+                let result_recorded_supports_pointer_grab = result_value.supports_pointer_grab;
+                let result_recorded_supports_pointer_capture =
+                    result_value.supports_pointer_capture;
+                let result_recorded_supports_pointer_warp = result_value.supports_pointer_warp;
+                let result_recorded_supports_text_input = result_value.supports_text_input;
+                let result_recorded_supports_composition = result_value.supports_composition;
+                let result_recorded_supports_rumble = result_value.supports_rumble;
+                let result_recorded_supports_trigger_rumble = result_value.supports_trigger_rumble;
+                let result_recorded_supports_sensors = result_value.supports_sensors;
+                let result_recorded_supports_battery_state = result_value.supports_battery_state;
+                let result_recorded_supports_light_control = result_value.supports_light_control;
+                let result_recorded_supports_raw_hid = result_value.supports_raw_hid;
+                let result_recorded_supports_player_index = result_value.supports_player_index;
+                let result_recorded = InputDeviceCapabilitiesReplayRecord {
+                    kinds: result_recorded_kinds,
+                    axes: result_recorded_axes,
+                    buttons: result_recorded_buttons,
+                    supports_relative_pointer: result_recorded_supports_relative_pointer,
+                    supports_pointer_grab: result_recorded_supports_pointer_grab,
+                    supports_pointer_capture: result_recorded_supports_pointer_capture,
+                    supports_pointer_warp: result_recorded_supports_pointer_warp,
+                    supports_text_input: result_recorded_supports_text_input,
+                    supports_composition: result_recorded_supports_composition,
+                    supports_rumble: result_recorded_supports_rumble,
+                    supports_trigger_rumble: result_recorded_supports_trigger_rumble,
+                    supports_sensors: result_recorded_supports_sensors,
+                    supports_battery_state: result_recorded_supports_battery_state,
+                    supports_light_control: result_recorded_supports_light_control,
+                    supports_raw_hid: result_recorded_supports_raw_hid,
+                    supports_player_index: result_recorded_supports_player_index,
+                };
+                let payload = InputDeviceCapabilitiesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputDeviceCapabilitiesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_kinds_values = Vec::with_capacity(value.kinds.len());
+                    for value_native_kinds_item in value.kinds {
+                        let value_native_kinds_item_native = value_native_kinds_item;
+                        value_native_kinds_values.push(value_native_kinds_item_native);
+                    }
+                    let value_native_kinds = context.store_array(value_native_kinds_values);
+                    let mut value_native_axes_values = Vec::with_capacity(value.axes.len());
+                    for value_native_axes_item in value.axes {
+                        let value_native_axes_item_native_code = value_native_axes_item.code;
+                        let value_native_axes_item_native_minimum = value_native_axes_item.minimum;
+                        let value_native_axes_item_native_maximum = value_native_axes_item.maximum;
+                        let value_native_axes_item_native_flat = value_native_axes_item.flat;
+                        let value_native_axes_item_native_fuzz = value_native_axes_item.fuzz;
+                        let value_native_axes_item_native_resolution =
+                            value_native_axes_item.resolution;
+                        let value_native_axes_item_native = InputAxisInfo {
+                            code: value_native_axes_item_native_code,
+                            minimum: value_native_axes_item_native_minimum,
+                            maximum: value_native_axes_item_native_maximum,
+                            flat: value_native_axes_item_native_flat,
+                            fuzz: value_native_axes_item_native_fuzz,
+                            resolution: value_native_axes_item_native_resolution,
+                        };
+                        value_native_axes_values.push(value_native_axes_item_native);
+                    }
+                    let value_native_axes = context.store_array(value_native_axes_values);
+                    let mut value_native_buttons_values = Vec::with_capacity(value.buttons.len());
+                    for value_native_buttons_item in value.buttons {
+                        let value_native_buttons_item_native_code = value_native_buttons_item.code;
+                        let value_native_buttons_item_native_analog =
+                            value_native_buttons_item.analog;
+                        let value_native_buttons_item_native = InputButtonInfo {
+                            code: value_native_buttons_item_native_code,
+                            analog: value_native_buttons_item_native_analog,
+                        };
+                        value_native_buttons_values.push(value_native_buttons_item_native);
+                    }
+                    let value_native_buttons = context.store_array(value_native_buttons_values);
+                    let value_native_supports_relative_pointer = value.supports_relative_pointer;
+                    let value_native_supports_pointer_grab = value.supports_pointer_grab;
+                    let value_native_supports_pointer_capture = value.supports_pointer_capture;
+                    let value_native_supports_pointer_warp = value.supports_pointer_warp;
+                    let value_native_supports_text_input = value.supports_text_input;
+                    let value_native_supports_composition = value.supports_composition;
+                    let value_native_supports_rumble = value.supports_rumble;
+                    let value_native_supports_trigger_rumble = value.supports_trigger_rumble;
+                    let value_native_supports_sensors = value.supports_sensors;
+                    let value_native_supports_battery_state = value.supports_battery_state;
+                    let value_native_supports_light_control = value.supports_light_control;
+                    let value_native_supports_raw_hid = value.supports_raw_hid;
+                    let value_native_supports_player_index = value.supports_player_index;
+                    let value_native = InputDeviceCapabilities {
+                        kinds: value_native_kinds,
+                        axes: value_native_axes,
+                        buttons: value_native_buttons,
+                        supports_relative_pointer: value_native_supports_relative_pointer,
+                        supports_pointer_grab: value_native_supports_pointer_grab,
+                        supports_pointer_capture: value_native_supports_pointer_capture,
+                        supports_pointer_warp: value_native_supports_pointer_warp,
+                        supports_text_input: value_native_supports_text_input,
+                        supports_composition: value_native_supports_composition,
+                        supports_rumble: value_native_supports_rumble,
+                        supports_trigger_rumble: value_native_supports_trigger_rumble,
+                        supports_sensors: value_native_supports_sensors,
+                        supports_battery_state: value_native_supports_battery_state,
+                        supports_light_control: value_native_supports_light_control,
+                        supports_raw_hid: value_native_supports_raw_hid,
+                        supports_player_index: value_native_supports_player_index,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
 #[inline]
 fn destack_input_device_close_replay(
     context: &RuntimeCallContext,
@@ -1000,8 +3476,14 @@ fn destack_input_device_list_replay(
                     let result_recorded_item = *result_recorded_item_value;
                     let result_recorded_item_recorded_id =
                         unsafe { result_recorded_item.id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_instance_id =
+                        unsafe { result_recorded_item.instance_id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_hardware_id =
+                        unsafe { result_recorded_item.hardware_id.as_str()? }.to_string();
                     let result_recorded_item_recorded_name =
                         unsafe { result_recorded_item.name.as_str()? }.to_string();
+                    let result_recorded_item_recorded_transport =
+                        unsafe { result_recorded_item.transport.as_str()? }.to_string();
                     let result_recorded_item_recorded_kind = result_recorded_item.kind;
                     let result_recorded_item_recorded_vendor_id = result_recorded_item.vendor_id;
                     let result_recorded_item_recorded_product_id = result_recorded_item.product_id;
@@ -1010,17 +3492,28 @@ fn destack_input_device_list_replay(
                         result_recorded_item.button_count;
                     let result_recorded_item_recorded_axis_count = result_recorded_item.axis_count;
                     let result_recorded_item_recorded_connected = result_recorded_item.connected;
-                    let result_recorded_item_recorded_supports_grab =
-                        result_recorded_item.supports_grab;
+                    let result_recorded_item_recorded_supports_exclusive_grab =
+                        result_recorded_item.supports_exclusive_grab;
                     let result_recorded_item_recorded_supports_raw =
                         result_recorded_item.supports_raw;
                     let result_recorded_item_recorded_supports_text =
                         result_recorded_item.supports_text;
                     let result_recorded_item_recorded_supports_rumble =
                         result_recorded_item.supports_rumble;
+                    let result_recorded_item_recorded_supports_battery =
+                        result_recorded_item.supports_battery;
+                    let result_recorded_item_recorded_supports_light =
+                        result_recorded_item.supports_light;
+                    let result_recorded_item_recorded_supports_raw_hid =
+                        result_recorded_item.supports_raw_hid;
+                    let result_recorded_item_recorded_is_virtual = result_recorded_item.is_virtual;
+                    let result_recorded_item_recorded_is_system = result_recorded_item.is_system;
                     let result_recorded_item_recorded = InputDeviceInfoReplayRecord {
                         id: result_recorded_item_recorded_id,
+                        instance_id: result_recorded_item_recorded_instance_id,
+                        hardware_id: result_recorded_item_recorded_hardware_id,
                         name: result_recorded_item_recorded_name,
+                        transport: result_recorded_item_recorded_transport,
                         kind: result_recorded_item_recorded_kind,
                         vendor_id: result_recorded_item_recorded_vendor_id,
                         product_id: result_recorded_item_recorded_product_id,
@@ -1028,10 +3521,16 @@ fn destack_input_device_list_replay(
                         button_count: result_recorded_item_recorded_button_count,
                         axis_count: result_recorded_item_recorded_axis_count,
                         connected: result_recorded_item_recorded_connected,
-                        supports_grab: result_recorded_item_recorded_supports_grab,
+                        supports_exclusive_grab:
+                            result_recorded_item_recorded_supports_exclusive_grab,
                         supports_raw: result_recorded_item_recorded_supports_raw,
                         supports_text: result_recorded_item_recorded_supports_text,
                         supports_rumble: result_recorded_item_recorded_supports_rumble,
+                        supports_battery: result_recorded_item_recorded_supports_battery,
+                        supports_light: result_recorded_item_recorded_supports_light,
+                        supports_raw_hid: result_recorded_item_recorded_supports_raw_hid,
+                        is_virtual: result_recorded_item_recorded_is_virtual,
+                        is_system: result_recorded_item_recorded_is_system,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -1059,8 +3558,14 @@ fn destack_input_device_list_replay(
                     for value_native_item in value {
                         let value_native_item_native_id =
                             context.store_string(&value_native_item.id);
+                        let value_native_item_native_instance_id =
+                            context.store_string(&value_native_item.instance_id);
+                        let value_native_item_native_hardware_id =
+                            context.store_string(&value_native_item.hardware_id);
                         let value_native_item_native_name =
                             context.store_string(&value_native_item.name);
+                        let value_native_item_native_transport =
+                            context.store_string(&value_native_item.transport);
                         let value_native_item_native_kind = value_native_item.kind;
                         let value_native_item_native_vendor_id = value_native_item.vendor_id;
                         let value_native_item_native_product_id = value_native_item.product_id;
@@ -1068,16 +3573,27 @@ fn destack_input_device_list_replay(
                         let value_native_item_native_button_count = value_native_item.button_count;
                         let value_native_item_native_axis_count = value_native_item.axis_count;
                         let value_native_item_native_connected = value_native_item.connected;
-                        let value_native_item_native_supports_grab =
-                            value_native_item.supports_grab;
+                        let value_native_item_native_supports_exclusive_grab =
+                            value_native_item.supports_exclusive_grab;
                         let value_native_item_native_supports_raw = value_native_item.supports_raw;
                         let value_native_item_native_supports_text =
                             value_native_item.supports_text;
                         let value_native_item_native_supports_rumble =
                             value_native_item.supports_rumble;
+                        let value_native_item_native_supports_battery =
+                            value_native_item.supports_battery;
+                        let value_native_item_native_supports_light =
+                            value_native_item.supports_light;
+                        let value_native_item_native_supports_raw_hid =
+                            value_native_item.supports_raw_hid;
+                        let value_native_item_native_is_virtual = value_native_item.is_virtual;
+                        let value_native_item_native_is_system = value_native_item.is_system;
                         let value_native_item_native = InputDeviceInfo {
                             id: value_native_item_native_id,
+                            instance_id: value_native_item_native_instance_id,
+                            hardware_id: value_native_item_native_hardware_id,
                             name: value_native_item_native_name,
+                            transport: value_native_item_native_transport,
                             kind: value_native_item_native_kind,
                             vendor_id: value_native_item_native_vendor_id,
                             product_id: value_native_item_native_product_id,
@@ -1085,10 +3601,16 @@ fn destack_input_device_list_replay(
                             button_count: value_native_item_native_button_count,
                             axis_count: value_native_item_native_axis_count,
                             connected: value_native_item_native_connected,
-                            supports_grab: value_native_item_native_supports_grab,
+                            supports_exclusive_grab:
+                                value_native_item_native_supports_exclusive_grab,
                             supports_raw: value_native_item_native_supports_raw,
                             supports_text: value_native_item_native_supports_text,
                             supports_rumble: value_native_item_native_supports_rumble,
+                            supports_battery: value_native_item_native_supports_battery,
+                            supports_light: value_native_item_native_supports_light,
+                            supports_raw_hid: value_native_item_native_supports_raw_hid,
+                            is_virtual: value_native_item_native_is_virtual,
+                            is_system: value_native_item_native_is_system,
                         };
                         value_native_values.push(value_native_item_native);
                     }
@@ -1273,7 +3795,7 @@ fn destack_input_event_monitor_open_replay(
 fn destack_input_event_monitor_read_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    out: *mut InputEvent,
+    out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
@@ -1302,33 +3824,15 @@ fn destack_input_event_monitor_read_replay(
                 let result_recorded_sequence = result_value.sequence;
                 let result_recorded_device_id =
                     unsafe { result_value.device_id.as_str()? }.to_string();
-                let result_recorded_action = result_value.action;
-                let result_recorded_code = result_value.code;
-                let result_recorded_scan_code = result_value.scan_code;
-                let result_recorded_value = result_value.value;
-                let result_recorded_x = result_value.x;
-                let result_recorded_y = result_value.y;
-                let result_recorded_wheel_x = result_value.wheel_x;
-                let result_recorded_wheel_y = result_value.wheel_y;
-                let result_recorded_modifiers = result_value.modifiers;
-                let result_recorded_repeat = result_value.repeat;
-                let result_recorded_text = unsafe { result_value.text.as_str()? }.to_string();
-                let result_recorded = InputEventReplayRecord {
+                let result_recorded_device_kind = result_value.device_kind;
+                let result_recorded_connected = result_value.connected;
+                let result_recorded = InputMonitorEventReplayRecord {
                     kind: result_recorded_kind,
                     timestamp_ns: result_recorded_timestamp_ns,
                     sequence: result_recorded_sequence,
                     device_id: result_recorded_device_id,
-                    action: result_recorded_action,
-                    code: result_recorded_code,
-                    scan_code: result_recorded_scan_code,
-                    value: result_recorded_value,
-                    x: result_recorded_x,
-                    y: result_recorded_y,
-                    wheel_x: result_recorded_wheel_x,
-                    wheel_y: result_recorded_wheel_y,
-                    modifiers: result_recorded_modifiers,
-                    repeat: result_recorded_repeat,
-                    text: result_recorded_text,
+                    device_kind: result_recorded_device_kind,
+                    connected: result_recorded_connected,
                 };
                 let payload = InputEventMonitorReadReplay {
                     result: Ok(result_recorded),
@@ -1354,33 +3858,15 @@ fn destack_input_event_monitor_read_replay(
                     let value_native_timestamp_ns = value.timestamp_ns;
                     let value_native_sequence = value.sequence;
                     let value_native_device_id = context.store_string(&value.device_id);
-                    let value_native_action = value.action;
-                    let value_native_code = value.code;
-                    let value_native_scan_code = value.scan_code;
-                    let value_native_value = value.value;
-                    let value_native_x = value.x;
-                    let value_native_y = value.y;
-                    let value_native_wheel_x = value.wheel_x;
-                    let value_native_wheel_y = value.wheel_y;
-                    let value_native_modifiers = value.modifiers;
-                    let value_native_repeat = value.repeat;
-                    let value_native_text = context.store_string(&value.text);
-                    let value_native = InputEvent {
+                    let value_native_device_kind = value.device_kind;
+                    let value_native_connected = value.connected;
+                    let value_native = InputMonitorEvent {
                         kind: value_native_kind,
                         timestamp_ns: value_native_timestamp_ns,
                         sequence: value_native_sequence,
                         device_id: value_native_device_id,
-                        action: value_native_action,
-                        code: value_native_code,
-                        scan_code: value_native_scan_code,
-                        value: value_native_value,
-                        x: value_native_x,
-                        y: value_native_y,
-                        wheel_x: value_native_wheel_x,
-                        wheel_y: value_native_wheel_y,
-                        modifiers: value_native_modifiers,
-                        repeat: value_native_repeat,
-                        text: value_native_text,
+                        device_kind: value_native_device_kind,
+                        connected: value_native_connected,
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -1397,7 +3883,7 @@ fn destack_input_event_monitor_read_replay(
 fn destack_input_event_monitor_try_read_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    out: *mut InputEvent,
+    out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
@@ -1426,33 +3912,15 @@ fn destack_input_event_monitor_try_read_replay(
                 let result_recorded_sequence = result_value.sequence;
                 let result_recorded_device_id =
                     unsafe { result_value.device_id.as_str()? }.to_string();
-                let result_recorded_action = result_value.action;
-                let result_recorded_code = result_value.code;
-                let result_recorded_scan_code = result_value.scan_code;
-                let result_recorded_value = result_value.value;
-                let result_recorded_x = result_value.x;
-                let result_recorded_y = result_value.y;
-                let result_recorded_wheel_x = result_value.wheel_x;
-                let result_recorded_wheel_y = result_value.wheel_y;
-                let result_recorded_modifiers = result_value.modifiers;
-                let result_recorded_repeat = result_value.repeat;
-                let result_recorded_text = unsafe { result_value.text.as_str()? }.to_string();
-                let result_recorded = InputEventReplayRecord {
+                let result_recorded_device_kind = result_value.device_kind;
+                let result_recorded_connected = result_value.connected;
+                let result_recorded = InputMonitorEventReplayRecord {
                     kind: result_recorded_kind,
                     timestamp_ns: result_recorded_timestamp_ns,
                     sequence: result_recorded_sequence,
                     device_id: result_recorded_device_id,
-                    action: result_recorded_action,
-                    code: result_recorded_code,
-                    scan_code: result_recorded_scan_code,
-                    value: result_recorded_value,
-                    x: result_recorded_x,
-                    y: result_recorded_y,
-                    wheel_x: result_recorded_wheel_x,
-                    wheel_y: result_recorded_wheel_y,
-                    modifiers: result_recorded_modifiers,
-                    repeat: result_recorded_repeat,
-                    text: result_recorded_text,
+                    device_kind: result_recorded_device_kind,
+                    connected: result_recorded_connected,
                 };
                 let payload = InputEventMonitorTryReadReplay {
                     result: Ok(result_recorded),
@@ -1478,33 +3946,15 @@ fn destack_input_event_monitor_try_read_replay(
                     let value_native_timestamp_ns = value.timestamp_ns;
                     let value_native_sequence = value.sequence;
                     let value_native_device_id = context.store_string(&value.device_id);
-                    let value_native_action = value.action;
-                    let value_native_code = value.code;
-                    let value_native_scan_code = value.scan_code;
-                    let value_native_value = value.value;
-                    let value_native_x = value.x;
-                    let value_native_y = value.y;
-                    let value_native_wheel_x = value.wheel_x;
-                    let value_native_wheel_y = value.wheel_y;
-                    let value_native_modifiers = value.modifiers;
-                    let value_native_repeat = value.repeat;
-                    let value_native_text = context.store_string(&value.text);
-                    let value_native = InputEvent {
+                    let value_native_device_kind = value.device_kind;
+                    let value_native_connected = value.connected;
+                    let value_native = InputMonitorEvent {
                         kind: value_native_kind,
                         timestamp_ns: value_native_timestamp_ns,
                         sequence: value_native_sequence,
                         device_id: value_native_device_id,
-                        action: value_native_action,
-                        code: value_native_code,
-                        scan_code: value_native_scan_code,
-                        value: value_native_value,
-                        x: value_native_x,
-                        y: value_native_y,
-                        wheel_x: value_native_wheel_x,
-                        wheel_y: value_native_wheel_y,
-                        modifiers: value_native_modifiers,
-                        repeat: value_native_repeat,
-                        text: value_native_text,
+                        device_kind: value_native_device_kind,
+                        connected: value_native_connected,
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -1550,33 +4000,157 @@ fn destack_input_event_read_replay(
                 let result_recorded_sequence = result_value.sequence;
                 let result_recorded_device_id =
                     unsafe { result_value.device_id.as_str()? }.to_string();
-                let result_recorded_action = result_value.action;
-                let result_recorded_code = result_value.code;
-                let result_recorded_scan_code = result_value.scan_code;
-                let result_recorded_value = result_value.value;
-                let result_recorded_x = result_value.x;
-                let result_recorded_y = result_value.y;
-                let result_recorded_wheel_x = result_value.wheel_x;
-                let result_recorded_wheel_y = result_value.wheel_y;
-                let result_recorded_modifiers = result_value.modifiers;
-                let result_recorded_repeat = result_value.repeat;
-                let result_recorded_text = unsafe { result_value.text.as_str()? }.to_string();
+                let result_recorded_payload_key_action = result_value.payload.key.action;
+                let result_recorded_payload_key_backend_code =
+                    result_value.payload.key.backend_code;
+                let result_recorded_payload_key_backend_scan_code =
+                    result_value.payload.key.backend_scan_code;
+                let result_recorded_payload_key_backend_value =
+                    result_value.payload.key.backend_value;
+                let result_recorded_payload_key_modifiers = result_value.payload.key.modifiers;
+                let result_recorded_payload_key_repeat = result_value.payload.key.repeat;
+                let result_recorded_payload_key = InputKeyEventPayload {
+                    action: result_recorded_payload_key_action,
+                    backend_code: result_recorded_payload_key_backend_code,
+                    backend_scan_code: result_recorded_payload_key_backend_scan_code,
+                    backend_value: result_recorded_payload_key_backend_value,
+                    modifiers: result_recorded_payload_key_modifiers,
+                    repeat: result_recorded_payload_key_repeat,
+                };
+                let result_recorded_payload_pointer_motion_x =
+                    result_value.payload.pointer_motion.x;
+                let result_recorded_payload_pointer_motion_y =
+                    result_value.payload.pointer_motion.y;
+                let result_recorded_payload_pointer_motion_buttons =
+                    result_value.payload.pointer_motion.buttons;
+                let result_recorded_payload_pointer_motion_modifiers =
+                    result_value.payload.pointer_motion.modifiers;
+                let result_recorded_payload_pointer_motion = InputPointerMotionEventPayload {
+                    x: result_recorded_payload_pointer_motion_x,
+                    y: result_recorded_payload_pointer_motion_y,
+                    buttons: result_recorded_payload_pointer_motion_buttons,
+                    modifiers: result_recorded_payload_pointer_motion_modifiers,
+                };
+                let result_recorded_payload_pointer_button_action =
+                    result_value.payload.pointer_button.action;
+                let result_recorded_payload_pointer_button_backend_code =
+                    result_value.payload.pointer_button.backend_code;
+                let result_recorded_payload_pointer_button_backend_value =
+                    result_value.payload.pointer_button.backend_value;
+                let result_recorded_payload_pointer_button_x =
+                    result_value.payload.pointer_button.x;
+                let result_recorded_payload_pointer_button_y =
+                    result_value.payload.pointer_button.y;
+                let result_recorded_payload_pointer_button_modifiers =
+                    result_value.payload.pointer_button.modifiers;
+                let result_recorded_payload_pointer_button = InputPointerButtonEventPayload {
+                    action: result_recorded_payload_pointer_button_action,
+                    backend_code: result_recorded_payload_pointer_button_backend_code,
+                    backend_value: result_recorded_payload_pointer_button_backend_value,
+                    x: result_recorded_payload_pointer_button_x,
+                    y: result_recorded_payload_pointer_button_y,
+                    modifiers: result_recorded_payload_pointer_button_modifiers,
+                };
+                let result_recorded_payload_scroll_wheel_x = result_value.payload.scroll.wheel_x;
+                let result_recorded_payload_scroll_wheel_y = result_value.payload.scroll.wheel_y;
+                let result_recorded_payload_scroll_x = result_value.payload.scroll.x;
+                let result_recorded_payload_scroll_y = result_value.payload.scroll.y;
+                let result_recorded_payload_scroll_modifiers =
+                    result_value.payload.scroll.modifiers;
+                let result_recorded_payload_scroll = InputScrollEventPayload {
+                    wheel_x: result_recorded_payload_scroll_wheel_x,
+                    wheel_y: result_recorded_payload_scroll_wheel_y,
+                    x: result_recorded_payload_scroll_x,
+                    y: result_recorded_payload_scroll_y,
+                    modifiers: result_recorded_payload_scroll_modifiers,
+                };
+                let result_recorded_payload_touch_action = result_value.payload.touch.action;
+                let result_recorded_payload_touch_contact_id =
+                    result_value.payload.touch.contact_id;
+                let result_recorded_payload_touch_x = result_value.payload.touch.x;
+                let result_recorded_payload_touch_y = result_value.payload.touch.y;
+                let result_recorded_payload_touch_pressure = result_value.payload.touch.pressure;
+                let result_recorded_payload_touch = InputTouchEventPayload {
+                    action: result_recorded_payload_touch_action,
+                    contact_id: result_recorded_payload_touch_contact_id,
+                    x: result_recorded_payload_touch_x,
+                    y: result_recorded_payload_touch_y,
+                    pressure: result_recorded_payload_touch_pressure,
+                };
+                let result_recorded_payload_gamepad_action = result_value.payload.gamepad.action;
+                let result_recorded_payload_gamepad_backend_code =
+                    result_value.payload.gamepad.backend_code;
+                let result_recorded_payload_gamepad_backend_value =
+                    result_value.payload.gamepad.backend_value;
+                let result_recorded_payload_gamepad = InputGamepadEventPayload {
+                    action: result_recorded_payload_gamepad_action,
+                    backend_code: result_recorded_payload_gamepad_backend_code,
+                    backend_value: result_recorded_payload_gamepad_backend_value,
+                };
+                let result_recorded_payload_text_text =
+                    unsafe { result_value.payload.text.text.as_str()? }.to_string();
+                let result_recorded_payload_text = InputTextEventPayloadReplayRecord {
+                    text: result_recorded_payload_text_text,
+                };
+                let result_recorded_payload_device_action = result_value.payload.device.action;
+                let result_recorded_payload_device_backend_code =
+                    result_value.payload.device.backend_code;
+                let result_recorded_payload_device_backend_value =
+                    result_value.payload.device.backend_value;
+                let result_recorded_payload_device = InputDeviceEventPayload {
+                    action: result_recorded_payload_device_action,
+                    backend_code: result_recorded_payload_device_backend_code,
+                    backend_value: result_recorded_payload_device_backend_value,
+                };
+                let result_recorded_payload_sensor_action = result_value.payload.sensor.action;
+                let result_recorded_payload_sensor_backend_code =
+                    result_value.payload.sensor.backend_code;
+                let result_recorded_payload_sensor_backend_value =
+                    result_value.payload.sensor.backend_value;
+                let result_recorded_payload_sensor_x = result_value.payload.sensor.x;
+                let result_recorded_payload_sensor_y = result_value.payload.sensor.y;
+                let result_recorded_payload_sensor_z = result_value.payload.sensor.z;
+                let result_recorded_payload_sensor = InputSensorEventPayload {
+                    action: result_recorded_payload_sensor_action,
+                    backend_code: result_recorded_payload_sensor_backend_code,
+                    backend_value: result_recorded_payload_sensor_backend_value,
+                    x: result_recorded_payload_sensor_x,
+                    y: result_recorded_payload_sensor_y,
+                    z: result_recorded_payload_sensor_z,
+                };
+                let result_recorded_payload_composition_action =
+                    result_value.payload.composition.action;
+                let result_recorded_payload_composition_text =
+                    unsafe { result_value.payload.composition.text.as_str()? }.to_string();
+                let result_recorded_payload_composition_selection_start =
+                    result_value.payload.composition.selection_start;
+                let result_recorded_payload_composition_selection_end =
+                    result_value.payload.composition.selection_end;
+                let result_recorded_payload_composition =
+                    InputCompositionEventPayloadReplayRecord {
+                        action: result_recorded_payload_composition_action,
+                        text: result_recorded_payload_composition_text,
+                        selection_start: result_recorded_payload_composition_selection_start,
+                        selection_end: result_recorded_payload_composition_selection_end,
+                    };
+                let result_recorded_payload = InputEventPayloadReplayRecord {
+                    key: result_recorded_payload_key,
+                    pointer_motion: result_recorded_payload_pointer_motion,
+                    pointer_button: result_recorded_payload_pointer_button,
+                    scroll: result_recorded_payload_scroll,
+                    touch: result_recorded_payload_touch,
+                    gamepad: result_recorded_payload_gamepad,
+                    text: result_recorded_payload_text,
+                    device: result_recorded_payload_device,
+                    sensor: result_recorded_payload_sensor,
+                    composition: result_recorded_payload_composition,
+                };
                 let result_recorded = InputEventReplayRecord {
                     kind: result_recorded_kind,
                     timestamp_ns: result_recorded_timestamp_ns,
                     sequence: result_recorded_sequence,
                     device_id: result_recorded_device_id,
-                    action: result_recorded_action,
-                    code: result_recorded_code,
-                    scan_code: result_recorded_scan_code,
-                    value: result_recorded_value,
-                    x: result_recorded_x,
-                    y: result_recorded_y,
-                    wheel_x: result_recorded_wheel_x,
-                    wheel_y: result_recorded_wheel_y,
-                    modifiers: result_recorded_modifiers,
-                    repeat: result_recorded_repeat,
-                    text: result_recorded_text,
+                    payload: result_recorded_payload,
                 };
                 let payload = InputEventReadReplay {
                     result: Ok(result_recorded),
@@ -1602,33 +4176,147 @@ fn destack_input_event_read_replay(
                     let value_native_timestamp_ns = value.timestamp_ns;
                     let value_native_sequence = value.sequence;
                     let value_native_device_id = context.store_string(&value.device_id);
-                    let value_native_action = value.action;
-                    let value_native_code = value.code;
-                    let value_native_scan_code = value.scan_code;
-                    let value_native_value = value.value;
-                    let value_native_x = value.x;
-                    let value_native_y = value.y;
-                    let value_native_wheel_x = value.wheel_x;
-                    let value_native_wheel_y = value.wheel_y;
-                    let value_native_modifiers = value.modifiers;
-                    let value_native_repeat = value.repeat;
-                    let value_native_text = context.store_string(&value.text);
+                    let value_native_payload_key_action = value.payload.key.action;
+                    let value_native_payload_key_backend_code = value.payload.key.backend_code;
+                    let value_native_payload_key_backend_scan_code =
+                        value.payload.key.backend_scan_code;
+                    let value_native_payload_key_backend_value = value.payload.key.backend_value;
+                    let value_native_payload_key_modifiers = value.payload.key.modifiers;
+                    let value_native_payload_key_repeat = value.payload.key.repeat;
+                    let value_native_payload_key = InputKeyEventPayload {
+                        action: value_native_payload_key_action,
+                        backend_code: value_native_payload_key_backend_code,
+                        backend_scan_code: value_native_payload_key_backend_scan_code,
+                        backend_value: value_native_payload_key_backend_value,
+                        modifiers: value_native_payload_key_modifiers,
+                        repeat: value_native_payload_key_repeat,
+                    };
+                    let value_native_payload_pointer_motion_x = value.payload.pointer_motion.x;
+                    let value_native_payload_pointer_motion_y = value.payload.pointer_motion.y;
+                    let value_native_payload_pointer_motion_buttons =
+                        value.payload.pointer_motion.buttons;
+                    let value_native_payload_pointer_motion_modifiers =
+                        value.payload.pointer_motion.modifiers;
+                    let value_native_payload_pointer_motion = InputPointerMotionEventPayload {
+                        x: value_native_payload_pointer_motion_x,
+                        y: value_native_payload_pointer_motion_y,
+                        buttons: value_native_payload_pointer_motion_buttons,
+                        modifiers: value_native_payload_pointer_motion_modifiers,
+                    };
+                    let value_native_payload_pointer_button_action =
+                        value.payload.pointer_button.action;
+                    let value_native_payload_pointer_button_backend_code =
+                        value.payload.pointer_button.backend_code;
+                    let value_native_payload_pointer_button_backend_value =
+                        value.payload.pointer_button.backend_value;
+                    let value_native_payload_pointer_button_x = value.payload.pointer_button.x;
+                    let value_native_payload_pointer_button_y = value.payload.pointer_button.y;
+                    let value_native_payload_pointer_button_modifiers =
+                        value.payload.pointer_button.modifiers;
+                    let value_native_payload_pointer_button = InputPointerButtonEventPayload {
+                        action: value_native_payload_pointer_button_action,
+                        backend_code: value_native_payload_pointer_button_backend_code,
+                        backend_value: value_native_payload_pointer_button_backend_value,
+                        x: value_native_payload_pointer_button_x,
+                        y: value_native_payload_pointer_button_y,
+                        modifiers: value_native_payload_pointer_button_modifiers,
+                    };
+                    let value_native_payload_scroll_wheel_x = value.payload.scroll.wheel_x;
+                    let value_native_payload_scroll_wheel_y = value.payload.scroll.wheel_y;
+                    let value_native_payload_scroll_x = value.payload.scroll.x;
+                    let value_native_payload_scroll_y = value.payload.scroll.y;
+                    let value_native_payload_scroll_modifiers = value.payload.scroll.modifiers;
+                    let value_native_payload_scroll = InputScrollEventPayload {
+                        wheel_x: value_native_payload_scroll_wheel_x,
+                        wheel_y: value_native_payload_scroll_wheel_y,
+                        x: value_native_payload_scroll_x,
+                        y: value_native_payload_scroll_y,
+                        modifiers: value_native_payload_scroll_modifiers,
+                    };
+                    let value_native_payload_touch_action = value.payload.touch.action;
+                    let value_native_payload_touch_contact_id = value.payload.touch.contact_id;
+                    let value_native_payload_touch_x = value.payload.touch.x;
+                    let value_native_payload_touch_y = value.payload.touch.y;
+                    let value_native_payload_touch_pressure = value.payload.touch.pressure;
+                    let value_native_payload_touch = InputTouchEventPayload {
+                        action: value_native_payload_touch_action,
+                        contact_id: value_native_payload_touch_contact_id,
+                        x: value_native_payload_touch_x,
+                        y: value_native_payload_touch_y,
+                        pressure: value_native_payload_touch_pressure,
+                    };
+                    let value_native_payload_gamepad_action = value.payload.gamepad.action;
+                    let value_native_payload_gamepad_backend_code =
+                        value.payload.gamepad.backend_code;
+                    let value_native_payload_gamepad_backend_value =
+                        value.payload.gamepad.backend_value;
+                    let value_native_payload_gamepad = InputGamepadEventPayload {
+                        action: value_native_payload_gamepad_action,
+                        backend_code: value_native_payload_gamepad_backend_code,
+                        backend_value: value_native_payload_gamepad_backend_value,
+                    };
+                    let value_native_payload_text_text =
+                        context.store_string(&value.payload.text.text);
+                    let value_native_payload_text = InputTextEventPayload {
+                        text: value_native_payload_text_text,
+                    };
+                    let value_native_payload_device_action = value.payload.device.action;
+                    let value_native_payload_device_backend_code =
+                        value.payload.device.backend_code;
+                    let value_native_payload_device_backend_value =
+                        value.payload.device.backend_value;
+                    let value_native_payload_device = InputDeviceEventPayload {
+                        action: value_native_payload_device_action,
+                        backend_code: value_native_payload_device_backend_code,
+                        backend_value: value_native_payload_device_backend_value,
+                    };
+                    let value_native_payload_sensor_action = value.payload.sensor.action;
+                    let value_native_payload_sensor_backend_code =
+                        value.payload.sensor.backend_code;
+                    let value_native_payload_sensor_backend_value =
+                        value.payload.sensor.backend_value;
+                    let value_native_payload_sensor_x = value.payload.sensor.x;
+                    let value_native_payload_sensor_y = value.payload.sensor.y;
+                    let value_native_payload_sensor_z = value.payload.sensor.z;
+                    let value_native_payload_sensor = InputSensorEventPayload {
+                        action: value_native_payload_sensor_action,
+                        backend_code: value_native_payload_sensor_backend_code,
+                        backend_value: value_native_payload_sensor_backend_value,
+                        x: value_native_payload_sensor_x,
+                        y: value_native_payload_sensor_y,
+                        z: value_native_payload_sensor_z,
+                    };
+                    let value_native_payload_composition_action = value.payload.composition.action;
+                    let value_native_payload_composition_text =
+                        context.store_string(&value.payload.composition.text);
+                    let value_native_payload_composition_selection_start =
+                        value.payload.composition.selection_start;
+                    let value_native_payload_composition_selection_end =
+                        value.payload.composition.selection_end;
+                    let value_native_payload_composition = InputCompositionEventPayload {
+                        action: value_native_payload_composition_action,
+                        text: value_native_payload_composition_text,
+                        selection_start: value_native_payload_composition_selection_start,
+                        selection_end: value_native_payload_composition_selection_end,
+                    };
+                    let value_native_payload = InputEventPayload {
+                        key: value_native_payload_key,
+                        pointer_motion: value_native_payload_pointer_motion,
+                        pointer_button: value_native_payload_pointer_button,
+                        scroll: value_native_payload_scroll,
+                        touch: value_native_payload_touch,
+                        gamepad: value_native_payload_gamepad,
+                        text: value_native_payload_text,
+                        device: value_native_payload_device,
+                        sensor: value_native_payload_sensor,
+                        composition: value_native_payload_composition,
+                    };
                     let value_native = InputEvent {
                         kind: value_native_kind,
                         timestamp_ns: value_native_timestamp_ns,
                         sequence: value_native_sequence,
                         device_id: value_native_device_id,
-                        action: value_native_action,
-                        code: value_native_code,
-                        scan_code: value_native_scan_code,
-                        value: value_native_value,
-                        x: value_native_x,
-                        y: value_native_y,
-                        wheel_x: value_native_wheel_x,
-                        wheel_y: value_native_wheel_y,
-                        modifiers: value_native_modifiers,
-                        repeat: value_native_repeat,
-                        text: value_native_text,
+                        payload: value_native_payload,
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -1680,34 +4368,185 @@ fn destack_input_event_read_batch_replay(
                     let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
                     let result_recorded_item_recorded_device_id =
                         unsafe { result_recorded_item.device_id.as_str()? }.to_string();
-                    let result_recorded_item_recorded_action = result_recorded_item.action;
-                    let result_recorded_item_recorded_code = result_recorded_item.code;
-                    let result_recorded_item_recorded_scan_code = result_recorded_item.scan_code;
-                    let result_recorded_item_recorded_value = result_recorded_item.value;
-                    let result_recorded_item_recorded_x = result_recorded_item.x;
-                    let result_recorded_item_recorded_y = result_recorded_item.y;
-                    let result_recorded_item_recorded_wheel_x = result_recorded_item.wheel_x;
-                    let result_recorded_item_recorded_wheel_y = result_recorded_item.wheel_y;
-                    let result_recorded_item_recorded_modifiers = result_recorded_item.modifiers;
-                    let result_recorded_item_recorded_repeat = result_recorded_item.repeat;
-                    let result_recorded_item_recorded_text =
-                        unsafe { result_recorded_item.text.as_str()? }.to_string();
+                    let result_recorded_item_recorded_payload_key_action =
+                        result_recorded_item.payload.key.action;
+                    let result_recorded_item_recorded_payload_key_backend_code =
+                        result_recorded_item.payload.key.backend_code;
+                    let result_recorded_item_recorded_payload_key_backend_scan_code =
+                        result_recorded_item.payload.key.backend_scan_code;
+                    let result_recorded_item_recorded_payload_key_backend_value =
+                        result_recorded_item.payload.key.backend_value;
+                    let result_recorded_item_recorded_payload_key_modifiers =
+                        result_recorded_item.payload.key.modifiers;
+                    let result_recorded_item_recorded_payload_key_repeat =
+                        result_recorded_item.payload.key.repeat;
+                    let result_recorded_item_recorded_payload_key = InputKeyEventPayload {
+                        action: result_recorded_item_recorded_payload_key_action,
+                        backend_code: result_recorded_item_recorded_payload_key_backend_code,
+                        backend_scan_code:
+                            result_recorded_item_recorded_payload_key_backend_scan_code,
+                        backend_value: result_recorded_item_recorded_payload_key_backend_value,
+                        modifiers: result_recorded_item_recorded_payload_key_modifiers,
+                        repeat: result_recorded_item_recorded_payload_key_repeat,
+                    };
+                    let result_recorded_item_recorded_payload_pointer_motion_x =
+                        result_recorded_item.payload.pointer_motion.x;
+                    let result_recorded_item_recorded_payload_pointer_motion_y =
+                        result_recorded_item.payload.pointer_motion.y;
+                    let result_recorded_item_recorded_payload_pointer_motion_buttons =
+                        result_recorded_item.payload.pointer_motion.buttons;
+                    let result_recorded_item_recorded_payload_pointer_motion_modifiers =
+                        result_recorded_item.payload.pointer_motion.modifiers;
+                    let result_recorded_item_recorded_payload_pointer_motion =
+                        InputPointerMotionEventPayload {
+                            x: result_recorded_item_recorded_payload_pointer_motion_x,
+                            y: result_recorded_item_recorded_payload_pointer_motion_y,
+                            buttons: result_recorded_item_recorded_payload_pointer_motion_buttons,
+                            modifiers:
+                                result_recorded_item_recorded_payload_pointer_motion_modifiers,
+                        };
+                    let result_recorded_item_recorded_payload_pointer_button_action =
+                        result_recorded_item.payload.pointer_button.action;
+                    let result_recorded_item_recorded_payload_pointer_button_backend_code =
+                        result_recorded_item.payload.pointer_button.backend_code;
+                    let result_recorded_item_recorded_payload_pointer_button_backend_value =
+                        result_recorded_item.payload.pointer_button.backend_value;
+                    let result_recorded_item_recorded_payload_pointer_button_x =
+                        result_recorded_item.payload.pointer_button.x;
+                    let result_recorded_item_recorded_payload_pointer_button_y =
+                        result_recorded_item.payload.pointer_button.y;
+                    let result_recorded_item_recorded_payload_pointer_button_modifiers =
+                        result_recorded_item.payload.pointer_button.modifiers;
+                    let result_recorded_item_recorded_payload_pointer_button =
+                        InputPointerButtonEventPayload {
+                            action: result_recorded_item_recorded_payload_pointer_button_action,
+                            backend_code:
+                                result_recorded_item_recorded_payload_pointer_button_backend_code,
+                            backend_value:
+                                result_recorded_item_recorded_payload_pointer_button_backend_value,
+                            x: result_recorded_item_recorded_payload_pointer_button_x,
+                            y: result_recorded_item_recorded_payload_pointer_button_y,
+                            modifiers:
+                                result_recorded_item_recorded_payload_pointer_button_modifiers,
+                        };
+                    let result_recorded_item_recorded_payload_scroll_wheel_x =
+                        result_recorded_item.payload.scroll.wheel_x;
+                    let result_recorded_item_recorded_payload_scroll_wheel_y =
+                        result_recorded_item.payload.scroll.wheel_y;
+                    let result_recorded_item_recorded_payload_scroll_x =
+                        result_recorded_item.payload.scroll.x;
+                    let result_recorded_item_recorded_payload_scroll_y =
+                        result_recorded_item.payload.scroll.y;
+                    let result_recorded_item_recorded_payload_scroll_modifiers =
+                        result_recorded_item.payload.scroll.modifiers;
+                    let result_recorded_item_recorded_payload_scroll = InputScrollEventPayload {
+                        wheel_x: result_recorded_item_recorded_payload_scroll_wheel_x,
+                        wheel_y: result_recorded_item_recorded_payload_scroll_wheel_y,
+                        x: result_recorded_item_recorded_payload_scroll_x,
+                        y: result_recorded_item_recorded_payload_scroll_y,
+                        modifiers: result_recorded_item_recorded_payload_scroll_modifiers,
+                    };
+                    let result_recorded_item_recorded_payload_touch_action =
+                        result_recorded_item.payload.touch.action;
+                    let result_recorded_item_recorded_payload_touch_contact_id =
+                        result_recorded_item.payload.touch.contact_id;
+                    let result_recorded_item_recorded_payload_touch_x =
+                        result_recorded_item.payload.touch.x;
+                    let result_recorded_item_recorded_payload_touch_y =
+                        result_recorded_item.payload.touch.y;
+                    let result_recorded_item_recorded_payload_touch_pressure =
+                        result_recorded_item.payload.touch.pressure;
+                    let result_recorded_item_recorded_payload_touch = InputTouchEventPayload {
+                        action: result_recorded_item_recorded_payload_touch_action,
+                        contact_id: result_recorded_item_recorded_payload_touch_contact_id,
+                        x: result_recorded_item_recorded_payload_touch_x,
+                        y: result_recorded_item_recorded_payload_touch_y,
+                        pressure: result_recorded_item_recorded_payload_touch_pressure,
+                    };
+                    let result_recorded_item_recorded_payload_gamepad_action =
+                        result_recorded_item.payload.gamepad.action;
+                    let result_recorded_item_recorded_payload_gamepad_backend_code =
+                        result_recorded_item.payload.gamepad.backend_code;
+                    let result_recorded_item_recorded_payload_gamepad_backend_value =
+                        result_recorded_item.payload.gamepad.backend_value;
+                    let result_recorded_item_recorded_payload_gamepad = InputGamepadEventPayload {
+                        action: result_recorded_item_recorded_payload_gamepad_action,
+                        backend_code: result_recorded_item_recorded_payload_gamepad_backend_code,
+                        backend_value: result_recorded_item_recorded_payload_gamepad_backend_value,
+                    };
+                    let result_recorded_item_recorded_payload_text_text =
+                        unsafe { result_recorded_item.payload.text.text.as_str()? }.to_string();
+                    let result_recorded_item_recorded_payload_text =
+                        InputTextEventPayloadReplayRecord {
+                            text: result_recorded_item_recorded_payload_text_text,
+                        };
+                    let result_recorded_item_recorded_payload_device_action =
+                        result_recorded_item.payload.device.action;
+                    let result_recorded_item_recorded_payload_device_backend_code =
+                        result_recorded_item.payload.device.backend_code;
+                    let result_recorded_item_recorded_payload_device_backend_value =
+                        result_recorded_item.payload.device.backend_value;
+                    let result_recorded_item_recorded_payload_device = InputDeviceEventPayload {
+                        action: result_recorded_item_recorded_payload_device_action,
+                        backend_code: result_recorded_item_recorded_payload_device_backend_code,
+                        backend_value: result_recorded_item_recorded_payload_device_backend_value,
+                    };
+                    let result_recorded_item_recorded_payload_sensor_action =
+                        result_recorded_item.payload.sensor.action;
+                    let result_recorded_item_recorded_payload_sensor_backend_code =
+                        result_recorded_item.payload.sensor.backend_code;
+                    let result_recorded_item_recorded_payload_sensor_backend_value =
+                        result_recorded_item.payload.sensor.backend_value;
+                    let result_recorded_item_recorded_payload_sensor_x =
+                        result_recorded_item.payload.sensor.x;
+                    let result_recorded_item_recorded_payload_sensor_y =
+                        result_recorded_item.payload.sensor.y;
+                    let result_recorded_item_recorded_payload_sensor_z =
+                        result_recorded_item.payload.sensor.z;
+                    let result_recorded_item_recorded_payload_sensor = InputSensorEventPayload {
+                        action: result_recorded_item_recorded_payload_sensor_action,
+                        backend_code: result_recorded_item_recorded_payload_sensor_backend_code,
+                        backend_value: result_recorded_item_recorded_payload_sensor_backend_value,
+                        x: result_recorded_item_recorded_payload_sensor_x,
+                        y: result_recorded_item_recorded_payload_sensor_y,
+                        z: result_recorded_item_recorded_payload_sensor_z,
+                    };
+                    let result_recorded_item_recorded_payload_composition_action =
+                        result_recorded_item.payload.composition.action;
+                    let result_recorded_item_recorded_payload_composition_text =
+                        unsafe { result_recorded_item.payload.composition.text.as_str()? }
+                            .to_string();
+                    let result_recorded_item_recorded_payload_composition_selection_start =
+                        result_recorded_item.payload.composition.selection_start;
+                    let result_recorded_item_recorded_payload_composition_selection_end =
+                        result_recorded_item.payload.composition.selection_end;
+                    let result_recorded_item_recorded_payload_composition =
+                        InputCompositionEventPayloadReplayRecord {
+                            action: result_recorded_item_recorded_payload_composition_action,
+                            text: result_recorded_item_recorded_payload_composition_text,
+                            selection_start:
+                                result_recorded_item_recorded_payload_composition_selection_start,
+                            selection_end:
+                                result_recorded_item_recorded_payload_composition_selection_end,
+                        };
+                    let result_recorded_item_recorded_payload = InputEventPayloadReplayRecord {
+                        key: result_recorded_item_recorded_payload_key,
+                        pointer_motion: result_recorded_item_recorded_payload_pointer_motion,
+                        pointer_button: result_recorded_item_recorded_payload_pointer_button,
+                        scroll: result_recorded_item_recorded_payload_scroll,
+                        touch: result_recorded_item_recorded_payload_touch,
+                        gamepad: result_recorded_item_recorded_payload_gamepad,
+                        text: result_recorded_item_recorded_payload_text,
+                        device: result_recorded_item_recorded_payload_device,
+                        sensor: result_recorded_item_recorded_payload_sensor,
+                        composition: result_recorded_item_recorded_payload_composition,
+                    };
                     let result_recorded_item_recorded = InputEventReplayRecord {
                         kind: result_recorded_item_recorded_kind,
                         timestamp_ns: result_recorded_item_recorded_timestamp_ns,
                         sequence: result_recorded_item_recorded_sequence,
                         device_id: result_recorded_item_recorded_device_id,
-                        action: result_recorded_item_recorded_action,
-                        code: result_recorded_item_recorded_code,
-                        scan_code: result_recorded_item_recorded_scan_code,
-                        value: result_recorded_item_recorded_value,
-                        x: result_recorded_item_recorded_x,
-                        y: result_recorded_item_recorded_y,
-                        wheel_x: result_recorded_item_recorded_wheel_x,
-                        wheel_y: result_recorded_item_recorded_wheel_y,
-                        modifiers: result_recorded_item_recorded_modifiers,
-                        repeat: result_recorded_item_recorded_repeat,
-                        text: result_recorded_item_recorded_text,
+                        payload: result_recorded_item_recorded_payload,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -1738,34 +4577,183 @@ fn destack_input_event_read_batch_replay(
                         let value_native_item_native_sequence = value_native_item.sequence;
                         let value_native_item_native_device_id =
                             context.store_string(&value_native_item.device_id);
-                        let value_native_item_native_action = value_native_item.action;
-                        let value_native_item_native_code = value_native_item.code;
-                        let value_native_item_native_scan_code = value_native_item.scan_code;
-                        let value_native_item_native_value = value_native_item.value;
-                        let value_native_item_native_x = value_native_item.x;
-                        let value_native_item_native_y = value_native_item.y;
-                        let value_native_item_native_wheel_x = value_native_item.wheel_x;
-                        let value_native_item_native_wheel_y = value_native_item.wheel_y;
-                        let value_native_item_native_modifiers = value_native_item.modifiers;
-                        let value_native_item_native_repeat = value_native_item.repeat;
-                        let value_native_item_native_text =
-                            context.store_string(&value_native_item.text);
+                        let value_native_item_native_payload_key_action =
+                            value_native_item.payload.key.action;
+                        let value_native_item_native_payload_key_backend_code =
+                            value_native_item.payload.key.backend_code;
+                        let value_native_item_native_payload_key_backend_scan_code =
+                            value_native_item.payload.key.backend_scan_code;
+                        let value_native_item_native_payload_key_backend_value =
+                            value_native_item.payload.key.backend_value;
+                        let value_native_item_native_payload_key_modifiers =
+                            value_native_item.payload.key.modifiers;
+                        let value_native_item_native_payload_key_repeat =
+                            value_native_item.payload.key.repeat;
+                        let value_native_item_native_payload_key = InputKeyEventPayload {
+                            action: value_native_item_native_payload_key_action,
+                            backend_code: value_native_item_native_payload_key_backend_code,
+                            backend_scan_code:
+                                value_native_item_native_payload_key_backend_scan_code,
+                            backend_value: value_native_item_native_payload_key_backend_value,
+                            modifiers: value_native_item_native_payload_key_modifiers,
+                            repeat: value_native_item_native_payload_key_repeat,
+                        };
+                        let value_native_item_native_payload_pointer_motion_x =
+                            value_native_item.payload.pointer_motion.x;
+                        let value_native_item_native_payload_pointer_motion_y =
+                            value_native_item.payload.pointer_motion.y;
+                        let value_native_item_native_payload_pointer_motion_buttons =
+                            value_native_item.payload.pointer_motion.buttons;
+                        let value_native_item_native_payload_pointer_motion_modifiers =
+                            value_native_item.payload.pointer_motion.modifiers;
+                        let value_native_item_native_payload_pointer_motion =
+                            InputPointerMotionEventPayload {
+                                x: value_native_item_native_payload_pointer_motion_x,
+                                y: value_native_item_native_payload_pointer_motion_y,
+                                buttons: value_native_item_native_payload_pointer_motion_buttons,
+                                modifiers:
+                                    value_native_item_native_payload_pointer_motion_modifiers,
+                            };
+                        let value_native_item_native_payload_pointer_button_action =
+                            value_native_item.payload.pointer_button.action;
+                        let value_native_item_native_payload_pointer_button_backend_code =
+                            value_native_item.payload.pointer_button.backend_code;
+                        let value_native_item_native_payload_pointer_button_backend_value =
+                            value_native_item.payload.pointer_button.backend_value;
+                        let value_native_item_native_payload_pointer_button_x =
+                            value_native_item.payload.pointer_button.x;
+                        let value_native_item_native_payload_pointer_button_y =
+                            value_native_item.payload.pointer_button.y;
+                        let value_native_item_native_payload_pointer_button_modifiers =
+                            value_native_item.payload.pointer_button.modifiers;
+                        let value_native_item_native_payload_pointer_button =
+                            InputPointerButtonEventPayload {
+                                action: value_native_item_native_payload_pointer_button_action,
+                                backend_code:
+                                    value_native_item_native_payload_pointer_button_backend_code,
+                                backend_value:
+                                    value_native_item_native_payload_pointer_button_backend_value,
+                                x: value_native_item_native_payload_pointer_button_x,
+                                y: value_native_item_native_payload_pointer_button_y,
+                                modifiers:
+                                    value_native_item_native_payload_pointer_button_modifiers,
+                            };
+                        let value_native_item_native_payload_scroll_wheel_x =
+                            value_native_item.payload.scroll.wheel_x;
+                        let value_native_item_native_payload_scroll_wheel_y =
+                            value_native_item.payload.scroll.wheel_y;
+                        let value_native_item_native_payload_scroll_x =
+                            value_native_item.payload.scroll.x;
+                        let value_native_item_native_payload_scroll_y =
+                            value_native_item.payload.scroll.y;
+                        let value_native_item_native_payload_scroll_modifiers =
+                            value_native_item.payload.scroll.modifiers;
+                        let value_native_item_native_payload_scroll = InputScrollEventPayload {
+                            wheel_x: value_native_item_native_payload_scroll_wheel_x,
+                            wheel_y: value_native_item_native_payload_scroll_wheel_y,
+                            x: value_native_item_native_payload_scroll_x,
+                            y: value_native_item_native_payload_scroll_y,
+                            modifiers: value_native_item_native_payload_scroll_modifiers,
+                        };
+                        let value_native_item_native_payload_touch_action =
+                            value_native_item.payload.touch.action;
+                        let value_native_item_native_payload_touch_contact_id =
+                            value_native_item.payload.touch.contact_id;
+                        let value_native_item_native_payload_touch_x =
+                            value_native_item.payload.touch.x;
+                        let value_native_item_native_payload_touch_y =
+                            value_native_item.payload.touch.y;
+                        let value_native_item_native_payload_touch_pressure =
+                            value_native_item.payload.touch.pressure;
+                        let value_native_item_native_payload_touch = InputTouchEventPayload {
+                            action: value_native_item_native_payload_touch_action,
+                            contact_id: value_native_item_native_payload_touch_contact_id,
+                            x: value_native_item_native_payload_touch_x,
+                            y: value_native_item_native_payload_touch_y,
+                            pressure: value_native_item_native_payload_touch_pressure,
+                        };
+                        let value_native_item_native_payload_gamepad_action =
+                            value_native_item.payload.gamepad.action;
+                        let value_native_item_native_payload_gamepad_backend_code =
+                            value_native_item.payload.gamepad.backend_code;
+                        let value_native_item_native_payload_gamepad_backend_value =
+                            value_native_item.payload.gamepad.backend_value;
+                        let value_native_item_native_payload_gamepad = InputGamepadEventPayload {
+                            action: value_native_item_native_payload_gamepad_action,
+                            backend_code: value_native_item_native_payload_gamepad_backend_code,
+                            backend_value: value_native_item_native_payload_gamepad_backend_value,
+                        };
+                        let value_native_item_native_payload_text_text =
+                            context.store_string(&value_native_item.payload.text.text);
+                        let value_native_item_native_payload_text = InputTextEventPayload {
+                            text: value_native_item_native_payload_text_text,
+                        };
+                        let value_native_item_native_payload_device_action =
+                            value_native_item.payload.device.action;
+                        let value_native_item_native_payload_device_backend_code =
+                            value_native_item.payload.device.backend_code;
+                        let value_native_item_native_payload_device_backend_value =
+                            value_native_item.payload.device.backend_value;
+                        let value_native_item_native_payload_device = InputDeviceEventPayload {
+                            action: value_native_item_native_payload_device_action,
+                            backend_code: value_native_item_native_payload_device_backend_code,
+                            backend_value: value_native_item_native_payload_device_backend_value,
+                        };
+                        let value_native_item_native_payload_sensor_action =
+                            value_native_item.payload.sensor.action;
+                        let value_native_item_native_payload_sensor_backend_code =
+                            value_native_item.payload.sensor.backend_code;
+                        let value_native_item_native_payload_sensor_backend_value =
+                            value_native_item.payload.sensor.backend_value;
+                        let value_native_item_native_payload_sensor_x =
+                            value_native_item.payload.sensor.x;
+                        let value_native_item_native_payload_sensor_y =
+                            value_native_item.payload.sensor.y;
+                        let value_native_item_native_payload_sensor_z =
+                            value_native_item.payload.sensor.z;
+                        let value_native_item_native_payload_sensor = InputSensorEventPayload {
+                            action: value_native_item_native_payload_sensor_action,
+                            backend_code: value_native_item_native_payload_sensor_backend_code,
+                            backend_value: value_native_item_native_payload_sensor_backend_value,
+                            x: value_native_item_native_payload_sensor_x,
+                            y: value_native_item_native_payload_sensor_y,
+                            z: value_native_item_native_payload_sensor_z,
+                        };
+                        let value_native_item_native_payload_composition_action =
+                            value_native_item.payload.composition.action;
+                        let value_native_item_native_payload_composition_text =
+                            context.store_string(&value_native_item.payload.composition.text);
+                        let value_native_item_native_payload_composition_selection_start =
+                            value_native_item.payload.composition.selection_start;
+                        let value_native_item_native_payload_composition_selection_end =
+                            value_native_item.payload.composition.selection_end;
+                        let value_native_item_native_payload_composition =
+                            InputCompositionEventPayload {
+                                action: value_native_item_native_payload_composition_action,
+                                text: value_native_item_native_payload_composition_text,
+                                selection_start:
+                                    value_native_item_native_payload_composition_selection_start,
+                                selection_end:
+                                    value_native_item_native_payload_composition_selection_end,
+                            };
+                        let value_native_item_native_payload = InputEventPayload {
+                            key: value_native_item_native_payload_key,
+                            pointer_motion: value_native_item_native_payload_pointer_motion,
+                            pointer_button: value_native_item_native_payload_pointer_button,
+                            scroll: value_native_item_native_payload_scroll,
+                            touch: value_native_item_native_payload_touch,
+                            gamepad: value_native_item_native_payload_gamepad,
+                            text: value_native_item_native_payload_text,
+                            device: value_native_item_native_payload_device,
+                            sensor: value_native_item_native_payload_sensor,
+                            composition: value_native_item_native_payload_composition,
+                        };
                         let value_native_item_native = InputEvent {
                             kind: value_native_item_native_kind,
                             timestamp_ns: value_native_item_native_timestamp_ns,
                             sequence: value_native_item_native_sequence,
                             device_id: value_native_item_native_device_id,
-                            action: value_native_item_native_action,
-                            code: value_native_item_native_code,
-                            scan_code: value_native_item_native_scan_code,
-                            value: value_native_item_native_value,
-                            x: value_native_item_native_x,
-                            y: value_native_item_native_y,
-                            wheel_x: value_native_item_native_wheel_x,
-                            wheel_y: value_native_item_native_wheel_y,
-                            modifiers: value_native_item_native_modifiers,
-                            repeat: value_native_item_native_repeat,
-                            text: value_native_item_native_text,
+                            payload: value_native_item_native_payload,
                         };
                         value_native_values.push(value_native_item_native);
                     }
@@ -1782,7 +4770,7 @@ fn destack_input_event_read_batch_replay(
 }
 
 #[inline]
-fn destack_input_event_set_grab_replay(
+fn destack_input_event_set_exclusive_grab_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
@@ -1791,20 +4779,20 @@ fn destack_input_event_set_grab_replay(
     let _ = (&handle, &enable);
 
     context.replay().run_binding_with_payload_policy(
-        INPUT_EVENT_SET_GRAB,
-        context.replay_payload_for(INPUT_EVENT_SET_GRAB)?,
+        INPUT_EVENT_SET_EXCLUSIVE_GRAB,
+        context.replay_payload_for(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_set_grab(context, handle, enable)
+                platform_native::destack_input_set_exclusive_grab(context, handle, enable)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_set_grab(context, handle, enable)
+                platform_simulated_native::destack_input_set_exclusive_grab(context, handle, enable)
             },
         },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = InputEventSetGrabReplay {
+                let payload = InputEventSetExclusiveGrabReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -1813,7 +4801,7 @@ fn destack_input_event_set_grab_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InputEventSetGrabReplay { result }
+                    InputEventSetExclusiveGrabReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1912,33 +4900,157 @@ fn destack_input_event_try_read_replay(
                 let result_recorded_sequence = result_value.sequence;
                 let result_recorded_device_id =
                     unsafe { result_value.device_id.as_str()? }.to_string();
-                let result_recorded_action = result_value.action;
-                let result_recorded_code = result_value.code;
-                let result_recorded_scan_code = result_value.scan_code;
-                let result_recorded_value = result_value.value;
-                let result_recorded_x = result_value.x;
-                let result_recorded_y = result_value.y;
-                let result_recorded_wheel_x = result_value.wheel_x;
-                let result_recorded_wheel_y = result_value.wheel_y;
-                let result_recorded_modifiers = result_value.modifiers;
-                let result_recorded_repeat = result_value.repeat;
-                let result_recorded_text = unsafe { result_value.text.as_str()? }.to_string();
+                let result_recorded_payload_key_action = result_value.payload.key.action;
+                let result_recorded_payload_key_backend_code =
+                    result_value.payload.key.backend_code;
+                let result_recorded_payload_key_backend_scan_code =
+                    result_value.payload.key.backend_scan_code;
+                let result_recorded_payload_key_backend_value =
+                    result_value.payload.key.backend_value;
+                let result_recorded_payload_key_modifiers = result_value.payload.key.modifiers;
+                let result_recorded_payload_key_repeat = result_value.payload.key.repeat;
+                let result_recorded_payload_key = InputKeyEventPayload {
+                    action: result_recorded_payload_key_action,
+                    backend_code: result_recorded_payload_key_backend_code,
+                    backend_scan_code: result_recorded_payload_key_backend_scan_code,
+                    backend_value: result_recorded_payload_key_backend_value,
+                    modifiers: result_recorded_payload_key_modifiers,
+                    repeat: result_recorded_payload_key_repeat,
+                };
+                let result_recorded_payload_pointer_motion_x =
+                    result_value.payload.pointer_motion.x;
+                let result_recorded_payload_pointer_motion_y =
+                    result_value.payload.pointer_motion.y;
+                let result_recorded_payload_pointer_motion_buttons =
+                    result_value.payload.pointer_motion.buttons;
+                let result_recorded_payload_pointer_motion_modifiers =
+                    result_value.payload.pointer_motion.modifiers;
+                let result_recorded_payload_pointer_motion = InputPointerMotionEventPayload {
+                    x: result_recorded_payload_pointer_motion_x,
+                    y: result_recorded_payload_pointer_motion_y,
+                    buttons: result_recorded_payload_pointer_motion_buttons,
+                    modifiers: result_recorded_payload_pointer_motion_modifiers,
+                };
+                let result_recorded_payload_pointer_button_action =
+                    result_value.payload.pointer_button.action;
+                let result_recorded_payload_pointer_button_backend_code =
+                    result_value.payload.pointer_button.backend_code;
+                let result_recorded_payload_pointer_button_backend_value =
+                    result_value.payload.pointer_button.backend_value;
+                let result_recorded_payload_pointer_button_x =
+                    result_value.payload.pointer_button.x;
+                let result_recorded_payload_pointer_button_y =
+                    result_value.payload.pointer_button.y;
+                let result_recorded_payload_pointer_button_modifiers =
+                    result_value.payload.pointer_button.modifiers;
+                let result_recorded_payload_pointer_button = InputPointerButtonEventPayload {
+                    action: result_recorded_payload_pointer_button_action,
+                    backend_code: result_recorded_payload_pointer_button_backend_code,
+                    backend_value: result_recorded_payload_pointer_button_backend_value,
+                    x: result_recorded_payload_pointer_button_x,
+                    y: result_recorded_payload_pointer_button_y,
+                    modifiers: result_recorded_payload_pointer_button_modifiers,
+                };
+                let result_recorded_payload_scroll_wheel_x = result_value.payload.scroll.wheel_x;
+                let result_recorded_payload_scroll_wheel_y = result_value.payload.scroll.wheel_y;
+                let result_recorded_payload_scroll_x = result_value.payload.scroll.x;
+                let result_recorded_payload_scroll_y = result_value.payload.scroll.y;
+                let result_recorded_payload_scroll_modifiers =
+                    result_value.payload.scroll.modifiers;
+                let result_recorded_payload_scroll = InputScrollEventPayload {
+                    wheel_x: result_recorded_payload_scroll_wheel_x,
+                    wheel_y: result_recorded_payload_scroll_wheel_y,
+                    x: result_recorded_payload_scroll_x,
+                    y: result_recorded_payload_scroll_y,
+                    modifiers: result_recorded_payload_scroll_modifiers,
+                };
+                let result_recorded_payload_touch_action = result_value.payload.touch.action;
+                let result_recorded_payload_touch_contact_id =
+                    result_value.payload.touch.contact_id;
+                let result_recorded_payload_touch_x = result_value.payload.touch.x;
+                let result_recorded_payload_touch_y = result_value.payload.touch.y;
+                let result_recorded_payload_touch_pressure = result_value.payload.touch.pressure;
+                let result_recorded_payload_touch = InputTouchEventPayload {
+                    action: result_recorded_payload_touch_action,
+                    contact_id: result_recorded_payload_touch_contact_id,
+                    x: result_recorded_payload_touch_x,
+                    y: result_recorded_payload_touch_y,
+                    pressure: result_recorded_payload_touch_pressure,
+                };
+                let result_recorded_payload_gamepad_action = result_value.payload.gamepad.action;
+                let result_recorded_payload_gamepad_backend_code =
+                    result_value.payload.gamepad.backend_code;
+                let result_recorded_payload_gamepad_backend_value =
+                    result_value.payload.gamepad.backend_value;
+                let result_recorded_payload_gamepad = InputGamepadEventPayload {
+                    action: result_recorded_payload_gamepad_action,
+                    backend_code: result_recorded_payload_gamepad_backend_code,
+                    backend_value: result_recorded_payload_gamepad_backend_value,
+                };
+                let result_recorded_payload_text_text =
+                    unsafe { result_value.payload.text.text.as_str()? }.to_string();
+                let result_recorded_payload_text = InputTextEventPayloadReplayRecord {
+                    text: result_recorded_payload_text_text,
+                };
+                let result_recorded_payload_device_action = result_value.payload.device.action;
+                let result_recorded_payload_device_backend_code =
+                    result_value.payload.device.backend_code;
+                let result_recorded_payload_device_backend_value =
+                    result_value.payload.device.backend_value;
+                let result_recorded_payload_device = InputDeviceEventPayload {
+                    action: result_recorded_payload_device_action,
+                    backend_code: result_recorded_payload_device_backend_code,
+                    backend_value: result_recorded_payload_device_backend_value,
+                };
+                let result_recorded_payload_sensor_action = result_value.payload.sensor.action;
+                let result_recorded_payload_sensor_backend_code =
+                    result_value.payload.sensor.backend_code;
+                let result_recorded_payload_sensor_backend_value =
+                    result_value.payload.sensor.backend_value;
+                let result_recorded_payload_sensor_x = result_value.payload.sensor.x;
+                let result_recorded_payload_sensor_y = result_value.payload.sensor.y;
+                let result_recorded_payload_sensor_z = result_value.payload.sensor.z;
+                let result_recorded_payload_sensor = InputSensorEventPayload {
+                    action: result_recorded_payload_sensor_action,
+                    backend_code: result_recorded_payload_sensor_backend_code,
+                    backend_value: result_recorded_payload_sensor_backend_value,
+                    x: result_recorded_payload_sensor_x,
+                    y: result_recorded_payload_sensor_y,
+                    z: result_recorded_payload_sensor_z,
+                };
+                let result_recorded_payload_composition_action =
+                    result_value.payload.composition.action;
+                let result_recorded_payload_composition_text =
+                    unsafe { result_value.payload.composition.text.as_str()? }.to_string();
+                let result_recorded_payload_composition_selection_start =
+                    result_value.payload.composition.selection_start;
+                let result_recorded_payload_composition_selection_end =
+                    result_value.payload.composition.selection_end;
+                let result_recorded_payload_composition =
+                    InputCompositionEventPayloadReplayRecord {
+                        action: result_recorded_payload_composition_action,
+                        text: result_recorded_payload_composition_text,
+                        selection_start: result_recorded_payload_composition_selection_start,
+                        selection_end: result_recorded_payload_composition_selection_end,
+                    };
+                let result_recorded_payload = InputEventPayloadReplayRecord {
+                    key: result_recorded_payload_key,
+                    pointer_motion: result_recorded_payload_pointer_motion,
+                    pointer_button: result_recorded_payload_pointer_button,
+                    scroll: result_recorded_payload_scroll,
+                    touch: result_recorded_payload_touch,
+                    gamepad: result_recorded_payload_gamepad,
+                    text: result_recorded_payload_text,
+                    device: result_recorded_payload_device,
+                    sensor: result_recorded_payload_sensor,
+                    composition: result_recorded_payload_composition,
+                };
                 let result_recorded = InputEventReplayRecord {
                     kind: result_recorded_kind,
                     timestamp_ns: result_recorded_timestamp_ns,
                     sequence: result_recorded_sequence,
                     device_id: result_recorded_device_id,
-                    action: result_recorded_action,
-                    code: result_recorded_code,
-                    scan_code: result_recorded_scan_code,
-                    value: result_recorded_value,
-                    x: result_recorded_x,
-                    y: result_recorded_y,
-                    wheel_x: result_recorded_wheel_x,
-                    wheel_y: result_recorded_wheel_y,
-                    modifiers: result_recorded_modifiers,
-                    repeat: result_recorded_repeat,
-                    text: result_recorded_text,
+                    payload: result_recorded_payload,
                 };
                 let payload = InputEventTryReadReplay {
                     result: Ok(result_recorded),
@@ -1964,33 +5076,2580 @@ fn destack_input_event_try_read_replay(
                     let value_native_timestamp_ns = value.timestamp_ns;
                     let value_native_sequence = value.sequence;
                     let value_native_device_id = context.store_string(&value.device_id);
-                    let value_native_action = value.action;
-                    let value_native_code = value.code;
-                    let value_native_scan_code = value.scan_code;
-                    let value_native_value = value.value;
-                    let value_native_x = value.x;
-                    let value_native_y = value.y;
-                    let value_native_wheel_x = value.wheel_x;
-                    let value_native_wheel_y = value.wheel_y;
-                    let value_native_modifiers = value.modifiers;
-                    let value_native_repeat = value.repeat;
-                    let value_native_text = context.store_string(&value.text);
+                    let value_native_payload_key_action = value.payload.key.action;
+                    let value_native_payload_key_backend_code = value.payload.key.backend_code;
+                    let value_native_payload_key_backend_scan_code =
+                        value.payload.key.backend_scan_code;
+                    let value_native_payload_key_backend_value = value.payload.key.backend_value;
+                    let value_native_payload_key_modifiers = value.payload.key.modifiers;
+                    let value_native_payload_key_repeat = value.payload.key.repeat;
+                    let value_native_payload_key = InputKeyEventPayload {
+                        action: value_native_payload_key_action,
+                        backend_code: value_native_payload_key_backend_code,
+                        backend_scan_code: value_native_payload_key_backend_scan_code,
+                        backend_value: value_native_payload_key_backend_value,
+                        modifiers: value_native_payload_key_modifiers,
+                        repeat: value_native_payload_key_repeat,
+                    };
+                    let value_native_payload_pointer_motion_x = value.payload.pointer_motion.x;
+                    let value_native_payload_pointer_motion_y = value.payload.pointer_motion.y;
+                    let value_native_payload_pointer_motion_buttons =
+                        value.payload.pointer_motion.buttons;
+                    let value_native_payload_pointer_motion_modifiers =
+                        value.payload.pointer_motion.modifiers;
+                    let value_native_payload_pointer_motion = InputPointerMotionEventPayload {
+                        x: value_native_payload_pointer_motion_x,
+                        y: value_native_payload_pointer_motion_y,
+                        buttons: value_native_payload_pointer_motion_buttons,
+                        modifiers: value_native_payload_pointer_motion_modifiers,
+                    };
+                    let value_native_payload_pointer_button_action =
+                        value.payload.pointer_button.action;
+                    let value_native_payload_pointer_button_backend_code =
+                        value.payload.pointer_button.backend_code;
+                    let value_native_payload_pointer_button_backend_value =
+                        value.payload.pointer_button.backend_value;
+                    let value_native_payload_pointer_button_x = value.payload.pointer_button.x;
+                    let value_native_payload_pointer_button_y = value.payload.pointer_button.y;
+                    let value_native_payload_pointer_button_modifiers =
+                        value.payload.pointer_button.modifiers;
+                    let value_native_payload_pointer_button = InputPointerButtonEventPayload {
+                        action: value_native_payload_pointer_button_action,
+                        backend_code: value_native_payload_pointer_button_backend_code,
+                        backend_value: value_native_payload_pointer_button_backend_value,
+                        x: value_native_payload_pointer_button_x,
+                        y: value_native_payload_pointer_button_y,
+                        modifiers: value_native_payload_pointer_button_modifiers,
+                    };
+                    let value_native_payload_scroll_wheel_x = value.payload.scroll.wheel_x;
+                    let value_native_payload_scroll_wheel_y = value.payload.scroll.wheel_y;
+                    let value_native_payload_scroll_x = value.payload.scroll.x;
+                    let value_native_payload_scroll_y = value.payload.scroll.y;
+                    let value_native_payload_scroll_modifiers = value.payload.scroll.modifiers;
+                    let value_native_payload_scroll = InputScrollEventPayload {
+                        wheel_x: value_native_payload_scroll_wheel_x,
+                        wheel_y: value_native_payload_scroll_wheel_y,
+                        x: value_native_payload_scroll_x,
+                        y: value_native_payload_scroll_y,
+                        modifiers: value_native_payload_scroll_modifiers,
+                    };
+                    let value_native_payload_touch_action = value.payload.touch.action;
+                    let value_native_payload_touch_contact_id = value.payload.touch.contact_id;
+                    let value_native_payload_touch_x = value.payload.touch.x;
+                    let value_native_payload_touch_y = value.payload.touch.y;
+                    let value_native_payload_touch_pressure = value.payload.touch.pressure;
+                    let value_native_payload_touch = InputTouchEventPayload {
+                        action: value_native_payload_touch_action,
+                        contact_id: value_native_payload_touch_contact_id,
+                        x: value_native_payload_touch_x,
+                        y: value_native_payload_touch_y,
+                        pressure: value_native_payload_touch_pressure,
+                    };
+                    let value_native_payload_gamepad_action = value.payload.gamepad.action;
+                    let value_native_payload_gamepad_backend_code =
+                        value.payload.gamepad.backend_code;
+                    let value_native_payload_gamepad_backend_value =
+                        value.payload.gamepad.backend_value;
+                    let value_native_payload_gamepad = InputGamepadEventPayload {
+                        action: value_native_payload_gamepad_action,
+                        backend_code: value_native_payload_gamepad_backend_code,
+                        backend_value: value_native_payload_gamepad_backend_value,
+                    };
+                    let value_native_payload_text_text =
+                        context.store_string(&value.payload.text.text);
+                    let value_native_payload_text = InputTextEventPayload {
+                        text: value_native_payload_text_text,
+                    };
+                    let value_native_payload_device_action = value.payload.device.action;
+                    let value_native_payload_device_backend_code =
+                        value.payload.device.backend_code;
+                    let value_native_payload_device_backend_value =
+                        value.payload.device.backend_value;
+                    let value_native_payload_device = InputDeviceEventPayload {
+                        action: value_native_payload_device_action,
+                        backend_code: value_native_payload_device_backend_code,
+                        backend_value: value_native_payload_device_backend_value,
+                    };
+                    let value_native_payload_sensor_action = value.payload.sensor.action;
+                    let value_native_payload_sensor_backend_code =
+                        value.payload.sensor.backend_code;
+                    let value_native_payload_sensor_backend_value =
+                        value.payload.sensor.backend_value;
+                    let value_native_payload_sensor_x = value.payload.sensor.x;
+                    let value_native_payload_sensor_y = value.payload.sensor.y;
+                    let value_native_payload_sensor_z = value.payload.sensor.z;
+                    let value_native_payload_sensor = InputSensorEventPayload {
+                        action: value_native_payload_sensor_action,
+                        backend_code: value_native_payload_sensor_backend_code,
+                        backend_value: value_native_payload_sensor_backend_value,
+                        x: value_native_payload_sensor_x,
+                        y: value_native_payload_sensor_y,
+                        z: value_native_payload_sensor_z,
+                    };
+                    let value_native_payload_composition_action = value.payload.composition.action;
+                    let value_native_payload_composition_text =
+                        context.store_string(&value.payload.composition.text);
+                    let value_native_payload_composition_selection_start =
+                        value.payload.composition.selection_start;
+                    let value_native_payload_composition_selection_end =
+                        value.payload.composition.selection_end;
+                    let value_native_payload_composition = InputCompositionEventPayload {
+                        action: value_native_payload_composition_action,
+                        text: value_native_payload_composition_text,
+                        selection_start: value_native_payload_composition_selection_start,
+                        selection_end: value_native_payload_composition_selection_end,
+                    };
+                    let value_native_payload = InputEventPayload {
+                        key: value_native_payload_key,
+                        pointer_motion: value_native_payload_pointer_motion,
+                        pointer_button: value_native_payload_pointer_button,
+                        scroll: value_native_payload_scroll,
+                        touch: value_native_payload_touch,
+                        gamepad: value_native_payload_gamepad,
+                        text: value_native_payload_text,
+                        device: value_native_payload_device,
+                        sensor: value_native_payload_sensor,
+                        composition: value_native_payload_composition,
+                    };
                     let value_native = InputEvent {
                         kind: value_native_kind,
                         timestamp_ns: value_native_timestamp_ns,
                         sequence: value_native_sequence,
                         device_id: value_native_device_id,
-                        action: value_native_action,
-                        code: value_native_code,
-                        scan_code: value_native_scan_code,
-                        value: value_native_value,
+                        payload: value_native_payload,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_gamepad_set_light_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    red: u8,
+    green: u8,
+    blue: u8,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &red, &green, &blue);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_GAMEPAD_SET_LIGHT,
+        context.replay_payload_for(INPUT_GAMEPAD_SET_LIGHT)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_gamepad_set_light(context, handle, red, green, blue)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_gamepad_set_light(
+                    context, handle, red, green, blue,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = InputGamepadSetLightReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputGamepadSetLightReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_gamepad_set_player_index_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    playerindex: u8,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &playerindex);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_GAMEPAD_SET_PLAYER_INDEX,
+        context.replay_payload_for(INPUT_GAMEPAD_SET_PLAYER_INDEX)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_gamepad_set_player_index(
+                    context,
+                    handle,
+                    playerindex,
+                )
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_gamepad_set_player_index(
+                    context,
+                    handle,
+                    playerindex,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = InputGamepadSetPlayerIndexReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputGamepadSetPlayerIndexReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_gamepad_state_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut InputGamepadState,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_GAMEPAD_STATE,
+        context.replay_payload_for(INPUT_GAMEPAD_STATE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_gamepad_state(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_gamepad_state(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_connected = result_value.connected;
+                let result_recorded_mapping = result_value.mapping;
+                let result_recorded_connection_type = result_value.connection_type;
+                let result_recorded_player_index = result_value.player_index;
+                let result_recorded_battery_state = result_value.battery.state;
+                let result_recorded_battery_level = result_value.battery.level;
+                let result_recorded_battery = InputGamepadBatteryInfo {
+                    state: result_recorded_battery_state,
+                    level: result_recorded_battery_level,
+                };
+                let result_recorded_supports_rumble = result_value.supports_rumble;
+                let result_recorded_supports_trigger_rumble = result_value.supports_trigger_rumble;
+                let result_recorded_axes_raw = unsafe { result_value.axes.as_slice()? };
+                let mut result_recorded_axes = Vec::with_capacity(result_recorded_axes_raw.len());
+                for result_recorded_axes_item_value in result_recorded_axes_raw {
+                    let result_recorded_axes_item = *result_recorded_axes_item_value;
+                    let result_recorded_axes_item_recorded = result_recorded_axes_item;
+                    result_recorded_axes.push(result_recorded_axes_item_recorded);
+                }
+                let result_recorded_buttons_raw = unsafe { result_value.buttons.as_slice()? };
+                let mut result_recorded_buttons =
+                    Vec::with_capacity(result_recorded_buttons_raw.len());
+                for result_recorded_buttons_item_value in result_recorded_buttons_raw {
+                    let result_recorded_buttons_item = *result_recorded_buttons_item_value;
+                    let result_recorded_buttons_item_recorded_pressed =
+                        result_recorded_buttons_item.pressed;
+                    let result_recorded_buttons_item_recorded_touched =
+                        result_recorded_buttons_item.touched;
+                    let result_recorded_buttons_item_recorded_value =
+                        result_recorded_buttons_item.value;
+                    let result_recorded_buttons_item_recorded = InputGamepadButtonState {
+                        pressed: result_recorded_buttons_item_recorded_pressed,
+                        touched: result_recorded_buttons_item_recorded_touched,
+                        value: result_recorded_buttons_item_recorded_value,
+                    };
+                    result_recorded_buttons.push(result_recorded_buttons_item_recorded);
+                }
+                let result_recorded_touches_raw = unsafe { result_value.touches.as_slice()? };
+                let mut result_recorded_touches =
+                    Vec::with_capacity(result_recorded_touches_raw.len());
+                for result_recorded_touches_item_value in result_recorded_touches_raw {
+                    let result_recorded_touches_item = *result_recorded_touches_item_value;
+                    let result_recorded_touches_item_recorded_touch_id =
+                        result_recorded_touches_item.touch_id;
+                    let result_recorded_touches_item_recorded_surface_id =
+                        result_recorded_touches_item.surface_id;
+                    let result_recorded_touches_item_recorded_x = result_recorded_touches_item.x;
+                    let result_recorded_touches_item_recorded_y = result_recorded_touches_item.y;
+                    let result_recorded_touches_item_recorded_pressure =
+                        result_recorded_touches_item.pressure;
+                    let result_recorded_touches_item_recorded = InputGamepadTouchState {
+                        touch_id: result_recorded_touches_item_recorded_touch_id,
+                        surface_id: result_recorded_touches_item_recorded_surface_id,
+                        x: result_recorded_touches_item_recorded_x,
+                        y: result_recorded_touches_item_recorded_y,
+                        pressure: result_recorded_touches_item_recorded_pressure,
+                    };
+                    result_recorded_touches.push(result_recorded_touches_item_recorded);
+                }
+                let result_recorded = InputGamepadStateReplayRecord {
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    connected: result_recorded_connected,
+                    mapping: result_recorded_mapping,
+                    connection_type: result_recorded_connection_type,
+                    player_index: result_recorded_player_index,
+                    battery: result_recorded_battery,
+                    supports_rumble: result_recorded_supports_rumble,
+                    supports_trigger_rumble: result_recorded_supports_trigger_rumble,
+                    axes: result_recorded_axes,
+                    buttons: result_recorded_buttons,
+                    touches: result_recorded_touches,
+                };
+                let payload = InputGamepadStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputGamepadStateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_connected = value.connected;
+                    let value_native_mapping = value.mapping;
+                    let value_native_connection_type = value.connection_type;
+                    let value_native_player_index = value.player_index;
+                    let value_native_battery_state = value.battery.state;
+                    let value_native_battery_level = value.battery.level;
+                    let value_native_battery = InputGamepadBatteryInfo {
+                        state: value_native_battery_state,
+                        level: value_native_battery_level,
+                    };
+                    let value_native_supports_rumble = value.supports_rumble;
+                    let value_native_supports_trigger_rumble = value.supports_trigger_rumble;
+                    let mut value_native_axes_values = Vec::with_capacity(value.axes.len());
+                    for value_native_axes_item in value.axes {
+                        let value_native_axes_item_native = value_native_axes_item;
+                        value_native_axes_values.push(value_native_axes_item_native);
+                    }
+                    let value_native_axes = context.store_array(value_native_axes_values);
+                    let mut value_native_buttons_values = Vec::with_capacity(value.buttons.len());
+                    for value_native_buttons_item in value.buttons {
+                        let value_native_buttons_item_native_pressed =
+                            value_native_buttons_item.pressed;
+                        let value_native_buttons_item_native_touched =
+                            value_native_buttons_item.touched;
+                        let value_native_buttons_item_native_value =
+                            value_native_buttons_item.value;
+                        let value_native_buttons_item_native = InputGamepadButtonState {
+                            pressed: value_native_buttons_item_native_pressed,
+                            touched: value_native_buttons_item_native_touched,
+                            value: value_native_buttons_item_native_value,
+                        };
+                        value_native_buttons_values.push(value_native_buttons_item_native);
+                    }
+                    let value_native_buttons = context.store_array(value_native_buttons_values);
+                    let mut value_native_touches_values = Vec::with_capacity(value.touches.len());
+                    for value_native_touches_item in value.touches {
+                        let value_native_touches_item_native_touch_id =
+                            value_native_touches_item.touch_id;
+                        let value_native_touches_item_native_surface_id =
+                            value_native_touches_item.surface_id;
+                        let value_native_touches_item_native_x = value_native_touches_item.x;
+                        let value_native_touches_item_native_y = value_native_touches_item.y;
+                        let value_native_touches_item_native_pressure =
+                            value_native_touches_item.pressure;
+                        let value_native_touches_item_native = InputGamepadTouchState {
+                            touch_id: value_native_touches_item_native_touch_id,
+                            surface_id: value_native_touches_item_native_surface_id,
+                            x: value_native_touches_item_native_x,
+                            y: value_native_touches_item_native_y,
+                            pressure: value_native_touches_item_native_pressure,
+                        };
+                        value_native_touches_values.push(value_native_touches_item_native);
+                    }
+                    let value_native_touches = context.store_array(value_native_touches_values);
+                    let value_native = InputGamepadState {
+                        timestamp_ns: value_native_timestamp_ns,
+                        connected: value_native_connected,
+                        mapping: value_native_mapping,
+                        connection_type: value_native_connection_type,
+                        player_index: value_native_player_index,
+                        battery: value_native_battery,
+                        supports_rumble: value_native_supports_rumble,
+                        supports_trigger_rumble: value_native_supports_trigger_rumble,
+                        axes: value_native_axes,
+                        buttons: value_native_buttons,
+                        touches: value_native_touches,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_haptics_effects_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeArray<InputHapticEffectType>,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_HAPTICS_EFFECTS,
+        context.replay_payload_for(INPUT_HAPTICS_EFFECTS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_haptics_effects(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_haptics_effects(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = InputHapticsEffectsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputHapticsEffectsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_haptics_play_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut InputHapticsResult,
+    handle: resource::InputDeviceHandle,
+    effect: InputHapticEffectType,
+    params: InputHapticEffectParameters,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &effect, &params);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_HAPTICS_PLAY,
+        context.replay_payload_for(INPUT_HAPTICS_PLAY)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_haptics_play(context, out, handle, effect, params)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_haptics_play(
+                    context, out, handle, effect, params,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = InputHapticsPlayReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputHapticsPlayReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_haptics_stop_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_HAPTICS_STOP,
+        context.replay_payload_for(INPUT_HAPTICS_STOP)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_haptics_stop(context, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_haptics_stop(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = InputHapticsStopReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputHapticsStopReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_keyboard_state_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut InputKeyboardState,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_KEYBOARD_STATE,
+        context.replay_payload_for(INPUT_KEYBOARD_STATE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_keyboard_state(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_keyboard_state(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_device_id =
+                    unsafe { result_value.device_id.as_str()? }.to_string();
+                let result_recorded_modifiers = result_value.modifiers;
+                let result_recorded_pressed_codes_raw =
+                    unsafe { result_value.pressed_codes.as_slice()? };
+                let mut result_recorded_pressed_codes =
+                    Vec::with_capacity(result_recorded_pressed_codes_raw.len());
+                for result_recorded_pressed_codes_item_value in result_recorded_pressed_codes_raw {
+                    let result_recorded_pressed_codes_item =
+                        *result_recorded_pressed_codes_item_value;
+                    let result_recorded_pressed_codes_item_recorded =
+                        result_recorded_pressed_codes_item;
+                    result_recorded_pressed_codes.push(result_recorded_pressed_codes_item_recorded);
+                }
+                let result_recorded_pressed_scan_codes_raw =
+                    unsafe { result_value.pressed_scan_codes.as_slice()? };
+                let mut result_recorded_pressed_scan_codes =
+                    Vec::with_capacity(result_recorded_pressed_scan_codes_raw.len());
+                for result_recorded_pressed_scan_codes_item_value in
+                    result_recorded_pressed_scan_codes_raw
+                {
+                    let result_recorded_pressed_scan_codes_item =
+                        *result_recorded_pressed_scan_codes_item_value;
+                    let result_recorded_pressed_scan_codes_item_recorded =
+                        result_recorded_pressed_scan_codes_item;
+                    result_recorded_pressed_scan_codes
+                        .push(result_recorded_pressed_scan_codes_item_recorded);
+                }
+                let result_recorded = InputKeyboardStateReplayRecord {
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    device_id: result_recorded_device_id,
+                    modifiers: result_recorded_modifiers,
+                    pressed_codes: result_recorded_pressed_codes,
+                    pressed_scan_codes: result_recorded_pressed_scan_codes,
+                };
+                let payload = InputKeyboardStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputKeyboardStateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_device_id = context.store_string(&value.device_id);
+                    let value_native_modifiers = value.modifiers;
+                    let mut value_native_pressed_codes_values =
+                        Vec::with_capacity(value.pressed_codes.len());
+                    for value_native_pressed_codes_item in value.pressed_codes {
+                        let value_native_pressed_codes_item_native =
+                            value_native_pressed_codes_item;
+                        value_native_pressed_codes_values
+                            .push(value_native_pressed_codes_item_native);
+                    }
+                    let value_native_pressed_codes =
+                        context.store_array(value_native_pressed_codes_values);
+                    let mut value_native_pressed_scan_codes_values =
+                        Vec::with_capacity(value.pressed_scan_codes.len());
+                    for value_native_pressed_scan_codes_item in value.pressed_scan_codes {
+                        let value_native_pressed_scan_codes_item_native =
+                            value_native_pressed_scan_codes_item;
+                        value_native_pressed_scan_codes_values
+                            .push(value_native_pressed_scan_codes_item_native);
+                    }
+                    let value_native_pressed_scan_codes =
+                        context.store_array(value_native_pressed_scan_codes_values);
+                    let value_native = InputKeyboardState {
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        device_id: value_native_device_id,
+                        modifiers: value_native_modifiers,
+                        pressed_codes: value_native_pressed_codes,
+                        pressed_scan_codes: value_native_pressed_scan_codes,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_pointer_capture_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &target, &enabled);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_POINTER_CAPTURE,
+        context.replay_payload_for(INPUT_POINTER_CAPTURE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_pointer_capture(context, handle, target, enabled)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_pointer_capture(
+                    context, handle, target, enabled,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = InputPointerCaptureReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputPointerCaptureReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_pointer_relative_state_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut InputPointerState,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_POINTER_RELATIVE_STATE,
+        context.replay_payload_for(INPUT_POINTER_RELATIVE_STATE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_pointer_relative_state(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_pointer_relative_state(
+                    context, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_x = result_value.x;
+                let result_recorded_y = result_value.y;
+                let result_recorded_buttons = result_value.buttons;
+                let result_recorded_modifiers = result_value.modifiers;
+                let result_recorded_has_pen_data = result_value.has_pen_data;
+                let result_recorded_pressure = result_value.pressure;
+                let result_recorded_tangential_pressure = result_value.tangential_pressure;
+                let result_recorded_tilt_x = result_value.tilt_x;
+                let result_recorded_tilt_y = result_value.tilt_y;
+                let result_recorded_twist = result_value.twist;
+                let result_recorded_in_contact = result_value.in_contact;
+                let result_recorded_in_range = result_value.in_range;
+                let result_recorded = InputPointerState {
+                    x: result_recorded_x,
+                    y: result_recorded_y,
+                    buttons: result_recorded_buttons,
+                    modifiers: result_recorded_modifiers,
+                    has_pen_data: result_recorded_has_pen_data,
+                    pressure: result_recorded_pressure,
+                    tangential_pressure: result_recorded_tangential_pressure,
+                    tilt_x: result_recorded_tilt_x,
+                    tilt_y: result_recorded_tilt_y,
+                    twist: result_recorded_twist,
+                    in_contact: result_recorded_in_contact,
+                    in_range: result_recorded_in_range,
+                };
+                let payload = InputPointerRelativeStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputPointerRelativeStateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_x = value.x;
+                    let value_native_y = value.y;
+                    let value_native_buttons = value.buttons;
+                    let value_native_modifiers = value.modifiers;
+                    let value_native_has_pen_data = value.has_pen_data;
+                    let value_native_pressure = value.pressure;
+                    let value_native_tangential_pressure = value.tangential_pressure;
+                    let value_native_tilt_x = value.tilt_x;
+                    let value_native_tilt_y = value.tilt_y;
+                    let value_native_twist = value.twist;
+                    let value_native_in_contact = value.in_contact;
+                    let value_native_in_range = value.in_range;
+                    let value_native = InputPointerState {
                         x: value_native_x,
                         y: value_native_y,
-                        wheel_x: value_native_wheel_x,
-                        wheel_y: value_native_wheel_y,
+                        buttons: value_native_buttons,
                         modifiers: value_native_modifiers,
-                        repeat: value_native_repeat,
+                        has_pen_data: value_native_has_pen_data,
+                        pressure: value_native_pressure,
+                        tangential_pressure: value_native_tangential_pressure,
+                        tilt_x: value_native_tilt_x,
+                        tilt_y: value_native_tilt_y,
+                        twist: value_native_twist,
+                        in_contact: value_native_in_contact,
+                        in_range: value_native_in_range,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_pointer_set_grab_mode_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+    mode: InputPointerGrabMode,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &target, &mode);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_POINTER_SET_GRAB_MODE,
+        context.replay_payload_for(INPUT_POINTER_SET_GRAB_MODE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_pointer_set_grab_mode(context, handle, target, mode)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_pointer_set_grab_mode(
+                    context, handle, target, mode,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = InputPointerSetGrabModeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputPointerSetGrabModeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_pointer_set_relative_mode_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &enabled);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_POINTER_SET_RELATIVE_MODE,
+        context.replay_payload_for(INPUT_POINTER_SET_RELATIVE_MODE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_pointer_set_relative_mode(context, handle, enabled)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_pointer_set_relative_mode(
+                    context, handle, enabled,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = InputPointerSetRelativeModeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputPointerSetRelativeModeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_pointer_state_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut InputPointerState,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_POINTER_STATE,
+        context.replay_payload_for(INPUT_POINTER_STATE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_pointer_state(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_pointer_state(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_x = result_value.x;
+                let result_recorded_y = result_value.y;
+                let result_recorded_buttons = result_value.buttons;
+                let result_recorded_modifiers = result_value.modifiers;
+                let result_recorded_has_pen_data = result_value.has_pen_data;
+                let result_recorded_pressure = result_value.pressure;
+                let result_recorded_tangential_pressure = result_value.tangential_pressure;
+                let result_recorded_tilt_x = result_value.tilt_x;
+                let result_recorded_tilt_y = result_value.tilt_y;
+                let result_recorded_twist = result_value.twist;
+                let result_recorded_in_contact = result_value.in_contact;
+                let result_recorded_in_range = result_value.in_range;
+                let result_recorded = InputPointerState {
+                    x: result_recorded_x,
+                    y: result_recorded_y,
+                    buttons: result_recorded_buttons,
+                    modifiers: result_recorded_modifiers,
+                    has_pen_data: result_recorded_has_pen_data,
+                    pressure: result_recorded_pressure,
+                    tangential_pressure: result_recorded_tangential_pressure,
+                    tilt_x: result_recorded_tilt_x,
+                    tilt_y: result_recorded_tilt_y,
+                    twist: result_recorded_twist,
+                    in_contact: result_recorded_in_contact,
+                    in_range: result_recorded_in_range,
+                };
+                let payload = InputPointerStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputPointerStateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_x = value.x;
+                    let value_native_y = value.y;
+                    let value_native_buttons = value.buttons;
+                    let value_native_modifiers = value.modifiers;
+                    let value_native_has_pen_data = value.has_pen_data;
+                    let value_native_pressure = value.pressure;
+                    let value_native_tangential_pressure = value.tangential_pressure;
+                    let value_native_tilt_x = value.tilt_x;
+                    let value_native_tilt_y = value.tilt_y;
+                    let value_native_twist = value.twist;
+                    let value_native_in_contact = value.in_contact;
+                    let value_native_in_range = value.in_range;
+                    let value_native = InputPointerState {
+                        x: value_native_x,
+                        y: value_native_y,
+                        buttons: value_native_buttons,
+                        modifiers: value_native_modifiers,
+                        has_pen_data: value_native_has_pen_data,
+                        pressure: value_native_pressure,
+                        tangential_pressure: value_native_tangential_pressure,
+                        tilt_x: value_native_tilt_x,
+                        tilt_y: value_native_tilt_y,
+                        twist: value_native_twist,
+                        in_contact: value_native_in_contact,
+                        in_range: value_native_in_range,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_pointer_warp_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+    x: f64,
+    y: f64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &target, &x, &y);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_POINTER_WARP,
+        context.replay_payload_for(INPUT_POINTER_WARP)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_pointer_warp(context, handle, target, x, y)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_pointer_warp(context, handle, target, x, y)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = InputPointerWarpReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputPointerWarpReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_rawhid_get_feature_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<u8>,
+    handle: resource::InputDeviceHandle,
+    reportid: u8,
+    maxbytes: u32,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &reportid, &maxbytes);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_RAWHID_GET_FEATURE,
+        context.replay_payload_for(INPUT_RAWHID_GET_FEATURE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_raw_hid_get_feature(
+                    context, out, handle, reportid, maxbytes,
+                )
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_raw_hid_get_feature(
+                    context, out, handle, reportid, maxbytes,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = InputRawhidGetFeatureReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputRawhidGetFeatureReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_rawhid_read_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut InputRawHidReport,
+    handle: resource::InputDeviceHandle,
+    maxbytes: u32,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &maxbytes, &timeoutns);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_RAWHID_READ,
+        context.replay_payload_for(INPUT_RAWHID_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_raw_hid_read(
+                    context, out, handle, maxbytes, timeoutns,
+                )
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_raw_hid_read(
+                    context, out, handle, maxbytes, timeoutns,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_report_id = result_value.report_id;
+                let result_recorded_data_raw = unsafe { result_value.data.as_slice()? };
+                let mut result_recorded_data = Vec::with_capacity(result_recorded_data_raw.len());
+                for result_recorded_data_item_value in result_recorded_data_raw {
+                    let result_recorded_data_item = *result_recorded_data_item_value;
+                    let result_recorded_data_item_recorded = result_recorded_data_item;
+                    result_recorded_data.push(result_recorded_data_item_recorded);
+                }
+                let result_recorded = InputRawHidReportReplayRecord {
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    report_id: result_recorded_report_id,
+                    data: result_recorded_data,
+                };
+                let payload = InputRawhidReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputRawhidReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_report_id = value.report_id;
+                    let mut value_native_data_values = Vec::with_capacity(value.data.len());
+                    for value_native_data_item in value.data {
+                        let value_native_data_item_native = value_native_data_item;
+                        value_native_data_values.push(value_native_data_item_native);
+                    }
+                    let value_native_data = context.store_slice(value_native_data_values);
+                    let value_native = InputRawHidReport {
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        report_id: value_native_report_id,
+                        data: value_native_data,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_rawhid_set_feature_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    reportid: u8,
+    data: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &reportid, &data);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_RAWHID_SET_FEATURE,
+        context.replay_payload_for(INPUT_RAWHID_SET_FEATURE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_raw_hid_set_feature(context, handle, reportid, data)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_raw_hid_set_feature(
+                    context, handle, reportid, data,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = InputRawhidSetFeatureReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputRawhidSetFeatureReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_rawhid_try_read_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut InputRawHidReport,
+    handle: resource::InputDeviceHandle,
+    maxbytes: u32,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &maxbytes);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_RAWHID_TRY_READ,
+        context.replay_payload_for(INPUT_RAWHID_TRY_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_raw_hid_try_read(context, out, handle, maxbytes)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_raw_hid_try_read(
+                    context, out, handle, maxbytes,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_report_id = result_value.report_id;
+                let result_recorded_data_raw = unsafe { result_value.data.as_slice()? };
+                let mut result_recorded_data = Vec::with_capacity(result_recorded_data_raw.len());
+                for result_recorded_data_item_value in result_recorded_data_raw {
+                    let result_recorded_data_item = *result_recorded_data_item_value;
+                    let result_recorded_data_item_recorded = result_recorded_data_item;
+                    result_recorded_data.push(result_recorded_data_item_recorded);
+                }
+                let result_recorded = InputRawHidReportReplayRecord {
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    report_id: result_recorded_report_id,
+                    data: result_recorded_data,
+                };
+                let payload = InputRawhidTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputRawhidTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_report_id = value.report_id;
+                    let mut value_native_data_values = Vec::with_capacity(value.data.len());
+                    for value_native_data_item in value.data {
+                        let value_native_data_item_native = value_native_data_item;
+                        value_native_data_values.push(value_native_data_item_native);
+                    }
+                    let value_native_data = context.store_slice(value_native_data_values);
+                    let value_native = InputRawHidReport {
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        report_id: value_native_report_id,
+                        data: value_native_data,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_rawhid_write_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut u32,
+    handle: resource::InputDeviceHandle,
+    reportid: u8,
+    data: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &reportid, &data);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_RAWHID_WRITE,
+        context.replay_payload_for(INPUT_RAWHID_WRITE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_raw_hid_write(context, out, handle, reportid, data)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_raw_hid_write(
+                    context, out, handle, reportid, data,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = InputRawhidWriteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputRawhidWriteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_sensor_configure_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut InputSensorEffectiveConfig,
+    handle: resource::InputDeviceHandle,
+    kind: InputSensorKind,
+    config: InputSensorConfig,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &kind, &config);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_SENSOR_CONFIGURE,
+        context.replay_payload_for(INPUT_SENSOR_CONFIGURE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_sensor_configure(context, out, handle, kind, config)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_sensor_configure(
+                    context, out, handle, kind, config,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_enabled = result_value.enabled;
+                let result_recorded_sample_rate_hz = result_value.sample_rate_hz;
+                let result_recorded_batch_latency_ms = result_value.batch_latency_ms;
+                let result_recorded_flags = result_value.flags;
+                let result_recorded = InputSensorEffectiveConfig {
+                    enabled: result_recorded_enabled,
+                    sample_rate_hz: result_recorded_sample_rate_hz,
+                    batch_latency_ms: result_recorded_batch_latency_ms,
+                    flags: result_recorded_flags,
+                };
+                let payload = InputSensorConfigureReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputSensorConfigureReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_enabled = value.enabled;
+                    let value_native_sample_rate_hz = value.sample_rate_hz;
+                    let value_native_batch_latency_ms = value.batch_latency_ms;
+                    let value_native_flags = value.flags;
+                    let value_native = InputSensorEffectiveConfig {
+                        enabled: value_native_enabled,
+                        sample_rate_hz: value_native_sample_rate_hz,
+                        batch_latency_ms: value_native_batch_latency_ms,
+                        flags: value_native_flags,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_sensor_list_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeArray<InputSensorInfo>,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_SENSOR_LIST,
+        context.replay_payload_for(INPUT_SENSOR_LIST)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_sensor_list(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_sensor_list(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded_min_sample_rate_hz =
+                        result_recorded_item.min_sample_rate_hz;
+                    let result_recorded_item_recorded_max_sample_rate_hz =
+                        result_recorded_item.max_sample_rate_hz;
+                    let result_recorded_item_recorded_resolution = result_recorded_item.resolution;
+                    let result_recorded_item_recorded_supports_wake =
+                        result_recorded_item.supports_wake;
+                    let result_recorded_item_recorded = InputSensorInfo {
+                        kind: result_recorded_item_recorded_kind,
+                        min_sample_rate_hz: result_recorded_item_recorded_min_sample_rate_hz,
+                        max_sample_rate_hz: result_recorded_item_recorded_max_sample_rate_hz,
+                        resolution: result_recorded_item_recorded_resolution,
+                        supports_wake: result_recorded_item_recorded_supports_wake,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = InputSensorListReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputSensorListReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native_kind = value_native_item.kind;
+                        let value_native_item_native_min_sample_rate_hz =
+                            value_native_item.min_sample_rate_hz;
+                        let value_native_item_native_max_sample_rate_hz =
+                            value_native_item.max_sample_rate_hz;
+                        let value_native_item_native_resolution = value_native_item.resolution;
+                        let value_native_item_native_supports_wake =
+                            value_native_item.supports_wake;
+                        let value_native_item_native = InputSensorInfo {
+                            kind: value_native_item_native_kind,
+                            min_sample_rate_hz: value_native_item_native_min_sample_rate_hz,
+                            max_sample_rate_hz: value_native_item_native_max_sample_rate_hz,
+                            resolution: value_native_item_native_resolution,
+                            supports_wake: value_native_item_native_supports_wake,
+                        };
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_sensor_read_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut InputSensorSample,
+    handle: resource::InputDeviceHandle,
+    kind: InputSensorKind,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &kind);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_SENSOR_READ,
+        context.replay_payload_for(INPUT_SENSOR_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_sensor_read(context, out, handle, kind)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_sensor_read(context, out, handle, kind)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_x = result_value.x;
+                let result_recorded_y = result_value.y;
+                let result_recorded_z = result_value.z;
+                let result_recorded_w = result_value.w;
+                let result_recorded_flags = result_value.flags;
+                let result_recorded = InputSensorSample {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    x: result_recorded_x,
+                    y: result_recorded_y,
+                    z: result_recorded_z,
+                    w: result_recorded_w,
+                    flags: result_recorded_flags,
+                };
+                let payload = InputSensorReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputSensorReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_kind = value.kind;
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_x = value.x;
+                    let value_native_y = value.y;
+                    let value_native_z = value.z;
+                    let value_native_w = value.w;
+                    let value_native_flags = value.flags;
+                    let value_native = InputSensorSample {
+                        kind: value_native_kind,
+                        timestamp_ns: value_native_timestamp_ns,
+                        x: value_native_x,
+                        y: value_native_y,
+                        z: value_native_z,
+                        w: value_native_w,
+                        flags: value_native_flags,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_sensor_try_read_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut InputSensorSample,
+    handle: resource::InputDeviceHandle,
+    kind: InputSensorKind,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &kind);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_SENSOR_TRY_READ,
+        context.replay_payload_for(INPUT_SENSOR_TRY_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_sensor_try_read(context, out, handle, kind)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_sensor_try_read(context, out, handle, kind)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_x = result_value.x;
+                let result_recorded_y = result_value.y;
+                let result_recorded_z = result_value.z;
+                let result_recorded_w = result_value.w;
+                let result_recorded_flags = result_value.flags;
+                let result_recorded = InputSensorSample {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    x: result_recorded_x,
+                    y: result_recorded_y,
+                    z: result_recorded_z,
+                    w: result_recorded_w,
+                    flags: result_recorded_flags,
+                };
+                let payload = InputSensorTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputSensorTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_kind = value.kind;
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_x = value.x;
+                    let value_native_y = value.y;
+                    let value_native_z = value.z;
+                    let value_native_w = value.w;
+                    let value_native_flags = value.flags;
+                    let value_native = InputSensorSample {
+                        kind: value_native_kind,
+                        timestamp_ns: value_native_timestamp_ns,
+                        x: value_native_x,
+                        y: value_native_y,
+                        z: value_native_z,
+                        w: value_native_w,
+                        flags: value_native_flags,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_text_get_area_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut InputTextInputArea,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &target);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_TEXT_GET_AREA,
+        context.replay_payload_for(INPUT_TEXT_GET_AREA)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_text_get_area(context, out, handle, target)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_text_get_area(context, out, handle, target)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_x = result_value.x;
+                let result_recorded_y = result_value.y;
+                let result_recorded_width = result_value.width;
+                let result_recorded_height = result_value.height;
+                let result_recorded_cursor = result_value.cursor;
+                let result_recorded = InputTextInputArea {
+                    x: result_recorded_x,
+                    y: result_recorded_y,
+                    width: result_recorded_width,
+                    height: result_recorded_height,
+                    cursor: result_recorded_cursor,
+                };
+                let payload = InputTextGetAreaReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputTextGetAreaReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_x = value.x;
+                    let value_native_y = value.y;
+                    let value_native_width = value.width;
+                    let value_native_height = value.height;
+                    let value_native_cursor = value.cursor;
+                    let value_native = InputTextInputArea {
+                        x: value_native_x,
+                        y: value_native_y,
+                        width: value_native_width,
+                        height: value_native_height,
+                        cursor: value_native_cursor,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_text_is_active_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut bool,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_TEXT_IS_ACTIVE,
+        context.replay_payload_for(INPUT_TEXT_IS_ACTIVE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_text_is_active(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_text_is_active(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = InputTextIsActiveReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputTextIsActiveReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_text_read_composition_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut InputCompositionEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_TEXT_READ_COMPOSITION,
+        context.replay_payload_for(INPUT_TEXT_READ_COMPOSITION)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_text_read_composition(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_text_read_composition(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_device_id =
+                    unsafe { result_value.device_id.as_str()? }.to_string();
+                let result_recorded_action = result_value.action;
+                let result_recorded_text = unsafe { result_value.text.as_str()? }.to_string();
+                let result_recorded_selection_start = result_value.selection_start;
+                let result_recorded_selection_end = result_value.selection_end;
+                let result_recorded = InputCompositionEventReplayRecord {
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    device_id: result_recorded_device_id,
+                    action: result_recorded_action,
+                    text: result_recorded_text,
+                    selection_start: result_recorded_selection_start,
+                    selection_end: result_recorded_selection_end,
+                };
+                let payload = InputTextReadCompositionReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputTextReadCompositionReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_device_id = context.store_string(&value.device_id);
+                    let value_native_action = value.action;
+                    let value_native_text = context.store_string(&value.text);
+                    let value_native_selection_start = value.selection_start;
+                    let value_native_selection_end = value.selection_end;
+                    let value_native = InputCompositionEvent {
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        device_id: value_native_device_id,
+                        action: value_native_action,
                         text: value_native_text,
+                        selection_start: value_native_selection_start,
+                        selection_end: value_native_selection_end,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_text_set_area_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+    area: InputTextInputArea,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &target, &area);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_TEXT_SET_AREA,
+        context.replay_payload_for(INPUT_TEXT_SET_AREA)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_text_set_area(context, handle, target, area)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_text_set_area(
+                    context, handle, target, area,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = InputTextSetAreaReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputTextSetAreaReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_text_start_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+    inputtype: InputTextInputType,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &target, &inputtype);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_TEXT_START,
+        context.replay_payload_for(INPUT_TEXT_START)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_text_start(context, handle, target, inputtype)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_text_start(
+                    context, handle, target, inputtype,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = InputTextStartReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputTextStartReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_text_stop_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &target);
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_TEXT_STOP,
+        context.replay_payload_for(INPUT_TEXT_STOP)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_text_stop(context, handle, target)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_text_stop(context, handle, target)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = InputTextStopReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputTextStopReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_text_try_read_composition_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut InputCompositionEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_TEXT_TRY_READ_COMPOSITION,
+        context.replay_payload_for(INPUT_TEXT_TRY_READ_COMPOSITION)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_text_try_read_composition(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_text_try_read_composition(
+                    context, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_device_id =
+                    unsafe { result_value.device_id.as_str()? }.to_string();
+                let result_recorded_action = result_value.action;
+                let result_recorded_text = unsafe { result_value.text.as_str()? }.to_string();
+                let result_recorded_selection_start = result_value.selection_start;
+                let result_recorded_selection_end = result_value.selection_end;
+                let result_recorded = InputCompositionEventReplayRecord {
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    device_id: result_recorded_device_id,
+                    action: result_recorded_action,
+                    text: result_recorded_text,
+                    selection_start: result_recorded_selection_start,
+                    selection_end: result_recorded_selection_end,
+                };
+                let payload = InputTextTryReadCompositionReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputTextTryReadCompositionReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_device_id = context.store_string(&value.device_id);
+                    let value_native_action = value.action;
+                    let value_native_text = context.store_string(&value.text);
+                    let value_native_selection_start = value.selection_start;
+                    let value_native_selection_end = value.selection_end;
+                    let value_native = InputCompositionEvent {
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        device_id: value_native_device_id,
+                        action: value_native_action,
+                        text: value_native_text,
+                        selection_start: value_native_selection_start,
+                        selection_end: value_native_selection_end,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_touch_state_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut InputTouchState,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        INPUT_TOUCH_STATE,
+        context.replay_payload_for(INPUT_TOUCH_STATE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_touch_state(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_input_touch_state(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_device_id =
+                    unsafe { result_value.device_id.as_str()? }.to_string();
+                let result_recorded_contacts_raw = unsafe { result_value.contacts.as_slice()? };
+                let mut result_recorded_contacts =
+                    Vec::with_capacity(result_recorded_contacts_raw.len());
+                for result_recorded_contacts_item_value in result_recorded_contacts_raw {
+                    let result_recorded_contacts_item = *result_recorded_contacts_item_value;
+                    let result_recorded_contacts_item_recorded_contact_id =
+                        result_recorded_contacts_item.contact_id;
+                    let result_recorded_contacts_item_recorded_phase =
+                        result_recorded_contacts_item.phase;
+                    let result_recorded_contacts_item_recorded_x = result_recorded_contacts_item.x;
+                    let result_recorded_contacts_item_recorded_y = result_recorded_contacts_item.y;
+                    let result_recorded_contacts_item_recorded_pressure =
+                        result_recorded_contacts_item.pressure;
+                    let result_recorded_contacts_item_recorded_radius_x =
+                        result_recorded_contacts_item.radius_x;
+                    let result_recorded_contacts_item_recorded_radius_y =
+                        result_recorded_contacts_item.radius_y;
+                    let result_recorded_contacts_item_recorded_tilt_x =
+                        result_recorded_contacts_item.tilt_x;
+                    let result_recorded_contacts_item_recorded_tilt_y =
+                        result_recorded_contacts_item.tilt_y;
+                    let result_recorded_contacts_item_recorded = InputTouchContactState {
+                        contact_id: result_recorded_contacts_item_recorded_contact_id,
+                        phase: result_recorded_contacts_item_recorded_phase,
+                        x: result_recorded_contacts_item_recorded_x,
+                        y: result_recorded_contacts_item_recorded_y,
+                        pressure: result_recorded_contacts_item_recorded_pressure,
+                        radius_x: result_recorded_contacts_item_recorded_radius_x,
+                        radius_y: result_recorded_contacts_item_recorded_radius_y,
+                        tilt_x: result_recorded_contacts_item_recorded_tilt_x,
+                        tilt_y: result_recorded_contacts_item_recorded_tilt_y,
+                    };
+                    result_recorded_contacts.push(result_recorded_contacts_item_recorded);
+                }
+                let result_recorded = InputTouchStateReplayRecord {
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    device_id: result_recorded_device_id,
+                    contacts: result_recorded_contacts,
+                };
+                let payload = InputTouchStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputTouchStateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_device_id = context.store_string(&value.device_id);
+                    let mut value_native_contacts_values = Vec::with_capacity(value.contacts.len());
+                    for value_native_contacts_item in value.contacts {
+                        let value_native_contacts_item_native_contact_id =
+                            value_native_contacts_item.contact_id;
+                        let value_native_contacts_item_native_phase =
+                            value_native_contacts_item.phase;
+                        let value_native_contacts_item_native_x = value_native_contacts_item.x;
+                        let value_native_contacts_item_native_y = value_native_contacts_item.y;
+                        let value_native_contacts_item_native_pressure =
+                            value_native_contacts_item.pressure;
+                        let value_native_contacts_item_native_radius_x =
+                            value_native_contacts_item.radius_x;
+                        let value_native_contacts_item_native_radius_y =
+                            value_native_contacts_item.radius_y;
+                        let value_native_contacts_item_native_tilt_x =
+                            value_native_contacts_item.tilt_x;
+                        let value_native_contacts_item_native_tilt_y =
+                            value_native_contacts_item.tilt_y;
+                        let value_native_contacts_item_native = InputTouchContactState {
+                            contact_id: value_native_contacts_item_native_contact_id,
+                            phase: value_native_contacts_item_native_phase,
+                            x: value_native_contacts_item_native_x,
+                            y: value_native_contacts_item_native_y,
+                            pressure: value_native_contacts_item_native_pressure,
+                            radius_x: value_native_contacts_item_native_radius_x,
+                            radius_y: value_native_contacts_item_native_radius_y,
+                            tilt_x: value_native_contacts_item_native_tilt_x,
+                            tilt_y: value_native_contacts_item_native_tilt_y,
+                        };
+                        value_native_contacts_values.push(value_native_contacts_item_native);
+                    }
+                    let value_native_contacts = context.store_array(value_native_contacts_values);
+                    let value_native = InputTouchState {
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        device_id: value_native_device_id,
+                        contacts: value_native_contacts,
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -2004,6 +7663,23 @@ fn destack_input_event_try_read_replay(
 }
 
 /// Native export wrappers for input bindings.
+#[unsafe(export_name = "destack.input.device.capabilities")]
+pub unsafe extern "C" fn destack_input_device_capabilities(
+    out: *mut InputDeviceCapabilities,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(INPUT_DEVICE_CAPABILITIES)?;
+        let world = context.check_and_resolve_world(INPUT_DEVICE_CAPABILITIES)?;
+        destack_input_device_capabilities_replay(context, world, out, handle)
+    })
+}
+
 #[unsafe(export_name = "destack.input.device.close")]
 pub unsafe extern "C" fn destack_input_device_close(
     handle: resource::InputDeviceHandle,
@@ -2081,7 +7757,7 @@ pub unsafe extern "C" fn destack_input_event_monitor_open(
 
 #[unsafe(export_name = "destack.input.event.monitorRead")]
 pub unsafe extern "C" fn destack_input_event_monitor_read(
-    out: *mut InputEvent,
+    out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -2098,7 +7774,7 @@ pub unsafe extern "C" fn destack_input_event_monitor_read(
 
 #[unsafe(export_name = "destack.input.event.monitorTryRead")]
 pub unsafe extern "C" fn destack_input_event_monitor_try_read(
-    out: *mut InputEvent,
+    out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -2148,17 +7824,17 @@ pub unsafe extern "C" fn destack_input_event_read_batch(
     })
 }
 
-#[unsafe(export_name = "destack.input.event.setGrab")]
-pub unsafe extern "C" fn destack_input_event_set_grab(
+#[unsafe(export_name = "destack.input.event.setExclusiveGrab")]
+pub unsafe extern "C" fn destack_input_event_set_exclusive_grab(
     handle: resource::InputDeviceHandle,
     enable: bool,
 ) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&handle, &enable);
 
-        context.check_policy(INPUT_EVENT_SET_GRAB)?;
-        let world = context.check_and_resolve_world(INPUT_EVENT_SET_GRAB)?;
-        destack_input_event_set_grab_replay(context, world, handle, enable)
+        context.check_policy(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?;
+        let world = context.check_and_resolve_world(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?;
+        destack_input_event_set_exclusive_grab_replay(context, world, handle, enable)
     })
 }
 
@@ -2193,7 +7869,863 @@ pub unsafe extern "C" fn destack_input_event_try_read(
     })
 }
 
+#[unsafe(export_name = "destack.input.gamepad.setLight")]
+pub unsafe extern "C" fn destack_input_gamepad_set_light(
+    handle: resource::InputDeviceHandle,
+    red: u8,
+    green: u8,
+    blue: u8,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &red, &green, &blue);
+
+        context.check_policy(INPUT_GAMEPAD_SET_LIGHT)?;
+        let world = context.check_and_resolve_world(INPUT_GAMEPAD_SET_LIGHT)?;
+        destack_input_gamepad_set_light_replay(context, world, handle, red, green, blue)
+    })
+}
+
+#[unsafe(export_name = "destack.input.gamepad.setPlayerIndex")]
+pub unsafe extern "C" fn destack_input_gamepad_set_player_index(
+    handle: resource::InputDeviceHandle,
+    playerindex: u8,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &playerindex);
+
+        context.check_policy(INPUT_GAMEPAD_SET_PLAYER_INDEX)?;
+        let world = context.check_and_resolve_world(INPUT_GAMEPAD_SET_PLAYER_INDEX)?;
+        destack_input_gamepad_set_player_index_replay(context, world, handle, playerindex)
+    })
+}
+
+#[unsafe(export_name = "destack.input.gamepad.state")]
+pub unsafe extern "C" fn destack_input_gamepad_state(
+    out: *mut InputGamepadState,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(INPUT_GAMEPAD_STATE)?;
+        let world = context.check_and_resolve_world(INPUT_GAMEPAD_STATE)?;
+        destack_input_gamepad_state_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.input.haptics.effects")]
+pub unsafe extern "C" fn destack_input_haptics_effects(
+    out: *mut NativeArray<InputHapticEffectType>,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(INPUT_HAPTICS_EFFECTS)?;
+        let world = context.check_and_resolve_world(INPUT_HAPTICS_EFFECTS)?;
+        destack_input_haptics_effects_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.input.haptics.play")]
+pub unsafe extern "C" fn destack_input_haptics_play(
+    out: *mut InputHapticsResult,
+    handle: resource::InputDeviceHandle,
+    effect: InputHapticEffectType,
+    params: InputHapticEffectParameters,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &effect, &params);
+
+        context.check_policy(INPUT_HAPTICS_PLAY)?;
+        let world = context.check_and_resolve_world(INPUT_HAPTICS_PLAY)?;
+        destack_input_haptics_play_replay(context, world, out, handle, effect, params)
+    })
+}
+
+#[unsafe(export_name = "destack.input.haptics.stop")]
+pub unsafe extern "C" fn destack_input_haptics_stop(
+    handle: resource::InputDeviceHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        context.check_policy(INPUT_HAPTICS_STOP)?;
+        let world = context.check_and_resolve_world(INPUT_HAPTICS_STOP)?;
+        destack_input_haptics_stop_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.input.keyboard.state")]
+pub unsafe extern "C" fn destack_input_keyboard_state(
+    out: *mut InputKeyboardState,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(INPUT_KEYBOARD_STATE)?;
+        let world = context.check_and_resolve_world(INPUT_KEYBOARD_STATE)?;
+        destack_input_keyboard_state_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.input.pointer.capture")]
+pub unsafe extern "C" fn destack_input_pointer_capture(
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+    enabled: bool,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &target, &enabled);
+
+        context.check_policy(INPUT_POINTER_CAPTURE)?;
+        let world = context.check_and_resolve_world(INPUT_POINTER_CAPTURE)?;
+        destack_input_pointer_capture_replay(context, world, handle, target, enabled)
+    })
+}
+
+#[unsafe(export_name = "destack.input.pointer.relativeState")]
+pub unsafe extern "C" fn destack_input_pointer_relative_state(
+    out: *mut InputPointerState,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(INPUT_POINTER_RELATIVE_STATE)?;
+        let world = context.check_and_resolve_world(INPUT_POINTER_RELATIVE_STATE)?;
+        destack_input_pointer_relative_state_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.input.pointer.setGrabMode")]
+pub unsafe extern "C" fn destack_input_pointer_set_grab_mode(
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+    mode: InputPointerGrabMode,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &target, &mode);
+
+        context.check_policy(INPUT_POINTER_SET_GRAB_MODE)?;
+        let world = context.check_and_resolve_world(INPUT_POINTER_SET_GRAB_MODE)?;
+        destack_input_pointer_set_grab_mode_replay(context, world, handle, target, mode)
+    })
+}
+
+#[unsafe(export_name = "destack.input.pointer.setRelativeMode")]
+pub unsafe extern "C" fn destack_input_pointer_set_relative_mode(
+    handle: resource::InputDeviceHandle,
+    enabled: bool,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &enabled);
+
+        context.check_policy(INPUT_POINTER_SET_RELATIVE_MODE)?;
+        let world = context.check_and_resolve_world(INPUT_POINTER_SET_RELATIVE_MODE)?;
+        destack_input_pointer_set_relative_mode_replay(context, world, handle, enabled)
+    })
+}
+
+#[unsafe(export_name = "destack.input.pointer.state")]
+pub unsafe extern "C" fn destack_input_pointer_state(
+    out: *mut InputPointerState,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(INPUT_POINTER_STATE)?;
+        let world = context.check_and_resolve_world(INPUT_POINTER_STATE)?;
+        destack_input_pointer_state_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.input.pointer.warp")]
+pub unsafe extern "C" fn destack_input_pointer_warp(
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+    x: f64,
+    y: f64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &target, &x, &y);
+
+        context.check_policy(INPUT_POINTER_WARP)?;
+        let world = context.check_and_resolve_world(INPUT_POINTER_WARP)?;
+        destack_input_pointer_warp_replay(context, world, handle, target, x, y)
+    })
+}
+
+#[unsafe(export_name = "destack.input.rawhid.getFeature")]
+pub unsafe extern "C" fn destack_input_rawhid_get_feature(
+    out: *mut NativeSlice<u8>,
+    handle: resource::InputDeviceHandle,
+    reportid: u8,
+    maxbytes: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &reportid, &maxbytes);
+
+        context.check_policy(INPUT_RAWHID_GET_FEATURE)?;
+        let world = context.check_and_resolve_world(INPUT_RAWHID_GET_FEATURE)?;
+        destack_input_rawhid_get_feature_replay(context, world, out, handle, reportid, maxbytes)
+    })
+}
+
+#[unsafe(export_name = "destack.input.rawhid.read")]
+pub unsafe extern "C" fn destack_input_rawhid_read(
+    out: *mut InputRawHidReport,
+    handle: resource::InputDeviceHandle,
+    maxbytes: u32,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &maxbytes, &timeoutns);
+
+        context.check_policy(INPUT_RAWHID_READ)?;
+        let world = context.check_and_resolve_world(INPUT_RAWHID_READ)?;
+        destack_input_rawhid_read_replay(context, world, out, handle, maxbytes, timeoutns)
+    })
+}
+
+#[unsafe(export_name = "destack.input.rawhid.setFeature")]
+pub unsafe extern "C" fn destack_input_rawhid_set_feature(
+    handle: resource::InputDeviceHandle,
+    reportid: u8,
+    data: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &reportid, &data);
+
+        context.check_policy(INPUT_RAWHID_SET_FEATURE)?;
+        let world = context.check_and_resolve_world(INPUT_RAWHID_SET_FEATURE)?;
+        destack_input_rawhid_set_feature_replay(context, world, handle, reportid, data)
+    })
+}
+
+#[unsafe(export_name = "destack.input.rawhid.tryRead")]
+pub unsafe extern "C" fn destack_input_rawhid_try_read(
+    out: *mut InputRawHidReport,
+    handle: resource::InputDeviceHandle,
+    maxbytes: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &maxbytes);
+
+        context.check_policy(INPUT_RAWHID_TRY_READ)?;
+        let world = context.check_and_resolve_world(INPUT_RAWHID_TRY_READ)?;
+        destack_input_rawhid_try_read_replay(context, world, out, handle, maxbytes)
+    })
+}
+
+#[unsafe(export_name = "destack.input.rawhid.write")]
+pub unsafe extern "C" fn destack_input_rawhid_write(
+    out: *mut u32,
+    handle: resource::InputDeviceHandle,
+    reportid: u8,
+    data: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &reportid, &data);
+
+        context.check_policy(INPUT_RAWHID_WRITE)?;
+        let world = context.check_and_resolve_world(INPUT_RAWHID_WRITE)?;
+        destack_input_rawhid_write_replay(context, world, out, handle, reportid, data)
+    })
+}
+
+#[unsafe(export_name = "destack.input.sensor.configure")]
+pub unsafe extern "C" fn destack_input_sensor_configure(
+    out: *mut InputSensorEffectiveConfig,
+    handle: resource::InputDeviceHandle,
+    kind: InputSensorKind,
+    config: InputSensorConfig,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &kind, &config);
+
+        context.check_policy(INPUT_SENSOR_CONFIGURE)?;
+        let world = context.check_and_resolve_world(INPUT_SENSOR_CONFIGURE)?;
+        destack_input_sensor_configure_replay(context, world, out, handle, kind, config)
+    })
+}
+
+#[unsafe(export_name = "destack.input.sensor.list")]
+pub unsafe extern "C" fn destack_input_sensor_list(
+    out: *mut NativeArray<InputSensorInfo>,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(INPUT_SENSOR_LIST)?;
+        let world = context.check_and_resolve_world(INPUT_SENSOR_LIST)?;
+        destack_input_sensor_list_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.input.sensor.read")]
+pub unsafe extern "C" fn destack_input_sensor_read(
+    out: *mut InputSensorSample,
+    handle: resource::InputDeviceHandle,
+    kind: InputSensorKind,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &kind);
+
+        context.check_policy(INPUT_SENSOR_READ)?;
+        let world = context.check_and_resolve_world(INPUT_SENSOR_READ)?;
+        destack_input_sensor_read_replay(context, world, out, handle, kind)
+    })
+}
+
+#[unsafe(export_name = "destack.input.sensor.tryRead")]
+pub unsafe extern "C" fn destack_input_sensor_try_read(
+    out: *mut InputSensorSample,
+    handle: resource::InputDeviceHandle,
+    kind: InputSensorKind,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &kind);
+
+        context.check_policy(INPUT_SENSOR_TRY_READ)?;
+        let world = context.check_and_resolve_world(INPUT_SENSOR_TRY_READ)?;
+        destack_input_sensor_try_read_replay(context, world, out, handle, kind)
+    })
+}
+
+#[unsafe(export_name = "destack.input.text.getArea")]
+pub unsafe extern "C" fn destack_input_text_get_area(
+    out: *mut InputTextInputArea,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &target);
+
+        context.check_policy(INPUT_TEXT_GET_AREA)?;
+        let world = context.check_and_resolve_world(INPUT_TEXT_GET_AREA)?;
+        destack_input_text_get_area_replay(context, world, out, handle, target)
+    })
+}
+
+#[unsafe(export_name = "destack.input.text.isActive")]
+pub unsafe extern "C" fn destack_input_text_is_active(
+    out: *mut bool,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(INPUT_TEXT_IS_ACTIVE)?;
+        let world = context.check_and_resolve_world(INPUT_TEXT_IS_ACTIVE)?;
+        destack_input_text_is_active_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.input.text.readComposition")]
+pub unsafe extern "C" fn destack_input_text_read_composition(
+    out: *mut InputCompositionEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(INPUT_TEXT_READ_COMPOSITION)?;
+        let world = context.check_and_resolve_world(INPUT_TEXT_READ_COMPOSITION)?;
+        destack_input_text_read_composition_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.input.text.setArea")]
+pub unsafe extern "C" fn destack_input_text_set_area(
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+    area: InputTextInputArea,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &target, &area);
+
+        context.check_policy(INPUT_TEXT_SET_AREA)?;
+        let world = context.check_and_resolve_world(INPUT_TEXT_SET_AREA)?;
+        destack_input_text_set_area_replay(context, world, handle, target, area)
+    })
+}
+
+#[unsafe(export_name = "destack.input.text.start")]
+pub unsafe extern "C" fn destack_input_text_start(
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+    inputtype: InputTextInputType,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &target, &inputtype);
+
+        context.check_policy(INPUT_TEXT_START)?;
+        let world = context.check_and_resolve_world(INPUT_TEXT_START)?;
+        destack_input_text_start_replay(context, world, handle, target, inputtype)
+    })
+}
+
+#[unsafe(export_name = "destack.input.text.stop")]
+pub unsafe extern "C" fn destack_input_text_stop(
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &target);
+
+        context.check_policy(INPUT_TEXT_STOP)?;
+        let world = context.check_and_resolve_world(INPUT_TEXT_STOP)?;
+        destack_input_text_stop_replay(context, world, handle, target)
+    })
+}
+
+#[unsafe(export_name = "destack.input.text.tryReadComposition")]
+pub unsafe extern "C" fn destack_input_text_try_read_composition(
+    out: *mut InputCompositionEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(INPUT_TEXT_TRY_READ_COMPOSITION)?;
+        let world = context.check_and_resolve_world(INPUT_TEXT_TRY_READ_COMPOSITION)?;
+        destack_input_text_try_read_composition_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.input.touch.state")]
+pub unsafe extern "C" fn destack_input_touch_state(
+    out: *mut InputTouchState,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(INPUT_TOUCH_STATE)?;
+        let world = context.check_and_resolve_world(INPUT_TOUCH_STATE)?;
+        destack_input_touch_state_replay(context, world, out, handle)
+    })
+}
+
 /// VM replay implementations for input bindings.
+#[inline]
+fn destack_input_device_capabilities_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_DEVICE_CAPABILITIES,
+            runtime.replay_payload_for(INPUT_DEVICE_CAPABILITIES)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_capabilities(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_capabilities(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: InputDeviceCapabilitiesVm = value.clone();
+                    let result_recorded_kinds_raw = result_value.kinds.raw_values(context)?;
+                    let mut result_recorded_kinds =
+                        Vec::with_capacity(result_recorded_kinds_raw.len());
+                    for result_recorded_kinds_item_value in result_recorded_kinds_raw {
+                        let result_recorded_kinds_item_raw = decode_uint8(
+                            result_recorded_kinds_item_value,
+                            "result_recorded_kinds_item_raw",
+                            "item",
+                        )?;
+                        let result_recorded_kinds_item = match result_recorded_kinds_item_raw {
+                            1u8 => InputDeviceCapabilityKind::Keyboard,
+                            2u8 => InputDeviceCapabilityKind::Pointer,
+                            3u8 => InputDeviceCapabilityKind::Touch,
+                            4u8 => InputDeviceCapabilityKind::Pen,
+                            5u8 => InputDeviceCapabilityKind::Gamepad,
+                            6u8 => InputDeviceCapabilityKind::Sensor,
+                            7u8 => InputDeviceCapabilityKind::Haptics,
+                            8u8 => InputDeviceCapabilityKind::TextInput,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_kinds_item",
+                                        "unknown InputDeviceCapabilityKind value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
+                        let result_recorded_kinds_item_recorded = result_recorded_kinds_item;
+                        result_recorded_kinds.push(result_recorded_kinds_item_recorded);
+                    }
+                    let result_recorded_axes_raw = result_value.axes.raw_values(context)?;
+                    let mut result_recorded_axes =
+                        Vec::with_capacity(result_recorded_axes_raw.len());
+                    for result_recorded_axes_item_value in result_recorded_axes_raw {
+                        let result_recorded_axes_item = {
+                            if result_recorded_axes_item_value.tag() != vm::ValueTag::Aggregate {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_type(
+                                        "result_recorded_axes_item",
+                                        "item",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let slots = context
+                                .aggregate_slots(result_recorded_axes_item_value)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots.len() != 6 {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_axes_item",
+                                        "expected 6 fields",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let result_recorded_axes_item_code =
+                                decode_uint32(slots[0], "result_recorded_axes_item_code", "code")?;
+                            let result_recorded_axes_item_minimum = decode_float64(
+                                slots[1],
+                                "result_recorded_axes_item_minimum",
+                                "minimum",
+                            )?;
+                            let result_recorded_axes_item_maximum = decode_float64(
+                                slots[2],
+                                "result_recorded_axes_item_maximum",
+                                "maximum",
+                            )?;
+                            let result_recorded_axes_item_flat =
+                                decode_float64(slots[3], "result_recorded_axes_item_flat", "flat")?;
+                            let result_recorded_axes_item_fuzz =
+                                decode_float64(slots[4], "result_recorded_axes_item_fuzz", "fuzz")?;
+                            let result_recorded_axes_item_resolution = decode_float64(
+                                slots[5],
+                                "result_recorded_axes_item_resolution",
+                                "resolution",
+                            )?;
+                            InputAxisInfoVm {
+                                code: result_recorded_axes_item_code,
+                                minimum: result_recorded_axes_item_minimum,
+                                maximum: result_recorded_axes_item_maximum,
+                                flat: result_recorded_axes_item_flat,
+                                fuzz: result_recorded_axes_item_fuzz,
+                                resolution: result_recorded_axes_item_resolution,
+                            }
+                        };
+                        let result_recorded_axes_item_recorded_code =
+                            result_recorded_axes_item.code;
+                        let result_recorded_axes_item_recorded_minimum =
+                            result_recorded_axes_item.minimum;
+                        let result_recorded_axes_item_recorded_maximum =
+                            result_recorded_axes_item.maximum;
+                        let result_recorded_axes_item_recorded_flat =
+                            result_recorded_axes_item.flat;
+                        let result_recorded_axes_item_recorded_fuzz =
+                            result_recorded_axes_item.fuzz;
+                        let result_recorded_axes_item_recorded_resolution =
+                            result_recorded_axes_item.resolution;
+                        let result_recorded_axes_item_recorded = InputAxisInfo {
+                            code: result_recorded_axes_item_recorded_code,
+                            minimum: result_recorded_axes_item_recorded_minimum,
+                            maximum: result_recorded_axes_item_recorded_maximum,
+                            flat: result_recorded_axes_item_recorded_flat,
+                            fuzz: result_recorded_axes_item_recorded_fuzz,
+                            resolution: result_recorded_axes_item_recorded_resolution,
+                        };
+                        result_recorded_axes.push(result_recorded_axes_item_recorded);
+                    }
+                    let result_recorded_buttons_raw = result_value.buttons.raw_values(context)?;
+                    let mut result_recorded_buttons =
+                        Vec::with_capacity(result_recorded_buttons_raw.len());
+                    for result_recorded_buttons_item_value in result_recorded_buttons_raw {
+                        let result_recorded_buttons_item = {
+                            if result_recorded_buttons_item_value.tag() != vm::ValueTag::Aggregate {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_type(
+                                        "result_recorded_buttons_item",
+                                        "item",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let slots = context
+                                .aggregate_slots(result_recorded_buttons_item_value)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots.len() != 2 {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_buttons_item",
+                                        "expected 2 fields",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let result_recorded_buttons_item_code = decode_uint32(
+                                slots[0],
+                                "result_recorded_buttons_item_code",
+                                "code",
+                            )?;
+                            let result_recorded_buttons_item_analog = decode_bool(
+                                slots[1],
+                                "result_recorded_buttons_item_analog",
+                                "analog",
+                            )?;
+                            InputButtonInfoVm {
+                                code: result_recorded_buttons_item_code,
+                                analog: result_recorded_buttons_item_analog,
+                            }
+                        };
+                        let result_recorded_buttons_item_recorded_code =
+                            result_recorded_buttons_item.code;
+                        let result_recorded_buttons_item_recorded_analog =
+                            result_recorded_buttons_item.analog;
+                        let result_recorded_buttons_item_recorded = InputButtonInfo {
+                            code: result_recorded_buttons_item_recorded_code,
+                            analog: result_recorded_buttons_item_recorded_analog,
+                        };
+                        result_recorded_buttons.push(result_recorded_buttons_item_recorded);
+                    }
+                    let result_recorded_supports_relative_pointer =
+                        result_value.supports_relative_pointer;
+                    let result_recorded_supports_pointer_grab = result_value.supports_pointer_grab;
+                    let result_recorded_supports_pointer_capture =
+                        result_value.supports_pointer_capture;
+                    let result_recorded_supports_pointer_warp = result_value.supports_pointer_warp;
+                    let result_recorded_supports_text_input = result_value.supports_text_input;
+                    let result_recorded_supports_composition = result_value.supports_composition;
+                    let result_recorded_supports_rumble = result_value.supports_rumble;
+                    let result_recorded_supports_trigger_rumble =
+                        result_value.supports_trigger_rumble;
+                    let result_recorded_supports_sensors = result_value.supports_sensors;
+                    let result_recorded_supports_battery_state =
+                        result_value.supports_battery_state;
+                    let result_recorded_supports_light_control =
+                        result_value.supports_light_control;
+                    let result_recorded_supports_raw_hid = result_value.supports_raw_hid;
+                    let result_recorded_supports_player_index = result_value.supports_player_index;
+                    let result_recorded = InputDeviceCapabilitiesReplayRecord {
+                        kinds: result_recorded_kinds,
+                        axes: result_recorded_axes,
+                        buttons: result_recorded_buttons,
+                        supports_relative_pointer: result_recorded_supports_relative_pointer,
+                        supports_pointer_grab: result_recorded_supports_pointer_grab,
+                        supports_pointer_capture: result_recorded_supports_pointer_capture,
+                        supports_pointer_warp: result_recorded_supports_pointer_warp,
+                        supports_text_input: result_recorded_supports_text_input,
+                        supports_composition: result_recorded_supports_composition,
+                        supports_rumble: result_recorded_supports_rumble,
+                        supports_trigger_rumble: result_recorded_supports_trigger_rumble,
+                        supports_sensors: result_recorded_supports_sensors,
+                        supports_battery_state: result_recorded_supports_battery_state,
+                        supports_light_control: result_recorded_supports_light_control,
+                        supports_raw_hid: result_recorded_supports_raw_hid,
+                        supports_player_index: result_recorded_supports_player_index,
+                    };
+                    let payload = InputDeviceCapabilitiesReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputDeviceCapabilitiesReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let mut vm_result_kinds_values = Vec::with_capacity(value.kinds.len());
+                        for vm_result_kinds_item in value.kinds.iter() {
+                            let vm_result_kinds_item = *vm_result_kinds_item;
+                            let vm_result_kinds_item_value = vm_result_kinds_item;
+                            vm_result_kinds_values.push(vm_result_kinds_item_value);
+                        }
+                        let vm_result_kinds =
+                            VmArray::from_values(context, &vm_result_kinds_values)?;
+                        let mut vm_result_axes_values = Vec::with_capacity(value.axes.len());
+                        for vm_result_axes_item in value.axes.iter() {
+                            let vm_result_axes_item = *vm_result_axes_item;
+                            let vm_result_axes_item_value_code = vm_result_axes_item.code;
+                            let vm_result_axes_item_value_minimum = vm_result_axes_item.minimum;
+                            let vm_result_axes_item_value_maximum = vm_result_axes_item.maximum;
+                            let vm_result_axes_item_value_flat = vm_result_axes_item.flat;
+                            let vm_result_axes_item_value_fuzz = vm_result_axes_item.fuzz;
+                            let vm_result_axes_item_value_resolution =
+                                vm_result_axes_item.resolution;
+                            let vm_result_axes_item_value = InputAxisInfoVm {
+                                code: vm_result_axes_item_value_code,
+                                minimum: vm_result_axes_item_value_minimum,
+                                maximum: vm_result_axes_item_value_maximum,
+                                flat: vm_result_axes_item_value_flat,
+                                fuzz: vm_result_axes_item_value_fuzz,
+                                resolution: vm_result_axes_item_value_resolution,
+                            };
+                            let vm_result_axes_item_value_encoded = {
+                                let field_0 =
+                                    vm::Value::uint(vm_result_axes_item_value.code as u64, 32);
+                                let field_1 = vm::Value::float64(vm_result_axes_item_value.minimum);
+                                let field_2 = vm::Value::float64(vm_result_axes_item_value.maximum);
+                                let field_3 = vm::Value::float64(vm_result_axes_item_value.flat);
+                                let field_4 = vm::Value::float64(vm_result_axes_item_value.fuzz);
+                                let field_5 =
+                                    vm::Value::float64(vm_result_axes_item_value.resolution);
+                                context.allocate_aggregate(vec![
+                                    field_0, field_1, field_2, field_3, field_4, field_5,
+                                ])
+                            };
+                            vm_result_axes_values.push(vm_result_axes_item_value_encoded);
+                        }
+                        let vm_result_axes_data =
+                            context.allocate_raw_values(vm_result_axes_values);
+                        let vm_result_axes: VmArray<InputAxisInfoVm> = VmArray {
+                            data: vm_result_axes_data,
+                            len: value.axes.len() as u32,
+                            capacity: value.axes.len() as u32,
+                            _marker: std::marker::PhantomData,
+                        };
+                        let mut vm_result_buttons_values = Vec::with_capacity(value.buttons.len());
+                        for vm_result_buttons_item in value.buttons.iter() {
+                            let vm_result_buttons_item = *vm_result_buttons_item;
+                            let vm_result_buttons_item_value_code = vm_result_buttons_item.code;
+                            let vm_result_buttons_item_value_analog = vm_result_buttons_item.analog;
+                            let vm_result_buttons_item_value = InputButtonInfoVm {
+                                code: vm_result_buttons_item_value_code,
+                                analog: vm_result_buttons_item_value_analog,
+                            };
+                            let vm_result_buttons_item_value_encoded = {
+                                let field_0 =
+                                    vm::Value::uint(vm_result_buttons_item_value.code as u64, 32);
+                                let field_1 = vm::Value::bool(vm_result_buttons_item_value.analog);
+                                context.allocate_aggregate(vec![field_0, field_1])
+                            };
+                            vm_result_buttons_values.push(vm_result_buttons_item_value_encoded);
+                        }
+                        let vm_result_buttons_data =
+                            context.allocate_raw_values(vm_result_buttons_values);
+                        let vm_result_buttons: VmArray<InputButtonInfoVm> = VmArray {
+                            data: vm_result_buttons_data,
+                            len: value.buttons.len() as u32,
+                            capacity: value.buttons.len() as u32,
+                            _marker: std::marker::PhantomData,
+                        };
+                        let vm_result_supports_relative_pointer = value.supports_relative_pointer;
+                        let vm_result_supports_pointer_grab = value.supports_pointer_grab;
+                        let vm_result_supports_pointer_capture = value.supports_pointer_capture;
+                        let vm_result_supports_pointer_warp = value.supports_pointer_warp;
+                        let vm_result_supports_text_input = value.supports_text_input;
+                        let vm_result_supports_composition = value.supports_composition;
+                        let vm_result_supports_rumble = value.supports_rumble;
+                        let vm_result_supports_trigger_rumble = value.supports_trigger_rumble;
+                        let vm_result_supports_sensors = value.supports_sensors;
+                        let vm_result_supports_battery_state = value.supports_battery_state;
+                        let vm_result_supports_light_control = value.supports_light_control;
+                        let vm_result_supports_raw_hid = value.supports_raw_hid;
+                        let vm_result_supports_player_index = value.supports_player_index;
+                        let vm_result = InputDeviceCapabilitiesVm {
+                            kinds: vm_result_kinds,
+                            axes: vm_result_axes,
+                            buttons: vm_result_buttons,
+                            supports_relative_pointer: vm_result_supports_relative_pointer,
+                            supports_pointer_grab: vm_result_supports_pointer_grab,
+                            supports_pointer_capture: vm_result_supports_pointer_capture,
+                            supports_pointer_warp: vm_result_supports_pointer_warp,
+                            supports_text_input: vm_result_supports_text_input,
+                            supports_composition: vm_result_supports_composition,
+                            supports_rumble: vm_result_supports_rumble,
+                            supports_trigger_rumble: vm_result_supports_trigger_rumble,
+                            supports_sensors: vm_result_supports_sensors,
+                            supports_battery_state: vm_result_supports_battery_state,
+                            supports_light_control: vm_result_supports_light_control,
+                            supports_raw_hid: vm_result_supports_raw_hid,
+                            supports_player_index: vm_result_supports_player_index,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_device_capabilities_result(context, result)?;
+    Ok(result)
+}
+
 #[inline]
 fn destack_input_device_close_vm_replay(
     runtime: &RuntimeCallContext,
@@ -2284,21 +8816,36 @@ fn destack_input_device_list_vm_replay(
                             let slots = context
                                 .aggregate_slots(result_recorded_item_value)
                                 .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 13 {
+                            if slots.len() != 21 {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
                                         "result_recorded_item",
-                                        "expected 13 fields",
+                                        "expected 21 fields",
                                     ),
                                 )
                                 .boxed());
                             }
                             let result_recorded_item_id =
                                 decode_string(slots[0], "result_recorded_item_id", "id")?;
+                            let result_recorded_item_instance_id = decode_string(
+                                slots[1],
+                                "result_recorded_item_instance_id",
+                                "instanceId",
+                            )?;
+                            let result_recorded_item_hardware_id = decode_string(
+                                slots[2],
+                                "result_recorded_item_hardware_id",
+                                "hardwareId",
+                            )?;
                             let result_recorded_item_name =
-                                decode_string(slots[1], "result_recorded_item_name", "name")?;
+                                decode_string(slots[3], "result_recorded_item_name", "name")?;
+                            let result_recorded_item_transport = decode_string(
+                                slots[4],
+                                "result_recorded_item_transport",
+                                "transport",
+                            )?;
                             let result_recorded_item_kind_raw =
-                                decode_uint8(slots[2], "result_recorded_item_kind_raw", "kind")?;
+                                decode_uint8(slots[5], "result_recorded_item_kind_raw", "kind")?;
                             let result_recorded_item_kind = match result_recorded_item_kind_raw {
                                 1u8 => InputDeviceKind::Keyboard,
                                 2u8 => InputDeviceKind::Mouse,
@@ -2317,58 +8864,86 @@ fn destack_input_device_list_vm_replay(
                                 }
                             };
                             let result_recorded_item_vendor_id = decode_uint16(
-                                slots[3],
+                                slots[6],
                                 "result_recorded_item_vendor_id",
                                 "vendorId",
                             )?;
                             let result_recorded_item_product_id = decode_uint16(
-                                slots[4],
+                                slots[7],
                                 "result_recorded_item_product_id",
                                 "productId",
                             )?;
                             let result_recorded_item_key_count = decode_uint16(
-                                slots[5],
+                                slots[8],
                                 "result_recorded_item_key_count",
                                 "keyCount",
                             )?;
                             let result_recorded_item_button_count = decode_uint16(
-                                slots[6],
+                                slots[9],
                                 "result_recorded_item_button_count",
                                 "buttonCount",
                             )?;
                             let result_recorded_item_axis_count = decode_uint16(
-                                slots[7],
+                                slots[10],
                                 "result_recorded_item_axis_count",
                                 "axisCount",
                             )?;
                             let result_recorded_item_connected = decode_bool(
-                                slots[8],
+                                slots[11],
                                 "result_recorded_item_connected",
                                 "connected",
                             )?;
-                            let result_recorded_item_supports_grab = decode_bool(
-                                slots[9],
-                                "result_recorded_item_supports_grab",
-                                "supportsGrab",
+                            let result_recorded_item_supports_exclusive_grab = decode_bool(
+                                slots[12],
+                                "result_recorded_item_supports_exclusive_grab",
+                                "supportsExclusiveGrab",
                             )?;
                             let result_recorded_item_supports_raw = decode_bool(
-                                slots[10],
+                                slots[13],
                                 "result_recorded_item_supports_raw",
                                 "supportsRaw",
                             )?;
                             let result_recorded_item_supports_text = decode_bool(
-                                slots[11],
+                                slots[14],
                                 "result_recorded_item_supports_text",
                                 "supportsText",
                             )?;
                             let result_recorded_item_supports_rumble = decode_bool(
-                                slots[12],
+                                slots[15],
                                 "result_recorded_item_supports_rumble",
                                 "supportsRumble",
                             )?;
+                            let result_recorded_item_supports_battery = decode_bool(
+                                slots[16],
+                                "result_recorded_item_supports_battery",
+                                "supportsBattery",
+                            )?;
+                            let result_recorded_item_supports_light = decode_bool(
+                                slots[17],
+                                "result_recorded_item_supports_light",
+                                "supportsLight",
+                            )?;
+                            let result_recorded_item_supports_raw_hid = decode_bool(
+                                slots[18],
+                                "result_recorded_item_supports_raw_hid",
+                                "supportsRawHid",
+                            )?;
+                            let result_recorded_item_is_virtual = decode_bool(
+                                slots[19],
+                                "result_recorded_item_is_virtual",
+                                "isVirtual",
+                            )?;
+                            let result_recorded_item_is_system = decode_bool(
+                                slots[20],
+                                "result_recorded_item_is_system",
+                                "isSystem",
+                            )?;
                             InputDeviceInfoVm {
                                 id: result_recorded_item_id,
+                                instance_id: result_recorded_item_instance_id,
+                                hardware_id: result_recorded_item_hardware_id,
                                 name: result_recorded_item_name,
+                                transport: result_recorded_item_transport,
                                 kind: result_recorded_item_kind,
                                 vendor_id: result_recorded_item_vendor_id,
                                 product_id: result_recorded_item_product_id,
@@ -2376,10 +8951,16 @@ fn destack_input_device_list_vm_replay(
                                 button_count: result_recorded_item_button_count,
                                 axis_count: result_recorded_item_axis_count,
                                 connected: result_recorded_item_connected,
-                                supports_grab: result_recorded_item_supports_grab,
+                                supports_exclusive_grab:
+                                    result_recorded_item_supports_exclusive_grab,
                                 supports_raw: result_recorded_item_supports_raw,
                                 supports_text: result_recorded_item_supports_text,
                                 supports_rumble: result_recorded_item_supports_rumble,
+                                supports_battery: result_recorded_item_supports_battery,
+                                supports_light: result_recorded_item_supports_light,
+                                supports_raw_hid: result_recorded_item_supports_raw_hid,
+                                is_virtual: result_recorded_item_is_virtual,
+                                is_system: result_recorded_item_is_system,
                             }
                         };
                         let result_recorded_item_recorded_id = {
@@ -2388,11 +8969,35 @@ fn destack_input_device_list_vm_replay(
                                 .map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_item_recorded_id_ref.as_str().to_string()
                         };
+                        let result_recorded_item_recorded_instance_id = {
+                            let result_recorded_item_recorded_instance_id_ref = context
+                                .string_ref(result_recorded_item.instance_id)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_item_recorded_instance_id_ref
+                                .as_str()
+                                .to_string()
+                        };
+                        let result_recorded_item_recorded_hardware_id = {
+                            let result_recorded_item_recorded_hardware_id_ref = context
+                                .string_ref(result_recorded_item.hardware_id)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_item_recorded_hardware_id_ref
+                                .as_str()
+                                .to_string()
+                        };
                         let result_recorded_item_recorded_name = {
                             let result_recorded_item_recorded_name_ref = context
                                 .string_ref(result_recorded_item.name)
                                 .map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_item_recorded_name_ref.as_str().to_string()
+                        };
+                        let result_recorded_item_recorded_transport = {
+                            let result_recorded_item_recorded_transport_ref = context
+                                .string_ref(result_recorded_item.transport)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_item_recorded_transport_ref
+                                .as_str()
+                                .to_string()
                         };
                         let result_recorded_item_recorded_kind = result_recorded_item.kind;
                         let result_recorded_item_recorded_vendor_id =
@@ -2407,17 +9012,30 @@ fn destack_input_device_list_vm_replay(
                             result_recorded_item.axis_count;
                         let result_recorded_item_recorded_connected =
                             result_recorded_item.connected;
-                        let result_recorded_item_recorded_supports_grab =
-                            result_recorded_item.supports_grab;
+                        let result_recorded_item_recorded_supports_exclusive_grab =
+                            result_recorded_item.supports_exclusive_grab;
                         let result_recorded_item_recorded_supports_raw =
                             result_recorded_item.supports_raw;
                         let result_recorded_item_recorded_supports_text =
                             result_recorded_item.supports_text;
                         let result_recorded_item_recorded_supports_rumble =
                             result_recorded_item.supports_rumble;
+                        let result_recorded_item_recorded_supports_battery =
+                            result_recorded_item.supports_battery;
+                        let result_recorded_item_recorded_supports_light =
+                            result_recorded_item.supports_light;
+                        let result_recorded_item_recorded_supports_raw_hid =
+                            result_recorded_item.supports_raw_hid;
+                        let result_recorded_item_recorded_is_virtual =
+                            result_recorded_item.is_virtual;
+                        let result_recorded_item_recorded_is_system =
+                            result_recorded_item.is_system;
                         let result_recorded_item_recorded = InputDeviceInfoReplayRecord {
                             id: result_recorded_item_recorded_id,
+                            instance_id: result_recorded_item_recorded_instance_id,
+                            hardware_id: result_recorded_item_recorded_hardware_id,
                             name: result_recorded_item_recorded_name,
+                            transport: result_recorded_item_recorded_transport,
                             kind: result_recorded_item_recorded_kind,
                             vendor_id: result_recorded_item_recorded_vendor_id,
                             product_id: result_recorded_item_recorded_product_id,
@@ -2425,10 +9043,16 @@ fn destack_input_device_list_vm_replay(
                             button_count: result_recorded_item_recorded_button_count,
                             axis_count: result_recorded_item_recorded_axis_count,
                             connected: result_recorded_item_recorded_connected,
-                            supports_grab: result_recorded_item_recorded_supports_grab,
+                            supports_exclusive_grab:
+                                result_recorded_item_recorded_supports_exclusive_grab,
                             supports_raw: result_recorded_item_recorded_supports_raw,
                             supports_text: result_recorded_item_recorded_supports_text,
                             supports_rumble: result_recorded_item_recorded_supports_rumble,
+                            supports_battery: result_recorded_item_recorded_supports_battery,
+                            supports_light: result_recorded_item_recorded_supports_light,
+                            supports_raw_hid: result_recorded_item_recorded_supports_raw_hid,
+                            is_virtual: result_recorded_item_recorded_is_virtual,
+                            is_system: result_recorded_item_recorded_is_system,
                         };
                         result_recorded.push(result_recorded_item_recorded);
                     }
@@ -2460,10 +9084,22 @@ fn destack_input_device_list_vm_replay(
                                 context.intern_string(vm_result_item.id.as_str());
                             let vm_result_item_value_id =
                                 vm::StringHandle::new(vm_result_item_value_id_value);
+                            let vm_result_item_value_instance_id_value =
+                                context.intern_string(vm_result_item.instance_id.as_str());
+                            let vm_result_item_value_instance_id =
+                                vm::StringHandle::new(vm_result_item_value_instance_id_value);
+                            let vm_result_item_value_hardware_id_value =
+                                context.intern_string(vm_result_item.hardware_id.as_str());
+                            let vm_result_item_value_hardware_id =
+                                vm::StringHandle::new(vm_result_item_value_hardware_id_value);
                             let vm_result_item_value_name_value =
                                 context.intern_string(vm_result_item.name.as_str());
                             let vm_result_item_value_name =
                                 vm::StringHandle::new(vm_result_item_value_name_value);
+                            let vm_result_item_value_transport_value =
+                                context.intern_string(vm_result_item.transport.as_str());
+                            let vm_result_item_value_transport =
+                                vm::StringHandle::new(vm_result_item_value_transport_value);
                             let vm_result_item_value_kind = vm_result_item.kind;
                             let vm_result_item_value_vendor_id = vm_result_item.vendor_id;
                             let vm_result_item_value_product_id = vm_result_item.product_id;
@@ -2471,14 +9107,25 @@ fn destack_input_device_list_vm_replay(
                             let vm_result_item_value_button_count = vm_result_item.button_count;
                             let vm_result_item_value_axis_count = vm_result_item.axis_count;
                             let vm_result_item_value_connected = vm_result_item.connected;
-                            let vm_result_item_value_supports_grab = vm_result_item.supports_grab;
+                            let vm_result_item_value_supports_exclusive_grab =
+                                vm_result_item.supports_exclusive_grab;
                             let vm_result_item_value_supports_raw = vm_result_item.supports_raw;
                             let vm_result_item_value_supports_text = vm_result_item.supports_text;
                             let vm_result_item_value_supports_rumble =
                                 vm_result_item.supports_rumble;
+                            let vm_result_item_value_supports_battery =
+                                vm_result_item.supports_battery;
+                            let vm_result_item_value_supports_light = vm_result_item.supports_light;
+                            let vm_result_item_value_supports_raw_hid =
+                                vm_result_item.supports_raw_hid;
+                            let vm_result_item_value_is_virtual = vm_result_item.is_virtual;
+                            let vm_result_item_value_is_system = vm_result_item.is_system;
                             let vm_result_item_value = InputDeviceInfoVm {
                                 id: vm_result_item_value_id,
+                                instance_id: vm_result_item_value_instance_id,
+                                hardware_id: vm_result_item_value_hardware_id,
                                 name: vm_result_item_value_name,
+                                transport: vm_result_item_value_transport,
                                 kind: vm_result_item_value_kind,
                                 vendor_id: vm_result_item_value_vendor_id,
                                 product_id: vm_result_item_value_product_id,
@@ -2486,35 +9133,54 @@ fn destack_input_device_list_vm_replay(
                                 button_count: vm_result_item_value_button_count,
                                 axis_count: vm_result_item_value_axis_count,
                                 connected: vm_result_item_value_connected,
-                                supports_grab: vm_result_item_value_supports_grab,
+                                supports_exclusive_grab:
+                                    vm_result_item_value_supports_exclusive_grab,
                                 supports_raw: vm_result_item_value_supports_raw,
                                 supports_text: vm_result_item_value_supports_text,
                                 supports_rumble: vm_result_item_value_supports_rumble,
+                                supports_battery: vm_result_item_value_supports_battery,
+                                supports_light: vm_result_item_value_supports_light,
+                                supports_raw_hid: vm_result_item_value_supports_raw_hid,
+                                is_virtual: vm_result_item_value_is_virtual,
+                                is_system: vm_result_item_value_is_system,
                             };
                             let vm_result_item_value_encoded = {
                                 let field_0 = vm_result_item_value.id.value();
-                                let field_1 = vm_result_item_value.name.value();
-                                let field_2 =
-                                    vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8);
-                                let field_3 =
-                                    vm::Value::uint(vm_result_item_value.vendor_id as u64, 16);
-                                let field_4 =
-                                    vm::Value::uint(vm_result_item_value.product_id as u64, 16);
+                                let field_1 = vm_result_item_value.instance_id.value();
+                                let field_2 = vm_result_item_value.hardware_id.value();
+                                let field_3 = vm_result_item_value.name.value();
+                                let field_4 = vm_result_item_value.transport.value();
                                 let field_5 =
-                                    vm::Value::uint(vm_result_item_value.key_count as u64, 16);
+                                    vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8);
                                 let field_6 =
-                                    vm::Value::uint(vm_result_item_value.button_count as u64, 16);
+                                    vm::Value::uint(vm_result_item_value.vendor_id as u64, 16);
                                 let field_7 =
+                                    vm::Value::uint(vm_result_item_value.product_id as u64, 16);
+                                let field_8 =
+                                    vm::Value::uint(vm_result_item_value.key_count as u64, 16);
+                                let field_9 =
+                                    vm::Value::uint(vm_result_item_value.button_count as u64, 16);
+                                let field_10 =
                                     vm::Value::uint(vm_result_item_value.axis_count as u64, 16);
-                                let field_8 = vm::Value::bool(vm_result_item_value.connected);
-                                let field_9 = vm::Value::bool(vm_result_item_value.supports_grab);
-                                let field_10 = vm::Value::bool(vm_result_item_value.supports_raw);
-                                let field_11 = vm::Value::bool(vm_result_item_value.supports_text);
+                                let field_11 = vm::Value::bool(vm_result_item_value.connected);
                                 let field_12 =
+                                    vm::Value::bool(vm_result_item_value.supports_exclusive_grab);
+                                let field_13 = vm::Value::bool(vm_result_item_value.supports_raw);
+                                let field_14 = vm::Value::bool(vm_result_item_value.supports_text);
+                                let field_15 =
                                     vm::Value::bool(vm_result_item_value.supports_rumble);
+                                let field_16 =
+                                    vm::Value::bool(vm_result_item_value.supports_battery);
+                                let field_17 = vm::Value::bool(vm_result_item_value.supports_light);
+                                let field_18 =
+                                    vm::Value::bool(vm_result_item_value.supports_raw_hid);
+                                let field_19 = vm::Value::bool(vm_result_item_value.is_virtual);
+                                let field_20 = vm::Value::bool(vm_result_item_value.is_system);
                                 context.allocate_aggregate(vec![
                                     field_0, field_1, field_2, field_3, field_4, field_5, field_6,
                                     field_7, field_8, field_9, field_10, field_11, field_12,
+                                    field_13, field_14, field_15, field_16, field_17, field_18,
+                                    field_19, field_20,
                                 ])
                             };
                             vm_result_values.push(vm_result_item_value_encoded);
@@ -2724,7 +9390,7 @@ fn destack_input_event_monitor_read_vm_replay(
             |context, result| {
                 let _ = &context;
                 if let Ok(value) = result {
-                    let result_value: InputEventVm = value.clone();
+                    let result_value: InputMonitorEventVm = value.clone();
                     let result_recorded_kind = result_value.kind;
                     let result_recorded_timestamp_ns = result_value.timestamp_ns;
                     let result_recorded_sequence = result_value.sequence;
@@ -2734,38 +9400,15 @@ fn destack_input_event_monitor_read_vm_replay(
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         result_recorded_device_id_ref.as_str().to_string()
                     };
-                    let result_recorded_action = result_value.action;
-                    let result_recorded_code = result_value.code;
-                    let result_recorded_scan_code = result_value.scan_code;
-                    let result_recorded_value = result_value.value;
-                    let result_recorded_x = result_value.x;
-                    let result_recorded_y = result_value.y;
-                    let result_recorded_wheel_x = result_value.wheel_x;
-                    let result_recorded_wheel_y = result_value.wheel_y;
-                    let result_recorded_modifiers = result_value.modifiers;
-                    let result_recorded_repeat = result_value.repeat;
-                    let result_recorded_text = {
-                        let result_recorded_text_ref = context
-                            .string_ref(result_value.text)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_text_ref.as_str().to_string()
-                    };
-                    let result_recorded = InputEventReplayRecord {
+                    let result_recorded_device_kind = result_value.device_kind;
+                    let result_recorded_connected = result_value.connected;
+                    let result_recorded = InputMonitorEventReplayRecord {
                         kind: result_recorded_kind,
                         timestamp_ns: result_recorded_timestamp_ns,
                         sequence: result_recorded_sequence,
                         device_id: result_recorded_device_id,
-                        action: result_recorded_action,
-                        code: result_recorded_code,
-                        scan_code: result_recorded_scan_code,
-                        value: result_recorded_value,
-                        x: result_recorded_x,
-                        y: result_recorded_y,
-                        wheel_x: result_recorded_wheel_x,
-                        wheel_y: result_recorded_wheel_y,
-                        modifiers: result_recorded_modifiers,
-                        repeat: result_recorded_repeat,
-                        text: result_recorded_text,
+                        device_kind: result_recorded_device_kind,
+                        connected: result_recorded_connected,
                     };
                     let payload = InputEventMonitorReadReplay {
                         result: Ok(result_recorded),
@@ -2794,34 +9437,15 @@ fn destack_input_event_monitor_read_vm_replay(
                         let vm_result_device_id_value =
                             context.intern_string(value.device_id.as_str());
                         let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
-                        let vm_result_action = value.action;
-                        let vm_result_code = value.code;
-                        let vm_result_scan_code = value.scan_code;
-                        let vm_result_value = value.value;
-                        let vm_result_x = value.x;
-                        let vm_result_y = value.y;
-                        let vm_result_wheel_x = value.wheel_x;
-                        let vm_result_wheel_y = value.wheel_y;
-                        let vm_result_modifiers = value.modifiers;
-                        let vm_result_repeat = value.repeat;
-                        let vm_result_text_value = context.intern_string(value.text.as_str());
-                        let vm_result_text = vm::StringHandle::new(vm_result_text_value);
-                        let vm_result = InputEventVm {
+                        let vm_result_device_kind = value.device_kind;
+                        let vm_result_connected = value.connected;
+                        let vm_result = InputMonitorEventVm {
                             kind: vm_result_kind,
                             timestamp_ns: vm_result_timestamp_ns,
                             sequence: vm_result_sequence,
                             device_id: vm_result_device_id,
-                            action: vm_result_action,
-                            code: vm_result_code,
-                            scan_code: vm_result_scan_code,
-                            value: vm_result_value,
-                            x: vm_result_x,
-                            y: vm_result_y,
-                            wheel_x: vm_result_wheel_x,
-                            wheel_y: vm_result_wheel_y,
-                            modifiers: vm_result_modifiers,
-                            repeat: vm_result_repeat,
-                            text: vm_result_text,
+                            device_kind: vm_result_device_kind,
+                            connected: vm_result_connected,
                         };
                         Ok(vm_result)
                     }
@@ -2857,7 +9481,7 @@ fn destack_input_event_monitor_try_read_vm_replay(
             |context, result| {
                 let _ = &context;
                 if let Ok(value) = result {
-                    let result_value: InputEventVm = value.clone();
+                    let result_value: InputMonitorEventVm = value.clone();
                     let result_recorded_kind = result_value.kind;
                     let result_recorded_timestamp_ns = result_value.timestamp_ns;
                     let result_recorded_sequence = result_value.sequence;
@@ -2867,38 +9491,15 @@ fn destack_input_event_monitor_try_read_vm_replay(
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         result_recorded_device_id_ref.as_str().to_string()
                     };
-                    let result_recorded_action = result_value.action;
-                    let result_recorded_code = result_value.code;
-                    let result_recorded_scan_code = result_value.scan_code;
-                    let result_recorded_value = result_value.value;
-                    let result_recorded_x = result_value.x;
-                    let result_recorded_y = result_value.y;
-                    let result_recorded_wheel_x = result_value.wheel_x;
-                    let result_recorded_wheel_y = result_value.wheel_y;
-                    let result_recorded_modifiers = result_value.modifiers;
-                    let result_recorded_repeat = result_value.repeat;
-                    let result_recorded_text = {
-                        let result_recorded_text_ref = context
-                            .string_ref(result_value.text)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_text_ref.as_str().to_string()
-                    };
-                    let result_recorded = InputEventReplayRecord {
+                    let result_recorded_device_kind = result_value.device_kind;
+                    let result_recorded_connected = result_value.connected;
+                    let result_recorded = InputMonitorEventReplayRecord {
                         kind: result_recorded_kind,
                         timestamp_ns: result_recorded_timestamp_ns,
                         sequence: result_recorded_sequence,
                         device_id: result_recorded_device_id,
-                        action: result_recorded_action,
-                        code: result_recorded_code,
-                        scan_code: result_recorded_scan_code,
-                        value: result_recorded_value,
-                        x: result_recorded_x,
-                        y: result_recorded_y,
-                        wheel_x: result_recorded_wheel_x,
-                        wheel_y: result_recorded_wheel_y,
-                        modifiers: result_recorded_modifiers,
-                        repeat: result_recorded_repeat,
-                        text: result_recorded_text,
+                        device_kind: result_recorded_device_kind,
+                        connected: result_recorded_connected,
                     };
                     let payload = InputEventMonitorTryReadReplay {
                         result: Ok(result_recorded),
@@ -2927,34 +9528,15 @@ fn destack_input_event_monitor_try_read_vm_replay(
                         let vm_result_device_id_value =
                             context.intern_string(value.device_id.as_str());
                         let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
-                        let vm_result_action = value.action;
-                        let vm_result_code = value.code;
-                        let vm_result_scan_code = value.scan_code;
-                        let vm_result_value = value.value;
-                        let vm_result_x = value.x;
-                        let vm_result_y = value.y;
-                        let vm_result_wheel_x = value.wheel_x;
-                        let vm_result_wheel_y = value.wheel_y;
-                        let vm_result_modifiers = value.modifiers;
-                        let vm_result_repeat = value.repeat;
-                        let vm_result_text_value = context.intern_string(value.text.as_str());
-                        let vm_result_text = vm::StringHandle::new(vm_result_text_value);
-                        let vm_result = InputEventVm {
+                        let vm_result_device_kind = value.device_kind;
+                        let vm_result_connected = value.connected;
+                        let vm_result = InputMonitorEventVm {
                             kind: vm_result_kind,
                             timestamp_ns: vm_result_timestamp_ns,
                             sequence: vm_result_sequence,
                             device_id: vm_result_device_id,
-                            action: vm_result_action,
-                            code: vm_result_code,
-                            scan_code: vm_result_scan_code,
-                            value: vm_result_value,
-                            x: vm_result_x,
-                            y: vm_result_y,
-                            wheel_x: vm_result_wheel_x,
-                            wheel_y: vm_result_wheel_y,
-                            modifiers: vm_result_modifiers,
-                            repeat: vm_result_repeat,
-                            text: vm_result_text,
+                            device_kind: vm_result_device_kind,
+                            connected: vm_result_connected,
                         };
                         Ok(vm_result)
                     }
@@ -2998,38 +9580,171 @@ fn destack_input_event_read_vm_replay(
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         result_recorded_device_id_ref.as_str().to_string()
                     };
-                    let result_recorded_action = result_value.action;
-                    let result_recorded_code = result_value.code;
-                    let result_recorded_scan_code = result_value.scan_code;
-                    let result_recorded_value = result_value.value;
-                    let result_recorded_x = result_value.x;
-                    let result_recorded_y = result_value.y;
-                    let result_recorded_wheel_x = result_value.wheel_x;
-                    let result_recorded_wheel_y = result_value.wheel_y;
-                    let result_recorded_modifiers = result_value.modifiers;
-                    let result_recorded_repeat = result_value.repeat;
-                    let result_recorded_text = {
-                        let result_recorded_text_ref = context
-                            .string_ref(result_value.text)
+                    let result_recorded_payload_key_action = result_value.payload.key.action;
+                    let result_recorded_payload_key_backend_code =
+                        result_value.payload.key.backend_code;
+                    let result_recorded_payload_key_backend_scan_code =
+                        result_value.payload.key.backend_scan_code;
+                    let result_recorded_payload_key_backend_value =
+                        result_value.payload.key.backend_value;
+                    let result_recorded_payload_key_modifiers = result_value.payload.key.modifiers;
+                    let result_recorded_payload_key_repeat = result_value.payload.key.repeat;
+                    let result_recorded_payload_key = InputKeyEventPayload {
+                        action: result_recorded_payload_key_action,
+                        backend_code: result_recorded_payload_key_backend_code,
+                        backend_scan_code: result_recorded_payload_key_backend_scan_code,
+                        backend_value: result_recorded_payload_key_backend_value,
+                        modifiers: result_recorded_payload_key_modifiers,
+                        repeat: result_recorded_payload_key_repeat,
+                    };
+                    let result_recorded_payload_pointer_motion_x =
+                        result_value.payload.pointer_motion.x;
+                    let result_recorded_payload_pointer_motion_y =
+                        result_value.payload.pointer_motion.y;
+                    let result_recorded_payload_pointer_motion_buttons =
+                        result_value.payload.pointer_motion.buttons;
+                    let result_recorded_payload_pointer_motion_modifiers =
+                        result_value.payload.pointer_motion.modifiers;
+                    let result_recorded_payload_pointer_motion = InputPointerMotionEventPayload {
+                        x: result_recorded_payload_pointer_motion_x,
+                        y: result_recorded_payload_pointer_motion_y,
+                        buttons: result_recorded_payload_pointer_motion_buttons,
+                        modifiers: result_recorded_payload_pointer_motion_modifiers,
+                    };
+                    let result_recorded_payload_pointer_button_action =
+                        result_value.payload.pointer_button.action;
+                    let result_recorded_payload_pointer_button_backend_code =
+                        result_value.payload.pointer_button.backend_code;
+                    let result_recorded_payload_pointer_button_backend_value =
+                        result_value.payload.pointer_button.backend_value;
+                    let result_recorded_payload_pointer_button_x =
+                        result_value.payload.pointer_button.x;
+                    let result_recorded_payload_pointer_button_y =
+                        result_value.payload.pointer_button.y;
+                    let result_recorded_payload_pointer_button_modifiers =
+                        result_value.payload.pointer_button.modifiers;
+                    let result_recorded_payload_pointer_button = InputPointerButtonEventPayload {
+                        action: result_recorded_payload_pointer_button_action,
+                        backend_code: result_recorded_payload_pointer_button_backend_code,
+                        backend_value: result_recorded_payload_pointer_button_backend_value,
+                        x: result_recorded_payload_pointer_button_x,
+                        y: result_recorded_payload_pointer_button_y,
+                        modifiers: result_recorded_payload_pointer_button_modifiers,
+                    };
+                    let result_recorded_payload_scroll_wheel_x =
+                        result_value.payload.scroll.wheel_x;
+                    let result_recorded_payload_scroll_wheel_y =
+                        result_value.payload.scroll.wheel_y;
+                    let result_recorded_payload_scroll_x = result_value.payload.scroll.x;
+                    let result_recorded_payload_scroll_y = result_value.payload.scroll.y;
+                    let result_recorded_payload_scroll_modifiers =
+                        result_value.payload.scroll.modifiers;
+                    let result_recorded_payload_scroll = InputScrollEventPayload {
+                        wheel_x: result_recorded_payload_scroll_wheel_x,
+                        wheel_y: result_recorded_payload_scroll_wheel_y,
+                        x: result_recorded_payload_scroll_x,
+                        y: result_recorded_payload_scroll_y,
+                        modifiers: result_recorded_payload_scroll_modifiers,
+                    };
+                    let result_recorded_payload_touch_action = result_value.payload.touch.action;
+                    let result_recorded_payload_touch_contact_id =
+                        result_value.payload.touch.contact_id;
+                    let result_recorded_payload_touch_x = result_value.payload.touch.x;
+                    let result_recorded_payload_touch_y = result_value.payload.touch.y;
+                    let result_recorded_payload_touch_pressure =
+                        result_value.payload.touch.pressure;
+                    let result_recorded_payload_touch = InputTouchEventPayload {
+                        action: result_recorded_payload_touch_action,
+                        contact_id: result_recorded_payload_touch_contact_id,
+                        x: result_recorded_payload_touch_x,
+                        y: result_recorded_payload_touch_y,
+                        pressure: result_recorded_payload_touch_pressure,
+                    };
+                    let result_recorded_payload_gamepad_action =
+                        result_value.payload.gamepad.action;
+                    let result_recorded_payload_gamepad_backend_code =
+                        result_value.payload.gamepad.backend_code;
+                    let result_recorded_payload_gamepad_backend_value =
+                        result_value.payload.gamepad.backend_value;
+                    let result_recorded_payload_gamepad = InputGamepadEventPayload {
+                        action: result_recorded_payload_gamepad_action,
+                        backend_code: result_recorded_payload_gamepad_backend_code,
+                        backend_value: result_recorded_payload_gamepad_backend_value,
+                    };
+                    let result_recorded_payload_text_text = {
+                        let result_recorded_payload_text_text_ref = context
+                            .string_ref(result_value.payload.text.text)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_text_ref.as_str().to_string()
+                        result_recorded_payload_text_text_ref.as_str().to_string()
+                    };
+                    let result_recorded_payload_text = InputTextEventPayloadReplayRecord {
+                        text: result_recorded_payload_text_text,
+                    };
+                    let result_recorded_payload_device_action = result_value.payload.device.action;
+                    let result_recorded_payload_device_backend_code =
+                        result_value.payload.device.backend_code;
+                    let result_recorded_payload_device_backend_value =
+                        result_value.payload.device.backend_value;
+                    let result_recorded_payload_device = InputDeviceEventPayload {
+                        action: result_recorded_payload_device_action,
+                        backend_code: result_recorded_payload_device_backend_code,
+                        backend_value: result_recorded_payload_device_backend_value,
+                    };
+                    let result_recorded_payload_sensor_action = result_value.payload.sensor.action;
+                    let result_recorded_payload_sensor_backend_code =
+                        result_value.payload.sensor.backend_code;
+                    let result_recorded_payload_sensor_backend_value =
+                        result_value.payload.sensor.backend_value;
+                    let result_recorded_payload_sensor_x = result_value.payload.sensor.x;
+                    let result_recorded_payload_sensor_y = result_value.payload.sensor.y;
+                    let result_recorded_payload_sensor_z = result_value.payload.sensor.z;
+                    let result_recorded_payload_sensor = InputSensorEventPayload {
+                        action: result_recorded_payload_sensor_action,
+                        backend_code: result_recorded_payload_sensor_backend_code,
+                        backend_value: result_recorded_payload_sensor_backend_value,
+                        x: result_recorded_payload_sensor_x,
+                        y: result_recorded_payload_sensor_y,
+                        z: result_recorded_payload_sensor_z,
+                    };
+                    let result_recorded_payload_composition_action =
+                        result_value.payload.composition.action;
+                    let result_recorded_payload_composition_text = {
+                        let result_recorded_payload_composition_text_ref = context
+                            .string_ref(result_value.payload.composition.text)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_payload_composition_text_ref
+                            .as_str()
+                            .to_string()
+                    };
+                    let result_recorded_payload_composition_selection_start =
+                        result_value.payload.composition.selection_start;
+                    let result_recorded_payload_composition_selection_end =
+                        result_value.payload.composition.selection_end;
+                    let result_recorded_payload_composition =
+                        InputCompositionEventPayloadReplayRecord {
+                            action: result_recorded_payload_composition_action,
+                            text: result_recorded_payload_composition_text,
+                            selection_start: result_recorded_payload_composition_selection_start,
+                            selection_end: result_recorded_payload_composition_selection_end,
+                        };
+                    let result_recorded_payload = InputEventPayloadReplayRecord {
+                        key: result_recorded_payload_key,
+                        pointer_motion: result_recorded_payload_pointer_motion,
+                        pointer_button: result_recorded_payload_pointer_button,
+                        scroll: result_recorded_payload_scroll,
+                        touch: result_recorded_payload_touch,
+                        gamepad: result_recorded_payload_gamepad,
+                        text: result_recorded_payload_text,
+                        device: result_recorded_payload_device,
+                        sensor: result_recorded_payload_sensor,
+                        composition: result_recorded_payload_composition,
                     };
                     let result_recorded = InputEventReplayRecord {
                         kind: result_recorded_kind,
                         timestamp_ns: result_recorded_timestamp_ns,
                         sequence: result_recorded_sequence,
                         device_id: result_recorded_device_id,
-                        action: result_recorded_action,
-                        code: result_recorded_code,
-                        scan_code: result_recorded_scan_code,
-                        value: result_recorded_value,
-                        x: result_recorded_x,
-                        y: result_recorded_y,
-                        wheel_x: result_recorded_wheel_x,
-                        wheel_y: result_recorded_wheel_y,
-                        modifiers: result_recorded_modifiers,
-                        repeat: result_recorded_repeat,
-                        text: result_recorded_text,
+                        payload: result_recorded_payload,
                     };
                     let payload = InputEventReadReplay {
                         result: Ok(result_recorded),
@@ -3058,34 +9773,151 @@ fn destack_input_event_read_vm_replay(
                         let vm_result_device_id_value =
                             context.intern_string(value.device_id.as_str());
                         let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
-                        let vm_result_action = value.action;
-                        let vm_result_code = value.code;
-                        let vm_result_scan_code = value.scan_code;
-                        let vm_result_value = value.value;
-                        let vm_result_x = value.x;
-                        let vm_result_y = value.y;
-                        let vm_result_wheel_x = value.wheel_x;
-                        let vm_result_wheel_y = value.wheel_y;
-                        let vm_result_modifiers = value.modifiers;
-                        let vm_result_repeat = value.repeat;
-                        let vm_result_text_value = context.intern_string(value.text.as_str());
-                        let vm_result_text = vm::StringHandle::new(vm_result_text_value);
+                        let vm_result_payload_key_action = value.payload.key.action;
+                        let vm_result_payload_key_backend_code = value.payload.key.backend_code;
+                        let vm_result_payload_key_backend_scan_code =
+                            value.payload.key.backend_scan_code;
+                        let vm_result_payload_key_backend_value = value.payload.key.backend_value;
+                        let vm_result_payload_key_modifiers = value.payload.key.modifiers;
+                        let vm_result_payload_key_repeat = value.payload.key.repeat;
+                        let vm_result_payload_key = InputKeyEventPayloadVm {
+                            action: vm_result_payload_key_action,
+                            backend_code: vm_result_payload_key_backend_code,
+                            backend_scan_code: vm_result_payload_key_backend_scan_code,
+                            backend_value: vm_result_payload_key_backend_value,
+                            modifiers: vm_result_payload_key_modifiers,
+                            repeat: vm_result_payload_key_repeat,
+                        };
+                        let vm_result_payload_pointer_motion_x = value.payload.pointer_motion.x;
+                        let vm_result_payload_pointer_motion_y = value.payload.pointer_motion.y;
+                        let vm_result_payload_pointer_motion_buttons =
+                            value.payload.pointer_motion.buttons;
+                        let vm_result_payload_pointer_motion_modifiers =
+                            value.payload.pointer_motion.modifiers;
+                        let vm_result_payload_pointer_motion = InputPointerMotionEventPayloadVm {
+                            x: vm_result_payload_pointer_motion_x,
+                            y: vm_result_payload_pointer_motion_y,
+                            buttons: vm_result_payload_pointer_motion_buttons,
+                            modifiers: vm_result_payload_pointer_motion_modifiers,
+                        };
+                        let vm_result_payload_pointer_button_action =
+                            value.payload.pointer_button.action;
+                        let vm_result_payload_pointer_button_backend_code =
+                            value.payload.pointer_button.backend_code;
+                        let vm_result_payload_pointer_button_backend_value =
+                            value.payload.pointer_button.backend_value;
+                        let vm_result_payload_pointer_button_x = value.payload.pointer_button.x;
+                        let vm_result_payload_pointer_button_y = value.payload.pointer_button.y;
+                        let vm_result_payload_pointer_button_modifiers =
+                            value.payload.pointer_button.modifiers;
+                        let vm_result_payload_pointer_button = InputPointerButtonEventPayloadVm {
+                            action: vm_result_payload_pointer_button_action,
+                            backend_code: vm_result_payload_pointer_button_backend_code,
+                            backend_value: vm_result_payload_pointer_button_backend_value,
+                            x: vm_result_payload_pointer_button_x,
+                            y: vm_result_payload_pointer_button_y,
+                            modifiers: vm_result_payload_pointer_button_modifiers,
+                        };
+                        let vm_result_payload_scroll_wheel_x = value.payload.scroll.wheel_x;
+                        let vm_result_payload_scroll_wheel_y = value.payload.scroll.wheel_y;
+                        let vm_result_payload_scroll_x = value.payload.scroll.x;
+                        let vm_result_payload_scroll_y = value.payload.scroll.y;
+                        let vm_result_payload_scroll_modifiers = value.payload.scroll.modifiers;
+                        let vm_result_payload_scroll = InputScrollEventPayloadVm {
+                            wheel_x: vm_result_payload_scroll_wheel_x,
+                            wheel_y: vm_result_payload_scroll_wheel_y,
+                            x: vm_result_payload_scroll_x,
+                            y: vm_result_payload_scroll_y,
+                            modifiers: vm_result_payload_scroll_modifiers,
+                        };
+                        let vm_result_payload_touch_action = value.payload.touch.action;
+                        let vm_result_payload_touch_contact_id = value.payload.touch.contact_id;
+                        let vm_result_payload_touch_x = value.payload.touch.x;
+                        let vm_result_payload_touch_y = value.payload.touch.y;
+                        let vm_result_payload_touch_pressure = value.payload.touch.pressure;
+                        let vm_result_payload_touch = InputTouchEventPayloadVm {
+                            action: vm_result_payload_touch_action,
+                            contact_id: vm_result_payload_touch_contact_id,
+                            x: vm_result_payload_touch_x,
+                            y: vm_result_payload_touch_y,
+                            pressure: vm_result_payload_touch_pressure,
+                        };
+                        let vm_result_payload_gamepad_action = value.payload.gamepad.action;
+                        let vm_result_payload_gamepad_backend_code =
+                            value.payload.gamepad.backend_code;
+                        let vm_result_payload_gamepad_backend_value =
+                            value.payload.gamepad.backend_value;
+                        let vm_result_payload_gamepad = InputGamepadEventPayloadVm {
+                            action: vm_result_payload_gamepad_action,
+                            backend_code: vm_result_payload_gamepad_backend_code,
+                            backend_value: vm_result_payload_gamepad_backend_value,
+                        };
+                        let vm_result_payload_text_text_value =
+                            context.intern_string(value.payload.text.text.as_str());
+                        let vm_result_payload_text_text =
+                            vm::StringHandle::new(vm_result_payload_text_text_value);
+                        let vm_result_payload_text = InputTextEventPayloadVm {
+                            text: vm_result_payload_text_text,
+                        };
+                        let vm_result_payload_device_action = value.payload.device.action;
+                        let vm_result_payload_device_backend_code =
+                            value.payload.device.backend_code;
+                        let vm_result_payload_device_backend_value =
+                            value.payload.device.backend_value;
+                        let vm_result_payload_device = InputDeviceEventPayloadVm {
+                            action: vm_result_payload_device_action,
+                            backend_code: vm_result_payload_device_backend_code,
+                            backend_value: vm_result_payload_device_backend_value,
+                        };
+                        let vm_result_payload_sensor_action = value.payload.sensor.action;
+                        let vm_result_payload_sensor_backend_code =
+                            value.payload.sensor.backend_code;
+                        let vm_result_payload_sensor_backend_value =
+                            value.payload.sensor.backend_value;
+                        let vm_result_payload_sensor_x = value.payload.sensor.x;
+                        let vm_result_payload_sensor_y = value.payload.sensor.y;
+                        let vm_result_payload_sensor_z = value.payload.sensor.z;
+                        let vm_result_payload_sensor = InputSensorEventPayloadVm {
+                            action: vm_result_payload_sensor_action,
+                            backend_code: vm_result_payload_sensor_backend_code,
+                            backend_value: vm_result_payload_sensor_backend_value,
+                            x: vm_result_payload_sensor_x,
+                            y: vm_result_payload_sensor_y,
+                            z: vm_result_payload_sensor_z,
+                        };
+                        let vm_result_payload_composition_action = value.payload.composition.action;
+                        let vm_result_payload_composition_text_value =
+                            context.intern_string(value.payload.composition.text.as_str());
+                        let vm_result_payload_composition_text =
+                            vm::StringHandle::new(vm_result_payload_composition_text_value);
+                        let vm_result_payload_composition_selection_start =
+                            value.payload.composition.selection_start;
+                        let vm_result_payload_composition_selection_end =
+                            value.payload.composition.selection_end;
+                        let vm_result_payload_composition = InputCompositionEventPayloadVm {
+                            action: vm_result_payload_composition_action,
+                            text: vm_result_payload_composition_text,
+                            selection_start: vm_result_payload_composition_selection_start,
+                            selection_end: vm_result_payload_composition_selection_end,
+                        };
+                        let vm_result_payload = InputEventPayloadVm {
+                            key: vm_result_payload_key,
+                            pointer_motion: vm_result_payload_pointer_motion,
+                            pointer_button: vm_result_payload_pointer_button,
+                            scroll: vm_result_payload_scroll,
+                            touch: vm_result_payload_touch,
+                            gamepad: vm_result_payload_gamepad,
+                            text: vm_result_payload_text,
+                            device: vm_result_payload_device,
+                            sensor: vm_result_payload_sensor,
+                            composition: vm_result_payload_composition,
+                        };
                         let vm_result = InputEventVm {
                             kind: vm_result_kind,
                             timestamp_ns: vm_result_timestamp_ns,
                             sequence: vm_result_sequence,
                             device_id: vm_result_device_id,
-                            action: vm_result_action,
-                            code: vm_result_code,
-                            scan_code: vm_result_scan_code,
-                            value: vm_result_value,
-                            x: vm_result_x,
-                            y: vm_result_y,
-                            wheel_x: vm_result_wheel_x,
-                            wheel_y: vm_result_wheel_y,
-                            modifiers: vm_result_modifiers,
-                            repeat: vm_result_repeat,
-                            text: vm_result_text,
+                            payload: vm_result_payload,
                         };
                         Ok(vm_result)
                     }
@@ -3105,322 +9937,535 @@ fn destack_input_event_read_batch_vm_replay(
     handle: resource::InputDeviceHandle,
     maxevents: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            INPUT_EVENT_READ_BATCH,
-            runtime.replay_payload_for(INPUT_EVENT_READ_BATCH)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_input_read_batch(runtime, context, handle, maxevents)
-                }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_read_batch(
-                    runtime, context, handle, maxevents,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<InputEventVm> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item = {
-                            if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_type(
-                                        "result_recorded_item",
-                                        "item",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let slots = context
-                                .aggregate_slots(result_recorded_item_value)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 15 {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item",
-                                        "expected 15 fields",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let result_recorded_item_kind_raw =
-                                decode_uint8(slots[0], "result_recorded_item_kind_raw", "kind")?;
-                            let result_recorded_item_kind = match result_recorded_item_kind_raw {
-                                1u8 => InputEventKind::Key,
-                                2u8 => InputEventKind::PointerMotion,
-                                3u8 => InputEventKind::PointerButton,
-                                4u8 => InputEventKind::Scroll,
-                                5u8 => InputEventKind::Touch,
-                                6u8 => InputEventKind::Gamepad,
-                                7u8 => InputEventKind::Text,
-                                8u8 => InputEventKind::Device,
-                                9u8 => InputEventKind::Sensor,
-                                _ => {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_value(
-                                            "result_recorded_item_kind",
-                                            "unknown InputEventKind value",
-                                        ),
-                                    )
-                                    .boxed());
+    let result = runtime.replay().run_binding_with_context_and_payload_policy(
+        INPUT_EVENT_READ_BATCH,
+        runtime.replay_payload_for(INPUT_EVENT_READ_BATCH)?,
+        context,
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_input_read_batch(runtime, context, handle, maxevents),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_read_batch(runtime, context, handle, maxevents),
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<InputEventVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 5 fields")).boxed()); }
+                        let result_recorded_item_kind_raw = decode_uint8(slots[0], "result_recorded_item_kind_raw", "kind")?;
+                        let result_recorded_item_kind = match result_recorded_item_kind_raw { 1u8 => InputEventKind::Key, 2u8 => InputEventKind::PointerMotion, 3u8 => InputEventKind::PointerButton, 4u8 => InputEventKind::Scroll, 5u8 => InputEventKind::Touch, 6u8 => InputEventKind::Gamepad, 7u8 => InputEventKind::Text, 8u8 => InputEventKind::Device, 9u8 => InputEventKind::Sensor, 10u8 => InputEventKind::Composition , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_kind", "unknown InputEventKind value")).boxed()), };
+                        let result_recorded_item_timestamp_ns = decode_uint64(slots[1], "result_recorded_item_timestamp_ns", "timestampNs")?;
+                        let result_recorded_item_sequence = decode_uint64(slots[2], "result_recorded_item_sequence", "sequence")?;
+                        let result_recorded_item_device_id = decode_string(slots[3], "result_recorded_item_device_id", "deviceId")?;
+                        let result_recorded_item_payload = {
+                            if slots[4].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload", "payload")).boxed()); }
+                            let slots = context.aggregate_slots(slots[4]).map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots.len() != 10 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload", "expected 10 fields")).boxed()); }
+                            let result_recorded_item_payload_key = {
+                                if slots[0].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_key", "key")).boxed()); }
+                                let slots = context.aggregate_slots(slots[0]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 6 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_key", "expected 6 fields")).boxed()); }
+                                let result_recorded_item_payload_key_action_raw = decode_uint8(slots[0], "result_recorded_item_payload_key_action_raw", "action")?;
+                                let result_recorded_item_payload_key_action = match result_recorded_item_payload_key_action_raw { 1u8 => InputEventAction::Press, 2u8 => InputEventAction::Release, 3u8 => InputEventAction::Repeat, 4u8 => InputEventAction::Move, 5u8 => InputEventAction::Scroll, 6u8 => InputEventAction::Axis, 7u8 => InputEventAction::Text, 8u8 => InputEventAction::Connect, 9u8 => InputEventAction::Disconnect, 10u8 => InputEventAction::Cancel, 11u8 => InputEventAction::Begin, 12u8 => InputEventAction::Update, 13u8 => InputEventAction::Commit, 14u8 => InputEventAction::End , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_key_action", "unknown InputEventAction value")).boxed()), };
+                                let result_recorded_item_payload_key_backend_code = decode_uint32(slots[1], "result_recorded_item_payload_key_backend_code", "backendCode")?;
+                                let result_recorded_item_payload_key_backend_scan_code = decode_uint32(slots[2], "result_recorded_item_payload_key_backend_scan_code", "backendScanCode")?;
+                                let result_recorded_item_payload_key_backend_value = decode_int64(slots[3], "result_recorded_item_payload_key_backend_value", "backendValue")?;
+                                let result_recorded_item_payload_key_modifiers = decode_uint32(slots[4], "result_recorded_item_payload_key_modifiers", "modifiers")?;
+                                let result_recorded_item_payload_key_repeat = decode_bool(slots[5], "result_recorded_item_payload_key_repeat", "repeat")?;
+                                InputKeyEventPayloadVm {
+                                    action: result_recorded_item_payload_key_action,
+                                    backend_code: result_recorded_item_payload_key_backend_code,
+                                    backend_scan_code: result_recorded_item_payload_key_backend_scan_code,
+                                    backend_value: result_recorded_item_payload_key_backend_value,
+                                    modifiers: result_recorded_item_payload_key_modifiers,
+                                    repeat: result_recorded_item_payload_key_repeat,
                                 }
                             };
-                            let result_recorded_item_timestamp_ns = decode_uint64(
-                                slots[1],
-                                "result_recorded_item_timestamp_ns",
-                                "timestampNs",
-                            )?;
-                            let result_recorded_item_sequence = decode_uint64(
-                                slots[2],
-                                "result_recorded_item_sequence",
-                                "sequence",
-                            )?;
-                            let result_recorded_item_device_id = decode_string(
-                                slots[3],
-                                "result_recorded_item_device_id",
-                                "deviceId",
-                            )?;
-                            let result_recorded_item_action_raw = decode_uint8(
-                                slots[4],
-                                "result_recorded_item_action_raw",
-                                "action",
-                            )?;
-                            let result_recorded_item_action = match result_recorded_item_action_raw
-                            {
-                                1u8 => InputEventAction::Press,
-                                2u8 => InputEventAction::Release,
-                                3u8 => InputEventAction::Repeat,
-                                4u8 => InputEventAction::Move,
-                                5u8 => InputEventAction::Scroll,
-                                6u8 => InputEventAction::Axis,
-                                7u8 => InputEventAction::Text,
-                                8u8 => InputEventAction::Connect,
-                                9u8 => InputEventAction::Disconnect,
-                                10u8 => InputEventAction::Cancel,
-                                _ => {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_value(
-                                            "result_recorded_item_action",
-                                            "unknown InputEventAction value",
-                                        ),
-                                    )
-                                    .boxed());
+                            let result_recorded_item_payload_pointer_motion = {
+                                if slots[1].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_pointer_motion", "pointerMotion")).boxed()); }
+                                let slots = context.aggregate_slots(slots[1]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 4 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_pointer_motion", "expected 4 fields")).boxed()); }
+                                let result_recorded_item_payload_pointer_motion_x = decode_float64(slots[0], "result_recorded_item_payload_pointer_motion_x", "x")?;
+                                let result_recorded_item_payload_pointer_motion_y = decode_float64(slots[1], "result_recorded_item_payload_pointer_motion_y", "y")?;
+                                let result_recorded_item_payload_pointer_motion_buttons = decode_uint32(slots[2], "result_recorded_item_payload_pointer_motion_buttons", "buttons")?;
+                                let result_recorded_item_payload_pointer_motion_modifiers = decode_uint32(slots[3], "result_recorded_item_payload_pointer_motion_modifiers", "modifiers")?;
+                                InputPointerMotionEventPayloadVm {
+                                    x: result_recorded_item_payload_pointer_motion_x,
+                                    y: result_recorded_item_payload_pointer_motion_y,
+                                    buttons: result_recorded_item_payload_pointer_motion_buttons,
+                                    modifiers: result_recorded_item_payload_pointer_motion_modifiers,
                                 }
                             };
-                            let result_recorded_item_code =
-                                decode_uint32(slots[5], "result_recorded_item_code", "code")?;
-                            let result_recorded_item_scan_code = decode_uint32(
-                                slots[6],
-                                "result_recorded_item_scan_code",
-                                "scanCode",
-                            )?;
-                            let result_recorded_item_value =
-                                decode_int64(slots[7], "result_recorded_item_value", "value")?;
-                            let result_recorded_item_x =
-                                decode_float64(slots[8], "result_recorded_item_x", "x")?;
-                            let result_recorded_item_y =
-                                decode_float64(slots[9], "result_recorded_item_y", "y")?;
-                            let result_recorded_item_wheel_x = decode_float64(
-                                slots[10],
-                                "result_recorded_item_wheel_x",
-                                "wheelX",
-                            )?;
-                            let result_recorded_item_wheel_y = decode_float64(
-                                slots[11],
-                                "result_recorded_item_wheel_y",
-                                "wheelY",
-                            )?;
-                            let result_recorded_item_modifiers = decode_uint32(
-                                slots[12],
-                                "result_recorded_item_modifiers",
-                                "modifiers",
-                            )?;
-                            let result_recorded_item_repeat =
-                                decode_bool(slots[13], "result_recorded_item_repeat", "repeat")?;
-                            let result_recorded_item_text =
-                                decode_string(slots[14], "result_recorded_item_text", "text")?;
-                            InputEventVm {
-                                kind: result_recorded_item_kind,
-                                timestamp_ns: result_recorded_item_timestamp_ns,
-                                sequence: result_recorded_item_sequence,
-                                device_id: result_recorded_item_device_id,
-                                action: result_recorded_item_action,
-                                code: result_recorded_item_code,
-                                scan_code: result_recorded_item_scan_code,
-                                value: result_recorded_item_value,
-                                x: result_recorded_item_x,
-                                y: result_recorded_item_y,
-                                wheel_x: result_recorded_item_wheel_x,
-                                wheel_y: result_recorded_item_wheel_y,
-                                modifiers: result_recorded_item_modifiers,
-                                repeat: result_recorded_item_repeat,
-                                text: result_recorded_item_text,
+                            let result_recorded_item_payload_pointer_button = {
+                                if slots[2].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_pointer_button", "pointerButton")).boxed()); }
+                                let slots = context.aggregate_slots(slots[2]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 6 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_pointer_button", "expected 6 fields")).boxed()); }
+                                let result_recorded_item_payload_pointer_button_action_raw = decode_uint8(slots[0], "result_recorded_item_payload_pointer_button_action_raw", "action")?;
+                                let result_recorded_item_payload_pointer_button_action = match result_recorded_item_payload_pointer_button_action_raw { 1u8 => InputEventAction::Press, 2u8 => InputEventAction::Release, 3u8 => InputEventAction::Repeat, 4u8 => InputEventAction::Move, 5u8 => InputEventAction::Scroll, 6u8 => InputEventAction::Axis, 7u8 => InputEventAction::Text, 8u8 => InputEventAction::Connect, 9u8 => InputEventAction::Disconnect, 10u8 => InputEventAction::Cancel, 11u8 => InputEventAction::Begin, 12u8 => InputEventAction::Update, 13u8 => InputEventAction::Commit, 14u8 => InputEventAction::End , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_pointer_button_action", "unknown InputEventAction value")).boxed()), };
+                                let result_recorded_item_payload_pointer_button_backend_code = decode_uint32(slots[1], "result_recorded_item_payload_pointer_button_backend_code", "backendCode")?;
+                                let result_recorded_item_payload_pointer_button_backend_value = decode_int64(slots[2], "result_recorded_item_payload_pointer_button_backend_value", "backendValue")?;
+                                let result_recorded_item_payload_pointer_button_x = decode_float64(slots[3], "result_recorded_item_payload_pointer_button_x", "x")?;
+                                let result_recorded_item_payload_pointer_button_y = decode_float64(slots[4], "result_recorded_item_payload_pointer_button_y", "y")?;
+                                let result_recorded_item_payload_pointer_button_modifiers = decode_uint32(slots[5], "result_recorded_item_payload_pointer_button_modifiers", "modifiers")?;
+                                InputPointerButtonEventPayloadVm {
+                                    action: result_recorded_item_payload_pointer_button_action,
+                                    backend_code: result_recorded_item_payload_pointer_button_backend_code,
+                                    backend_value: result_recorded_item_payload_pointer_button_backend_value,
+                                    x: result_recorded_item_payload_pointer_button_x,
+                                    y: result_recorded_item_payload_pointer_button_y,
+                                    modifiers: result_recorded_item_payload_pointer_button_modifiers,
+                                }
+                            };
+                            let result_recorded_item_payload_scroll = {
+                                if slots[3].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_scroll", "scroll")).boxed()); }
+                                let slots = context.aggregate_slots(slots[3]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_scroll", "expected 5 fields")).boxed()); }
+                                let result_recorded_item_payload_scroll_wheel_x = decode_float64(slots[0], "result_recorded_item_payload_scroll_wheel_x", "wheelX")?;
+                                let result_recorded_item_payload_scroll_wheel_y = decode_float64(slots[1], "result_recorded_item_payload_scroll_wheel_y", "wheelY")?;
+                                let result_recorded_item_payload_scroll_x = decode_float64(slots[2], "result_recorded_item_payload_scroll_x", "x")?;
+                                let result_recorded_item_payload_scroll_y = decode_float64(slots[3], "result_recorded_item_payload_scroll_y", "y")?;
+                                let result_recorded_item_payload_scroll_modifiers = decode_uint32(slots[4], "result_recorded_item_payload_scroll_modifiers", "modifiers")?;
+                                InputScrollEventPayloadVm {
+                                    wheel_x: result_recorded_item_payload_scroll_wheel_x,
+                                    wheel_y: result_recorded_item_payload_scroll_wheel_y,
+                                    x: result_recorded_item_payload_scroll_x,
+                                    y: result_recorded_item_payload_scroll_y,
+                                    modifiers: result_recorded_item_payload_scroll_modifiers,
+                                }
+                            };
+                            let result_recorded_item_payload_touch = {
+                                if slots[4].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_touch", "touch")).boxed()); }
+                                let slots = context.aggregate_slots(slots[4]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_touch", "expected 5 fields")).boxed()); }
+                                let result_recorded_item_payload_touch_action_raw = decode_uint8(slots[0], "result_recorded_item_payload_touch_action_raw", "action")?;
+                                let result_recorded_item_payload_touch_action = match result_recorded_item_payload_touch_action_raw { 1u8 => InputEventAction::Press, 2u8 => InputEventAction::Release, 3u8 => InputEventAction::Repeat, 4u8 => InputEventAction::Move, 5u8 => InputEventAction::Scroll, 6u8 => InputEventAction::Axis, 7u8 => InputEventAction::Text, 8u8 => InputEventAction::Connect, 9u8 => InputEventAction::Disconnect, 10u8 => InputEventAction::Cancel, 11u8 => InputEventAction::Begin, 12u8 => InputEventAction::Update, 13u8 => InputEventAction::Commit, 14u8 => InputEventAction::End , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_touch_action", "unknown InputEventAction value")).boxed()), };
+                                let result_recorded_item_payload_touch_contact_id = decode_uint32(slots[1], "result_recorded_item_payload_touch_contact_id", "contactId")?;
+                                let result_recorded_item_payload_touch_x = decode_float64(slots[2], "result_recorded_item_payload_touch_x", "x")?;
+                                let result_recorded_item_payload_touch_y = decode_float64(slots[3], "result_recorded_item_payload_touch_y", "y")?;
+                                let result_recorded_item_payload_touch_pressure = decode_float64(slots[4], "result_recorded_item_payload_touch_pressure", "pressure")?;
+                                InputTouchEventPayloadVm {
+                                    action: result_recorded_item_payload_touch_action,
+                                    contact_id: result_recorded_item_payload_touch_contact_id,
+                                    x: result_recorded_item_payload_touch_x,
+                                    y: result_recorded_item_payload_touch_y,
+                                    pressure: result_recorded_item_payload_touch_pressure,
+                                }
+                            };
+                            let result_recorded_item_payload_gamepad = {
+                                if slots[5].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_gamepad", "gamepad")).boxed()); }
+                                let slots = context.aggregate_slots(slots[5]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 3 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_gamepad", "expected 3 fields")).boxed()); }
+                                let result_recorded_item_payload_gamepad_action_raw = decode_uint8(slots[0], "result_recorded_item_payload_gamepad_action_raw", "action")?;
+                                let result_recorded_item_payload_gamepad_action = match result_recorded_item_payload_gamepad_action_raw { 1u8 => InputEventAction::Press, 2u8 => InputEventAction::Release, 3u8 => InputEventAction::Repeat, 4u8 => InputEventAction::Move, 5u8 => InputEventAction::Scroll, 6u8 => InputEventAction::Axis, 7u8 => InputEventAction::Text, 8u8 => InputEventAction::Connect, 9u8 => InputEventAction::Disconnect, 10u8 => InputEventAction::Cancel, 11u8 => InputEventAction::Begin, 12u8 => InputEventAction::Update, 13u8 => InputEventAction::Commit, 14u8 => InputEventAction::End , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_gamepad_action", "unknown InputEventAction value")).boxed()), };
+                                let result_recorded_item_payload_gamepad_backend_code = decode_uint32(slots[1], "result_recorded_item_payload_gamepad_backend_code", "backendCode")?;
+                                let result_recorded_item_payload_gamepad_backend_value = decode_int64(slots[2], "result_recorded_item_payload_gamepad_backend_value", "backendValue")?;
+                                InputGamepadEventPayloadVm {
+                                    action: result_recorded_item_payload_gamepad_action,
+                                    backend_code: result_recorded_item_payload_gamepad_backend_code,
+                                    backend_value: result_recorded_item_payload_gamepad_backend_value,
+                                }
+                            };
+                            let result_recorded_item_payload_text = {
+                                if slots[6].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_text", "text")).boxed()); }
+                                let slots = context.aggregate_slots(slots[6]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 1 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_text", "expected 1 fields")).boxed()); }
+                                let result_recorded_item_payload_text_text = decode_string(slots[0], "result_recorded_item_payload_text_text", "text")?;
+                                InputTextEventPayloadVm {
+                                    text: result_recorded_item_payload_text_text,
+                                }
+                            };
+                            let result_recorded_item_payload_device = {
+                                if slots[7].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_device", "device")).boxed()); }
+                                let slots = context.aggregate_slots(slots[7]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 3 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_device", "expected 3 fields")).boxed()); }
+                                let result_recorded_item_payload_device_action_raw = decode_uint8(slots[0], "result_recorded_item_payload_device_action_raw", "action")?;
+                                let result_recorded_item_payload_device_action = match result_recorded_item_payload_device_action_raw { 1u8 => InputEventAction::Press, 2u8 => InputEventAction::Release, 3u8 => InputEventAction::Repeat, 4u8 => InputEventAction::Move, 5u8 => InputEventAction::Scroll, 6u8 => InputEventAction::Axis, 7u8 => InputEventAction::Text, 8u8 => InputEventAction::Connect, 9u8 => InputEventAction::Disconnect, 10u8 => InputEventAction::Cancel, 11u8 => InputEventAction::Begin, 12u8 => InputEventAction::Update, 13u8 => InputEventAction::Commit, 14u8 => InputEventAction::End , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_device_action", "unknown InputEventAction value")).boxed()), };
+                                let result_recorded_item_payload_device_backend_code = decode_uint32(slots[1], "result_recorded_item_payload_device_backend_code", "backendCode")?;
+                                let result_recorded_item_payload_device_backend_value = decode_int64(slots[2], "result_recorded_item_payload_device_backend_value", "backendValue")?;
+                                InputDeviceEventPayloadVm {
+                                    action: result_recorded_item_payload_device_action,
+                                    backend_code: result_recorded_item_payload_device_backend_code,
+                                    backend_value: result_recorded_item_payload_device_backend_value,
+                                }
+                            };
+                            let result_recorded_item_payload_sensor = {
+                                if slots[8].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_sensor", "sensor")).boxed()); }
+                                let slots = context.aggregate_slots(slots[8]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 6 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_sensor", "expected 6 fields")).boxed()); }
+                                let result_recorded_item_payload_sensor_action_raw = decode_uint8(slots[0], "result_recorded_item_payload_sensor_action_raw", "action")?;
+                                let result_recorded_item_payload_sensor_action = match result_recorded_item_payload_sensor_action_raw { 1u8 => InputEventAction::Press, 2u8 => InputEventAction::Release, 3u8 => InputEventAction::Repeat, 4u8 => InputEventAction::Move, 5u8 => InputEventAction::Scroll, 6u8 => InputEventAction::Axis, 7u8 => InputEventAction::Text, 8u8 => InputEventAction::Connect, 9u8 => InputEventAction::Disconnect, 10u8 => InputEventAction::Cancel, 11u8 => InputEventAction::Begin, 12u8 => InputEventAction::Update, 13u8 => InputEventAction::Commit, 14u8 => InputEventAction::End , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_sensor_action", "unknown InputEventAction value")).boxed()), };
+                                let result_recorded_item_payload_sensor_backend_code = decode_uint32(slots[1], "result_recorded_item_payload_sensor_backend_code", "backendCode")?;
+                                let result_recorded_item_payload_sensor_backend_value = decode_int64(slots[2], "result_recorded_item_payload_sensor_backend_value", "backendValue")?;
+                                let result_recorded_item_payload_sensor_x = decode_float64(slots[3], "result_recorded_item_payload_sensor_x", "x")?;
+                                let result_recorded_item_payload_sensor_y = decode_float64(slots[4], "result_recorded_item_payload_sensor_y", "y")?;
+                                let result_recorded_item_payload_sensor_z = decode_float64(slots[5], "result_recorded_item_payload_sensor_z", "z")?;
+                                InputSensorEventPayloadVm {
+                                    action: result_recorded_item_payload_sensor_action,
+                                    backend_code: result_recorded_item_payload_sensor_backend_code,
+                                    backend_value: result_recorded_item_payload_sensor_backend_value,
+                                    x: result_recorded_item_payload_sensor_x,
+                                    y: result_recorded_item_payload_sensor_y,
+                                    z: result_recorded_item_payload_sensor_z,
+                                }
+                            };
+                            let result_recorded_item_payload_composition = {
+                                if slots[9].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_composition", "composition")).boxed()); }
+                                let slots = context.aggregate_slots(slots[9]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 4 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_composition", "expected 4 fields")).boxed()); }
+                                let result_recorded_item_payload_composition_action_raw = decode_uint8(slots[0], "result_recorded_item_payload_composition_action_raw", "action")?;
+                                let result_recorded_item_payload_composition_action = match result_recorded_item_payload_composition_action_raw { 1u8 => InputEventAction::Press, 2u8 => InputEventAction::Release, 3u8 => InputEventAction::Repeat, 4u8 => InputEventAction::Move, 5u8 => InputEventAction::Scroll, 6u8 => InputEventAction::Axis, 7u8 => InputEventAction::Text, 8u8 => InputEventAction::Connect, 9u8 => InputEventAction::Disconnect, 10u8 => InputEventAction::Cancel, 11u8 => InputEventAction::Begin, 12u8 => InputEventAction::Update, 13u8 => InputEventAction::Commit, 14u8 => InputEventAction::End , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_composition_action", "unknown InputEventAction value")).boxed()), };
+                                let result_recorded_item_payload_composition_text = decode_string(slots[1], "result_recorded_item_payload_composition_text", "text")?;
+                                let result_recorded_item_payload_composition_selection_start = decode_int32(slots[2], "result_recorded_item_payload_composition_selection_start", "selectionStart")?;
+                                let result_recorded_item_payload_composition_selection_end = decode_int32(slots[3], "result_recorded_item_payload_composition_selection_end", "selectionEnd")?;
+                                InputCompositionEventPayloadVm {
+                                    action: result_recorded_item_payload_composition_action,
+                                    text: result_recorded_item_payload_composition_text,
+                                    selection_start: result_recorded_item_payload_composition_selection_start,
+                                    selection_end: result_recorded_item_payload_composition_selection_end,
+                                }
+                            };
+                            InputEventPayloadVm {
+                                key: result_recorded_item_payload_key,
+                                pointer_motion: result_recorded_item_payload_pointer_motion,
+                                pointer_button: result_recorded_item_payload_pointer_button,
+                                scroll: result_recorded_item_payload_scroll,
+                                touch: result_recorded_item_payload_touch,
+                                gamepad: result_recorded_item_payload_gamepad,
+                                text: result_recorded_item_payload_text,
+                                device: result_recorded_item_payload_device,
+                                sensor: result_recorded_item_payload_sensor,
+                                composition: result_recorded_item_payload_composition,
                             }
                         };
-                        let result_recorded_item_recorded_kind = result_recorded_item.kind;
-                        let result_recorded_item_recorded_timestamp_ns =
-                            result_recorded_item.timestamp_ns;
-                        let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
-                        let result_recorded_item_recorded_device_id = {
-                            let result_recorded_item_recorded_device_id_ref = context
-                                .string_ref(result_recorded_item.device_id)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_item_recorded_device_id_ref
-                                .as_str()
-                                .to_string()
-                        };
-                        let result_recorded_item_recorded_action = result_recorded_item.action;
-                        let result_recorded_item_recorded_code = result_recorded_item.code;
-                        let result_recorded_item_recorded_scan_code =
-                            result_recorded_item.scan_code;
-                        let result_recorded_item_recorded_value = result_recorded_item.value;
-                        let result_recorded_item_recorded_x = result_recorded_item.x;
-                        let result_recorded_item_recorded_y = result_recorded_item.y;
-                        let result_recorded_item_recorded_wheel_x = result_recorded_item.wheel_x;
-                        let result_recorded_item_recorded_wheel_y = result_recorded_item.wheel_y;
-                        let result_recorded_item_recorded_modifiers =
-                            result_recorded_item.modifiers;
-                        let result_recorded_item_recorded_repeat = result_recorded_item.repeat;
-                        let result_recorded_item_recorded_text = {
-                            let result_recorded_item_recorded_text_ref = context
-                                .string_ref(result_recorded_item.text)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_item_recorded_text_ref.as_str().to_string()
-                        };
-                        let result_recorded_item_recorded = InputEventReplayRecord {
-                            kind: result_recorded_item_recorded_kind,
-                            timestamp_ns: result_recorded_item_recorded_timestamp_ns,
-                            sequence: result_recorded_item_recorded_sequence,
-                            device_id: result_recorded_item_recorded_device_id,
-                            action: result_recorded_item_recorded_action,
-                            code: result_recorded_item_recorded_code,
-                            scan_code: result_recorded_item_recorded_scan_code,
-                            value: result_recorded_item_recorded_value,
-                            x: result_recorded_item_recorded_x,
-                            y: result_recorded_item_recorded_y,
-                            wheel_x: result_recorded_item_recorded_wheel_x,
-                            wheel_y: result_recorded_item_recorded_wheel_y,
-                            modifiers: result_recorded_item_recorded_modifiers,
-                            repeat: result_recorded_item_recorded_repeat,
-                            text: result_recorded_item_recorded_text,
-                        };
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = InputEventReadBatchReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        InputEventReadBatchReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item = vm_result_item.clone();
-                            let vm_result_item_value_kind = vm_result_item.kind;
-                            let vm_result_item_value_timestamp_ns = vm_result_item.timestamp_ns;
-                            let vm_result_item_value_sequence = vm_result_item.sequence;
-                            let vm_result_item_value_device_id_value =
-                                context.intern_string(vm_result_item.device_id.as_str());
-                            let vm_result_item_value_device_id =
-                                vm::StringHandle::new(vm_result_item_value_device_id_value);
-                            let vm_result_item_value_action = vm_result_item.action;
-                            let vm_result_item_value_code = vm_result_item.code;
-                            let vm_result_item_value_scan_code = vm_result_item.scan_code;
-                            let vm_result_item_value_value = vm_result_item.value;
-                            let vm_result_item_value_x = vm_result_item.x;
-                            let vm_result_item_value_y = vm_result_item.y;
-                            let vm_result_item_value_wheel_x = vm_result_item.wheel_x;
-                            let vm_result_item_value_wheel_y = vm_result_item.wheel_y;
-                            let vm_result_item_value_modifiers = vm_result_item.modifiers;
-                            let vm_result_item_value_repeat = vm_result_item.repeat;
-                            let vm_result_item_value_text_value =
-                                context.intern_string(vm_result_item.text.as_str());
-                            let vm_result_item_value_text =
-                                vm::StringHandle::new(vm_result_item_value_text_value);
-                            let vm_result_item_value = InputEventVm {
-                                kind: vm_result_item_value_kind,
-                                timestamp_ns: vm_result_item_value_timestamp_ns,
-                                sequence: vm_result_item_value_sequence,
-                                device_id: vm_result_item_value_device_id,
-                                action: vm_result_item_value_action,
-                                code: vm_result_item_value_code,
-                                scan_code: vm_result_item_value_scan_code,
-                                value: vm_result_item_value_value,
-                                x: vm_result_item_value_x,
-                                y: vm_result_item_value_y,
-                                wheel_x: vm_result_item_value_wheel_x,
-                                wheel_y: vm_result_item_value_wheel_y,
-                                modifiers: vm_result_item_value_modifiers,
-                                repeat: vm_result_item_value_repeat,
-                                text: vm_result_item_value_text,
-                            };
-                            let vm_result_item_value_encoded = {
-                                let field_0 =
-                                    vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8);
-                                let field_1 =
-                                    vm::Value::uint(vm_result_item_value.timestamp_ns, 64);
-                                let field_2 = vm::Value::uint(vm_result_item_value.sequence, 64);
-                                let field_3 = vm_result_item_value.device_id.value();
-                                let field_4 =
-                                    vm::Value::uint(vm_result_item_value.action as u8 as u64, 8);
-                                let field_5 = vm::Value::uint(vm_result_item_value.code as u64, 32);
-                                let field_6 =
-                                    vm::Value::uint(vm_result_item_value.scan_code as u64, 32);
-                                let field_7 = vm::Value::int(vm_result_item_value.value, 64);
-                                let field_8 = vm::Value::float64(vm_result_item_value.x);
-                                let field_9 = vm::Value::float64(vm_result_item_value.y);
-                                let field_10 = vm::Value::float64(vm_result_item_value.wheel_x);
-                                let field_11 = vm::Value::float64(vm_result_item_value.wheel_y);
-                                let field_12 =
-                                    vm::Value::uint(vm_result_item_value.modifiers as u64, 32);
-                                let field_13 = vm::Value::bool(vm_result_item_value.repeat);
-                                let field_14 = vm_result_item_value.text.value();
-                                context.allocate_aggregate(vec![
-                                    field_0, field_1, field_2, field_3, field_4, field_5, field_6,
-                                    field_7, field_8, field_9, field_10, field_11, field_12,
-                                    field_13, field_14,
-                                ])
-                            };
-                            vm_result_values.push(vm_result_item_value_encoded);
+                        InputEventVm {
+                            kind: result_recorded_item_kind,
+                            timestamp_ns: result_recorded_item_timestamp_ns,
+                            sequence: result_recorded_item_sequence,
+                            device_id: result_recorded_item_device_id,
+                            payload: result_recorded_item_payload,
                         }
-                        let vm_result_data = context.allocate_raw_values(vm_result_values);
-                        let vm_result: VmArray<InputEventVm> = VmArray {
-                            data: vm_result_data,
-                            len: value.len() as u32,
-                            capacity: value.len() as u32,
-                            _marker: std::marker::PhantomData,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    };
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded_timestamp_ns = result_recorded_item.timestamp_ns;
+                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
+                    let result_recorded_item_recorded_device_id = {
+                        let result_recorded_item_recorded_device_id_ref = context.string_ref(result_recorded_item.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_device_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_payload_key_action = result_recorded_item.payload.key.action;
+                    let result_recorded_item_recorded_payload_key_backend_code = result_recorded_item.payload.key.backend_code;
+                    let result_recorded_item_recorded_payload_key_backend_scan_code = result_recorded_item.payload.key.backend_scan_code;
+                    let result_recorded_item_recorded_payload_key_backend_value = result_recorded_item.payload.key.backend_value;
+                    let result_recorded_item_recorded_payload_key_modifiers = result_recorded_item.payload.key.modifiers;
+                    let result_recorded_item_recorded_payload_key_repeat = result_recorded_item.payload.key.repeat;
+                    let result_recorded_item_recorded_payload_key = InputKeyEventPayload {
+                        action: result_recorded_item_recorded_payload_key_action,
+                        backend_code: result_recorded_item_recorded_payload_key_backend_code,
+                        backend_scan_code: result_recorded_item_recorded_payload_key_backend_scan_code,
+                        backend_value: result_recorded_item_recorded_payload_key_backend_value,
+                        modifiers: result_recorded_item_recorded_payload_key_modifiers,
+                        repeat: result_recorded_item_recorded_payload_key_repeat,
+                    };
+                    let result_recorded_item_recorded_payload_pointer_motion_x = result_recorded_item.payload.pointer_motion.x;
+                    let result_recorded_item_recorded_payload_pointer_motion_y = result_recorded_item.payload.pointer_motion.y;
+                    let result_recorded_item_recorded_payload_pointer_motion_buttons = result_recorded_item.payload.pointer_motion.buttons;
+                    let result_recorded_item_recorded_payload_pointer_motion_modifiers = result_recorded_item.payload.pointer_motion.modifiers;
+                    let result_recorded_item_recorded_payload_pointer_motion = InputPointerMotionEventPayload {
+                        x: result_recorded_item_recorded_payload_pointer_motion_x,
+                        y: result_recorded_item_recorded_payload_pointer_motion_y,
+                        buttons: result_recorded_item_recorded_payload_pointer_motion_buttons,
+                        modifiers: result_recorded_item_recorded_payload_pointer_motion_modifiers,
+                    };
+                    let result_recorded_item_recorded_payload_pointer_button_action = result_recorded_item.payload.pointer_button.action;
+                    let result_recorded_item_recorded_payload_pointer_button_backend_code = result_recorded_item.payload.pointer_button.backend_code;
+                    let result_recorded_item_recorded_payload_pointer_button_backend_value = result_recorded_item.payload.pointer_button.backend_value;
+                    let result_recorded_item_recorded_payload_pointer_button_x = result_recorded_item.payload.pointer_button.x;
+                    let result_recorded_item_recorded_payload_pointer_button_y = result_recorded_item.payload.pointer_button.y;
+                    let result_recorded_item_recorded_payload_pointer_button_modifiers = result_recorded_item.payload.pointer_button.modifiers;
+                    let result_recorded_item_recorded_payload_pointer_button = InputPointerButtonEventPayload {
+                        action: result_recorded_item_recorded_payload_pointer_button_action,
+                        backend_code: result_recorded_item_recorded_payload_pointer_button_backend_code,
+                        backend_value: result_recorded_item_recorded_payload_pointer_button_backend_value,
+                        x: result_recorded_item_recorded_payload_pointer_button_x,
+                        y: result_recorded_item_recorded_payload_pointer_button_y,
+                        modifiers: result_recorded_item_recorded_payload_pointer_button_modifiers,
+                    };
+                    let result_recorded_item_recorded_payload_scroll_wheel_x = result_recorded_item.payload.scroll.wheel_x;
+                    let result_recorded_item_recorded_payload_scroll_wheel_y = result_recorded_item.payload.scroll.wheel_y;
+                    let result_recorded_item_recorded_payload_scroll_x = result_recorded_item.payload.scroll.x;
+                    let result_recorded_item_recorded_payload_scroll_y = result_recorded_item.payload.scroll.y;
+                    let result_recorded_item_recorded_payload_scroll_modifiers = result_recorded_item.payload.scroll.modifiers;
+                    let result_recorded_item_recorded_payload_scroll = InputScrollEventPayload {
+                        wheel_x: result_recorded_item_recorded_payload_scroll_wheel_x,
+                        wheel_y: result_recorded_item_recorded_payload_scroll_wheel_y,
+                        x: result_recorded_item_recorded_payload_scroll_x,
+                        y: result_recorded_item_recorded_payload_scroll_y,
+                        modifiers: result_recorded_item_recorded_payload_scroll_modifiers,
+                    };
+                    let result_recorded_item_recorded_payload_touch_action = result_recorded_item.payload.touch.action;
+                    let result_recorded_item_recorded_payload_touch_contact_id = result_recorded_item.payload.touch.contact_id;
+                    let result_recorded_item_recorded_payload_touch_x = result_recorded_item.payload.touch.x;
+                    let result_recorded_item_recorded_payload_touch_y = result_recorded_item.payload.touch.y;
+                    let result_recorded_item_recorded_payload_touch_pressure = result_recorded_item.payload.touch.pressure;
+                    let result_recorded_item_recorded_payload_touch = InputTouchEventPayload {
+                        action: result_recorded_item_recorded_payload_touch_action,
+                        contact_id: result_recorded_item_recorded_payload_touch_contact_id,
+                        x: result_recorded_item_recorded_payload_touch_x,
+                        y: result_recorded_item_recorded_payload_touch_y,
+                        pressure: result_recorded_item_recorded_payload_touch_pressure,
+                    };
+                    let result_recorded_item_recorded_payload_gamepad_action = result_recorded_item.payload.gamepad.action;
+                    let result_recorded_item_recorded_payload_gamepad_backend_code = result_recorded_item.payload.gamepad.backend_code;
+                    let result_recorded_item_recorded_payload_gamepad_backend_value = result_recorded_item.payload.gamepad.backend_value;
+                    let result_recorded_item_recorded_payload_gamepad = InputGamepadEventPayload {
+                        action: result_recorded_item_recorded_payload_gamepad_action,
+                        backend_code: result_recorded_item_recorded_payload_gamepad_backend_code,
+                        backend_value: result_recorded_item_recorded_payload_gamepad_backend_value,
+                    };
+                    let result_recorded_item_recorded_payload_text_text = {
+                        let result_recorded_item_recorded_payload_text_text_ref = context.string_ref(result_recorded_item.payload.text.text).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_payload_text_text_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_payload_text = InputTextEventPayloadReplayRecord {
+                        text: result_recorded_item_recorded_payload_text_text,
+                    };
+                    let result_recorded_item_recorded_payload_device_action = result_recorded_item.payload.device.action;
+                    let result_recorded_item_recorded_payload_device_backend_code = result_recorded_item.payload.device.backend_code;
+                    let result_recorded_item_recorded_payload_device_backend_value = result_recorded_item.payload.device.backend_value;
+                    let result_recorded_item_recorded_payload_device = InputDeviceEventPayload {
+                        action: result_recorded_item_recorded_payload_device_action,
+                        backend_code: result_recorded_item_recorded_payload_device_backend_code,
+                        backend_value: result_recorded_item_recorded_payload_device_backend_value,
+                    };
+                    let result_recorded_item_recorded_payload_sensor_action = result_recorded_item.payload.sensor.action;
+                    let result_recorded_item_recorded_payload_sensor_backend_code = result_recorded_item.payload.sensor.backend_code;
+                    let result_recorded_item_recorded_payload_sensor_backend_value = result_recorded_item.payload.sensor.backend_value;
+                    let result_recorded_item_recorded_payload_sensor_x = result_recorded_item.payload.sensor.x;
+                    let result_recorded_item_recorded_payload_sensor_y = result_recorded_item.payload.sensor.y;
+                    let result_recorded_item_recorded_payload_sensor_z = result_recorded_item.payload.sensor.z;
+                    let result_recorded_item_recorded_payload_sensor = InputSensorEventPayload {
+                        action: result_recorded_item_recorded_payload_sensor_action,
+                        backend_code: result_recorded_item_recorded_payload_sensor_backend_code,
+                        backend_value: result_recorded_item_recorded_payload_sensor_backend_value,
+                        x: result_recorded_item_recorded_payload_sensor_x,
+                        y: result_recorded_item_recorded_payload_sensor_y,
+                        z: result_recorded_item_recorded_payload_sensor_z,
+                    };
+                    let result_recorded_item_recorded_payload_composition_action = result_recorded_item.payload.composition.action;
+                    let result_recorded_item_recorded_payload_composition_text = {
+                        let result_recorded_item_recorded_payload_composition_text_ref = context.string_ref(result_recorded_item.payload.composition.text).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_payload_composition_text_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_payload_composition_selection_start = result_recorded_item.payload.composition.selection_start;
+                    let result_recorded_item_recorded_payload_composition_selection_end = result_recorded_item.payload.composition.selection_end;
+                    let result_recorded_item_recorded_payload_composition = InputCompositionEventPayloadReplayRecord {
+                        action: result_recorded_item_recorded_payload_composition_action,
+                        text: result_recorded_item_recorded_payload_composition_text,
+                        selection_start: result_recorded_item_recorded_payload_composition_selection_start,
+                        selection_end: result_recorded_item_recorded_payload_composition_selection_end,
+                    };
+                    let result_recorded_item_recorded_payload = InputEventPayloadReplayRecord {
+                        key: result_recorded_item_recorded_payload_key,
+                        pointer_motion: result_recorded_item_recorded_payload_pointer_motion,
+                        pointer_button: result_recorded_item_recorded_payload_pointer_button,
+                        scroll: result_recorded_item_recorded_payload_scroll,
+                        touch: result_recorded_item_recorded_payload_touch,
+                        gamepad: result_recorded_item_recorded_payload_gamepad,
+                        text: result_recorded_item_recorded_payload_text,
+                        device: result_recorded_item_recorded_payload_device,
+                        sensor: result_recorded_item_recorded_payload_sensor,
+                        composition: result_recorded_item_recorded_payload_composition,
+                    };
+                    let result_recorded_item_recorded = InputEventReplayRecord {
+                        kind: result_recorded_item_recorded_kind,
+                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
+                        sequence: result_recorded_item_recorded_sequence,
+                        device_id: result_recorded_item_recorded_device_id,
+                        payload: result_recorded_item_recorded_payload,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
                 }
-            },
-        );
+                let payload = InputEventReadBatchReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    InputEventReadBatchReplay {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value_kind = vm_result_item.kind;
+                        let vm_result_item_value_timestamp_ns = vm_result_item.timestamp_ns;
+                        let vm_result_item_value_sequence = vm_result_item.sequence;
+                        let vm_result_item_value_device_id_value = context.intern_string(vm_result_item.device_id.as_str());
+                        let vm_result_item_value_device_id = vm::StringHandle::new(vm_result_item_value_device_id_value);
+                        let vm_result_item_value_payload_key_action = vm_result_item.payload.key.action;
+                        let vm_result_item_value_payload_key_backend_code = vm_result_item.payload.key.backend_code;
+                        let vm_result_item_value_payload_key_backend_scan_code = vm_result_item.payload.key.backend_scan_code;
+                        let vm_result_item_value_payload_key_backend_value = vm_result_item.payload.key.backend_value;
+                        let vm_result_item_value_payload_key_modifiers = vm_result_item.payload.key.modifiers;
+                        let vm_result_item_value_payload_key_repeat = vm_result_item.payload.key.repeat;
+                        let vm_result_item_value_payload_key = InputKeyEventPayloadVm {
+                            action: vm_result_item_value_payload_key_action,
+                            backend_code: vm_result_item_value_payload_key_backend_code,
+                            backend_scan_code: vm_result_item_value_payload_key_backend_scan_code,
+                            backend_value: vm_result_item_value_payload_key_backend_value,
+                            modifiers: vm_result_item_value_payload_key_modifiers,
+                            repeat: vm_result_item_value_payload_key_repeat,
+                        };
+                        let vm_result_item_value_payload_pointer_motion_x = vm_result_item.payload.pointer_motion.x;
+                        let vm_result_item_value_payload_pointer_motion_y = vm_result_item.payload.pointer_motion.y;
+                        let vm_result_item_value_payload_pointer_motion_buttons = vm_result_item.payload.pointer_motion.buttons;
+                        let vm_result_item_value_payload_pointer_motion_modifiers = vm_result_item.payload.pointer_motion.modifiers;
+                        let vm_result_item_value_payload_pointer_motion = InputPointerMotionEventPayloadVm {
+                            x: vm_result_item_value_payload_pointer_motion_x,
+                            y: vm_result_item_value_payload_pointer_motion_y,
+                            buttons: vm_result_item_value_payload_pointer_motion_buttons,
+                            modifiers: vm_result_item_value_payload_pointer_motion_modifiers,
+                        };
+                        let vm_result_item_value_payload_pointer_button_action = vm_result_item.payload.pointer_button.action;
+                        let vm_result_item_value_payload_pointer_button_backend_code = vm_result_item.payload.pointer_button.backend_code;
+                        let vm_result_item_value_payload_pointer_button_backend_value = vm_result_item.payload.pointer_button.backend_value;
+                        let vm_result_item_value_payload_pointer_button_x = vm_result_item.payload.pointer_button.x;
+                        let vm_result_item_value_payload_pointer_button_y = vm_result_item.payload.pointer_button.y;
+                        let vm_result_item_value_payload_pointer_button_modifiers = vm_result_item.payload.pointer_button.modifiers;
+                        let vm_result_item_value_payload_pointer_button = InputPointerButtonEventPayloadVm {
+                            action: vm_result_item_value_payload_pointer_button_action,
+                            backend_code: vm_result_item_value_payload_pointer_button_backend_code,
+                            backend_value: vm_result_item_value_payload_pointer_button_backend_value,
+                            x: vm_result_item_value_payload_pointer_button_x,
+                            y: vm_result_item_value_payload_pointer_button_y,
+                            modifiers: vm_result_item_value_payload_pointer_button_modifiers,
+                        };
+                        let vm_result_item_value_payload_scroll_wheel_x = vm_result_item.payload.scroll.wheel_x;
+                        let vm_result_item_value_payload_scroll_wheel_y = vm_result_item.payload.scroll.wheel_y;
+                        let vm_result_item_value_payload_scroll_x = vm_result_item.payload.scroll.x;
+                        let vm_result_item_value_payload_scroll_y = vm_result_item.payload.scroll.y;
+                        let vm_result_item_value_payload_scroll_modifiers = vm_result_item.payload.scroll.modifiers;
+                        let vm_result_item_value_payload_scroll = InputScrollEventPayloadVm {
+                            wheel_x: vm_result_item_value_payload_scroll_wheel_x,
+                            wheel_y: vm_result_item_value_payload_scroll_wheel_y,
+                            x: vm_result_item_value_payload_scroll_x,
+                            y: vm_result_item_value_payload_scroll_y,
+                            modifiers: vm_result_item_value_payload_scroll_modifiers,
+                        };
+                        let vm_result_item_value_payload_touch_action = vm_result_item.payload.touch.action;
+                        let vm_result_item_value_payload_touch_contact_id = vm_result_item.payload.touch.contact_id;
+                        let vm_result_item_value_payload_touch_x = vm_result_item.payload.touch.x;
+                        let vm_result_item_value_payload_touch_y = vm_result_item.payload.touch.y;
+                        let vm_result_item_value_payload_touch_pressure = vm_result_item.payload.touch.pressure;
+                        let vm_result_item_value_payload_touch = InputTouchEventPayloadVm {
+                            action: vm_result_item_value_payload_touch_action,
+                            contact_id: vm_result_item_value_payload_touch_contact_id,
+                            x: vm_result_item_value_payload_touch_x,
+                            y: vm_result_item_value_payload_touch_y,
+                            pressure: vm_result_item_value_payload_touch_pressure,
+                        };
+                        let vm_result_item_value_payload_gamepad_action = vm_result_item.payload.gamepad.action;
+                        let vm_result_item_value_payload_gamepad_backend_code = vm_result_item.payload.gamepad.backend_code;
+                        let vm_result_item_value_payload_gamepad_backend_value = vm_result_item.payload.gamepad.backend_value;
+                        let vm_result_item_value_payload_gamepad = InputGamepadEventPayloadVm {
+                            action: vm_result_item_value_payload_gamepad_action,
+                            backend_code: vm_result_item_value_payload_gamepad_backend_code,
+                            backend_value: vm_result_item_value_payload_gamepad_backend_value,
+                        };
+                        let vm_result_item_value_payload_text_text_value = context.intern_string(vm_result_item.payload.text.text.as_str());
+                        let vm_result_item_value_payload_text_text = vm::StringHandle::new(vm_result_item_value_payload_text_text_value);
+                        let vm_result_item_value_payload_text = InputTextEventPayloadVm {
+                            text: vm_result_item_value_payload_text_text,
+                        };
+                        let vm_result_item_value_payload_device_action = vm_result_item.payload.device.action;
+                        let vm_result_item_value_payload_device_backend_code = vm_result_item.payload.device.backend_code;
+                        let vm_result_item_value_payload_device_backend_value = vm_result_item.payload.device.backend_value;
+                        let vm_result_item_value_payload_device = InputDeviceEventPayloadVm {
+                            action: vm_result_item_value_payload_device_action,
+                            backend_code: vm_result_item_value_payload_device_backend_code,
+                            backend_value: vm_result_item_value_payload_device_backend_value,
+                        };
+                        let vm_result_item_value_payload_sensor_action = vm_result_item.payload.sensor.action;
+                        let vm_result_item_value_payload_sensor_backend_code = vm_result_item.payload.sensor.backend_code;
+                        let vm_result_item_value_payload_sensor_backend_value = vm_result_item.payload.sensor.backend_value;
+                        let vm_result_item_value_payload_sensor_x = vm_result_item.payload.sensor.x;
+                        let vm_result_item_value_payload_sensor_y = vm_result_item.payload.sensor.y;
+                        let vm_result_item_value_payload_sensor_z = vm_result_item.payload.sensor.z;
+                        let vm_result_item_value_payload_sensor = InputSensorEventPayloadVm {
+                            action: vm_result_item_value_payload_sensor_action,
+                            backend_code: vm_result_item_value_payload_sensor_backend_code,
+                            backend_value: vm_result_item_value_payload_sensor_backend_value,
+                            x: vm_result_item_value_payload_sensor_x,
+                            y: vm_result_item_value_payload_sensor_y,
+                            z: vm_result_item_value_payload_sensor_z,
+                        };
+                        let vm_result_item_value_payload_composition_action = vm_result_item.payload.composition.action;
+                        let vm_result_item_value_payload_composition_text_value = context.intern_string(vm_result_item.payload.composition.text.as_str());
+                        let vm_result_item_value_payload_composition_text = vm::StringHandle::new(vm_result_item_value_payload_composition_text_value);
+                        let vm_result_item_value_payload_composition_selection_start = vm_result_item.payload.composition.selection_start;
+                        let vm_result_item_value_payload_composition_selection_end = vm_result_item.payload.composition.selection_end;
+                        let vm_result_item_value_payload_composition = InputCompositionEventPayloadVm {
+                            action: vm_result_item_value_payload_composition_action,
+                            text: vm_result_item_value_payload_composition_text,
+                            selection_start: vm_result_item_value_payload_composition_selection_start,
+                            selection_end: vm_result_item_value_payload_composition_selection_end,
+                        };
+                        let vm_result_item_value_payload = InputEventPayloadVm {
+                            key: vm_result_item_value_payload_key,
+                            pointer_motion: vm_result_item_value_payload_pointer_motion,
+                            pointer_button: vm_result_item_value_payload_pointer_button,
+                            scroll: vm_result_item_value_payload_scroll,
+                            touch: vm_result_item_value_payload_touch,
+                            gamepad: vm_result_item_value_payload_gamepad,
+                            text: vm_result_item_value_payload_text,
+                            device: vm_result_item_value_payload_device,
+                            sensor: vm_result_item_value_payload_sensor,
+                            composition: vm_result_item_value_payload_composition,
+                        };
+                        let vm_result_item_value = InputEventVm {
+                            kind: vm_result_item_value_kind,
+                            timestamp_ns: vm_result_item_value_timestamp_ns,
+                            sequence: vm_result_item_value_sequence,
+                            device_id: vm_result_item_value_device_id,
+                            payload: vm_result_item_value_payload,
+                        };
+                        let vm_result_item_value_encoded = { let field_0 = vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_item_value.timestamp_ns, 64); let field_2 = vm::Value::uint(vm_result_item_value.sequence, 64); let field_3 = vm_result_item_value.device_id.value(); let field_4 = { let field_0 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.key.action as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_item_value.payload.key.backend_code as u64, 32); let field_2 = vm::Value::uint(vm_result_item_value.payload.key.backend_scan_code as u64, 32); let field_3 = vm::Value::int(vm_result_item_value.payload.key.backend_value, 64); let field_4 = vm::Value::uint(vm_result_item_value.payload.key.modifiers as u64, 32); let field_5 = vm::Value::bool(vm_result_item_value.payload.key.repeat); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_1 = { let field_0 = vm::Value::float64(vm_result_item_value.payload.pointer_motion.x); let field_1 = vm::Value::float64(vm_result_item_value.payload.pointer_motion.y); let field_2 = vm::Value::uint(vm_result_item_value.payload.pointer_motion.buttons as u64, 32); let field_3 = vm::Value::uint(vm_result_item_value.payload.pointer_motion.modifiers as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.pointer_button.action as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_item_value.payload.pointer_button.backend_code as u64, 32); let field_2 = vm::Value::int(vm_result_item_value.payload.pointer_button.backend_value, 64); let field_3 = vm::Value::float64(vm_result_item_value.payload.pointer_button.x); let field_4 = vm::Value::float64(vm_result_item_value.payload.pointer_button.y); let field_5 = vm::Value::uint(vm_result_item_value.payload.pointer_button.modifiers as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_3 = { let field_0 = vm::Value::float64(vm_result_item_value.payload.scroll.wheel_x); let field_1 = vm::Value::float64(vm_result_item_value.payload.scroll.wheel_y); let field_2 = vm::Value::float64(vm_result_item_value.payload.scroll.x); let field_3 = vm::Value::float64(vm_result_item_value.payload.scroll.y); let field_4 = vm::Value::uint(vm_result_item_value.payload.scroll.modifiers as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) }; let field_4 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.touch.action as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_item_value.payload.touch.contact_id as u64, 32); let field_2 = vm::Value::float64(vm_result_item_value.payload.touch.x); let field_3 = vm::Value::float64(vm_result_item_value.payload.touch.y); let field_4 = vm::Value::float64(vm_result_item_value.payload.touch.pressure); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) }; let field_5 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.gamepad.action as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_item_value.payload.gamepad.backend_code as u64, 32); let field_2 = vm::Value::int(vm_result_item_value.payload.gamepad.backend_value, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_6 = { let field_0 = vm_result_item_value.payload.text.text.value(); context.allocate_aggregate(vec![field_0]) }; let field_7 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.device.action as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_item_value.payload.device.backend_code as u64, 32); let field_2 = vm::Value::int(vm_result_item_value.payload.device.backend_value, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_8 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.sensor.action as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_item_value.payload.sensor.backend_code as u64, 32); let field_2 = vm::Value::int(vm_result_item_value.payload.sensor.backend_value, 64); let field_3 = vm::Value::float64(vm_result_item_value.payload.sensor.x); let field_4 = vm::Value::float64(vm_result_item_value.payload.sensor.y); let field_5 = vm::Value::float64(vm_result_item_value.payload.sensor.z); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_9 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.composition.action as u8 as u64, 8); let field_1 = vm_result_item_value.payload.composition.text.value(); let field_2 = vm::Value::int(vm_result_item_value.payload.composition.selection_start as i64, 32); let field_3 = vm::Value::int(vm_result_item_value.payload.composition.selection_end as i64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9]) }; context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<InputEventVm> = VmArray { data: vm_result_data, len: value.len() as u32, capacity: value.len() as u32, _marker: std::marker::PhantomData };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_input_event_read_batch_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_input_event_set_grab_vm_replay(
+fn destack_input_event_set_exclusive_grab_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -3430,22 +10475,22 @@ fn destack_input_event_set_grab_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            INPUT_EVENT_SET_GRAB,
-            runtime.replay_payload_for(INPUT_EVENT_SET_GRAB)?,
+            INPUT_EVENT_SET_EXCLUSIVE_GRAB,
+            runtime.replay_payload_for(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?,
             context,
             |context| match world {
                 RuntimeWorld::Host => {
-                    platform_vm::destack_input_set_grab(runtime, context, handle, enable)
+                    platform_vm::destack_input_set_exclusive_grab(runtime, context, handle, enable)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_set_grab(runtime, context, handle, enable)
-                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_set_exclusive_grab(
+                    runtime, context, handle, enable,
+                ),
             },
             |context, result| {
                 let _ = &context;
                 if let Ok(()) = result {
                     let result_recorded = ();
-                    let payload = InputEventSetGrabReplay {
+                    let payload = InputEventSetExclusiveGrabReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -3454,7 +10499,7 @@ fn destack_input_event_set_grab_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        InputEventSetGrabReplay { result }
+                        InputEventSetExclusiveGrabReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -3470,7 +10515,7 @@ fn destack_input_event_set_grab_vm_replay(
                 }
             },
         );
-    let result = encode_destack_input_event_set_grab_result(context, result)?;
+    let result = encode_destack_input_event_set_exclusive_grab_result(context, result)?;
     Ok(result)
 }
 
@@ -3561,38 +10606,171 @@ fn destack_input_event_try_read_vm_replay(
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         result_recorded_device_id_ref.as_str().to_string()
                     };
-                    let result_recorded_action = result_value.action;
-                    let result_recorded_code = result_value.code;
-                    let result_recorded_scan_code = result_value.scan_code;
-                    let result_recorded_value = result_value.value;
-                    let result_recorded_x = result_value.x;
-                    let result_recorded_y = result_value.y;
-                    let result_recorded_wheel_x = result_value.wheel_x;
-                    let result_recorded_wheel_y = result_value.wheel_y;
-                    let result_recorded_modifiers = result_value.modifiers;
-                    let result_recorded_repeat = result_value.repeat;
-                    let result_recorded_text = {
-                        let result_recorded_text_ref = context
-                            .string_ref(result_value.text)
+                    let result_recorded_payload_key_action = result_value.payload.key.action;
+                    let result_recorded_payload_key_backend_code =
+                        result_value.payload.key.backend_code;
+                    let result_recorded_payload_key_backend_scan_code =
+                        result_value.payload.key.backend_scan_code;
+                    let result_recorded_payload_key_backend_value =
+                        result_value.payload.key.backend_value;
+                    let result_recorded_payload_key_modifiers = result_value.payload.key.modifiers;
+                    let result_recorded_payload_key_repeat = result_value.payload.key.repeat;
+                    let result_recorded_payload_key = InputKeyEventPayload {
+                        action: result_recorded_payload_key_action,
+                        backend_code: result_recorded_payload_key_backend_code,
+                        backend_scan_code: result_recorded_payload_key_backend_scan_code,
+                        backend_value: result_recorded_payload_key_backend_value,
+                        modifiers: result_recorded_payload_key_modifiers,
+                        repeat: result_recorded_payload_key_repeat,
+                    };
+                    let result_recorded_payload_pointer_motion_x =
+                        result_value.payload.pointer_motion.x;
+                    let result_recorded_payload_pointer_motion_y =
+                        result_value.payload.pointer_motion.y;
+                    let result_recorded_payload_pointer_motion_buttons =
+                        result_value.payload.pointer_motion.buttons;
+                    let result_recorded_payload_pointer_motion_modifiers =
+                        result_value.payload.pointer_motion.modifiers;
+                    let result_recorded_payload_pointer_motion = InputPointerMotionEventPayload {
+                        x: result_recorded_payload_pointer_motion_x,
+                        y: result_recorded_payload_pointer_motion_y,
+                        buttons: result_recorded_payload_pointer_motion_buttons,
+                        modifiers: result_recorded_payload_pointer_motion_modifiers,
+                    };
+                    let result_recorded_payload_pointer_button_action =
+                        result_value.payload.pointer_button.action;
+                    let result_recorded_payload_pointer_button_backend_code =
+                        result_value.payload.pointer_button.backend_code;
+                    let result_recorded_payload_pointer_button_backend_value =
+                        result_value.payload.pointer_button.backend_value;
+                    let result_recorded_payload_pointer_button_x =
+                        result_value.payload.pointer_button.x;
+                    let result_recorded_payload_pointer_button_y =
+                        result_value.payload.pointer_button.y;
+                    let result_recorded_payload_pointer_button_modifiers =
+                        result_value.payload.pointer_button.modifiers;
+                    let result_recorded_payload_pointer_button = InputPointerButtonEventPayload {
+                        action: result_recorded_payload_pointer_button_action,
+                        backend_code: result_recorded_payload_pointer_button_backend_code,
+                        backend_value: result_recorded_payload_pointer_button_backend_value,
+                        x: result_recorded_payload_pointer_button_x,
+                        y: result_recorded_payload_pointer_button_y,
+                        modifiers: result_recorded_payload_pointer_button_modifiers,
+                    };
+                    let result_recorded_payload_scroll_wheel_x =
+                        result_value.payload.scroll.wheel_x;
+                    let result_recorded_payload_scroll_wheel_y =
+                        result_value.payload.scroll.wheel_y;
+                    let result_recorded_payload_scroll_x = result_value.payload.scroll.x;
+                    let result_recorded_payload_scroll_y = result_value.payload.scroll.y;
+                    let result_recorded_payload_scroll_modifiers =
+                        result_value.payload.scroll.modifiers;
+                    let result_recorded_payload_scroll = InputScrollEventPayload {
+                        wheel_x: result_recorded_payload_scroll_wheel_x,
+                        wheel_y: result_recorded_payload_scroll_wheel_y,
+                        x: result_recorded_payload_scroll_x,
+                        y: result_recorded_payload_scroll_y,
+                        modifiers: result_recorded_payload_scroll_modifiers,
+                    };
+                    let result_recorded_payload_touch_action = result_value.payload.touch.action;
+                    let result_recorded_payload_touch_contact_id =
+                        result_value.payload.touch.contact_id;
+                    let result_recorded_payload_touch_x = result_value.payload.touch.x;
+                    let result_recorded_payload_touch_y = result_value.payload.touch.y;
+                    let result_recorded_payload_touch_pressure =
+                        result_value.payload.touch.pressure;
+                    let result_recorded_payload_touch = InputTouchEventPayload {
+                        action: result_recorded_payload_touch_action,
+                        contact_id: result_recorded_payload_touch_contact_id,
+                        x: result_recorded_payload_touch_x,
+                        y: result_recorded_payload_touch_y,
+                        pressure: result_recorded_payload_touch_pressure,
+                    };
+                    let result_recorded_payload_gamepad_action =
+                        result_value.payload.gamepad.action;
+                    let result_recorded_payload_gamepad_backend_code =
+                        result_value.payload.gamepad.backend_code;
+                    let result_recorded_payload_gamepad_backend_value =
+                        result_value.payload.gamepad.backend_value;
+                    let result_recorded_payload_gamepad = InputGamepadEventPayload {
+                        action: result_recorded_payload_gamepad_action,
+                        backend_code: result_recorded_payload_gamepad_backend_code,
+                        backend_value: result_recorded_payload_gamepad_backend_value,
+                    };
+                    let result_recorded_payload_text_text = {
+                        let result_recorded_payload_text_text_ref = context
+                            .string_ref(result_value.payload.text.text)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_text_ref.as_str().to_string()
+                        result_recorded_payload_text_text_ref.as_str().to_string()
+                    };
+                    let result_recorded_payload_text = InputTextEventPayloadReplayRecord {
+                        text: result_recorded_payload_text_text,
+                    };
+                    let result_recorded_payload_device_action = result_value.payload.device.action;
+                    let result_recorded_payload_device_backend_code =
+                        result_value.payload.device.backend_code;
+                    let result_recorded_payload_device_backend_value =
+                        result_value.payload.device.backend_value;
+                    let result_recorded_payload_device = InputDeviceEventPayload {
+                        action: result_recorded_payload_device_action,
+                        backend_code: result_recorded_payload_device_backend_code,
+                        backend_value: result_recorded_payload_device_backend_value,
+                    };
+                    let result_recorded_payload_sensor_action = result_value.payload.sensor.action;
+                    let result_recorded_payload_sensor_backend_code =
+                        result_value.payload.sensor.backend_code;
+                    let result_recorded_payload_sensor_backend_value =
+                        result_value.payload.sensor.backend_value;
+                    let result_recorded_payload_sensor_x = result_value.payload.sensor.x;
+                    let result_recorded_payload_sensor_y = result_value.payload.sensor.y;
+                    let result_recorded_payload_sensor_z = result_value.payload.sensor.z;
+                    let result_recorded_payload_sensor = InputSensorEventPayload {
+                        action: result_recorded_payload_sensor_action,
+                        backend_code: result_recorded_payload_sensor_backend_code,
+                        backend_value: result_recorded_payload_sensor_backend_value,
+                        x: result_recorded_payload_sensor_x,
+                        y: result_recorded_payload_sensor_y,
+                        z: result_recorded_payload_sensor_z,
+                    };
+                    let result_recorded_payload_composition_action =
+                        result_value.payload.composition.action;
+                    let result_recorded_payload_composition_text = {
+                        let result_recorded_payload_composition_text_ref = context
+                            .string_ref(result_value.payload.composition.text)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_payload_composition_text_ref
+                            .as_str()
+                            .to_string()
+                    };
+                    let result_recorded_payload_composition_selection_start =
+                        result_value.payload.composition.selection_start;
+                    let result_recorded_payload_composition_selection_end =
+                        result_value.payload.composition.selection_end;
+                    let result_recorded_payload_composition =
+                        InputCompositionEventPayloadReplayRecord {
+                            action: result_recorded_payload_composition_action,
+                            text: result_recorded_payload_composition_text,
+                            selection_start: result_recorded_payload_composition_selection_start,
+                            selection_end: result_recorded_payload_composition_selection_end,
+                        };
+                    let result_recorded_payload = InputEventPayloadReplayRecord {
+                        key: result_recorded_payload_key,
+                        pointer_motion: result_recorded_payload_pointer_motion,
+                        pointer_button: result_recorded_payload_pointer_button,
+                        scroll: result_recorded_payload_scroll,
+                        touch: result_recorded_payload_touch,
+                        gamepad: result_recorded_payload_gamepad,
+                        text: result_recorded_payload_text,
+                        device: result_recorded_payload_device,
+                        sensor: result_recorded_payload_sensor,
+                        composition: result_recorded_payload_composition,
                     };
                     let result_recorded = InputEventReplayRecord {
                         kind: result_recorded_kind,
                         timestamp_ns: result_recorded_timestamp_ns,
                         sequence: result_recorded_sequence,
                         device_id: result_recorded_device_id,
-                        action: result_recorded_action,
-                        code: result_recorded_code,
-                        scan_code: result_recorded_scan_code,
-                        value: result_recorded_value,
-                        x: result_recorded_x,
-                        y: result_recorded_y,
-                        wheel_x: result_recorded_wheel_x,
-                        wheel_y: result_recorded_wheel_y,
-                        modifiers: result_recorded_modifiers,
-                        repeat: result_recorded_repeat,
-                        text: result_recorded_text,
+                        payload: result_recorded_payload,
                     };
                     let payload = InputEventTryReadReplay {
                         result: Ok(result_recorded),
@@ -3621,34 +10799,151 @@ fn destack_input_event_try_read_vm_replay(
                         let vm_result_device_id_value =
                             context.intern_string(value.device_id.as_str());
                         let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
-                        let vm_result_action = value.action;
-                        let vm_result_code = value.code;
-                        let vm_result_scan_code = value.scan_code;
-                        let vm_result_value = value.value;
-                        let vm_result_x = value.x;
-                        let vm_result_y = value.y;
-                        let vm_result_wheel_x = value.wheel_x;
-                        let vm_result_wheel_y = value.wheel_y;
-                        let vm_result_modifiers = value.modifiers;
-                        let vm_result_repeat = value.repeat;
-                        let vm_result_text_value = context.intern_string(value.text.as_str());
-                        let vm_result_text = vm::StringHandle::new(vm_result_text_value);
+                        let vm_result_payload_key_action = value.payload.key.action;
+                        let vm_result_payload_key_backend_code = value.payload.key.backend_code;
+                        let vm_result_payload_key_backend_scan_code =
+                            value.payload.key.backend_scan_code;
+                        let vm_result_payload_key_backend_value = value.payload.key.backend_value;
+                        let vm_result_payload_key_modifiers = value.payload.key.modifiers;
+                        let vm_result_payload_key_repeat = value.payload.key.repeat;
+                        let vm_result_payload_key = InputKeyEventPayloadVm {
+                            action: vm_result_payload_key_action,
+                            backend_code: vm_result_payload_key_backend_code,
+                            backend_scan_code: vm_result_payload_key_backend_scan_code,
+                            backend_value: vm_result_payload_key_backend_value,
+                            modifiers: vm_result_payload_key_modifiers,
+                            repeat: vm_result_payload_key_repeat,
+                        };
+                        let vm_result_payload_pointer_motion_x = value.payload.pointer_motion.x;
+                        let vm_result_payload_pointer_motion_y = value.payload.pointer_motion.y;
+                        let vm_result_payload_pointer_motion_buttons =
+                            value.payload.pointer_motion.buttons;
+                        let vm_result_payload_pointer_motion_modifiers =
+                            value.payload.pointer_motion.modifiers;
+                        let vm_result_payload_pointer_motion = InputPointerMotionEventPayloadVm {
+                            x: vm_result_payload_pointer_motion_x,
+                            y: vm_result_payload_pointer_motion_y,
+                            buttons: vm_result_payload_pointer_motion_buttons,
+                            modifiers: vm_result_payload_pointer_motion_modifiers,
+                        };
+                        let vm_result_payload_pointer_button_action =
+                            value.payload.pointer_button.action;
+                        let vm_result_payload_pointer_button_backend_code =
+                            value.payload.pointer_button.backend_code;
+                        let vm_result_payload_pointer_button_backend_value =
+                            value.payload.pointer_button.backend_value;
+                        let vm_result_payload_pointer_button_x = value.payload.pointer_button.x;
+                        let vm_result_payload_pointer_button_y = value.payload.pointer_button.y;
+                        let vm_result_payload_pointer_button_modifiers =
+                            value.payload.pointer_button.modifiers;
+                        let vm_result_payload_pointer_button = InputPointerButtonEventPayloadVm {
+                            action: vm_result_payload_pointer_button_action,
+                            backend_code: vm_result_payload_pointer_button_backend_code,
+                            backend_value: vm_result_payload_pointer_button_backend_value,
+                            x: vm_result_payload_pointer_button_x,
+                            y: vm_result_payload_pointer_button_y,
+                            modifiers: vm_result_payload_pointer_button_modifiers,
+                        };
+                        let vm_result_payload_scroll_wheel_x = value.payload.scroll.wheel_x;
+                        let vm_result_payload_scroll_wheel_y = value.payload.scroll.wheel_y;
+                        let vm_result_payload_scroll_x = value.payload.scroll.x;
+                        let vm_result_payload_scroll_y = value.payload.scroll.y;
+                        let vm_result_payload_scroll_modifiers = value.payload.scroll.modifiers;
+                        let vm_result_payload_scroll = InputScrollEventPayloadVm {
+                            wheel_x: vm_result_payload_scroll_wheel_x,
+                            wheel_y: vm_result_payload_scroll_wheel_y,
+                            x: vm_result_payload_scroll_x,
+                            y: vm_result_payload_scroll_y,
+                            modifiers: vm_result_payload_scroll_modifiers,
+                        };
+                        let vm_result_payload_touch_action = value.payload.touch.action;
+                        let vm_result_payload_touch_contact_id = value.payload.touch.contact_id;
+                        let vm_result_payload_touch_x = value.payload.touch.x;
+                        let vm_result_payload_touch_y = value.payload.touch.y;
+                        let vm_result_payload_touch_pressure = value.payload.touch.pressure;
+                        let vm_result_payload_touch = InputTouchEventPayloadVm {
+                            action: vm_result_payload_touch_action,
+                            contact_id: vm_result_payload_touch_contact_id,
+                            x: vm_result_payload_touch_x,
+                            y: vm_result_payload_touch_y,
+                            pressure: vm_result_payload_touch_pressure,
+                        };
+                        let vm_result_payload_gamepad_action = value.payload.gamepad.action;
+                        let vm_result_payload_gamepad_backend_code =
+                            value.payload.gamepad.backend_code;
+                        let vm_result_payload_gamepad_backend_value =
+                            value.payload.gamepad.backend_value;
+                        let vm_result_payload_gamepad = InputGamepadEventPayloadVm {
+                            action: vm_result_payload_gamepad_action,
+                            backend_code: vm_result_payload_gamepad_backend_code,
+                            backend_value: vm_result_payload_gamepad_backend_value,
+                        };
+                        let vm_result_payload_text_text_value =
+                            context.intern_string(value.payload.text.text.as_str());
+                        let vm_result_payload_text_text =
+                            vm::StringHandle::new(vm_result_payload_text_text_value);
+                        let vm_result_payload_text = InputTextEventPayloadVm {
+                            text: vm_result_payload_text_text,
+                        };
+                        let vm_result_payload_device_action = value.payload.device.action;
+                        let vm_result_payload_device_backend_code =
+                            value.payload.device.backend_code;
+                        let vm_result_payload_device_backend_value =
+                            value.payload.device.backend_value;
+                        let vm_result_payload_device = InputDeviceEventPayloadVm {
+                            action: vm_result_payload_device_action,
+                            backend_code: vm_result_payload_device_backend_code,
+                            backend_value: vm_result_payload_device_backend_value,
+                        };
+                        let vm_result_payload_sensor_action = value.payload.sensor.action;
+                        let vm_result_payload_sensor_backend_code =
+                            value.payload.sensor.backend_code;
+                        let vm_result_payload_sensor_backend_value =
+                            value.payload.sensor.backend_value;
+                        let vm_result_payload_sensor_x = value.payload.sensor.x;
+                        let vm_result_payload_sensor_y = value.payload.sensor.y;
+                        let vm_result_payload_sensor_z = value.payload.sensor.z;
+                        let vm_result_payload_sensor = InputSensorEventPayloadVm {
+                            action: vm_result_payload_sensor_action,
+                            backend_code: vm_result_payload_sensor_backend_code,
+                            backend_value: vm_result_payload_sensor_backend_value,
+                            x: vm_result_payload_sensor_x,
+                            y: vm_result_payload_sensor_y,
+                            z: vm_result_payload_sensor_z,
+                        };
+                        let vm_result_payload_composition_action = value.payload.composition.action;
+                        let vm_result_payload_composition_text_value =
+                            context.intern_string(value.payload.composition.text.as_str());
+                        let vm_result_payload_composition_text =
+                            vm::StringHandle::new(vm_result_payload_composition_text_value);
+                        let vm_result_payload_composition_selection_start =
+                            value.payload.composition.selection_start;
+                        let vm_result_payload_composition_selection_end =
+                            value.payload.composition.selection_end;
+                        let vm_result_payload_composition = InputCompositionEventPayloadVm {
+                            action: vm_result_payload_composition_action,
+                            text: vm_result_payload_composition_text,
+                            selection_start: vm_result_payload_composition_selection_start,
+                            selection_end: vm_result_payload_composition_selection_end,
+                        };
+                        let vm_result_payload = InputEventPayloadVm {
+                            key: vm_result_payload_key,
+                            pointer_motion: vm_result_payload_pointer_motion,
+                            pointer_button: vm_result_payload_pointer_button,
+                            scroll: vm_result_payload_scroll,
+                            touch: vm_result_payload_touch,
+                            gamepad: vm_result_payload_gamepad,
+                            text: vm_result_payload_text,
+                            device: vm_result_payload_device,
+                            sensor: vm_result_payload_sensor,
+                            composition: vm_result_payload_composition,
+                        };
                         let vm_result = InputEventVm {
                             kind: vm_result_kind,
                             timestamp_ns: vm_result_timestamp_ns,
                             sequence: vm_result_sequence,
                             device_id: vm_result_device_id,
-                            action: vm_result_action,
-                            code: vm_result_code,
-                            scan_code: vm_result_scan_code,
-                            value: vm_result_value,
-                            x: vm_result_x,
-                            y: vm_result_y,
-                            wheel_x: vm_result_wheel_x,
-                            wheel_y: vm_result_wheel_y,
-                            modifiers: vm_result_modifiers,
-                            repeat: vm_result_repeat,
-                            text: vm_result_text,
+                            payload: vm_result_payload,
                         };
                         Ok(vm_result)
                     }
@@ -3660,8 +10955,2831 @@ fn destack_input_event_try_read_vm_replay(
     Ok(result)
 }
 
+#[inline]
+fn destack_input_gamepad_set_light_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    red: u8,
+    green: u8,
+    blue: u8,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_GAMEPAD_SET_LIGHT,
+            runtime.replay_payload_for(INPUT_GAMEPAD_SET_LIGHT)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_input_gamepad_set_light(
+                    runtime, context, handle, red, green, blue,
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_gamepad_set_light(
+                    runtime, context, handle, red, green, blue,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = InputGamepadSetLightReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputGamepadSetLightReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_gamepad_set_light_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_gamepad_set_player_index_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    playerindex: u8,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_GAMEPAD_SET_PLAYER_INDEX,
+            runtime.replay_payload_for(INPUT_GAMEPAD_SET_PLAYER_INDEX)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_input_gamepad_set_player_index(
+                    runtime,
+                    context,
+                    handle,
+                    playerindex,
+                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_gamepad_set_player_index(
+                        runtime,
+                        context,
+                        handle,
+                        playerindex,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = InputGamepadSetPlayerIndexReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputGamepadSetPlayerIndexReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_gamepad_set_player_index_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_gamepad_state_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_GAMEPAD_STATE,
+            runtime.replay_payload_for(INPUT_GAMEPAD_STATE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_gamepad_state(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_gamepad_state(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: InputGamepadStateVm = value.clone();
+                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                    let result_recorded_connected = result_value.connected;
+                    let result_recorded_mapping = result_value.mapping;
+                    let result_recorded_connection_type = result_value.connection_type;
+                    let result_recorded_player_index = result_value.player_index;
+                    let result_recorded_battery_state = result_value.battery.state;
+                    let result_recorded_battery_level = result_value.battery.level;
+                    let result_recorded_battery = InputGamepadBatteryInfo {
+                        state: result_recorded_battery_state,
+                        level: result_recorded_battery_level,
+                    };
+                    let result_recorded_supports_rumble = result_value.supports_rumble;
+                    let result_recorded_supports_trigger_rumble =
+                        result_value.supports_trigger_rumble;
+                    let result_recorded_axes_raw = result_value.axes.raw_values(context)?;
+                    let mut result_recorded_axes =
+                        Vec::with_capacity(result_recorded_axes_raw.len());
+                    for result_recorded_axes_item_value in result_recorded_axes_raw {
+                        let result_recorded_axes_item = decode_float64(
+                            result_recorded_axes_item_value,
+                            "result_recorded_axes_item",
+                            "item",
+                        )?;
+                        let result_recorded_axes_item_recorded = result_recorded_axes_item;
+                        result_recorded_axes.push(result_recorded_axes_item_recorded);
+                    }
+                    let result_recorded_buttons_raw = result_value.buttons.raw_values(context)?;
+                    let mut result_recorded_buttons =
+                        Vec::with_capacity(result_recorded_buttons_raw.len());
+                    for result_recorded_buttons_item_value in result_recorded_buttons_raw {
+                        let result_recorded_buttons_item = {
+                            if result_recorded_buttons_item_value.tag() != vm::ValueTag::Aggregate {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_type(
+                                        "result_recorded_buttons_item",
+                                        "item",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let slots = context
+                                .aggregate_slots(result_recorded_buttons_item_value)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots.len() != 3 {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_buttons_item",
+                                        "expected 3 fields",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let result_recorded_buttons_item_pressed = decode_bool(
+                                slots[0],
+                                "result_recorded_buttons_item_pressed",
+                                "pressed",
+                            )?;
+                            let result_recorded_buttons_item_touched = decode_bool(
+                                slots[1],
+                                "result_recorded_buttons_item_touched",
+                                "touched",
+                            )?;
+                            let result_recorded_buttons_item_value = decode_float64(
+                                slots[2],
+                                "result_recorded_buttons_item_value",
+                                "value",
+                            )?;
+                            InputGamepadButtonStateVm {
+                                pressed: result_recorded_buttons_item_pressed,
+                                touched: result_recorded_buttons_item_touched,
+                                value: result_recorded_buttons_item_value,
+                            }
+                        };
+                        let result_recorded_buttons_item_recorded_pressed =
+                            result_recorded_buttons_item.pressed;
+                        let result_recorded_buttons_item_recorded_touched =
+                            result_recorded_buttons_item.touched;
+                        let result_recorded_buttons_item_recorded_value =
+                            result_recorded_buttons_item.value;
+                        let result_recorded_buttons_item_recorded = InputGamepadButtonState {
+                            pressed: result_recorded_buttons_item_recorded_pressed,
+                            touched: result_recorded_buttons_item_recorded_touched,
+                            value: result_recorded_buttons_item_recorded_value,
+                        };
+                        result_recorded_buttons.push(result_recorded_buttons_item_recorded);
+                    }
+                    let result_recorded_touches_raw = result_value.touches.raw_values(context)?;
+                    let mut result_recorded_touches =
+                        Vec::with_capacity(result_recorded_touches_raw.len());
+                    for result_recorded_touches_item_value in result_recorded_touches_raw {
+                        let result_recorded_touches_item = {
+                            if result_recorded_touches_item_value.tag() != vm::ValueTag::Aggregate {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_type(
+                                        "result_recorded_touches_item",
+                                        "item",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let slots = context
+                                .aggregate_slots(result_recorded_touches_item_value)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots.len() != 5 {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_touches_item",
+                                        "expected 5 fields",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let result_recorded_touches_item_touch_id = decode_uint32(
+                                slots[0],
+                                "result_recorded_touches_item_touch_id",
+                                "touchId",
+                            )?;
+                            let result_recorded_touches_item_surface_id = decode_uint32(
+                                slots[1],
+                                "result_recorded_touches_item_surface_id",
+                                "surfaceId",
+                            )?;
+                            let result_recorded_touches_item_x =
+                                decode_float64(slots[2], "result_recorded_touches_item_x", "x")?;
+                            let result_recorded_touches_item_y =
+                                decode_float64(slots[3], "result_recorded_touches_item_y", "y")?;
+                            let result_recorded_touches_item_pressure = decode_float64(
+                                slots[4],
+                                "result_recorded_touches_item_pressure",
+                                "pressure",
+                            )?;
+                            InputGamepadTouchStateVm {
+                                touch_id: result_recorded_touches_item_touch_id,
+                                surface_id: result_recorded_touches_item_surface_id,
+                                x: result_recorded_touches_item_x,
+                                y: result_recorded_touches_item_y,
+                                pressure: result_recorded_touches_item_pressure,
+                            }
+                        };
+                        let result_recorded_touches_item_recorded_touch_id =
+                            result_recorded_touches_item.touch_id;
+                        let result_recorded_touches_item_recorded_surface_id =
+                            result_recorded_touches_item.surface_id;
+                        let result_recorded_touches_item_recorded_x =
+                            result_recorded_touches_item.x;
+                        let result_recorded_touches_item_recorded_y =
+                            result_recorded_touches_item.y;
+                        let result_recorded_touches_item_recorded_pressure =
+                            result_recorded_touches_item.pressure;
+                        let result_recorded_touches_item_recorded = InputGamepadTouchState {
+                            touch_id: result_recorded_touches_item_recorded_touch_id,
+                            surface_id: result_recorded_touches_item_recorded_surface_id,
+                            x: result_recorded_touches_item_recorded_x,
+                            y: result_recorded_touches_item_recorded_y,
+                            pressure: result_recorded_touches_item_recorded_pressure,
+                        };
+                        result_recorded_touches.push(result_recorded_touches_item_recorded);
+                    }
+                    let result_recorded = InputGamepadStateReplayRecord {
+                        timestamp_ns: result_recorded_timestamp_ns,
+                        connected: result_recorded_connected,
+                        mapping: result_recorded_mapping,
+                        connection_type: result_recorded_connection_type,
+                        player_index: result_recorded_player_index,
+                        battery: result_recorded_battery,
+                        supports_rumble: result_recorded_supports_rumble,
+                        supports_trigger_rumble: result_recorded_supports_trigger_rumble,
+                        axes: result_recorded_axes,
+                        buttons: result_recorded_buttons,
+                        touches: result_recorded_touches,
+                    };
+                    let payload = InputGamepadStateReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputGamepadStateReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_timestamp_ns = value.timestamp_ns;
+                        let vm_result_connected = value.connected;
+                        let vm_result_mapping = value.mapping;
+                        let vm_result_connection_type = value.connection_type;
+                        let vm_result_player_index = value.player_index;
+                        let vm_result_battery_state = value.battery.state;
+                        let vm_result_battery_level = value.battery.level;
+                        let vm_result_battery = InputGamepadBatteryInfoVm {
+                            state: vm_result_battery_state,
+                            level: vm_result_battery_level,
+                        };
+                        let vm_result_supports_rumble = value.supports_rumble;
+                        let vm_result_supports_trigger_rumble = value.supports_trigger_rumble;
+                        let mut vm_result_axes_values = Vec::with_capacity(value.axes.len());
+                        for vm_result_axes_item in value.axes.iter() {
+                            let vm_result_axes_item = *vm_result_axes_item;
+                            let vm_result_axes_item_value = vm_result_axes_item;
+                            vm_result_axes_values.push(vm_result_axes_item_value);
+                        }
+                        let vm_result_axes = VmArray::from_values(context, &vm_result_axes_values)?;
+                        let mut vm_result_buttons_values = Vec::with_capacity(value.buttons.len());
+                        for vm_result_buttons_item in value.buttons.iter() {
+                            let vm_result_buttons_item = *vm_result_buttons_item;
+                            let vm_result_buttons_item_value_pressed =
+                                vm_result_buttons_item.pressed;
+                            let vm_result_buttons_item_value_touched =
+                                vm_result_buttons_item.touched;
+                            let vm_result_buttons_item_value_value = vm_result_buttons_item.value;
+                            let vm_result_buttons_item_value = InputGamepadButtonStateVm {
+                                pressed: vm_result_buttons_item_value_pressed,
+                                touched: vm_result_buttons_item_value_touched,
+                                value: vm_result_buttons_item_value_value,
+                            };
+                            let vm_result_buttons_item_value_encoded = {
+                                let field_0 = vm::Value::bool(vm_result_buttons_item_value.pressed);
+                                let field_1 = vm::Value::bool(vm_result_buttons_item_value.touched);
+                                let field_2 =
+                                    vm::Value::float64(vm_result_buttons_item_value.value);
+                                context.allocate_aggregate(vec![field_0, field_1, field_2])
+                            };
+                            vm_result_buttons_values.push(vm_result_buttons_item_value_encoded);
+                        }
+                        let vm_result_buttons_data =
+                            context.allocate_raw_values(vm_result_buttons_values);
+                        let vm_result_buttons: VmArray<InputGamepadButtonStateVm> = VmArray {
+                            data: vm_result_buttons_data,
+                            len: value.buttons.len() as u32,
+                            capacity: value.buttons.len() as u32,
+                            _marker: std::marker::PhantomData,
+                        };
+                        let mut vm_result_touches_values = Vec::with_capacity(value.touches.len());
+                        for vm_result_touches_item in value.touches.iter() {
+                            let vm_result_touches_item = *vm_result_touches_item;
+                            let vm_result_touches_item_value_touch_id =
+                                vm_result_touches_item.touch_id;
+                            let vm_result_touches_item_value_surface_id =
+                                vm_result_touches_item.surface_id;
+                            let vm_result_touches_item_value_x = vm_result_touches_item.x;
+                            let vm_result_touches_item_value_y = vm_result_touches_item.y;
+                            let vm_result_touches_item_value_pressure =
+                                vm_result_touches_item.pressure;
+                            let vm_result_touches_item_value = InputGamepadTouchStateVm {
+                                touch_id: vm_result_touches_item_value_touch_id,
+                                surface_id: vm_result_touches_item_value_surface_id,
+                                x: vm_result_touches_item_value_x,
+                                y: vm_result_touches_item_value_y,
+                                pressure: vm_result_touches_item_value_pressure,
+                            };
+                            let vm_result_touches_item_value_encoded = {
+                                let field_0 = vm::Value::uint(
+                                    vm_result_touches_item_value.touch_id as u64,
+                                    32,
+                                );
+                                let field_1 = vm::Value::uint(
+                                    vm_result_touches_item_value.surface_id as u64,
+                                    32,
+                                );
+                                let field_2 = vm::Value::float64(vm_result_touches_item_value.x);
+                                let field_3 = vm::Value::float64(vm_result_touches_item_value.y);
+                                let field_4 =
+                                    vm::Value::float64(vm_result_touches_item_value.pressure);
+                                context.allocate_aggregate(vec![
+                                    field_0, field_1, field_2, field_3, field_4,
+                                ])
+                            };
+                            vm_result_touches_values.push(vm_result_touches_item_value_encoded);
+                        }
+                        let vm_result_touches_data =
+                            context.allocate_raw_values(vm_result_touches_values);
+                        let vm_result_touches: VmArray<InputGamepadTouchStateVm> = VmArray {
+                            data: vm_result_touches_data,
+                            len: value.touches.len() as u32,
+                            capacity: value.touches.len() as u32,
+                            _marker: std::marker::PhantomData,
+                        };
+                        let vm_result = InputGamepadStateVm {
+                            timestamp_ns: vm_result_timestamp_ns,
+                            connected: vm_result_connected,
+                            mapping: vm_result_mapping,
+                            connection_type: vm_result_connection_type,
+                            player_index: vm_result_player_index,
+                            battery: vm_result_battery,
+                            supports_rumble: vm_result_supports_rumble,
+                            supports_trigger_rumble: vm_result_supports_trigger_rumble,
+                            axes: vm_result_axes,
+                            buttons: vm_result_buttons,
+                            touches: vm_result_touches,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_gamepad_state_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_haptics_effects_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_HAPTICS_EFFECTS,
+            runtime.replay_payload_for(INPUT_HAPTICS_EFFECTS)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_haptics_effects(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_haptics_effects(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: VmArray<InputHapticEffectType> = value.clone();
+                    let result_recorded_raw = result_value.raw_values(context)?;
+                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                    for result_recorded_item_value in result_recorded_raw {
+                        let result_recorded_item_raw = decode_uint8(
+                            result_recorded_item_value,
+                            "result_recorded_item_raw",
+                            "item",
+                        )?;
+                        let result_recorded_item = match result_recorded_item_raw {
+                            1u8 => InputHapticEffectType::DualRumble,
+                            2u8 => InputHapticEffectType::TriggerRumble,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_item",
+                                        "unknown InputHapticEffectType value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
+                        let result_recorded_item_recorded = result_recorded_item;
+                        result_recorded.push(result_recorded_item_recorded);
+                    }
+                    let payload = InputHapticsEffectsReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputHapticsEffectsReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let mut vm_result_values = Vec::with_capacity(value.len());
+                        for vm_result_item in value.iter() {
+                            let vm_result_item = *vm_result_item;
+                            let vm_result_item_value = vm_result_item;
+                            vm_result_values.push(vm_result_item_value);
+                        }
+                        let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_haptics_effects_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_haptics_play_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    effect: InputHapticEffectType,
+    params: InputHapticEffectParametersVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_HAPTICS_PLAY,
+            runtime.replay_payload_for(INPUT_HAPTICS_PLAY)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_input_haptics_play(
+                    runtime, context, handle, effect, params,
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_haptics_play(
+                    runtime, context, handle, effect, params,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: InputHapticsResult = value.clone();
+                    let result_recorded = result_value;
+                    let payload = InputHapticsPlayReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputHapticsPlayReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_haptics_play_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_haptics_stop_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_HAPTICS_STOP,
+            runtime.replay_payload_for(INPUT_HAPTICS_STOP)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_haptics_stop(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_haptics_stop(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = InputHapticsStopReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputHapticsStopReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_haptics_stop_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_keyboard_state_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_KEYBOARD_STATE,
+            runtime.replay_payload_for(INPUT_KEYBOARD_STATE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_keyboard_state(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_keyboard_state(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: InputKeyboardStateVm = value.clone();
+                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                    let result_recorded_sequence = result_value.sequence;
+                    let result_recorded_device_id = {
+                        let result_recorded_device_id_ref = context
+                            .string_ref(result_value.device_id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_device_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_modifiers = result_value.modifiers;
+                    let result_recorded_pressed_codes_raw =
+                        result_value.pressed_codes.raw_values(context)?;
+                    let mut result_recorded_pressed_codes =
+                        Vec::with_capacity(result_recorded_pressed_codes_raw.len());
+                    for result_recorded_pressed_codes_item_value in
+                        result_recorded_pressed_codes_raw
+                    {
+                        let result_recorded_pressed_codes_item = decode_uint32(
+                            result_recorded_pressed_codes_item_value,
+                            "result_recorded_pressed_codes_item",
+                            "item",
+                        )?;
+                        let result_recorded_pressed_codes_item_recorded =
+                            result_recorded_pressed_codes_item;
+                        result_recorded_pressed_codes
+                            .push(result_recorded_pressed_codes_item_recorded);
+                    }
+                    let result_recorded_pressed_scan_codes_raw =
+                        result_value.pressed_scan_codes.raw_values(context)?;
+                    let mut result_recorded_pressed_scan_codes =
+                        Vec::with_capacity(result_recorded_pressed_scan_codes_raw.len());
+                    for result_recorded_pressed_scan_codes_item_value in
+                        result_recorded_pressed_scan_codes_raw
+                    {
+                        let result_recorded_pressed_scan_codes_item = decode_uint32(
+                            result_recorded_pressed_scan_codes_item_value,
+                            "result_recorded_pressed_scan_codes_item",
+                            "item",
+                        )?;
+                        let result_recorded_pressed_scan_codes_item_recorded =
+                            result_recorded_pressed_scan_codes_item;
+                        result_recorded_pressed_scan_codes
+                            .push(result_recorded_pressed_scan_codes_item_recorded);
+                    }
+                    let result_recorded = InputKeyboardStateReplayRecord {
+                        timestamp_ns: result_recorded_timestamp_ns,
+                        sequence: result_recorded_sequence,
+                        device_id: result_recorded_device_id,
+                        modifiers: result_recorded_modifiers,
+                        pressed_codes: result_recorded_pressed_codes,
+                        pressed_scan_codes: result_recorded_pressed_scan_codes,
+                    };
+                    let payload = InputKeyboardStateReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputKeyboardStateReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_timestamp_ns = value.timestamp_ns;
+                        let vm_result_sequence = value.sequence;
+                        let vm_result_device_id_value =
+                            context.intern_string(value.device_id.as_str());
+                        let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
+                        let vm_result_modifiers = value.modifiers;
+                        let mut vm_result_pressed_codes_values =
+                            Vec::with_capacity(value.pressed_codes.len());
+                        for vm_result_pressed_codes_item in value.pressed_codes.iter() {
+                            let vm_result_pressed_codes_item = *vm_result_pressed_codes_item;
+                            let vm_result_pressed_codes_item_value = vm_result_pressed_codes_item;
+                            vm_result_pressed_codes_values.push(vm_result_pressed_codes_item_value);
+                        }
+                        let vm_result_pressed_codes =
+                            VmArray::from_values(context, &vm_result_pressed_codes_values)?;
+                        let mut vm_result_pressed_scan_codes_values =
+                            Vec::with_capacity(value.pressed_scan_codes.len());
+                        for vm_result_pressed_scan_codes_item in value.pressed_scan_codes.iter() {
+                            let vm_result_pressed_scan_codes_item =
+                                *vm_result_pressed_scan_codes_item;
+                            let vm_result_pressed_scan_codes_item_value =
+                                vm_result_pressed_scan_codes_item;
+                            vm_result_pressed_scan_codes_values
+                                .push(vm_result_pressed_scan_codes_item_value);
+                        }
+                        let vm_result_pressed_scan_codes =
+                            VmArray::from_values(context, &vm_result_pressed_scan_codes_values)?;
+                        let vm_result = InputKeyboardStateVm {
+                            timestamp_ns: vm_result_timestamp_ns,
+                            sequence: vm_result_sequence,
+                            device_id: vm_result_device_id,
+                            modifiers: vm_result_modifiers,
+                            pressed_codes: vm_result_pressed_codes,
+                            pressed_scan_codes: vm_result_pressed_scan_codes,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_keyboard_state_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_pointer_capture_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTargetVm,
+    enabled: bool,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_POINTER_CAPTURE,
+            runtime.replay_payload_for(INPUT_POINTER_CAPTURE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_input_pointer_capture(
+                    runtime, context, handle, target, enabled,
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_pointer_capture(
+                    runtime, context, handle, target, enabled,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = InputPointerCaptureReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputPointerCaptureReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_pointer_capture_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_pointer_relative_state_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_POINTER_RELATIVE_STATE,
+            runtime.replay_payload_for(INPUT_POINTER_RELATIVE_STATE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_pointer_relative_state(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_pointer_relative_state(
+                        runtime, context, handle,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: InputPointerStateVm = value.clone();
+                    let result_recorded_x = result_value.x;
+                    let result_recorded_y = result_value.y;
+                    let result_recorded_buttons = result_value.buttons;
+                    let result_recorded_modifiers = result_value.modifiers;
+                    let result_recorded_has_pen_data = result_value.has_pen_data;
+                    let result_recorded_pressure = result_value.pressure;
+                    let result_recorded_tangential_pressure = result_value.tangential_pressure;
+                    let result_recorded_tilt_x = result_value.tilt_x;
+                    let result_recorded_tilt_y = result_value.tilt_y;
+                    let result_recorded_twist = result_value.twist;
+                    let result_recorded_in_contact = result_value.in_contact;
+                    let result_recorded_in_range = result_value.in_range;
+                    let result_recorded = InputPointerState {
+                        x: result_recorded_x,
+                        y: result_recorded_y,
+                        buttons: result_recorded_buttons,
+                        modifiers: result_recorded_modifiers,
+                        has_pen_data: result_recorded_has_pen_data,
+                        pressure: result_recorded_pressure,
+                        tangential_pressure: result_recorded_tangential_pressure,
+                        tilt_x: result_recorded_tilt_x,
+                        tilt_y: result_recorded_tilt_y,
+                        twist: result_recorded_twist,
+                        in_contact: result_recorded_in_contact,
+                        in_range: result_recorded_in_range,
+                    };
+                    let payload = InputPointerRelativeStateReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputPointerRelativeStateReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_x = value.x;
+                        let vm_result_y = value.y;
+                        let vm_result_buttons = value.buttons;
+                        let vm_result_modifiers = value.modifiers;
+                        let vm_result_has_pen_data = value.has_pen_data;
+                        let vm_result_pressure = value.pressure;
+                        let vm_result_tangential_pressure = value.tangential_pressure;
+                        let vm_result_tilt_x = value.tilt_x;
+                        let vm_result_tilt_y = value.tilt_y;
+                        let vm_result_twist = value.twist;
+                        let vm_result_in_contact = value.in_contact;
+                        let vm_result_in_range = value.in_range;
+                        let vm_result = InputPointerStateVm {
+                            x: vm_result_x,
+                            y: vm_result_y,
+                            buttons: vm_result_buttons,
+                            modifiers: vm_result_modifiers,
+                            has_pen_data: vm_result_has_pen_data,
+                            pressure: vm_result_pressure,
+                            tangential_pressure: vm_result_tangential_pressure,
+                            tilt_x: vm_result_tilt_x,
+                            tilt_y: vm_result_tilt_y,
+                            twist: vm_result_twist,
+                            in_contact: vm_result_in_contact,
+                            in_range: vm_result_in_range,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_pointer_relative_state_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_pointer_set_grab_mode_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTargetVm,
+    mode: InputPointerGrabMode,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_POINTER_SET_GRAB_MODE,
+            runtime.replay_payload_for(INPUT_POINTER_SET_GRAB_MODE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_input_pointer_set_grab_mode(
+                    runtime, context, handle, target, mode,
+                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_pointer_set_grab_mode(
+                        runtime, context, handle, target, mode,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = InputPointerSetGrabModeReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputPointerSetGrabModeReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_pointer_set_grab_mode_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_pointer_set_relative_mode_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    enabled: bool,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_POINTER_SET_RELATIVE_MODE,
+            runtime.replay_payload_for(INPUT_POINTER_SET_RELATIVE_MODE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_input_pointer_set_relative_mode(
+                    runtime, context, handle, enabled,
+                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_pointer_set_relative_mode(
+                        runtime, context, handle, enabled,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = InputPointerSetRelativeModeReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputPointerSetRelativeModeReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_pointer_set_relative_mode_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_pointer_state_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_POINTER_STATE,
+            runtime.replay_payload_for(INPUT_POINTER_STATE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_pointer_state(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_pointer_state(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: InputPointerStateVm = value.clone();
+                    let result_recorded_x = result_value.x;
+                    let result_recorded_y = result_value.y;
+                    let result_recorded_buttons = result_value.buttons;
+                    let result_recorded_modifiers = result_value.modifiers;
+                    let result_recorded_has_pen_data = result_value.has_pen_data;
+                    let result_recorded_pressure = result_value.pressure;
+                    let result_recorded_tangential_pressure = result_value.tangential_pressure;
+                    let result_recorded_tilt_x = result_value.tilt_x;
+                    let result_recorded_tilt_y = result_value.tilt_y;
+                    let result_recorded_twist = result_value.twist;
+                    let result_recorded_in_contact = result_value.in_contact;
+                    let result_recorded_in_range = result_value.in_range;
+                    let result_recorded = InputPointerState {
+                        x: result_recorded_x,
+                        y: result_recorded_y,
+                        buttons: result_recorded_buttons,
+                        modifiers: result_recorded_modifiers,
+                        has_pen_data: result_recorded_has_pen_data,
+                        pressure: result_recorded_pressure,
+                        tangential_pressure: result_recorded_tangential_pressure,
+                        tilt_x: result_recorded_tilt_x,
+                        tilt_y: result_recorded_tilt_y,
+                        twist: result_recorded_twist,
+                        in_contact: result_recorded_in_contact,
+                        in_range: result_recorded_in_range,
+                    };
+                    let payload = InputPointerStateReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputPointerStateReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_x = value.x;
+                        let vm_result_y = value.y;
+                        let vm_result_buttons = value.buttons;
+                        let vm_result_modifiers = value.modifiers;
+                        let vm_result_has_pen_data = value.has_pen_data;
+                        let vm_result_pressure = value.pressure;
+                        let vm_result_tangential_pressure = value.tangential_pressure;
+                        let vm_result_tilt_x = value.tilt_x;
+                        let vm_result_tilt_y = value.tilt_y;
+                        let vm_result_twist = value.twist;
+                        let vm_result_in_contact = value.in_contact;
+                        let vm_result_in_range = value.in_range;
+                        let vm_result = InputPointerStateVm {
+                            x: vm_result_x,
+                            y: vm_result_y,
+                            buttons: vm_result_buttons,
+                            modifiers: vm_result_modifiers,
+                            has_pen_data: vm_result_has_pen_data,
+                            pressure: vm_result_pressure,
+                            tangential_pressure: vm_result_tangential_pressure,
+                            tilt_x: vm_result_tilt_x,
+                            tilt_y: vm_result_tilt_y,
+                            twist: vm_result_twist,
+                            in_contact: vm_result_in_contact,
+                            in_range: vm_result_in_range,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_pointer_state_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_pointer_warp_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTargetVm,
+    x: f64,
+    y: f64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_POINTER_WARP,
+            runtime.replay_payload_for(INPUT_POINTER_WARP)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_pointer_warp(runtime, context, handle, target, x, y)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_pointer_warp(
+                    runtime, context, handle, target, x, y,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = InputPointerWarpReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputPointerWarpReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_pointer_warp_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_rawhid_get_feature_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    reportid: u8,
+    maxbytes: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_RAWHID_GET_FEATURE,
+            runtime.replay_payload_for(INPUT_RAWHID_GET_FEATURE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_input_raw_hid_get_feature(
+                    runtime, context, handle, reportid, maxbytes,
+                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_raw_hid_get_feature(
+                        runtime, context, handle, reportid, maxbytes,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: VmSlice<u8> = value.clone();
+                    let result_recorded = result_value.read_bytes(context)?;
+                    let payload = InputRawhidGetFeatureReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputRawhidGetFeatureReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = VmSlice::from_bytes(context, value.as_slice());
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_rawhid_get_feature_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_rawhid_read_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    maxbytes: u32,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_RAWHID_READ,
+            runtime.replay_payload_for(INPUT_RAWHID_READ)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_input_raw_hid_read(
+                    runtime, context, handle, maxbytes, timeoutns,
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_raw_hid_read(
+                    runtime, context, handle, maxbytes, timeoutns,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: InputRawHidReportVm = value.clone();
+                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                    let result_recorded_sequence = result_value.sequence;
+                    let result_recorded_report_id = result_value.report_id;
+                    let result_recorded_data = result_value.data.read_bytes(context)?;
+                    let result_recorded = InputRawHidReportReplayRecord {
+                        timestamp_ns: result_recorded_timestamp_ns,
+                        sequence: result_recorded_sequence,
+                        report_id: result_recorded_report_id,
+                        data: result_recorded_data,
+                    };
+                    let payload = InputRawhidReadReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputRawhidReadReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_timestamp_ns = value.timestamp_ns;
+                        let vm_result_sequence = value.sequence;
+                        let vm_result_report_id = value.report_id;
+                        let vm_result_data = VmSlice::from_bytes(context, value.data.as_slice());
+                        let vm_result = InputRawHidReportVm {
+                            timestamp_ns: vm_result_timestamp_ns,
+                            sequence: vm_result_sequence,
+                            report_id: vm_result_report_id,
+                            data: vm_result_data,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_rawhid_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_rawhid_set_feature_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    reportid: u8,
+    data: VmSlice<u8>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_RAWHID_SET_FEATURE,
+            runtime.replay_payload_for(INPUT_RAWHID_SET_FEATURE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_input_raw_hid_set_feature(
+                    runtime, context, handle, reportid, data,
+                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_raw_hid_set_feature(
+                        runtime, context, handle, reportid, data,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = InputRawhidSetFeatureReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputRawhidSetFeatureReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_rawhid_set_feature_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_rawhid_try_read_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    maxbytes: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_RAWHID_TRY_READ,
+            runtime.replay_payload_for(INPUT_RAWHID_TRY_READ)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_raw_hid_try_read(runtime, context, handle, maxbytes)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_raw_hid_try_read(
+                    runtime, context, handle, maxbytes,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: InputRawHidReportVm = value.clone();
+                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                    let result_recorded_sequence = result_value.sequence;
+                    let result_recorded_report_id = result_value.report_id;
+                    let result_recorded_data = result_value.data.read_bytes(context)?;
+                    let result_recorded = InputRawHidReportReplayRecord {
+                        timestamp_ns: result_recorded_timestamp_ns,
+                        sequence: result_recorded_sequence,
+                        report_id: result_recorded_report_id,
+                        data: result_recorded_data,
+                    };
+                    let payload = InputRawhidTryReadReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputRawhidTryReadReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_timestamp_ns = value.timestamp_ns;
+                        let vm_result_sequence = value.sequence;
+                        let vm_result_report_id = value.report_id;
+                        let vm_result_data = VmSlice::from_bytes(context, value.data.as_slice());
+                        let vm_result = InputRawHidReportVm {
+                            timestamp_ns: vm_result_timestamp_ns,
+                            sequence: vm_result_sequence,
+                            report_id: vm_result_report_id,
+                            data: vm_result_data,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_rawhid_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_rawhid_write_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    reportid: u8,
+    data: VmSlice<u8>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_RAWHID_WRITE,
+            runtime.replay_payload_for(INPUT_RAWHID_WRITE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_input_raw_hid_write(
+                    runtime, context, handle, reportid, data,
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_raw_hid_write(
+                    runtime, context, handle, reportid, data,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: u32 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = InputRawhidWriteReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputRawhidWriteReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_rawhid_write_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_sensor_configure_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    kind: InputSensorKind,
+    config: InputSensorConfigVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_SENSOR_CONFIGURE,
+            runtime.replay_payload_for(INPUT_SENSOR_CONFIGURE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_input_sensor_configure(
+                    runtime, context, handle, kind, config,
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_sensor_configure(
+                    runtime, context, handle, kind, config,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: InputSensorEffectiveConfigVm = value.clone();
+                    let result_recorded_enabled = result_value.enabled;
+                    let result_recorded_sample_rate_hz = result_value.sample_rate_hz;
+                    let result_recorded_batch_latency_ms = result_value.batch_latency_ms;
+                    let result_recorded_flags = result_value.flags;
+                    let result_recorded = InputSensorEffectiveConfig {
+                        enabled: result_recorded_enabled,
+                        sample_rate_hz: result_recorded_sample_rate_hz,
+                        batch_latency_ms: result_recorded_batch_latency_ms,
+                        flags: result_recorded_flags,
+                    };
+                    let payload = InputSensorConfigureReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputSensorConfigureReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_enabled = value.enabled;
+                        let vm_result_sample_rate_hz = value.sample_rate_hz;
+                        let vm_result_batch_latency_ms = value.batch_latency_ms;
+                        let vm_result_flags = value.flags;
+                        let vm_result = InputSensorEffectiveConfigVm {
+                            enabled: vm_result_enabled,
+                            sample_rate_hz: vm_result_sample_rate_hz,
+                            batch_latency_ms: vm_result_batch_latency_ms,
+                            flags: vm_result_flags,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_sensor_configure_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_sensor_list_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_SENSOR_LIST,
+            runtime.replay_payload_for(INPUT_SENSOR_LIST)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_sensor_list(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_sensor_list(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: VmArray<InputSensorInfoVm> = value.clone();
+                    let result_recorded_raw = result_value.raw_values(context)?;
+                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                    for result_recorded_item_value in result_recorded_raw {
+                        let result_recorded_item = {
+                            if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_type(
+                                        "result_recorded_item",
+                                        "item",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let slots = context
+                                .aggregate_slots(result_recorded_item_value)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots.len() != 5 {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_item",
+                                        "expected 5 fields",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let result_recorded_item_kind_raw =
+                                decode_uint8(slots[0], "result_recorded_item_kind_raw", "kind")?;
+                            let result_recorded_item_kind = match result_recorded_item_kind_raw {
+                                1u8 => InputSensorKind::Accelerometer,
+                                2u8 => InputSensorKind::Gyroscope,
+                                3u8 => InputSensorKind::Magnetometer,
+                                4u8 => InputSensorKind::Gravity,
+                                5u8 => InputSensorKind::LinearAcceleration,
+                                6u8 => InputSensorKind::Orientation,
+                                _ => {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_value(
+                                            "result_recorded_item_kind",
+                                            "unknown InputSensorKind value",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
+                            };
+                            let result_recorded_item_min_sample_rate_hz = decode_float64(
+                                slots[1],
+                                "result_recorded_item_min_sample_rate_hz",
+                                "minSampleRateHz",
+                            )?;
+                            let result_recorded_item_max_sample_rate_hz = decode_float64(
+                                slots[2],
+                                "result_recorded_item_max_sample_rate_hz",
+                                "maxSampleRateHz",
+                            )?;
+                            let result_recorded_item_resolution = decode_float64(
+                                slots[3],
+                                "result_recorded_item_resolution",
+                                "resolution",
+                            )?;
+                            let result_recorded_item_supports_wake = decode_bool(
+                                slots[4],
+                                "result_recorded_item_supports_wake",
+                                "supportsWake",
+                            )?;
+                            InputSensorInfoVm {
+                                kind: result_recorded_item_kind,
+                                min_sample_rate_hz: result_recorded_item_min_sample_rate_hz,
+                                max_sample_rate_hz: result_recorded_item_max_sample_rate_hz,
+                                resolution: result_recorded_item_resolution,
+                                supports_wake: result_recorded_item_supports_wake,
+                            }
+                        };
+                        let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                        let result_recorded_item_recorded_min_sample_rate_hz =
+                            result_recorded_item.min_sample_rate_hz;
+                        let result_recorded_item_recorded_max_sample_rate_hz =
+                            result_recorded_item.max_sample_rate_hz;
+                        let result_recorded_item_recorded_resolution =
+                            result_recorded_item.resolution;
+                        let result_recorded_item_recorded_supports_wake =
+                            result_recorded_item.supports_wake;
+                        let result_recorded_item_recorded = InputSensorInfo {
+                            kind: result_recorded_item_recorded_kind,
+                            min_sample_rate_hz: result_recorded_item_recorded_min_sample_rate_hz,
+                            max_sample_rate_hz: result_recorded_item_recorded_max_sample_rate_hz,
+                            resolution: result_recorded_item_recorded_resolution,
+                            supports_wake: result_recorded_item_recorded_supports_wake,
+                        };
+                        result_recorded.push(result_recorded_item_recorded);
+                    }
+                    let payload = InputSensorListReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputSensorListReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let mut vm_result_values = Vec::with_capacity(value.len());
+                        for vm_result_item in value.iter() {
+                            let vm_result_item = *vm_result_item;
+                            let vm_result_item_value_kind = vm_result_item.kind;
+                            let vm_result_item_value_min_sample_rate_hz =
+                                vm_result_item.min_sample_rate_hz;
+                            let vm_result_item_value_max_sample_rate_hz =
+                                vm_result_item.max_sample_rate_hz;
+                            let vm_result_item_value_resolution = vm_result_item.resolution;
+                            let vm_result_item_value_supports_wake = vm_result_item.supports_wake;
+                            let vm_result_item_value = InputSensorInfoVm {
+                                kind: vm_result_item_value_kind,
+                                min_sample_rate_hz: vm_result_item_value_min_sample_rate_hz,
+                                max_sample_rate_hz: vm_result_item_value_max_sample_rate_hz,
+                                resolution: vm_result_item_value_resolution,
+                                supports_wake: vm_result_item_value_supports_wake,
+                            };
+                            let vm_result_item_value_encoded = {
+                                let field_0 =
+                                    vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8);
+                                let field_1 =
+                                    vm::Value::float64(vm_result_item_value.min_sample_rate_hz);
+                                let field_2 =
+                                    vm::Value::float64(vm_result_item_value.max_sample_rate_hz);
+                                let field_3 = vm::Value::float64(vm_result_item_value.resolution);
+                                let field_4 = vm::Value::bool(vm_result_item_value.supports_wake);
+                                context.allocate_aggregate(vec![
+                                    field_0, field_1, field_2, field_3, field_4,
+                                ])
+                            };
+                            vm_result_values.push(vm_result_item_value_encoded);
+                        }
+                        let vm_result_data = context.allocate_raw_values(vm_result_values);
+                        let vm_result: VmArray<InputSensorInfoVm> = VmArray {
+                            data: vm_result_data,
+                            len: value.len() as u32,
+                            capacity: value.len() as u32,
+                            _marker: std::marker::PhantomData,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_sensor_list_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_sensor_read_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    kind: InputSensorKind,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_SENSOR_READ,
+            runtime.replay_payload_for(INPUT_SENSOR_READ)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_sensor_read(runtime, context, handle, kind)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_sensor_read(runtime, context, handle, kind)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: InputSensorSampleVm = value.clone();
+                    let result_recorded_kind = result_value.kind;
+                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                    let result_recorded_x = result_value.x;
+                    let result_recorded_y = result_value.y;
+                    let result_recorded_z = result_value.z;
+                    let result_recorded_w = result_value.w;
+                    let result_recorded_flags = result_value.flags;
+                    let result_recorded = InputSensorSample {
+                        kind: result_recorded_kind,
+                        timestamp_ns: result_recorded_timestamp_ns,
+                        x: result_recorded_x,
+                        y: result_recorded_y,
+                        z: result_recorded_z,
+                        w: result_recorded_w,
+                        flags: result_recorded_flags,
+                    };
+                    let payload = InputSensorReadReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputSensorReadReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_kind = value.kind;
+                        let vm_result_timestamp_ns = value.timestamp_ns;
+                        let vm_result_x = value.x;
+                        let vm_result_y = value.y;
+                        let vm_result_z = value.z;
+                        let vm_result_w = value.w;
+                        let vm_result_flags = value.flags;
+                        let vm_result = InputSensorSampleVm {
+                            kind: vm_result_kind,
+                            timestamp_ns: vm_result_timestamp_ns,
+                            x: vm_result_x,
+                            y: vm_result_y,
+                            z: vm_result_z,
+                            w: vm_result_w,
+                            flags: vm_result_flags,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_sensor_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_sensor_try_read_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    kind: InputSensorKind,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_SENSOR_TRY_READ,
+            runtime.replay_payload_for(INPUT_SENSOR_TRY_READ)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_sensor_try_read(runtime, context, handle, kind)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_sensor_try_read(
+                    runtime, context, handle, kind,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: InputSensorSampleVm = value.clone();
+                    let result_recorded_kind = result_value.kind;
+                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                    let result_recorded_x = result_value.x;
+                    let result_recorded_y = result_value.y;
+                    let result_recorded_z = result_value.z;
+                    let result_recorded_w = result_value.w;
+                    let result_recorded_flags = result_value.flags;
+                    let result_recorded = InputSensorSample {
+                        kind: result_recorded_kind,
+                        timestamp_ns: result_recorded_timestamp_ns,
+                        x: result_recorded_x,
+                        y: result_recorded_y,
+                        z: result_recorded_z,
+                        w: result_recorded_w,
+                        flags: result_recorded_flags,
+                    };
+                    let payload = InputSensorTryReadReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputSensorTryReadReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_kind = value.kind;
+                        let vm_result_timestamp_ns = value.timestamp_ns;
+                        let vm_result_x = value.x;
+                        let vm_result_y = value.y;
+                        let vm_result_z = value.z;
+                        let vm_result_w = value.w;
+                        let vm_result_flags = value.flags;
+                        let vm_result = InputSensorSampleVm {
+                            kind: vm_result_kind,
+                            timestamp_ns: vm_result_timestamp_ns,
+                            x: vm_result_x,
+                            y: vm_result_y,
+                            z: vm_result_z,
+                            w: vm_result_w,
+                            flags: vm_result_flags,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_sensor_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_text_get_area_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTargetVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_TEXT_GET_AREA,
+            runtime.replay_payload_for(INPUT_TEXT_GET_AREA)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_text_get_area(runtime, context, handle, target)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_text_get_area(
+                    runtime, context, handle, target,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: InputTextInputAreaVm = value.clone();
+                    let result_recorded_x = result_value.x;
+                    let result_recorded_y = result_value.y;
+                    let result_recorded_width = result_value.width;
+                    let result_recorded_height = result_value.height;
+                    let result_recorded_cursor = result_value.cursor;
+                    let result_recorded = InputTextInputArea {
+                        x: result_recorded_x,
+                        y: result_recorded_y,
+                        width: result_recorded_width,
+                        height: result_recorded_height,
+                        cursor: result_recorded_cursor,
+                    };
+                    let payload = InputTextGetAreaReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputTextGetAreaReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_x = value.x;
+                        let vm_result_y = value.y;
+                        let vm_result_width = value.width;
+                        let vm_result_height = value.height;
+                        let vm_result_cursor = value.cursor;
+                        let vm_result = InputTextInputAreaVm {
+                            x: vm_result_x,
+                            y: vm_result_y,
+                            width: vm_result_width,
+                            height: vm_result_height,
+                            cursor: vm_result_cursor,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_text_get_area_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_text_is_active_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_TEXT_IS_ACTIVE,
+            runtime.replay_payload_for(INPUT_TEXT_IS_ACTIVE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_text_is_active(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_text_is_active(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: bool = value.clone();
+                    let result_recorded = result_value;
+                    let payload = InputTextIsActiveReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputTextIsActiveReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_text_is_active_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_text_read_composition_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_TEXT_READ_COMPOSITION,
+            runtime.replay_payload_for(INPUT_TEXT_READ_COMPOSITION)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_text_read_composition(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_text_read_composition(
+                        runtime, context, handle,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: InputCompositionEventVm = value.clone();
+                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                    let result_recorded_sequence = result_value.sequence;
+                    let result_recorded_device_id = {
+                        let result_recorded_device_id_ref = context
+                            .string_ref(result_value.device_id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_device_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_action = result_value.action;
+                    let result_recorded_text = {
+                        let result_recorded_text_ref = context
+                            .string_ref(result_value.text)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_text_ref.as_str().to_string()
+                    };
+                    let result_recorded_selection_start = result_value.selection_start;
+                    let result_recorded_selection_end = result_value.selection_end;
+                    let result_recorded = InputCompositionEventReplayRecord {
+                        timestamp_ns: result_recorded_timestamp_ns,
+                        sequence: result_recorded_sequence,
+                        device_id: result_recorded_device_id,
+                        action: result_recorded_action,
+                        text: result_recorded_text,
+                        selection_start: result_recorded_selection_start,
+                        selection_end: result_recorded_selection_end,
+                    };
+                    let payload = InputTextReadCompositionReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputTextReadCompositionReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_timestamp_ns = value.timestamp_ns;
+                        let vm_result_sequence = value.sequence;
+                        let vm_result_device_id_value =
+                            context.intern_string(value.device_id.as_str());
+                        let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
+                        let vm_result_action = value.action;
+                        let vm_result_text_value = context.intern_string(value.text.as_str());
+                        let vm_result_text = vm::StringHandle::new(vm_result_text_value);
+                        let vm_result_selection_start = value.selection_start;
+                        let vm_result_selection_end = value.selection_end;
+                        let vm_result = InputCompositionEventVm {
+                            timestamp_ns: vm_result_timestamp_ns,
+                            sequence: vm_result_sequence,
+                            device_id: vm_result_device_id,
+                            action: vm_result_action,
+                            text: vm_result_text,
+                            selection_start: vm_result_selection_start,
+                            selection_end: vm_result_selection_end,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_text_read_composition_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_text_set_area_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTargetVm,
+    area: InputTextInputAreaVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_TEXT_SET_AREA,
+            runtime.replay_payload_for(INPUT_TEXT_SET_AREA)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_text_set_area(runtime, context, handle, target, area)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_text_set_area(
+                    runtime, context, handle, target, area,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = InputTextSetAreaReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputTextSetAreaReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_text_set_area_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_text_start_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTargetVm,
+    inputtype: InputTextInputType,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_TEXT_START,
+            runtime.replay_payload_for(INPUT_TEXT_START)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_input_text_start(
+                    runtime, context, handle, target, inputtype,
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_text_start(
+                    runtime, context, handle, target, inputtype,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = InputTextStartReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputTextStartReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_text_start_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_text_stop_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTargetVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_TEXT_STOP,
+            runtime.replay_payload_for(INPUT_TEXT_STOP)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_text_stop(runtime, context, handle, target)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_text_stop(runtime, context, handle, target)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = InputTextStopReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputTextStopReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_text_stop_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_text_try_read_composition_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_TEXT_TRY_READ_COMPOSITION,
+            runtime.replay_payload_for(INPUT_TEXT_TRY_READ_COMPOSITION)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_text_try_read_composition(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_text_try_read_composition(
+                        runtime, context, handle,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: InputCompositionEventVm = value.clone();
+                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                    let result_recorded_sequence = result_value.sequence;
+                    let result_recorded_device_id = {
+                        let result_recorded_device_id_ref = context
+                            .string_ref(result_value.device_id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_device_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_action = result_value.action;
+                    let result_recorded_text = {
+                        let result_recorded_text_ref = context
+                            .string_ref(result_value.text)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_text_ref.as_str().to_string()
+                    };
+                    let result_recorded_selection_start = result_value.selection_start;
+                    let result_recorded_selection_end = result_value.selection_end;
+                    let result_recorded = InputCompositionEventReplayRecord {
+                        timestamp_ns: result_recorded_timestamp_ns,
+                        sequence: result_recorded_sequence,
+                        device_id: result_recorded_device_id,
+                        action: result_recorded_action,
+                        text: result_recorded_text,
+                        selection_start: result_recorded_selection_start,
+                        selection_end: result_recorded_selection_end,
+                    };
+                    let payload = InputTextTryReadCompositionReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputTextTryReadCompositionReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_timestamp_ns = value.timestamp_ns;
+                        let vm_result_sequence = value.sequence;
+                        let vm_result_device_id_value =
+                            context.intern_string(value.device_id.as_str());
+                        let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
+                        let vm_result_action = value.action;
+                        let vm_result_text_value = context.intern_string(value.text.as_str());
+                        let vm_result_text = vm::StringHandle::new(vm_result_text_value);
+                        let vm_result_selection_start = value.selection_start;
+                        let vm_result_selection_end = value.selection_end;
+                        let vm_result = InputCompositionEventVm {
+                            timestamp_ns: vm_result_timestamp_ns,
+                            sequence: vm_result_sequence,
+                            device_id: vm_result_device_id,
+                            action: vm_result_action,
+                            text: vm_result_text,
+                            selection_start: vm_result_selection_start,
+                            selection_end: vm_result_selection_end,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_text_try_read_composition_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_touch_state_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            INPUT_TOUCH_STATE,
+            runtime.replay_payload_for(INPUT_TOUCH_STATE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_input_touch_state(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_input_touch_state(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: InputTouchStateVm = value.clone();
+                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                    let result_recorded_sequence = result_value.sequence;
+                    let result_recorded_device_id = {
+                        let result_recorded_device_id_ref = context
+                            .string_ref(result_value.device_id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_device_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_contacts_raw = result_value.contacts.raw_values(context)?;
+                    let mut result_recorded_contacts =
+                        Vec::with_capacity(result_recorded_contacts_raw.len());
+                    for result_recorded_contacts_item_value in result_recorded_contacts_raw {
+                        let result_recorded_contacts_item = {
+                            if result_recorded_contacts_item_value.tag() != vm::ValueTag::Aggregate
+                            {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_type(
+                                        "result_recorded_contacts_item",
+                                        "item",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let slots = context
+                                .aggregate_slots(result_recorded_contacts_item_value)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots.len() != 9 {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_contacts_item",
+                                        "expected 9 fields",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                            let result_recorded_contacts_item_contact_id = decode_uint32(
+                                slots[0],
+                                "result_recorded_contacts_item_contact_id",
+                                "contactId",
+                            )?;
+                            let result_recorded_contacts_item_phase_raw = decode_uint8(
+                                slots[1],
+                                "result_recorded_contacts_item_phase_raw",
+                                "phase",
+                            )?;
+                            let result_recorded_contacts_item_phase =
+                                match result_recorded_contacts_item_phase_raw {
+                                    1u8 => InputTouchContactPhase::Begin,
+                                    2u8 => InputTouchContactPhase::Move,
+                                    3u8 => InputTouchContactPhase::End,
+                                    4u8 => InputTouchContactPhase::Cancel,
+                                    _ => {
+                                        return Err(RuntimeError::from(
+                                            PlatformError::invalid_argument_value(
+                                                "result_recorded_contacts_item_phase",
+                                                "unknown InputTouchContactPhase value",
+                                            ),
+                                        )
+                                        .boxed());
+                                    }
+                                };
+                            let result_recorded_contacts_item_x =
+                                decode_float64(slots[2], "result_recorded_contacts_item_x", "x")?;
+                            let result_recorded_contacts_item_y =
+                                decode_float64(slots[3], "result_recorded_contacts_item_y", "y")?;
+                            let result_recorded_contacts_item_pressure = decode_float64(
+                                slots[4],
+                                "result_recorded_contacts_item_pressure",
+                                "pressure",
+                            )?;
+                            let result_recorded_contacts_item_radius_x = decode_float64(
+                                slots[5],
+                                "result_recorded_contacts_item_radius_x",
+                                "radiusX",
+                            )?;
+                            let result_recorded_contacts_item_radius_y = decode_float64(
+                                slots[6],
+                                "result_recorded_contacts_item_radius_y",
+                                "radiusY",
+                            )?;
+                            let result_recorded_contacts_item_tilt_x = decode_float64(
+                                slots[7],
+                                "result_recorded_contacts_item_tilt_x",
+                                "tiltX",
+                            )?;
+                            let result_recorded_contacts_item_tilt_y = decode_float64(
+                                slots[8],
+                                "result_recorded_contacts_item_tilt_y",
+                                "tiltY",
+                            )?;
+                            InputTouchContactStateVm {
+                                contact_id: result_recorded_contacts_item_contact_id,
+                                phase: result_recorded_contacts_item_phase,
+                                x: result_recorded_contacts_item_x,
+                                y: result_recorded_contacts_item_y,
+                                pressure: result_recorded_contacts_item_pressure,
+                                radius_x: result_recorded_contacts_item_radius_x,
+                                radius_y: result_recorded_contacts_item_radius_y,
+                                tilt_x: result_recorded_contacts_item_tilt_x,
+                                tilt_y: result_recorded_contacts_item_tilt_y,
+                            }
+                        };
+                        let result_recorded_contacts_item_recorded_contact_id =
+                            result_recorded_contacts_item.contact_id;
+                        let result_recorded_contacts_item_recorded_phase =
+                            result_recorded_contacts_item.phase;
+                        let result_recorded_contacts_item_recorded_x =
+                            result_recorded_contacts_item.x;
+                        let result_recorded_contacts_item_recorded_y =
+                            result_recorded_contacts_item.y;
+                        let result_recorded_contacts_item_recorded_pressure =
+                            result_recorded_contacts_item.pressure;
+                        let result_recorded_contacts_item_recorded_radius_x =
+                            result_recorded_contacts_item.radius_x;
+                        let result_recorded_contacts_item_recorded_radius_y =
+                            result_recorded_contacts_item.radius_y;
+                        let result_recorded_contacts_item_recorded_tilt_x =
+                            result_recorded_contacts_item.tilt_x;
+                        let result_recorded_contacts_item_recorded_tilt_y =
+                            result_recorded_contacts_item.tilt_y;
+                        let result_recorded_contacts_item_recorded = InputTouchContactState {
+                            contact_id: result_recorded_contacts_item_recorded_contact_id,
+                            phase: result_recorded_contacts_item_recorded_phase,
+                            x: result_recorded_contacts_item_recorded_x,
+                            y: result_recorded_contacts_item_recorded_y,
+                            pressure: result_recorded_contacts_item_recorded_pressure,
+                            radius_x: result_recorded_contacts_item_recorded_radius_x,
+                            radius_y: result_recorded_contacts_item_recorded_radius_y,
+                            tilt_x: result_recorded_contacts_item_recorded_tilt_x,
+                            tilt_y: result_recorded_contacts_item_recorded_tilt_y,
+                        };
+                        result_recorded_contacts.push(result_recorded_contacts_item_recorded);
+                    }
+                    let result_recorded = InputTouchStateReplayRecord {
+                        timestamp_ns: result_recorded_timestamp_ns,
+                        sequence: result_recorded_sequence,
+                        device_id: result_recorded_device_id,
+                        contacts: result_recorded_contacts,
+                    };
+                    let payload = InputTouchStateReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        InputTouchStateReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_timestamp_ns = value.timestamp_ns;
+                        let vm_result_sequence = value.sequence;
+                        let vm_result_device_id_value =
+                            context.intern_string(value.device_id.as_str());
+                        let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
+                        let mut vm_result_contacts_values =
+                            Vec::with_capacity(value.contacts.len());
+                        for vm_result_contacts_item in value.contacts.iter() {
+                            let vm_result_contacts_item = *vm_result_contacts_item;
+                            let vm_result_contacts_item_value_contact_id =
+                                vm_result_contacts_item.contact_id;
+                            let vm_result_contacts_item_value_phase = vm_result_contacts_item.phase;
+                            let vm_result_contacts_item_value_x = vm_result_contacts_item.x;
+                            let vm_result_contacts_item_value_y = vm_result_contacts_item.y;
+                            let vm_result_contacts_item_value_pressure =
+                                vm_result_contacts_item.pressure;
+                            let vm_result_contacts_item_value_radius_x =
+                                vm_result_contacts_item.radius_x;
+                            let vm_result_contacts_item_value_radius_y =
+                                vm_result_contacts_item.radius_y;
+                            let vm_result_contacts_item_value_tilt_x =
+                                vm_result_contacts_item.tilt_x;
+                            let vm_result_contacts_item_value_tilt_y =
+                                vm_result_contacts_item.tilt_y;
+                            let vm_result_contacts_item_value = InputTouchContactStateVm {
+                                contact_id: vm_result_contacts_item_value_contact_id,
+                                phase: vm_result_contacts_item_value_phase,
+                                x: vm_result_contacts_item_value_x,
+                                y: vm_result_contacts_item_value_y,
+                                pressure: vm_result_contacts_item_value_pressure,
+                                radius_x: vm_result_contacts_item_value_radius_x,
+                                radius_y: vm_result_contacts_item_value_radius_y,
+                                tilt_x: vm_result_contacts_item_value_tilt_x,
+                                tilt_y: vm_result_contacts_item_value_tilt_y,
+                            };
+                            let vm_result_contacts_item_value_encoded = {
+                                let field_0 = vm::Value::uint(
+                                    vm_result_contacts_item_value.contact_id as u64,
+                                    32,
+                                );
+                                let field_1 = vm::Value::uint(
+                                    vm_result_contacts_item_value.phase as u8 as u64,
+                                    8,
+                                );
+                                let field_2 = vm::Value::float64(vm_result_contacts_item_value.x);
+                                let field_3 = vm::Value::float64(vm_result_contacts_item_value.y);
+                                let field_4 =
+                                    vm::Value::float64(vm_result_contacts_item_value.pressure);
+                                let field_5 =
+                                    vm::Value::float64(vm_result_contacts_item_value.radius_x);
+                                let field_6 =
+                                    vm::Value::float64(vm_result_contacts_item_value.radius_y);
+                                let field_7 =
+                                    vm::Value::float64(vm_result_contacts_item_value.tilt_x);
+                                let field_8 =
+                                    vm::Value::float64(vm_result_contacts_item_value.tilt_y);
+                                context.allocate_aggregate(vec![
+                                    field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+                                    field_7, field_8,
+                                ])
+                            };
+                            vm_result_contacts_values.push(vm_result_contacts_item_value_encoded);
+                        }
+                        let vm_result_contacts_data =
+                            context.allocate_raw_values(vm_result_contacts_values);
+                        let vm_result_contacts: VmArray<InputTouchContactStateVm> = VmArray {
+                            data: vm_result_contacts_data,
+                            len: value.contacts.len() as u32,
+                            capacity: value.contacts.len() as u32,
+                            _marker: std::marker::PhantomData,
+                        };
+                        let vm_result = InputTouchStateVm {
+                            timestamp_ns: vm_result_timestamp_ns,
+                            sequence: vm_result_sequence,
+                            device_id: vm_result_device_id,
+                            contacts: vm_result_contacts,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_input_touch_state_result(context, result)?;
+    Ok(result)
+}
+
 /// Register VM bindings for input.
 pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_DEVICE_CAPABILITIES,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_input_device_capabilities_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_DEVICE_CAPABILITIES)?;
+                    let world = runtime.check_and_resolve_world(INPUT_DEVICE_CAPABILITIES)?;
+                    destack_input_device_capabilities_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
     {
         binding!(
             registry,
@@ -3830,16 +13948,19 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
         binding!(
             registry,
             isolate,
-            INPUT_EVENT_SET_GRAB,
+            INPUT_EVENT_SET_EXCLUSIVE_GRAB,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (handle, enable) = decode_destack_input_event_set_grab_args(context, args)?;
+                    let (handle, enable) =
+                        decode_destack_input_event_set_exclusive_grab_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(INPUT_EVENT_SET_GRAB)?;
-                    let world = runtime.check_and_resolve_world(INPUT_EVENT_SET_GRAB)?;
-                    destack_input_event_set_grab_vm_replay(runtime, context, world, handle, enable)
+                    runtime.check_policy(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?;
+                    let world = runtime.check_and_resolve_world(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?;
+                    destack_input_event_set_exclusive_grab_vm_replay(
+                        runtime, context, world, handle, enable,
+                    )
                 })
                 .map_err(Into::into)
             }
@@ -3881,6 +14002,619 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     runtime.check_policy(INPUT_EVENT_TRY_READ)?;
                     let world = runtime.check_and_resolve_world(INPUT_EVENT_TRY_READ)?;
                     destack_input_event_try_read_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_GAMEPAD_SET_LIGHT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, red, green, blue) =
+                        decode_destack_input_gamepad_set_light_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_GAMEPAD_SET_LIGHT)?;
+                    let world = runtime.check_and_resolve_world(INPUT_GAMEPAD_SET_LIGHT)?;
+                    destack_input_gamepad_set_light_vm_replay(
+                        runtime, context, world, handle, red, green, blue,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_GAMEPAD_SET_PLAYER_INDEX,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, playerindex) =
+                        decode_destack_input_gamepad_set_player_index_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_GAMEPAD_SET_PLAYER_INDEX)?;
+                    let world = runtime.check_and_resolve_world(INPUT_GAMEPAD_SET_PLAYER_INDEX)?;
+                    destack_input_gamepad_set_player_index_vm_replay(
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        playerindex,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_GAMEPAD_STATE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_input_gamepad_state_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_GAMEPAD_STATE)?;
+                    let world = runtime.check_and_resolve_world(INPUT_GAMEPAD_STATE)?;
+                    destack_input_gamepad_state_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_HAPTICS_EFFECTS,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_input_haptics_effects_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_HAPTICS_EFFECTS)?;
+                    let world = runtime.check_and_resolve_world(INPUT_HAPTICS_EFFECTS)?;
+                    destack_input_haptics_effects_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_HAPTICS_PLAY,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, effect, params) =
+                        decode_destack_input_haptics_play_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_HAPTICS_PLAY)?;
+                    let world = runtime.check_and_resolve_world(INPUT_HAPTICS_PLAY)?;
+                    destack_input_haptics_play_vm_replay(
+                        runtime, context, world, handle, effect, params,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_HAPTICS_STOP,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_input_haptics_stop_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_HAPTICS_STOP)?;
+                    let world = runtime.check_and_resolve_world(INPUT_HAPTICS_STOP)?;
+                    destack_input_haptics_stop_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_KEYBOARD_STATE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_input_keyboard_state_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_KEYBOARD_STATE)?;
+                    let world = runtime.check_and_resolve_world(INPUT_KEYBOARD_STATE)?;
+                    destack_input_keyboard_state_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_POINTER_CAPTURE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, target, enabled) =
+                        decode_destack_input_pointer_capture_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_POINTER_CAPTURE)?;
+                    let world = runtime.check_and_resolve_world(INPUT_POINTER_CAPTURE)?;
+                    destack_input_pointer_capture_vm_replay(
+                        runtime, context, world, handle, target, enabled,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_POINTER_RELATIVE_STATE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_input_pointer_relative_state_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_POINTER_RELATIVE_STATE)?;
+                    let world = runtime.check_and_resolve_world(INPUT_POINTER_RELATIVE_STATE)?;
+                    destack_input_pointer_relative_state_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_POINTER_SET_GRAB_MODE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, target, mode) =
+                        decode_destack_input_pointer_set_grab_mode_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_POINTER_SET_GRAB_MODE)?;
+                    let world = runtime.check_and_resolve_world(INPUT_POINTER_SET_GRAB_MODE)?;
+                    destack_input_pointer_set_grab_mode_vm_replay(
+                        runtime, context, world, handle, target, mode,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_POINTER_SET_RELATIVE_MODE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, enabled) =
+                        decode_destack_input_pointer_set_relative_mode_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_POINTER_SET_RELATIVE_MODE)?;
+                    let world = runtime.check_and_resolve_world(INPUT_POINTER_SET_RELATIVE_MODE)?;
+                    destack_input_pointer_set_relative_mode_vm_replay(
+                        runtime, context, world, handle, enabled,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_POINTER_STATE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_input_pointer_state_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_POINTER_STATE)?;
+                    let world = runtime.check_and_resolve_world(INPUT_POINTER_STATE)?;
+                    destack_input_pointer_state_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_POINTER_WARP,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, target, x, y) =
+                        decode_destack_input_pointer_warp_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_POINTER_WARP)?;
+                    let world = runtime.check_and_resolve_world(INPUT_POINTER_WARP)?;
+                    destack_input_pointer_warp_vm_replay(
+                        runtime, context, world, handle, target, x, y,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_RAWHID_GET_FEATURE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, reportid, maxbytes) =
+                        decode_destack_input_rawhid_get_feature_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_RAWHID_GET_FEATURE)?;
+                    let world = runtime.check_and_resolve_world(INPUT_RAWHID_GET_FEATURE)?;
+                    destack_input_rawhid_get_feature_vm_replay(
+                        runtime, context, world, handle, reportid, maxbytes,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_RAWHID_READ,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, maxbytes, timeoutns) =
+                        decode_destack_input_rawhid_read_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_RAWHID_READ)?;
+                    let world = runtime.check_and_resolve_world(INPUT_RAWHID_READ)?;
+                    destack_input_rawhid_read_vm_replay(
+                        runtime, context, world, handle, maxbytes, timeoutns,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_RAWHID_SET_FEATURE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, reportid, data) =
+                        decode_destack_input_rawhid_set_feature_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_RAWHID_SET_FEATURE)?;
+                    let world = runtime.check_and_resolve_world(INPUT_RAWHID_SET_FEATURE)?;
+                    destack_input_rawhid_set_feature_vm_replay(
+                        runtime, context, world, handle, reportid, data,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_RAWHID_TRY_READ,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, maxbytes) =
+                        decode_destack_input_rawhid_try_read_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_RAWHID_TRY_READ)?;
+                    let world = runtime.check_and_resolve_world(INPUT_RAWHID_TRY_READ)?;
+                    destack_input_rawhid_try_read_vm_replay(
+                        runtime, context, world, handle, maxbytes,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_RAWHID_WRITE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, reportid, data) =
+                        decode_destack_input_rawhid_write_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_RAWHID_WRITE)?;
+                    let world = runtime.check_and_resolve_world(INPUT_RAWHID_WRITE)?;
+                    destack_input_rawhid_write_vm_replay(
+                        runtime, context, world, handle, reportid, data,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_SENSOR_CONFIGURE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, kind, config) =
+                        decode_destack_input_sensor_configure_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_SENSOR_CONFIGURE)?;
+                    let world = runtime.check_and_resolve_world(INPUT_SENSOR_CONFIGURE)?;
+                    destack_input_sensor_configure_vm_replay(
+                        runtime, context, world, handle, kind, config,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_SENSOR_LIST,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_input_sensor_list_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_SENSOR_LIST)?;
+                    let world = runtime.check_and_resolve_world(INPUT_SENSOR_LIST)?;
+                    destack_input_sensor_list_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_SENSOR_READ,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, kind) = decode_destack_input_sensor_read_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_SENSOR_READ)?;
+                    let world = runtime.check_and_resolve_world(INPUT_SENSOR_READ)?;
+                    destack_input_sensor_read_vm_replay(runtime, context, world, handle, kind)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_SENSOR_TRY_READ,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, kind) = decode_destack_input_sensor_try_read_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_SENSOR_TRY_READ)?;
+                    let world = runtime.check_and_resolve_world(INPUT_SENSOR_TRY_READ)?;
+                    destack_input_sensor_try_read_vm_replay(runtime, context, world, handle, kind)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_TEXT_GET_AREA,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, target) = decode_destack_input_text_get_area_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_TEXT_GET_AREA)?;
+                    let world = runtime.check_and_resolve_world(INPUT_TEXT_GET_AREA)?;
+                    destack_input_text_get_area_vm_replay(runtime, context, world, handle, target)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_TEXT_IS_ACTIVE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_input_text_is_active_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_TEXT_IS_ACTIVE)?;
+                    let world = runtime.check_and_resolve_world(INPUT_TEXT_IS_ACTIVE)?;
+                    destack_input_text_is_active_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_TEXT_READ_COMPOSITION,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_input_text_read_composition_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_TEXT_READ_COMPOSITION)?;
+                    let world = runtime.check_and_resolve_world(INPUT_TEXT_READ_COMPOSITION)?;
+                    destack_input_text_read_composition_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_TEXT_SET_AREA,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, target, area) =
+                        decode_destack_input_text_set_area_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_TEXT_SET_AREA)?;
+                    let world = runtime.check_and_resolve_world(INPUT_TEXT_SET_AREA)?;
+                    destack_input_text_set_area_vm_replay(
+                        runtime, context, world, handle, target, area,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, INPUT_TEXT_START, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (handle, target, inputtype) =
+                    decode_destack_input_text_start_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(INPUT_TEXT_START)?;
+                let world = runtime.check_and_resolve_world(INPUT_TEXT_START)?;
+                destack_input_text_start_vm_replay(
+                    runtime, context, world, handle, target, inputtype,
+                )
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, INPUT_TEXT_STOP, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (handle, target) = decode_destack_input_text_stop_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(INPUT_TEXT_STOP)?;
+                let world = runtime.check_and_resolve_world(INPUT_TEXT_STOP)?;
+                destack_input_text_stop_vm_replay(runtime, context, world, handle, target)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_TEXT_TRY_READ_COMPOSITION,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_input_text_try_read_composition_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_TEXT_TRY_READ_COMPOSITION)?;
+                    let world = runtime.check_and_resolve_world(INPUT_TEXT_TRY_READ_COMPOSITION)?;
+                    destack_input_text_try_read_composition_vm_replay(
+                        runtime, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_TOUCH_STATE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_input_touch_state_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(INPUT_TOUCH_STATE)?;
+                    let world = runtime.check_and_resolve_world(INPUT_TOUCH_STATE)?;
+                    destack_input_touch_state_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
             }

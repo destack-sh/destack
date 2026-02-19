@@ -15,7 +15,7 @@ use crate::platform::proactor::Proactor;
 use crate::platform::{PlatformHandle, resource};
 
 /// Return one unsupported error for completion backend creation.
-pub(crate) fn host_create_completion_proactor(entries: u32) -> RuntimeResult<Box<dyn Proactor>> {
+pub(crate) fn host_completion_create_proactor(entries: u32) -> RuntimeResult<Box<dyn Proactor>> {
     let _ = entries;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.open")).boxed())
@@ -56,7 +56,7 @@ pub(crate) const fn host_map_poll_backend(backend: PollBackend) -> PlatformPolle
 }
 
 /// Return one unsupported error for poll target handle resolution.
-pub(crate) fn host_resolve_poll_target_handle(
+pub(crate) fn host_poll_resolve_target_handle(
     context: &RuntimeCallContext,
     target: resource::ResourceId,
 ) -> RuntimeResult<PlatformHandle> {
@@ -66,7 +66,7 @@ pub(crate) fn host_resolve_poll_target_handle(
 }
 
 /// Return one unsupported error for completion target handle resolution.
-pub(crate) fn host_resolve_completion_target_handle(
+pub(crate) fn host_completion_resolve_target_handle(
     context: &RuntimeCallContext,
     target: resource::ResourceId,
     operation: &'static str,
@@ -77,7 +77,7 @@ pub(crate) fn host_resolve_completion_target_handle(
 }
 
 /// Return one unsupported error for accepted handle registration.
-pub(crate) fn host_register_accepted_handle(
+pub(crate) fn host_completion_register_accepted_handle(
     context: &RuntimeCallContext,
     handle: PlatformHandle,
 ) -> RuntimeResult<i64> {

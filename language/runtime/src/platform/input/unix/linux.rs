@@ -8,7 +8,11 @@ use super::core as input_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputDeviceInfo, InputDeviceKind, InputEvent, InputEventAction, InputEventKind,
+    InputAxisInfo, InputButtonInfo, InputCompositionEventPayload, InputDeviceCapabilities,
+    InputDeviceCapabilityKind, InputDeviceEventPayload, InputDeviceInfo, InputDeviceKind,
+    InputEvent, InputEventAction, InputEventKind, InputGamepadEventPayload, InputKeyEventPayload,
+    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputScrollEventPayload,
+    InputSensorEventPayload, InputTextEventPayload, InputTouchEventPayload,
 };
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::RuntimeCallContext;
@@ -37,6 +41,46 @@ const REL_HWHEEL: u16 = 0x06;
 const ABS_X: u16 = 0x00;
 /// Linux ABS_Y event code.
 const ABS_Y: u16 = 0x01;
+/// Linux ABS_Z event code.
+const ABS_Z: u16 = 0x02;
+/// Linux ABS_RX event code.
+const ABS_RX: u16 = 0x03;
+/// Linux ABS_RY event code.
+const ABS_RY: u16 = 0x04;
+/// Linux ABS_RZ event code.
+const ABS_RZ: u16 = 0x05;
+/// Linux ABS_THROTTLE event code.
+const ABS_THROTTLE: u16 = 0x06;
+/// Linux ABS_RUDDER event code.
+const ABS_RUDDER: u16 = 0x07;
+/// Linux ABS_WHEEL event code.
+const ABS_WHEEL: u16 = 0x08;
+/// Linux ABS_GAS event code.
+const ABS_GAS: u16 = 0x09;
+/// Linux ABS_BRAKE event code.
+const ABS_BRAKE: u16 = 0x0a;
+/// Linux ABS_HAT0X event code.
+const ABS_HAT0X: u16 = 0x10;
+/// Linux ABS_HAT0Y event code.
+const ABS_HAT0Y: u16 = 0x11;
+/// Linux ABS_HAT1X event code.
+const ABS_HAT1X: u16 = 0x12;
+/// Linux ABS_HAT1Y event code.
+const ABS_HAT1Y: u16 = 0x13;
+/// Linux ABS_HAT2X event code.
+const ABS_HAT2X: u16 = 0x14;
+/// Linux ABS_HAT2Y event code.
+const ABS_HAT2Y: u16 = 0x15;
+/// Linux ABS_HAT3X event code.
+const ABS_HAT3X: u16 = 0x16;
+/// Linux ABS_HAT3Y event code.
+const ABS_HAT3Y: u16 = 0x17;
+/// Linux ABS_MT_SLOT event code.
+const ABS_MT_SLOT: u16 = 0x2f;
+/// Linux ABS_MT_POSITION_X event code.
+const ABS_MT_POSITION_X: u16 = 0x35;
+/// Linux ABS_MT_POSITION_Y event code.
+const ABS_MT_POSITION_Y: u16 = 0x36;
 /// Linux KEY_A key-bit index.
 const KEY_A: usize = 30;
 /// Linux KEY_LEFTSHIFT key-bit index.
@@ -140,6 +184,24 @@ struct LinuxInputId {
     version: u16,
 }
 
+/// Linux absolute-axis payload returned by EVIOCGABS.
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct LinuxInputAbsInfo {
+    /// Current axis value.
+    value: i32,
+    /// Minimum axis value.
+    minimum: i32,
+    /// Maximum axis value.
+    maximum: i32,
+    /// Axis fuzz threshold.
+    fuzz: i32,
+    /// Axis flat threshold.
+    flat: i32,
+    /// Axis resolution.
+    resolution: i32,
+}
+
 /// Linux input event payload returned by evdev reads.
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -159,6 +221,10 @@ pub(super) struct LinuxInputEvent {
 struct InputDeviceMetadata {
     /// Host-visible device name.
     name: String,
+    /// Stable per-instance identifier when available.
+    instance_id: String,
+    /// Stable hardware identifier when available.
+    hardware_id: String,
     /// Classified runtime device kind.
     kind: InputDeviceKind,
     /// Device vendor id.
@@ -205,9 +271,28 @@ fn eviocgname_request(length: usize) -> libc::c_ulong {
     ior_request(b'E', 0x06, length)
 }
 
+/// Build EVIOCGPHYS request number for one buffer length.
+fn eviocgphys_request(length: usize) -> libc::c_ulong {
+    ior_request(b'E', 0x07, length)
+}
+
+/// Build EVIOCGUNIQ request number for one buffer length.
+fn eviocguniq_request(length: usize) -> libc::c_ulong {
+    ior_request(b'E', 0x08, length)
+}
+
 /// Build EVIOCGBIT request number for one event kind and buffer length.
 fn eviocgbit_request(event: u16, length: usize) -> libc::c_ulong {
     ior_request(b'E', 0x20 + event as u8, length)
+}
+
+/// Build EVIOCGABS request number for one absolute-axis code.
+fn eviocgabs_request(code: u16) -> libc::c_ulong {
+    ior_request(
+        b'E',
+        0x40 + code as u8,
+        std::mem::size_of::<LinuxInputAbsInfo>(),
+    )
 }
 
 /// Normalize one Linux input id into one absolute evdev path.
@@ -258,7 +343,10 @@ pub(super) fn list_linux_devices(
 
         devices.push(InputDeviceInfo {
             id: context.store_string(&path),
+            instance_id: context.store_string(&metadata.instance_id),
+            hardware_id: context.store_string(&metadata.hardware_id),
             name: context.store_string(&metadata.name),
+            transport: context.store_string("evdev"),
             kind: metadata.kind,
             vendor_id: metadata.vendor_id,
             product_id: metadata.product_id,
@@ -266,10 +354,15 @@ pub(super) fn list_linux_devices(
             button_count: metadata.button_count,
             axis_count: metadata.axis_count,
             connected: true,
-            supports_grab: true,
+            supports_exclusive_grab: true,
             supports_raw: true,
             supports_text: false,
             supports_rumble: false,
+            supports_battery: false,
+            supports_light: false,
+            supports_raw_hid: false,
+            is_virtual: false,
+            is_system: true,
         });
     }
 
@@ -282,9 +375,12 @@ pub(super) fn read_linux_event(
     descriptor: RawFd,
     nonblocking: bool,
     device_id: &str,
+    device_kind: InputDeviceKind,
     modifiers: u32,
-) -> RuntimeResult<(InputEvent, u32)> {
+    pointer_buttons: u32,
+) -> RuntimeResult<(InputEvent, u32, u32)> {
     let mut modifiers_state = modifiers;
+    let mut pointer_buttons_state = pointer_buttons;
 
     loop {
         // probe readiness in nonblocking mode before issuing reads
@@ -369,9 +465,19 @@ pub(super) fn read_linux_event(
         // update stream-local modifier state before the mapped event is emitted
         modifiers_state = update_linux_modifiers(modifiers_state, &event);
 
+        // update stream-local pointer button state before mapping motion payloads
+        pointer_buttons_state = update_linux_pointer_buttons(pointer_buttons_state, &event);
+
         // map one normalized event payload and return the updated modifier bitset
-        let mapped_event = map_linux_event(context, event, device_id, modifiers_state);
-        return Ok((mapped_event, modifiers_state));
+        let mapped_event = map_linux_event(
+            context,
+            event,
+            device_id,
+            device_kind,
+            modifiers_state,
+            pointer_buttons_state,
+        );
+        return Ok((mapped_event, modifiers_state, pointer_buttons_state));
     }
 }
 
@@ -392,7 +498,7 @@ pub(super) fn set_linux_grab(descriptor: RawFd, enable: bool) -> RuntimeResult<(
         let errno = core_platform::get_errno();
         if errno == libc::ENOTTY {
             return Err(RuntimeError::from(PlatformError::not_supported(
-                "destack.input.event.setGrab",
+                "destack.input.event.setExclusiveGrab",
             ))
             .boxed());
         }
@@ -415,13 +521,17 @@ fn bit_is_set(bits: &[u8], index: usize) -> bool {
 }
 
 /// Classify one raw Linux event into one runtime event kind.
-fn input_event_kind(raw_kind: u16, code: u16) -> InputEventKind {
+fn input_event_kind(raw_kind: u16, code: u16, device_kind: InputDeviceKind) -> InputEventKind {
     match raw_kind {
         EV_KEY => {
             if code as usize == BTN_TOUCH {
                 InputEventKind::Touch
             } else if (BTN_MOUSE_LEFT..=(BTN_MOUSE_LEFT + 2)).contains(&(code as usize)) {
                 InputEventKind::PointerButton
+            } else if is_gamepad_button_code(code as usize)
+                || (device_kind == InputDeviceKind::Gamepad && is_button_code(code as usize))
+            {
+                InputEventKind::Gamepad
             } else {
                 InputEventKind::Key
             }
@@ -434,7 +544,11 @@ fn input_event_kind(raw_kind: u16, code: u16) -> InputEventKind {
             }
         }
         EV_ABS => {
-            if code == ABS_X || code == ABS_Y {
+            if is_touch_absolute_code(code) {
+                InputEventKind::Touch
+            } else if is_gamepad_absolute_code(code) || device_kind == InputDeviceKind::Gamepad {
+                InputEventKind::Gamepad
+            } else if code == ABS_X || code == ABS_Y {
                 InputEventKind::PointerMotion
             } else {
                 InputEventKind::Touch
@@ -445,14 +559,54 @@ fn input_event_kind(raw_kind: u16, code: u16) -> InputEventKind {
     }
 }
 
+/// Return whether one EV_KEY code is one gamepad-button namespace code.
+fn is_gamepad_button_code(code: usize) -> bool {
+    (BTN_JOYSTICK_START..=BTN_JOYSTICK_END).contains(&code)
+        || (BTN_GAMEPAD_START..=BTN_GAMEPAD_END).contains(&code)
+        || (BTN_TRIGGER_HAPPY_START..=BTN_TRIGGER_HAPPY_END).contains(&code)
+}
+
+/// Return whether one EV_ABS code belongs to one gamepad axis namespace.
+fn is_gamepad_absolute_code(code: u16) -> bool {
+    matches!(
+        code,
+        ABS_X
+            | ABS_Y
+            | ABS_Z
+            | ABS_RX
+            | ABS_RY
+            | ABS_RZ
+            | ABS_THROTTLE
+            | ABS_RUDDER
+            | ABS_WHEEL
+            | ABS_GAS
+            | ABS_BRAKE
+            | ABS_HAT0X
+            | ABS_HAT0Y
+            | ABS_HAT1X
+            | ABS_HAT1Y
+            | ABS_HAT2X
+            | ABS_HAT2Y
+            | ABS_HAT3X
+            | ABS_HAT3Y
+    )
+}
+
+/// Return whether one EV_ABS code belongs to one multitouch namespace.
+fn is_touch_absolute_code(code: u16) -> bool {
+    matches!(code, ABS_MT_SLOT | ABS_MT_POSITION_X | ABS_MT_POSITION_Y)
+}
+
 /// Map one Linux evdev payload into one runtime input event.
 fn map_linux_event(
     context: &RuntimeCallContext,
     raw: LinuxInputEvent,
     device_id: &str,
+    device_kind: InputDeviceKind,
     modifiers: u32,
+    pointer_buttons: u32,
 ) -> InputEvent {
-    let kind = input_event_kind(raw.kind, raw.code);
+    let kind = input_event_kind(raw.kind, raw.code, device_kind);
 
     let mut x = 0.0_f64;
     let mut y = 0.0_f64;
@@ -462,50 +616,180 @@ fn map_linux_event(
         y = raw.value as f64;
     }
 
-    InputEvent {
-        kind,
-        timestamp_ns: input_core::monotonic_timestamp_ns(),
-        sequence: 0,
-        device_id: context.store_string(device_id),
-        action: match raw.kind {
-            EV_KEY => {
-                if raw.value == 0 {
-                    InputEventAction::Release
-                } else if raw.value == 2 {
-                    InputEventAction::Repeat
-                } else {
-                    InputEventAction::Press
-                }
+    let action = match raw.kind {
+        EV_KEY => {
+            if raw.value == 0 {
+                InputEventAction::Release
+            } else if raw.value == 2 {
+                InputEventAction::Repeat
+            } else {
+                InputEventAction::Press
             }
-            EV_REL => {
-                if raw.code == REL_WHEEL || raw.code == REL_HWHEEL {
-                    InputEventAction::Scroll
-                } else {
-                    InputEventAction::Move
-                }
+        }
+        EV_REL => {
+            if raw.code == REL_WHEEL || raw.code == REL_HWHEEL {
+                InputEventAction::Scroll
+            } else {
+                InputEventAction::Move
             }
-            EV_ABS => InputEventAction::Move,
-            _ => InputEventAction::Move,
-        },
-        code: raw.code as u32,
-        scan_code: raw.code as u32,
-        value: raw.value as i64,
-        x,
-        y,
-        wheel_x: if raw.code == REL_HWHEEL {
-            raw.value as f64
-        } else {
-            0.0
-        },
-        wheel_y: if raw.code == REL_WHEEL {
-            raw.value as f64
-        } else {
-            0.0
-        },
-        modifiers,
-        repeat: raw.value == 2,
-        text: context.store_string(input_core::UNIX_INPUT_EMPTY_TEXT),
+        }
+        EV_ABS => {
+            if kind == InputEventKind::Gamepad {
+                InputEventAction::Axis
+            } else {
+                InputEventAction::Move
+            }
+        }
+        _ => InputEventAction::Move,
+    };
+
+    let wheel_x = if raw.code == REL_HWHEEL {
+        raw.value as f64
+    } else {
+        0.0
+    };
+    let wheel_y = if raw.code == REL_WHEEL {
+        raw.value as f64
+    } else {
+        0.0
+    };
+
+    let mut payload = input_core::empty_unix_event_payload(context);
+    match kind {
+        InputEventKind::Key => {
+            payload.key = InputKeyEventPayload {
+                action,
+                backend_code: raw.code as u32,
+                backend_scan_code: raw.code as u32,
+                backend_value: raw.value as i64,
+                modifiers,
+                repeat: raw.value == 2,
+            };
+        }
+        InputEventKind::PointerMotion => {
+            payload.pointer_motion = InputPointerMotionEventPayload {
+                x,
+                y,
+                buttons: pointer_buttons,
+                modifiers,
+            };
+        }
+        InputEventKind::PointerButton => {
+            payload.pointer_button = InputPointerButtonEventPayload {
+                action,
+                backend_code: raw.code as u32,
+                backend_value: raw.value as i64,
+                x,
+                y,
+                modifiers,
+            };
+        }
+        InputEventKind::Scroll => {
+            payload.scroll = InputScrollEventPayload {
+                wheel_x,
+                wheel_y,
+                x,
+                y,
+                modifiers,
+            };
+        }
+        InputEventKind::Touch => {
+            payload.touch = InputTouchEventPayload {
+                action,
+                contact_id: raw.code as u32,
+                x,
+                y,
+                pressure: raw.value as f64,
+            };
+        }
+        InputEventKind::Gamepad => {
+            payload.gamepad = InputGamepadEventPayload {
+                action,
+                backend_code: raw.code as u32,
+                backend_value: raw.value as i64,
+            };
+        }
+        InputEventKind::Text => {
+            payload.text = InputTextEventPayload {
+                text: context.store_string(input_core::UNIX_INPUT_EMPTY_TEXT),
+            };
+        }
+        InputEventKind::Device => {
+            payload.device = InputDeviceEventPayload {
+                action,
+                backend_code: raw.code as u32,
+                backend_value: raw.value as i64,
+            };
+        }
+        InputEventKind::Sensor => {
+            payload.sensor = InputSensorEventPayload {
+                action,
+                backend_code: raw.code as u32,
+                backend_value: raw.value as i64,
+                x,
+                y,
+                z: 0.0,
+            };
+        }
+        InputEventKind::Composition => {
+            payload.composition = InputCompositionEventPayload {
+                action,
+                text: context.store_string(input_core::UNIX_INPUT_EMPTY_TEXT),
+                selection_start: 0,
+                selection_end: 0,
+            };
+        }
     }
+
+    input_core::build_unix_input_event(
+        context,
+        kind,
+        linux_event_timestamp_ns(&raw),
+        0,
+        device_id,
+        payload,
+    )
+}
+
+/// Convert one kernel timeval stamp into one nanosecond timestamp.
+fn linux_event_timestamp_ns(event: &LinuxInputEvent) -> u64 {
+    if event.time.tv_sec < 0 || event.time.tv_usec < 0 {
+        return input_core::monotonic_timestamp_ns();
+    }
+
+    let seconds = event.time.tv_sec as u128;
+    let micros = event.time.tv_usec as u128;
+    seconds
+        .saturating_mul(1_000_000_000u128)
+        .saturating_add(micros.saturating_mul(1_000u128))
+        .min(u128::from(u64::MAX)) as u64
+}
+
+/// Map one Linux pointer button code into one runtime pointer-button bit mask.
+fn pointer_button_mask(code: u16) -> Option<u32> {
+    let code = code as usize;
+    if !(BTN_MOUSE_LEFT..=(BTN_MOUSE_LEFT + 4)).contains(&code) {
+        return None;
+    }
+
+    Some(1u32 << (code - BTN_MOUSE_LEFT))
+}
+
+/// Update Linux pointer-button bitset from one evdev key packet.
+fn update_linux_pointer_buttons(current: u32, event: &LinuxInputEvent) -> u32 {
+    if event.kind != EV_KEY {
+        return current;
+    }
+
+    let Some(mask) = pointer_button_mask(event.code) else {
+        return current;
+    };
+
+    if event.value == 0 {
+        return current & !mask;
+    }
+
+    current | mask
 }
 
 /// Update Linux modifier state from one evdev key packet.
@@ -558,7 +842,7 @@ fn update_modifier_bit(current: u32, bit: u32, is_active: bool) -> u32 {
 }
 
 /// Classify one Linux device kind from descriptor capabilities.
-fn classify_device_kind(name: &str, descriptor: RawFd) -> InputDeviceKind {
+fn detect_device_kind(name: &str, descriptor: RawFd) -> InputDeviceKind {
     let name_lower = name.to_lowercase();
     if name_lower.contains("keyboard") {
         return InputDeviceKind::Keyboard;
@@ -725,10 +1009,196 @@ fn query_device_counts(descriptor: RawFd) -> (u16, u16, u16) {
     )
 }
 
+/// Query one Linux device kind from one event-node path.
+pub(super) fn linux_device_kind_for_path(path: &str) -> InputDeviceKind {
+    let fallback_name = Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(INPUT_EVENT_PREFIX);
+    query_device_metadata(path, fallback_name).kind
+}
+
+/// Query one backend-derived capabilities payload for one opened Linux descriptor.
+pub(super) fn query_linux_capabilities(
+    context: &RuntimeCallContext,
+    descriptor: RawFd,
+    device_kind: InputDeviceKind,
+    supports_exclusive_grab: bool,
+    supports_text: bool,
+    supports_rumble: bool,
+    supports_battery: bool,
+    supports_light: bool,
+    supports_raw_hid: bool,
+) -> InputDeviceCapabilities {
+    // query event tables to derive feature booleans and capability payload vectors
+    let mut event_bits = [0u8; MAX_EVENT_BITS];
+    let event_status = unsafe {
+        libc::ioctl(
+            descriptor,
+            eviocgbit_request(0, event_bits.len()),
+            event_bits.as_mut_ptr(),
+        )
+    };
+    let has_event_bits = event_status >= 0;
+    let has_relative = has_event_bits && bit_is_set(&event_bits, EV_REL as usize);
+    let has_absolute = has_event_bits && bit_is_set(&event_bits, EV_ABS as usize);
+    let has_key = has_event_bits && bit_is_set(&event_bits, EV_KEY as usize);
+
+    // build capability kinds from device identity and supported feature lanes
+    let mut kinds = Vec::new();
+    match device_kind {
+        InputDeviceKind::Keyboard => kinds.push(InputDeviceCapabilityKind::Keyboard),
+        InputDeviceKind::Mouse => kinds.push(InputDeviceCapabilityKind::Pointer),
+        InputDeviceKind::Touch => {
+            kinds.push(InputDeviceCapabilityKind::Touch);
+            kinds.push(InputDeviceCapabilityKind::Pointer);
+        }
+        InputDeviceKind::Pen => {
+            kinds.push(InputDeviceCapabilityKind::Pen);
+            kinds.push(InputDeviceCapabilityKind::Pointer);
+        }
+        InputDeviceKind::Gamepad => kinds.push(InputDeviceCapabilityKind::Gamepad),
+        InputDeviceKind::Raw => {}
+    }
+    if supports_text {
+        kinds.push(InputDeviceCapabilityKind::TextInput);
+    }
+    if supports_rumble {
+        kinds.push(InputDeviceCapabilityKind::Haptics);
+    }
+    if has_absolute && device_kind == InputDeviceKind::Raw {
+        kinds.push(InputDeviceCapabilityKind::Sensor);
+    }
+
+    // collect axis tables from EV_REL and EV_ABS capabilities
+    let mut axes = Vec::new();
+    if has_relative {
+        let mut rel_bits = [0u8; MAX_REL_BITS];
+        let rel_status = unsafe {
+            libc::ioctl(
+                descriptor,
+                eviocgbit_request(EV_REL, rel_bits.len()),
+                rel_bits.as_mut_ptr(),
+            )
+        };
+        if rel_status >= 0 {
+            for code in 0..(rel_bits.len() * 8) {
+                if !bit_is_set(&rel_bits, code) {
+                    continue;
+                }
+
+                axes.push(InputAxisInfo {
+                    code: code as u32,
+                    minimum: 0.0,
+                    maximum: 0.0,
+                    flat: 0.0,
+                    fuzz: 0.0,
+                    resolution: 0.0,
+                });
+            }
+        }
+    }
+    if has_absolute {
+        let mut abs_bits = [0u8; MAX_ABS_BITS];
+        let abs_status = unsafe {
+            libc::ioctl(
+                descriptor,
+                eviocgbit_request(EV_ABS, abs_bits.len()),
+                abs_bits.as_mut_ptr(),
+            )
+        };
+        if abs_status >= 0 {
+            for code in 0..(abs_bits.len() * 8) {
+                if !bit_is_set(&abs_bits, code) {
+                    continue;
+                }
+
+                let axis_code = code as u16;
+                let mut abs_info = MaybeUninit::<LinuxInputAbsInfo>::uninit();
+                let abs_info_status = unsafe {
+                    libc::ioctl(
+                        descriptor,
+                        eviocgabs_request(axis_code),
+                        abs_info.as_mut_ptr(),
+                    )
+                };
+                if abs_info_status >= 0 {
+                    let abs_info = unsafe { abs_info.assume_init() };
+                    axes.push(InputAxisInfo {
+                        code: u32::from(axis_code),
+                        minimum: f64::from(abs_info.minimum),
+                        maximum: f64::from(abs_info.maximum),
+                        flat: f64::from(abs_info.flat),
+                        fuzz: f64::from(abs_info.fuzz),
+                        resolution: f64::from(abs_info.resolution),
+                    });
+                    continue;
+                }
+
+                axes.push(InputAxisInfo {
+                    code: u32::from(axis_code),
+                    minimum: 0.0,
+                    maximum: 0.0,
+                    flat: 0.0,
+                    fuzz: 0.0,
+                    resolution: 0.0,
+                });
+            }
+        }
+    }
+
+    // collect button tables from EV_KEY capabilities
+    let mut buttons = Vec::new();
+    if has_key {
+        let mut key_bits = [0u8; MAX_KEY_BITS];
+        let key_status = unsafe {
+            libc::ioctl(
+                descriptor,
+                eviocgbit_request(EV_KEY, key_bits.len()),
+                key_bits.as_mut_ptr(),
+            )
+        };
+        if key_status >= 0 {
+            for code in 0..(key_bits.len() * 8) {
+                if !bit_is_set(&key_bits, code) || !is_button_code(code) {
+                    continue;
+                }
+
+                buttons.push(InputButtonInfo {
+                    code: code as u32,
+                    analog: false,
+                });
+            }
+        }
+    }
+
+    InputDeviceCapabilities {
+        kinds: context.store_array(kinds),
+        axes: context.store_array(axes),
+        buttons: context.store_array(buttons),
+        supports_relative_pointer: has_relative
+            && matches!(device_kind, InputDeviceKind::Mouse | InputDeviceKind::Pen),
+        supports_pointer_grab: supports_exclusive_grab,
+        supports_pointer_capture: false,
+        supports_pointer_warp: false,
+        supports_text_input: supports_text,
+        supports_composition: supports_text,
+        supports_rumble,
+        supports_trigger_rumble: false,
+        supports_sensors: has_absolute && matches!(device_kind, InputDeviceKind::Raw),
+        supports_battery_state: supports_battery,
+        supports_light_control: supports_light,
+        supports_raw_hid,
+        supports_player_index: device_kind == InputDeviceKind::Gamepad,
+    }
+}
+
 /// Query Linux evdev metadata for one device path.
 fn query_device_metadata(path: &str, fallback_name: &str) -> InputDeviceMetadata {
     let mut metadata = InputDeviceMetadata {
         name: fallback_name.to_string(),
+        instance_id: path.to_string(),
+        hardware_id: path.to_string(),
         kind: InputDeviceKind::Raw,
         vendor_id: 0,
         product_id: 0,
@@ -774,6 +1244,17 @@ fn query_device_metadata(path: &str, fallback_name: &str) -> InputDeviceMetadata
         }
     }
 
+    if let Some(instance_id) = query_device_string(descriptor, eviocguniq_request(256)) {
+        if !instance_id.is_empty() {
+            metadata.instance_id = instance_id;
+        }
+    }
+    if let Some(hardware_id) = query_device_string(descriptor, eviocgphys_request(256)) {
+        if !hardware_id.is_empty() {
+            metadata.hardware_id = hardware_id;
+        }
+    }
+
     let mut input_id = MaybeUninit::<LinuxInputId>::uninit();
     let id_status = unsafe { libc::ioctl(descriptor, EVIOCGID_REQUEST, input_id.as_mut_ptr()) };
     if id_status == 0 {
@@ -782,7 +1263,7 @@ fn query_device_metadata(path: &str, fallback_name: &str) -> InputDeviceMetadata
         metadata.product_id = input_id.product;
     }
 
-    metadata.kind = classify_device_kind(&metadata.name, descriptor);
+    metadata.kind = detect_device_kind(&metadata.name, descriptor);
     let (key_count, button_count, axis_count) = query_device_counts(descriptor);
     metadata.key_count = key_count;
     metadata.button_count = button_count;
@@ -793,6 +1274,27 @@ fn query_device_metadata(path: &str, fallback_name: &str) -> InputDeviceMetadata
     }
 
     metadata
+}
+
+/// Query one null-terminated UTF-8 metadata string from one evdev ioctl.
+fn query_device_string(descriptor: RawFd, request: libc::c_ulong) -> Option<String> {
+    let mut buffer = [0u8; 256];
+    let status = unsafe { libc::ioctl(descriptor, request, buffer.as_mut_ptr()) };
+    if status <= 0 {
+        return None;
+    }
+
+    let raw_len = status as usize;
+    let trunc_len = raw_len.min(buffer.len());
+    let zero_index = buffer[..trunc_len]
+        .iter()
+        .position(|byte| *byte == 0)
+        .unwrap_or(trunc_len);
+    if zero_index == 0 {
+        return None;
+    }
+
+    Some(String::from_utf8_lossy(&buffer[..zero_index]).to_string())
 }
 
 /// List Linux `/dev/input` event node paths.
@@ -868,11 +1370,17 @@ mod tests {
                 value: 1,
             };
 
-            let event = map_linux_event(context, raw, "/dev/input/event0", 0);
+            let event = map_linux_event(
+                context,
+                raw,
+                "/dev/input/event0",
+                InputDeviceKind::Mouse,
+                0,
+                0,
+            );
             assert_eq!(event.kind, InputEventKind::Scroll);
-            assert_eq!(event.action, InputEventAction::Scroll);
-            assert_eq!(event.wheel_y, 1.0);
-            assert_eq!(event.wheel_x, 0.0);
+            assert_eq!(event.payload.scroll.wheel_y, 1.0);
+            assert_eq!(event.payload.scroll.wheel_x, 0.0);
         });
     }
 

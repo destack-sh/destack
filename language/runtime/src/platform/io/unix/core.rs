@@ -202,7 +202,7 @@ fn write_event_payload(descriptor: c_int, payload: &[u8]) -> RuntimeResult<()> {
 }
 
 /// Create one completion backend for Unix hosts.
-pub(crate) fn host_create_completion_proactor(entries: u32) -> RuntimeResult<Box<dyn Proactor>> {
+pub(crate) fn host_completion_create_proactor(entries: u32) -> RuntimeResult<Box<dyn Proactor>> {
     #[cfg(target_os = "linux")]
     {
         return Ok(Box::new(IoUringProactor::with_entries(entries)?));
@@ -353,7 +353,7 @@ pub(crate) const fn host_map_poll_backend(backend: PollBackend) -> PlatformPolle
 }
 
 /// Resolve one poll target resource into one platform handle.
-pub(crate) fn host_resolve_poll_target_handle(
+pub(crate) fn host_poll_resolve_target_handle(
     context: &RuntimeCallContext,
     target: ResourceId,
 ) -> RuntimeResult<PlatformHandle> {
@@ -384,7 +384,7 @@ pub(crate) fn host_resolve_poll_target_handle(
 }
 
 /// Resolve one completion target resource into one platform handle.
-pub(crate) fn host_resolve_completion_target_handle(
+pub(crate) fn host_completion_resolve_target_handle(
     context: &RuntimeCallContext,
     target: ResourceId,
     operation: &'static str,
@@ -413,7 +413,7 @@ pub(crate) fn host_resolve_completion_target_handle(
 }
 
 /// Register one accepted socket handle into the runtime resource table.
-pub(crate) fn host_register_accepted_handle(
+pub(crate) fn host_completion_register_accepted_handle(
     context: &RuntimeCallContext,
     handle: PlatformHandle,
 ) -> RuntimeResult<i64> {
