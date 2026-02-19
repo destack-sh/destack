@@ -40,6 +40,63 @@ fn statement_expression_needs_semicolon(
     !(is_declaration_statement || is_block_statement || is_control_flow_statement)
 }
 
+/// Format one statement wrapper inner expression with an optional trailing semicolon.
+fn format_statement_wrapped_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    needs_semicolon: bool,
+) -> FormatResult<()> {
+    let expression = f.context().tree.get(node_id);
+    let directive = directive_for_node(f.context(), node_id);
+
+    // prefix annotations and core expression
+    write!(f, [f.context().any_prefix_annotations(node_id)])?;
+    format_expression(f, node_id, expression, directive)?;
+
+    // statement terminator should stay attached to the statement expression,
+    // not drift after postfix trivia into its own line
+    if needs_semicolon {
+        write!(f, [token(";")])?;
+    }
+
+    // postfix and infix annotations
+    if !matches!(
+        directive,
+        Some(FormatterDirective {
+            kind: FormatterDirectiveKind::IgnoreFormat,
+            position: FormatterDirectivePosition::Postfix { .. },
+        })
+    ) {
+        let call_or_new_handles_empty_infix = matches!(
+            expression,
+            Expression::Call {
+                dynamic_arguments,
+                ..
+            }
+            | Expression::New {
+                dynamic_arguments,
+                ..
+            } if dynamic_arguments.is_empty() && f.context().has_infix_annotation(node_id)
+        );
+
+        if matches!(
+            expression,
+            Expression::TypeUnary {
+                operator: TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime,
+                ..
+            }
+        ) {
+            write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        } else if call_or_new_handles_empty_infix {
+            write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        } else {
+            write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Format `with { ... }` arguments for import and export statements.
 fn format_dependency_with_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -809,11 +866,8 @@ pub(super) fn format_statement_expression<'ast>(
 
         // statement
         Expression::Statement(node) => {
-            if statement_expression_needs_semicolon(f.context(), *node) {
-                write!(f, [node, token(";")])?;
-            } else {
-                write!(f, [node])?;
-            }
+            let needs_semicolon = statement_expression_needs_semicolon(f.context(), *node);
+            format_statement_wrapped_expression(f, *node, needs_semicolon)?;
         }
 
         // labelled statement

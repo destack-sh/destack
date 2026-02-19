@@ -223,6 +223,126 @@ fn object_pattern_render_fields<'a>(
     )
 }
 
+/// Return whether trailing separators are invalid for the current pattern field list.
+fn pattern_fields_disallow_trailing_separator(
+    tree: &NodeTree,
+    fields: &[LocalNodeId<PatternField>],
+) -> bool {
+    fields
+        .last()
+        .is_some_and(|field_id| matches!(tree.get(*field_id), PatternField::Spread { .. }))
+}
+
+/// Format a prefix pattern like `&pattern` or `^pattern`.
+fn format_prefixed_pattern<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    prefix: &'static str,
+    right: LocalNodeId<Pattern>,
+    mutability: Option<Mutability>,
+) -> FormatResult<()> {
+    write!(f, [token(prefix)])?;
+
+    if mutability == Some(Mutability::Immutable) {
+        write!(f, [token("readonly"), space()])?;
+    }
+
+    write!(f, [right])?;
+
+    Ok(())
+}
+
+/// Format one list-like pattern field collection with shared trailing-separator behavior.
+fn format_pattern_field_list<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    open: &'static str,
+    close: &'static str,
+    fields: &[LocalNodeId<PatternField>],
+    should_expand: bool,
+) -> FormatResult<()> {
+    let mut list = list_like(open, close, ",", fields);
+    list.as_collection().should_expand(should_expand);
+
+    if pattern_fields_disallow_trailing_separator(f.context().tree, fields) {
+        list.disallow_trailing_separator();
+    }
+
+    write!(f, [list])?;
+
+    Ok(())
+}
+
+/// Return whether an array pattern should expand over multiple lines.
+fn array_pattern_should_expand(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Pattern>,
+    fields: &[LocalNodeId<PatternField>],
+) -> bool {
+    let has_newline = pattern_has_multiline_source(context, node_id);
+    let has_nested_fields = fields
+        .iter()
+        .copied()
+        .any(|field_id| pattern_field_prefers_multiline(context.tree, field_id));
+    let has_field_annotations = collection_nodes_have_annotations(context, fields);
+
+    CollectionBreakScore {
+        has_newline_in_source: has_newline,
+        has_item_annotations: has_field_annotations,
+        has_nested_complexity: has_nested_fields,
+    }
+    .should_expand_multiline()
+}
+
+/// Return whether an object-like pattern should expand over multiple lines.
+fn object_pattern_should_expand(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Pattern>,
+    fields: &[LocalNodeId<PatternField>],
+) -> bool {
+    let has_newline = pattern_has_multiline_source(context, node_id);
+    let has_nested_fields = fields
+        .iter()
+        .copied()
+        .any(|field_id| pattern_field_prefers_multiline(context.tree, field_id));
+    let has_field_annotations = collection_nodes_have_annotations(context, fields);
+    let should_expand_for_parameter =
+        should_expand_parameter_object_pattern(context, node_id, fields);
+    let should_expand_for_comments = CollectionBreakScore {
+        has_newline_in_source: has_newline,
+        has_item_annotations: has_field_annotations,
+        has_nested_complexity: false,
+    }
+    .should_expand_multiline();
+
+    (has_newline && has_nested_fields) || should_expand_for_comments || should_expand_for_parameter
+}
+
+/// Format one object-like pattern, optionally prefixed with a type expression.
+fn format_object_pattern_like<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Pattern>,
+    ty: Option<LocalNodeId<Expression>>,
+    fields: &[LocalNodeId<PatternField>],
+) -> FormatResult<()> {
+    if let Some(ty) = ty {
+        write!(f, [ty, space()])?;
+    }
+
+    let render_fields = object_pattern_render_fields(f.context().tree, fields);
+    let should_expand = object_pattern_should_expand(f.context(), node_id, render_fields.as_ref());
+    let mut list = list_like("{", "}", ",", render_fields.as_ref());
+    list.as_collection()
+        .include_space()
+        .should_expand(should_expand);
+
+    if pattern_fields_disallow_trailing_separator(f.context().tree, render_fields.as_ref()) {
+        list.disallow_trailing_separator();
+    }
+
+    write!(f, [list])?;
+
+    Ok(())
+}
+
 impl<'ast> FormatNode<'ast, Pattern> for Pattern {
     fn format_node(
         &self,
@@ -235,22 +355,10 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             Pattern::Wildcard => write!(f, [token("_")])?,
             Pattern::Must(unwrap) => write!(f, [unwrap, token("!")])?,
             Pattern::ReferenceOf { right, mutability } => {
-                write!(f, [token("&")])?;
-                if let Some(mutability) = mutability
-                    && *mutability == Mutability::Immutable
-                {
-                    write!(f, [token("readonly"), space()])?;
-                }
-                write!(f, [right])?;
+                format_prefixed_pattern(f, "&", *right, *mutability)?;
             }
             Pattern::ValueOf { right, mutability } => {
-                write!(f, [token("^")])?;
-                if let Some(mutability) = mutability
-                    && *mutability == Mutability::Immutable
-                {
-                    write!(f, [token("readonly"), space()])?;
-                }
-                write!(f, [right])?;
+                format_prefixed_pattern(f, "^", *right, *mutability)?;
             }
             Pattern::Binding {
                 mutability,
@@ -269,102 +377,21 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             }
             Pattern::Expression { value } => write!(f, [value])?,
             Pattern::Tuple { fields } => {
-                write!(f, [list_like("(", ")", ",", fields).as_collection()])?
+                format_pattern_field_list(f, "(", ")", fields, false)?;
             }
             Pattern::TaggedTuple { ty, fields } => {
                 write!(f, [ty])?;
-                write!(f, [list_like("(", ")", ",", fields).as_collection()])?
+                format_pattern_field_list(f, "(", ")", fields, false)?;
             }
             Pattern::Array { fields } => {
-                let has_newline = pattern_has_multiline_source(f.context(), node_id);
-                let has_nested_fields = fields
-                    .iter()
-                    .copied()
-                    .any(|field_id| pattern_field_prefers_multiline(f.context().tree, field_id));
-                let has_field_annotations = collection_nodes_have_annotations(f.context(), fields);
-                let should_expand = CollectionBreakScore {
-                    has_newline_in_source: has_newline,
-                    has_item_annotations: has_field_annotations,
-                    has_nested_complexity: has_nested_fields,
-                }
-                .should_expand_multiline();
-                let mut list = list_like("[", "]", ",", fields);
-                list.as_collection().should_expand(should_expand);
-
-                write!(f, [list])?;
+                let should_expand = array_pattern_should_expand(f.context(), node_id, fields);
+                format_pattern_field_list(f, "[", "]", fields, should_expand)?;
             }
             Pattern::Object { fields } => {
-                let render_fields = object_pattern_render_fields(f.context().tree, fields);
-                let mut list = list_like("{", "}", ",", render_fields.as_ref());
-                list.as_collection().include_space();
-                let has_newline = pattern_has_multiline_source(f.context(), node_id);
-                let has_nested_fields = render_fields
-                    .iter()
-                    .copied()
-                    .any(|field_id| pattern_field_prefers_multiline(f.context().tree, field_id));
-                let has_field_annotations =
-                    collection_nodes_have_annotations(f.context(), render_fields.as_ref());
-                let should_expand_for_parameter = should_expand_parameter_object_pattern(
-                    f.context(),
-                    node_id,
-                    render_fields.as_ref(),
-                );
-                let should_expand_for_comments = CollectionBreakScore {
-                    has_newline_in_source: has_newline,
-                    has_item_annotations: has_field_annotations,
-                    has_nested_complexity: false,
-                }
-                .should_expand_multiline();
-
-                if (has_newline && has_nested_fields)
-                    || should_expand_for_comments
-                    || should_expand_for_parameter
-                {
-                    list.as_collection().should_expand(true);
-                }
-                if render_fields.last().is_some_and(|field_id| {
-                    matches!(f.context().tree.get(*field_id), PatternField::Spread { .. })
-                }) {
-                    list.disallow_trailing_separator();
-                }
-                write!(f, [list])?;
+                format_object_pattern_like(f, node_id, None, fields)?;
             }
             Pattern::TaggedObject { ty, fields } => {
-                write!(f, [ty, space()])?;
-                let render_fields = object_pattern_render_fields(f.context().tree, fields);
-                let mut list = list_like("{", "}", ",", render_fields.as_ref());
-                list.as_collection().include_space();
-                let has_newline = pattern_has_multiline_source(f.context(), node_id);
-                let has_nested_fields = render_fields
-                    .iter()
-                    .copied()
-                    .any(|field_id| pattern_field_prefers_multiline(f.context().tree, field_id));
-                let has_field_annotations =
-                    collection_nodes_have_annotations(f.context(), render_fields.as_ref());
-                let should_expand_for_parameter = should_expand_parameter_object_pattern(
-                    f.context(),
-                    node_id,
-                    render_fields.as_ref(),
-                );
-                let should_expand_for_comments = CollectionBreakScore {
-                    has_newline_in_source: has_newline,
-                    has_item_annotations: has_field_annotations,
-                    has_nested_complexity: false,
-                }
-                .should_expand_multiline();
-
-                if (has_newline && has_nested_fields)
-                    || should_expand_for_comments
-                    || should_expand_for_parameter
-                {
-                    list.as_collection().should_expand(true);
-                }
-                if render_fields.last().is_some_and(|field_id| {
-                    matches!(f.context().tree.get(*field_id), PatternField::Spread { .. })
-                }) {
-                    list.disallow_trailing_separator();
-                }
-                write!(f, [list])?;
+                format_object_pattern_like(f, node_id, Some(*ty), fields)?;
             }
             Pattern::Union { patterns } => write!(
                 f,
@@ -575,5 +602,25 @@ mod tests {
     fn test_format_pattern_union() {
         assert_format!("1 | 2 | 3 | 4 | 5", "1 | 2 | 3 | 4 | 5", |p| p
             .eat_pattern());
+    }
+
+    #[test]
+    fn test_format_pattern_array_rest_disallows_trailing_comma() {
+        assert_format!(
+            "[a, ...rest]",
+            "[\n    a,\n    ...rest\n]",
+            |p| p.eat_pattern(),
+            DestackFormatOptions::default_with_line_width(1)
+        );
+    }
+
+    #[test]
+    fn test_format_pattern_tuple_rest_disallows_trailing_comma() {
+        assert_format!(
+            "(a, ...rest)",
+            "(\n    a,\n    ...rest\n)",
+            |p| p.eat_pattern(),
+            DestackFormatOptions::default_with_line_width(1)
+        );
     }
 }

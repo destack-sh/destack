@@ -722,13 +722,6 @@ where
                 && render_facts.next_character == Some(',');
             let inline_block_comment_follows_opening_delimiter =
                 is_inline_block_star_comment && render_facts.follows_opening_delimiter;
-            let is_no_semi_guard_statement_prefix_comment = position
-                == AnnotationPosition::BlockPrefix
-                && render_facts.is_slash_comment
-                && starts_on_own_line
-                && render_facts.next_character == Some(';')
-                && T::TYPE == NodeType::Expression;
-
             if render_facts.is_slash_comment
                 && position == AnnotationPosition::LinePostfixBoundary
                 && starts_on_own_line
@@ -819,9 +812,7 @@ where
                             {
                                 write!(f, [space()])?;
                             }
-                        } else if !is_block_prefix_after_colon
-                            && !is_no_semi_guard_statement_prefix_comment
-                        {
+                        } else if !is_block_prefix_after_colon {
                             write!(f, [hard_line_break()])?;
                         }
                     }
@@ -855,14 +846,7 @@ where
                 }
                 && matches!(render_facts.next_character, Some('|' | '&'));
             // format annotation itself
-            if is_no_semi_guard_statement_prefix_comment {
-                let annotation_content = format_with(|f| annotation.format_node(annotation_id, f));
-                let indented_content =
-                    format_with(|f| write!(f, [hard_line_break(), annotation_content]));
-                write!(f, [indent(&indented_content)])?;
-            } else {
-                annotation.format_node(annotation_id, f)?;
-            }
+            annotation.format_node(annotation_id, f)?;
 
             // insert space / newline
             match position {
