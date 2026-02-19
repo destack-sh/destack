@@ -4,7 +4,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputSensorConfig, InputSensorEffectiveConfig, InputSensorInfo, InputSensorKind,
-    InputSensorSample,
+    InputSensorSample, validation as input_validation,
 };
 use crate::platform::{NativeArray, PlatformError, resource};
 use crate::runtime::RuntimeCallContext;
@@ -82,13 +82,7 @@ pub(crate) unsafe fn destack_input_sensor_configure(
     let sensor_kind = resolve_sensor_kind(&device, kind, "destack.input.sensor.configure")?;
 
     // clamp invalid requested rates into one explicit invalid-argument error
-    if config.sample_rate_hz.is_sign_negative() || !config.sample_rate_hz.is_finite() {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "config.sampleRateHz",
-            "config.sampleRateHz must be finite and non-negative",
-        ))
-        .boxed());
-    }
+    input_validation::validate_sensor_sample_rate_hz(config.sample_rate_hz)?;
 
     // project one stable effective configuration for this stream lane
     let effective = InputSensorEffectiveConfig {
@@ -129,7 +123,8 @@ pub(crate) unsafe fn destack_input_sensor_configure(
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` where sensor streams are unavailable.
-/// Uses backend-specific sensor capability tables from evdev and hidraw class stacks on Unix and HID sensor or controller APIs on Windows.
+/// Uses backend-specific sensor capability tables from evdev and hidraw class stacks on Unix.
+/// Uses HID sensor or controller APIs on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.

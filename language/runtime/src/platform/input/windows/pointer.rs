@@ -6,8 +6,9 @@ use windows_sys::Win32::UI::WindowsAndMessaging::SetCursorPos;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
     InputDeviceKind, InputPointerGrabMode, InputPointerState, InputWindowTarget,
+    validation as input_validation,
 };
-use crate::platform::{PlatformError, resource};
+use crate::platform::{PlatformError, core as core_platform, resource};
 use crate::runtime::RuntimeCallContext;
 
 /// Return whether one resolved binding supports pointer state queries.
@@ -192,7 +193,7 @@ pub(super) fn pointer_capture(
 
         let status = unsafe { ReleaseCapture() };
         if status == 0 {
-            let code = crate::platform::core::last_error_code() as u32;
+            let code = core_platform::last_error_code() as u32;
             if code != 0 {
                 return Err(input_core::io_error_with_code(
                     operation,
@@ -210,9 +211,9 @@ pub(super) fn pointer_capture(
         return input_event::set_grab(context, handle, enabled, operation);
     }
 
-    // raw-input streams already capture per-device input through INPUTSINK registration
+    // raw-input streams cannot toggle capture state through this binding contract
     if resolved.backend == input_core::WindowsInputBackend::RawDevice {
-        return Ok(());
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
@@ -237,13 +238,7 @@ pub(super) fn pointer_warp(
     }
 
     // validate pointer-warp coordinates
-    if !x.is_finite() || !y.is_finite() {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "x",
-            "x and y must be finite",
-        ))
-        .boxed());
-    }
+    input_validation::validate_pointer_coordinates(x, y)?;
 
     // map optional window-relative coordinates into screen coordinates
     let (target_x, target_y) = if let Some(target_window) = target_window {
@@ -256,7 +251,7 @@ pub(super) fn pointer_warp(
     // apply one host pointer warp and update per-handle baseline state
     let status = unsafe { SetCursorPos(target_x.round() as i32, target_y.round() as i32) };
     if status == 0 {
-        let code = crate::platform::core::last_error_code() as u32;
+        let code = core_platform::last_error_code() as u32;
         return Err(input_core::io_error_with_code(
             operation,
             "SetCursorPos",
@@ -309,7 +304,8 @@ pub(crate) unsafe fn destack_input_pointer_capture(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend-specific relative motion streams from evdev or libinput style backends on Unix and raw-input relative motion on Windows.
+/// Uses backend-specific relative motion streams from evdev or libinput-style backends on Unix.
+/// Uses raw-input relative motion on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -410,7 +406,8 @@ pub(crate) unsafe fn destack_input_pointer_set_relative_mode(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend-specific pointer state queries from evdev or libinput style streams on Unix and raw-input or console pointer state snapshots on Windows.
+/// Uses backend-specific pointer state queries from evdev or libinput-style streams on Unix.
+/// Uses raw-input or console pointer state snapshots on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

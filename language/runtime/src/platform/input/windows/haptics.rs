@@ -3,6 +3,7 @@ use super::{core as input_core, xinput as xinput_input};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
     InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult,
+    validation as input_validation,
 };
 use crate::platform::{NativeArray, PlatformError, resource};
 use crate::runtime::RuntimeCallContext;
@@ -38,6 +39,9 @@ pub(super) fn haptics_play(
     if resolved.backend != input_core::WindowsInputBackend::XInput {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
+
+    // validate requested effect payload
+    input_validation::validate_haptics_params(params)?;
 
     let Some(user_index) = resolved.xinput_user_index else {
         return Err(input_core::input_not_found(operation, handle));

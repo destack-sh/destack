@@ -603,41 +603,57 @@ fn binding_type_from_symbol(
             strings,
         ),
         Declaration::Type { kind, value, .. } => {
-            let alias_target = types
-                .get_alias_target_type_id(symbol_id)
-                .or_else(|| {
-                    let value_node = dir::GlobalNodeIdAny {
-                        module_id: symbol_id.module_id,
-                        local_id: (*value).into(),
-                    };
-                    types.get_declared_or_inferred_type_id(value_node)
-                })
-                .unwrap_or_else(|| {
-                    unsupported_binding_type(&name, "missing type alias target for binding type")
-                });
-            if let dir::Type::Object { fields, .. } = types.get_type(alias_target) {
-                let inner = binding_type_from_object_type(
-                    name.clone(),
-                    fields,
+            let alias_target = types.get_alias_target_type_id(symbol_id).or_else(|| {
+                let value_node = dir::GlobalNodeIdAny {
+                    module_id: symbol_id.module_id,
+                    local_id: (*value).into(),
+                };
+                types.get_declared_or_inferred_type_id(value_node)
+            });
+
+            // use lowered alias type info when available
+            let inner = if let Some(alias_target) = alias_target {
+                if let dir::Type::Object { fields, .. } = types.get_type(alias_target) {
+                    return binding_type_from_object_type(
+                        name.clone(),
+                        fields,
+                        &types,
+                        modules,
+                        strings,
+                        profile_id,
+                        symbols,
+                        domain,
+                    );
+                }
+
+                binding_type_from_type_id(
+                    alias_target,
                     &types,
                     modules,
                     strings,
                     profile_id,
                     symbols,
-                    domain,
-                );
-                return inner;
+                    domain.as_str(),
+                )
             }
+            // fall back to alias expression syntax when type-lowering omitted alias targets
+            else {
+                binding_type_from_alias_expression(
+                    &name,
+                    *value,
+                    &tree,
+                    &types,
+                    modules,
+                    strings,
+                    profile_id,
+                    symbols,
+                    domain.as_str(),
+                )
+                .unwrap_or_else(|| {
+                    unsupported_binding_type(&name, "missing type alias target for binding type")
+                })
+            };
 
-            let inner = binding_type_from_type_id(
-                alias_target,
-                &types,
-                modules,
-                strings,
-                profile_id,
-                symbols,
-                domain.as_str(),
-            );
             // preserve named aliases as newtypes for platform bindings
             // this keeps ABI/type names stable even when aliases are structural
             let _ = kind;
@@ -648,6 +664,50 @@ fn binding_type_from_symbol(
             }
         }
         _ => unsupported_binding_type(&name, "unsupported binding declaration"),
+    }
+}
+
+/// Resolve a binding type directly from a type-alias expression node.
+fn binding_type_from_alias_expression(
+    type_text: &str,
+    expression_id: dir::LocalNodeId<Expression>,
+    tree: &dir::NodeTree,
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+    profile_id: ProfileId,
+    symbols: &BindingTypeSymbols,
+    domain: &str,
+) -> Option<BindingType> {
+    let expression = tree.get::<Expression>(expression_id);
+    match expression {
+        Expression::TypeLiteral {
+            value: TypeLiteral::Void,
+        } => Some(BindingType::Void),
+        Expression::TypeLiteral {
+            value: TypeLiteral::Primitive(primitive),
+        } => Some(binding_type_from_primitive(*primitive, type_text)),
+        Expression::Type { value } => Some(binding_type_from_type_id(
+            *value, types, modules, strings, profile_id, symbols, domain,
+        )),
+        Expression::TypeUnary { right, .. } => binding_type_from_alias_expression(
+            type_text, *right, tree, types, modules, strings, profile_id, symbols, domain,
+        ),
+        Expression::ReferenceOf { right, .. } | Expression::ValueOf { right, .. } => {
+            binding_type_from_alias_expression(
+                type_text, *right, tree, types, modules, strings, profile_id, symbols, domain,
+            )
+        }
+        Expression::LocalReference { target_symbol, .. }
+        | Expression::ModuleReference { target_symbol, .. }
+        | Expression::GlobalReference { target_symbol, .. } => Some(binding_type_from_symbol(
+            *target_symbol,
+            modules,
+            strings,
+            profile_id,
+            symbols,
+        )),
+        _ => None,
     }
 }
 

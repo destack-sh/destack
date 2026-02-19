@@ -1,7 +1,7 @@
 use super::{core as input_core, raw as raw_input};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::input::InputRawHidReport;
+use crate::platform::input::{InputRawHidReport, validation as input_validation};
 use crate::platform::{NativeSlice, PlatformError, resource};
 use crate::runtime::RuntimeCallContext;
 
@@ -20,20 +20,6 @@ fn resolve_raw_hid_device(
     }
 
     Ok(device)
-}
-
-/// Validate one max-bytes argument for raw-hid reads.
-fn validate_max_bytes(maxbytes: u32) -> RuntimeResult<()> {
-    // require one nonzero read budget
-    if maxbytes == 0 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "maxbytes",
-            "maxbytes must be greater than zero",
-        ))
-        .boxed());
-    }
-
-    Ok(())
 }
 
 /// Read one raw-hid feature report.
@@ -65,7 +51,7 @@ pub(crate) unsafe fn destack_input_raw_hid_get_feature(
     }
 
     // validate read bounds and capability support
-    validate_max_bytes(maxbytes)?;
+    input_validation::validate_raw_hid_max_bytes(maxbytes)?;
 
     // resolve one raw-hid-capable device
     let device = resolve_raw_hid_device(context, handle, "destack.input.rawhid.getFeature")?;
@@ -116,7 +102,7 @@ pub(crate) unsafe fn destack_input_raw_hid_read(
     }
 
     // validate read bounds and capability support
-    validate_max_bytes(maxbytes)?;
+    input_validation::validate_raw_hid_max_bytes(maxbytes)?;
 
     // resolve one raw-hid-capable device
     let device = resolve_raw_hid_device(context, handle, "destack.input.rawhid.read")?;
@@ -165,13 +151,7 @@ pub(crate) unsafe fn destack_input_raw_hid_set_feature(
 
     // validate feature payload shape
     let payload = unsafe { data.as_slice()? };
-    if payload.is_empty() {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "data",
-            "data must contain at least one byte",
-        ))
-        .boxed());
-    }
+    input_validation::validate_non_empty_bytes("data", payload)?;
 
     // apply one feature report write to hid backend
     raw_input::set_feature_report(
@@ -211,7 +191,7 @@ pub(crate) unsafe fn destack_input_raw_hid_try_read(
     }
 
     // validate read bounds and capability support
-    validate_max_bytes(maxbytes)?;
+    input_validation::validate_raw_hid_max_bytes(maxbytes)?;
 
     // resolve one raw-hid-capable device
     let device = resolve_raw_hid_device(context, handle, "destack.input.rawhid.tryRead")?;
@@ -267,13 +247,7 @@ pub(crate) unsafe fn destack_input_raw_hid_write(
 
     // validate capability support and payload shape
     let payload = unsafe { data.as_slice()? };
-    if payload.is_empty() {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "data",
-            "data must contain at least one byte",
-        ))
-        .boxed());
-    }
+    input_validation::validate_non_empty_bytes("data", payload)?;
 
     // write one output report and expose payload-byte count
     let written =

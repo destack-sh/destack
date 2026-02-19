@@ -20,10 +20,11 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputAxisInfo, InputButtonInfo, InputDeviceCapabilities, InputDeviceCapabilityKind,
-    InputDeviceInfo, InputDeviceKind, InputGamepadBatteryInfo, InputGamepadBatteryState,
-    InputGamepadButtonState, InputGamepadConnectionType, InputGamepadMappingType,
-    InputGamepadState, InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult,
+    InputAxisInfo, InputButtonInfo, InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin,
+    InputDeviceCapabilities, InputDeviceCapabilityKind, InputDeviceInfo, InputDeviceKind,
+    InputGamepadBatteryInfo, InputGamepadBatteryState, InputGamepadButtonState,
+    InputGamepadConnectionType, InputGamepadMappingType, InputGamepadState,
+    InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult,
 };
 use crate::runtime::RuntimeCallContext;
 
@@ -508,6 +509,9 @@ pub(super) fn capabilities_for_xinput_device(
         kinds: context.store_array(kinds),
         axes: context.store_array(axes),
         buttons: context.store_array(buttons),
+        metadata_origin: InputCapabilityMetadataOrigin::Mixed,
+        axis_metadata_fidelity: InputCapabilityMetadataFidelity::Full,
+        button_metadata_fidelity: InputCapabilityMetadataFidelity::Full,
         supports_relative_pointer: false,
         supports_pointer_grab: false,
         supports_pointer_capture: false,

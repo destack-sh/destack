@@ -48,14 +48,14 @@ use super::core as windows_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputAxisInfo, InputButtonInfo, InputDeviceCapabilities, InputDeviceCapabilityKind,
-    InputDeviceEventPayload, InputDeviceKind, InputEvent, InputEventAction, InputEventKind,
-    InputGamepadBatteryInfo, InputGamepadBatteryState, InputGamepadButtonState,
-    InputGamepadConnectionType, InputGamepadMappingType, InputGamepadState, InputKeyEventPayload,
-    InputMonitorEvent, InputMonitorEventKind, InputPointerButtonEventPayload,
-    InputPointerMotionEventPayload, InputRawHidReport, InputScrollEventPayload, InputSensorInfo,
-    InputSensorKind, InputSensorSample, InputTouchContactPhase, InputTouchContactState,
-    InputTouchState,
+    InputAxisInfo, InputButtonInfo, InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin,
+    InputDeviceCapabilities, InputDeviceCapabilityKind, InputDeviceEventPayload, InputDeviceKind,
+    InputEvent, InputEventAction, InputEventKind, InputGamepadBatteryInfo,
+    InputGamepadBatteryState, InputGamepadButtonState, InputGamepadConnectionType,
+    InputGamepadMappingType, InputGamepadState, InputKeyEventPayload, InputMonitorEvent,
+    InputMonitorEventKind, InputPointerButtonEventPayload, InputPointerMotionEventPayload,
+    InputRawHidReport, InputScrollEventPayload, InputSensorInfo, InputSensorKind,
+    InputSensorSample, InputTouchContactPhase, InputTouchContactState, InputTouchState,
 };
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::RuntimeCallContext;
@@ -1474,7 +1474,7 @@ fn axis_infos_for_raw_input_device(device: &RawInputDeviceDescriptor) -> Vec<Inp
         return axes;
     }
 
-    // fall back to synthetic axis rows when no hid parser metadata is available
+    // fall back to count-derived axis rows when no hid parser metadata is available
     let mut fallback_axes = Vec::new();
     for code in 0..u32::from(device.axis_count) {
         fallback_axes.push(InputAxisInfo {
@@ -1525,7 +1525,7 @@ fn button_infos_for_raw_input_device(device: &RawInputDeviceDescriptor) -> Vec<I
         return buttons;
     }
 
-    // fall back to synthetic button rows when hid parser metadata is unavailable
+    // fall back to count-derived button rows when hid parser metadata is unavailable
     let mut fallback_buttons = Vec::new();
     for code in 0..u32::from(device.button_count) {
         fallback_buttons.push(InputButtonInfo {
@@ -1570,20 +1570,49 @@ pub(super) fn capabilities_for_raw_input_device(
     }
     let axes = axis_infos_for_raw_input_device(device);
     let buttons = button_infos_for_raw_input_device(device);
+    let axis_from_backend = !device.value_capabilities.is_empty() && !axes.is_empty();
+    let axis_from_count = !axis_from_backend && !axes.is_empty();
+    let button_from_backend = device.kind != InputDeviceKind::Keyboard
+        && !device.button_capabilities.is_empty()
+        && !buttons.is_empty();
+    let button_from_count = !button_from_backend && !buttons.is_empty();
+    let has_backend_metadata = axis_from_backend || button_from_backend;
+    let has_count_metadata = axis_from_count || button_from_count;
+    let metadata_origin = if has_backend_metadata && has_count_metadata {
+        InputCapabilityMetadataOrigin::Mixed
+    } else if has_backend_metadata {
+        InputCapabilityMetadataOrigin::BackendDescriptor
+    } else if has_count_metadata {
+        InputCapabilityMetadataOrigin::CountDerived
+    } else {
+        InputCapabilityMetadataOrigin::DeviceSummary
+    };
+    let axis_metadata_fidelity = if axis_from_backend {
+        InputCapabilityMetadataFidelity::Full
+    } else {
+        InputCapabilityMetadataFidelity::Minimal
+    };
+    let button_metadata_fidelity = if button_from_backend {
+        InputCapabilityMetadataFidelity::Full
+    } else if device.kind == InputDeviceKind::Keyboard && !buttons.is_empty() {
+        InputCapabilityMetadataFidelity::Partial
+    } else {
+        InputCapabilityMetadataFidelity::Minimal
+    };
 
     InputDeviceCapabilities {
         kinds: context.store_array(kinds),
         axes: context.store_array(axes),
         buttons: context.store_array(buttons),
+        metadata_origin,
+        axis_metadata_fidelity,
+        button_metadata_fidelity,
         supports_relative_pointer: device.kind == InputDeviceKind::Mouse,
         supports_pointer_grab: device.kind == InputDeviceKind::Mouse,
-        supports_pointer_capture: matches!(
-            device.kind,
-            InputDeviceKind::Mouse | InputDeviceKind::Touch | InputDeviceKind::Pen
-        ),
+        supports_pointer_capture: false,
         supports_pointer_warp: device.kind == InputDeviceKind::Mouse,
         supports_text_input: device.supports_text,
-        supports_composition: device.supports_text,
+        supports_composition: false,
         supports_rumble: device.supports_rumble,
         supports_trigger_rumble: false,
         supports_sensors: device.supports_sensors,
@@ -3135,6 +3164,7 @@ pub(super) fn read_monitor_event(
 /// Resolve one optional sensor lane from one raw-input device descriptor.
 pub(super) fn sensor_kinds_for_device(device: &RawInputDeviceDescriptor) -> Vec<InputSensorKind> {
     // preserve stable sensor-kind ordering across hosts and runs
+    // canonical sensor ordering for deterministic output
     const SENSOR_KIND_ORDER: [InputSensorKind; 6] = [
         InputSensorKind::Accelerometer,
         InputSensorKind::Gyroscope,
