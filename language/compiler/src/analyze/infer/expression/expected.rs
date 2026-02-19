@@ -70,7 +70,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Assign,
-            RelationMode::TYPE_OPS,
+            RelationMode::EXPECTED_TYPE,
         );
         if matches!(types.get_type(normalized_ty_id), Type::Object { .. }) {
             return Ok(Some(normalized_ty_id));
@@ -208,7 +208,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Assign,
-            RelationMode::TYPE_OPS,
+            RelationMode::EXPECTED_TYPE,
         );
         let Type::Union { elements } = types.get_type(normalized_ty_id).clone() else {
             return Ok(None);
@@ -285,7 +285,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Assign,
-            RelationMode::TYPE_OPS,
+            RelationMode::EXPECTED_TYPE,
         );
         if matches!(types.get_type(normalized_id), Type::Object { .. }) {
             return Ok(Some(normalized_id));

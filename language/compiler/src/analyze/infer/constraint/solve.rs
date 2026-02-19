@@ -21,8 +21,8 @@ struct Bounds {
     lower: Vec<LocalTypeId>,
     /// Upper bounds collected for the variable.
     upper: Vec<LocalTypeId>,
-    /// Default type used when no bounds resolve.
-    default: Option<LocalTypeId>,
+    /// The declared default type used when no bounds resolve.
+    default_type_id: Option<LocalTypeId>,
 }
 
 impl Bounds {
@@ -31,7 +31,7 @@ impl Bounds {
         Self {
             lower: var.lower_bounds.clone(),
             upper: var.upper_bounds.clone(),
-            default: var.default,
+            default_type_id: var.default,
         }
     }
 }
@@ -231,13 +231,13 @@ impl Compiler {
                     continue;
                 }
                 let var_id = InferVarId::new(index as u32);
-                let fallback_source_type_id = infer.type_for_var(var_id);
+                let default_source_type_id = infer.type_for_var(var_id);
                 if let Some(resolved) = self.resolve_bounds(
                     module,
                     profile,
                     symbols,
                     bound,
-                    fallback_source_type_id,
+                    default_source_type_id,
                     &solution,
                     types,
                     options,
@@ -282,7 +282,7 @@ impl Compiler {
 
         // resolve the specific inference variable against the collected bounds
         let bound = bounds.get(id.0 as usize)?;
-        let fallback_source_type_id = infer.type_for_var(*id);
+        let default_source_type_id = infer.type_for_var(*id);
         let solution = InferSolution {
             resolved: vec![None; infer.vars.len()],
         };
@@ -291,7 +291,7 @@ impl Compiler {
             profile,
             symbols,
             bound,
-            fallback_source_type_id,
+            default_source_type_id,
             &solution,
             types,
             options,
@@ -366,7 +366,7 @@ impl Compiler {
         profile: ProfileId,
         symbols: &SymbolTable,
         bound: &Bounds,
-        fallback_source_type_id: Option<LocalTypeId>,
+        default_source_type_id: Option<LocalTypeId>,
         solution: &InferSolution,
         types: &mut TypeTable,
         options: &AnalyzeOptions,
@@ -414,11 +414,31 @@ impl Compiler {
             }
             (Some(lower), None) => Some(lower),
             (None, Some(upper)) => Some(upper),
-            (None, None) => bound.default.or_else(|| {
-                fallback_source_type_id
-                    .map(|source_type_id| self.unknown_type(source_type_id, types))
-            }),
+            (None, None) => {
+                self.resolve_unconstrained_bound_type(bound, default_source_type_id, types)
+            }
         }
+    }
+
+    /// Resolve the resulting type for an unconstrained inference variable.
+    fn resolve_unconstrained_bound_type(
+        &self,
+        bound: &Bounds,
+        default_source_type_id: Option<LocalTypeId>,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        if let Some(default_type_id) = bound.default_type_id {
+            return Some(default_type_id);
+        }
+
+        default_source_type_id.map(|source_type_id| {
+            types.insert_type_from_type(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                },
+                source_type_id,
+            )
+        })
     }
 
     /// Resolve and join bounds into a single type.
@@ -535,16 +555,6 @@ impl Compiler {
             JoinKind::Intersection => Type::Intersection { elements },
         };
         types.insert_type_from_type(ty, source_type_id)
-    }
-
-    /// Insert an unknown type.
-    fn unknown_type(&self, source_type_id: LocalTypeId, types: &mut TypeTable) -> LocalTypeId {
-        types.insert_type_from_type(
-            Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            },
-            source_type_id,
-        )
     }
 
     /// Extract an inference variable id for a type.

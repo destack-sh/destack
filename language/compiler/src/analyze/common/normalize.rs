@@ -288,7 +288,7 @@ impl Compiler {
         relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
-        // NOTE #Suspicious: normalization caches only ASSIGN, but normalize_type_inner handles TYPE_OPS too
+        // NOTE #Suspicious: normalization caches only ASSIGN, but normalize_type_inner handles CONSTRAINT too
         // reuse cached normalization when available
         let relation_key = relation_mode.cache_key();
         if relation_mode.is_cacheable()
@@ -1185,10 +1185,10 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
-        relation_mode: RelationMode,
+        _relation_mode: RelationMode,
     ) -> Option<LocalTypeId> {
         // type operators always use type operations semantics
-        let relation_mode = relation_mode.for_type_ops();
+        let relation_mode = RelationMode::TYPE_OPERATOR;
 
         if !matches!(
             operator,

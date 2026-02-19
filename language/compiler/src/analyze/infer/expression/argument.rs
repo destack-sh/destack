@@ -186,13 +186,13 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
         };
 
         // resolve static arguments in the reference owner module
-        let fallback_source_id = types.get_type_source(id);
+        let source_id = types.get_type_source(id);
         let resolved_arguments = if symbol.module_id == self.argument_module.id {
             self.compiler.materialize_static_arguments_for_reference(
                 self.argument_module,
                 self.profile,
                 symbol,
-                fallback_source_id,
+                source_id,
                 static_arguments,
                 self.argument_tree,
                 self.argument_symbols,
@@ -207,7 +207,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
                 &reference_module,
                 self.profile,
                 symbol,
-                fallback_source_id,
+                source_id,
                 static_arguments,
                 &reference_tree,
                 &reference_symbols,
@@ -1090,7 +1090,7 @@ impl Compiler {
             return Ok(Some(resolved_argument));
         }
 
-        // no argument and no default (caller handles fallback)
+        // no argument and no default, caller handles unresolved slots
         Ok(None)
     }
 
@@ -2331,7 +2331,7 @@ impl Compiler {
         }
 
         // skip non instantiable symbols
-        if !self.symbol_is_instantiable(symbol) && symbol.ty() != SymbolType::Extension {
+        if !self.query_symbol_is_instantiable(symbol) && symbol.ty() != SymbolType::Extension {
             return Ok(None);
         }
 
@@ -2478,7 +2478,7 @@ impl Compiler {
             let static_parameters: Vec<_> = parameter_symbols
                 .iter()
                 .map(|symbol_id| {
-                    self.collect_static_parameter(
+                    self.resolve_static_parameter(
                         argument_module,
                         *symbol_id,
                         node_id,
@@ -2501,7 +2501,7 @@ impl Compiler {
                 tree,
                 symbols,
             );
-            // resolve arguments with defaults and fallbacks
+            // resolve arguments with defaults and unknown synthesis
             let mut resolved_arguments = Vec::with_capacity(static_parameters.len());
             let mut resolved_argument_map = HashMap::new();
             for (index, static_parameter) in static_parameters.iter().enumerate() {
@@ -2521,7 +2521,7 @@ impl Compiler {
                     node_id.into_global(module.id)
                 };
 
-                // resolve the argument value or synthesize a fallback
+                // resolve the argument value or synthesize unknown when unresolved
                 let mut resolved_argument = self
                     .resolve_static_argument(
                         module,
@@ -2534,8 +2534,8 @@ impl Compiler {
                         types,
                     )?
                     .unwrap_or_else(|| {
-                        // fallback for type references: unknown type
-                        let fallback_value = match static_parameter.kind {
+                        // unresolved type references synthesize unknown or error by kind
+                        let synthesized_value = match static_parameter.kind {
                             StaticParameterKind::Type => {
                                 let unknown_ty_id = types.insert_type_from_any(
                                     Type::TypeLiteral {
@@ -2556,7 +2556,7 @@ impl Compiler {
                         };
                         StaticArgument::Evaluated {
                             name: static_parameter.name,
-                            value: fallback_value,
+                            value: synthesized_value,
                         }
                     });
 
@@ -2799,7 +2799,7 @@ impl Compiler {
         let static_parameters: Vec<_> = parameter_symbols
             .iter()
             .map(|symbol_id| {
-                self.collect_static_parameter(
+                self.resolve_static_parameter(
                     module, *symbol_id, source_id, profile, tree, symbols, types,
                 )
             })
@@ -3153,8 +3153,8 @@ impl Compiler {
         }
     }
 
-    /// Create a fallback static argument for function instantiation.
-    pub(crate) fn missing_static_argument_for_function(
+    /// Synthesize a missing static argument for function instantiation.
+    pub(crate) fn synthesize_missing_static_argument_for_function(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -4494,7 +4494,7 @@ impl Compiler {
         argument_module: &Module,
         profile: ProfileId,
         symbol: GlobalSymbolId,
-        fallback_source_id: LocalNodeIdAny,
+        source_id: LocalNodeIdAny,
         static_arguments: &[StaticArgument],
         argument_tree: &NodeTree,
         argument_symbols: &SymbolTable,
@@ -4527,13 +4527,13 @@ impl Compiler {
                 }
                 _ => None,
             })
-            .unwrap_or(fallback_source_id);
+            .unwrap_or(source_id);
 
         // map parameter names to their resolved kinds
         let mut parameter_kinds = Vec::with_capacity(parameter_symbols.len());
         let mut parameter_name_kinds = HashMap::new();
         for parameter_symbol in parameter_symbols {
-            let parameter = self.collect_static_parameter(
+            let parameter = self.resolve_static_parameter(
                 argument_module,
                 parameter_symbol,
                 source_id,

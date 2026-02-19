@@ -297,7 +297,7 @@ impl Compiler {
                 symbols,
                 types,
                 NormalizationMode::Assign,
-                RelationMode::TYPE_OPS,
+                RelationMode::ALIAS_EXPANSION,
                 &mut normalize_visited,
             ) else {
                 break;
@@ -330,7 +330,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Assign,
-            RelationMode::TYPE_OPS,
+            RelationMode::ALIAS_EXPANSION,
         );
         let type_id = if normalized_id != type_id {
             normalized_id

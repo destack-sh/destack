@@ -544,7 +544,7 @@ impl Compiler {
                     symbols,
                     types,
                     NormalizationMode::Assign,
-                    RelationMode::TYPE_OPS,
+                    RelationMode::TYPE_OPERATOR,
                     &mut visited,
                 );
                 types.get_type(key_type_id).clone()
@@ -781,7 +781,7 @@ impl Compiler {
                     symbols,
                     types,
                     NormalizationMode::Assign,
-                    RelationMode::TYPE_OPS,
+                    RelationMode::TYPE_OPERATOR,
                     &mut visited,
                 );
 

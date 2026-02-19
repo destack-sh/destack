@@ -38,7 +38,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Assign,
-            RelationMode::TYPE_OPS,
+            RelationMode::OPERATOR_COMPAT,
         );
         let right_operator_ty_id = self.normalize_apparent_type(
             module,
@@ -47,7 +47,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Assign,
-            RelationMode::TYPE_OPS,
+            RelationMode::OPERATOR_COMPAT,
         );
         let left_operator_ty = types.get_type(left_operator_ty_id).clone();
         let right_operator_ty = types.get_type(right_operator_ty_id).clone();

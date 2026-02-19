@@ -124,8 +124,8 @@ enum CallExpressionSignatureResolution {
         /// The resolved signature.
         signature: ResolvedSignature,
     },
-    /// The call falls back to a precomputed type.
-    Fallback(LocalTypeId),
+    /// Signature resolution synthesized an unknown call type.
+    UnknownType(LocalTypeId),
 }
 
 /// Resolved member-call typing context shared by call-resolution paths.
@@ -752,7 +752,7 @@ impl Compiler {
                 ctx,
             )?;
 
-            // resolve the inferred or fallback argument type
+            // resolve the inferred or synthesized argument type
             let argument = tree.get(*argument_id);
             let argument_value_id = argument.value();
             let argument_ty_id = if let Some(ty_id) =
@@ -1735,7 +1735,7 @@ impl Compiler {
         );
 
         // query and normalize the callee state
-        let callee = match self.query_call_expression_callee(
+        let callee = match self.infer_call_expression_callee(
             module,
             expression_id,
             left_id,
@@ -1862,7 +1862,7 @@ impl Compiler {
                     infer,
                     ctx,
                 )?,
-                CallExpressionSignatureResolution::Fallback(type_id) => type_id,
+                CallExpressionSignatureResolution::UnknownType(type_id) => type_id,
             }
         };
 
@@ -1892,7 +1892,7 @@ impl Compiler {
         self.call_signatures_for_type(callee_ty_id, types)
     }
 
-    /// Resolve one signature for a call expression or return a fallback type.
+    /// Resolve one signature for a call expression or default to unknown.
     #[allow(clippy::too_many_arguments)]
     fn resolve_call_expression_signature(
         &self,
@@ -2190,7 +2190,7 @@ impl Compiler {
         Ok(())
     }
 
-    /// Infer a non-callable call expression fallback.
+    /// Infer a non-callable call expression and default to unknown.
     #[allow(clippy::too_many_arguments)]
     fn infer_non_callable_call_expression(
         &self,
@@ -2240,7 +2240,7 @@ impl Compiler {
             ctx,
         )?;
 
-        Ok(self.unknown_call_expression_type(expression_id, types))
+        Ok(self.default_to_unknown_call_type(expression_id, types))
     }
 
     /// Infer call arguments without contextual parameter types.
@@ -2262,8 +2262,8 @@ impl Compiler {
         Ok(())
     }
 
-    /// Create an unknown fallback type for a call expression.
-    fn unknown_call_expression_type(
+    /// Default one call expression result type to unknown.
+    fn default_to_unknown_call_type(
         &self,
         expression_id: LocalNodeId<Expression>,
         types: &mut TypeTable,
@@ -2275,9 +2275,9 @@ impl Compiler {
         types.insert_type_from(ty, expression_id)
     }
 
-    /// Query and normalize the callee state for call-expression inference.
+    /// Infer and normalize the callee state for call-expression inference.
     #[allow(clippy::too_many_arguments)]
-    fn query_call_expression_callee(
+    fn infer_call_expression_callee(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
@@ -2390,7 +2390,7 @@ impl Compiler {
         // query receiver type and receiver lookup context
         let options = ctx.options;
         let (receiver_ty_id, receiver_ty, receiver_context) = self
-            .query_member_call_receiver_state(
+            .infer_member_call_receiver_state(
                 module,
                 receiver_id,
                 ctx.profile,
@@ -2449,7 +2449,7 @@ impl Compiler {
         }
 
         // query extension supplied static arguments for this member call
-        let prefilled_static_arguments = self.query_member_call_prefilled_static_arguments(
+        let prefilled_static_arguments = self.resolve_member_call_prefilled_static_arguments(
             module,
             receiver_id,
             member_symbol,
@@ -2498,9 +2498,9 @@ impl Compiler {
         })
     }
 
-    /// Query receiver type and receiver context for a member call target.
+    /// Infer receiver type and receiver context for a member call target.
     #[allow(clippy::too_many_arguments)]
-    fn query_member_call_receiver_state(
+    fn infer_member_call_receiver_state(
         &self,
         module: &Module,
         receiver_id: LocalNodeId<Expression>,
@@ -2597,9 +2597,9 @@ impl Compiler {
         Ok((member_resolution, member_symbol))
     }
 
-    /// Query extension supplied static arguments for a member call target.
+    /// Resolve extension supplied static arguments for a member call target.
     #[allow(clippy::too_many_arguments)]
-    fn query_member_call_prefilled_static_arguments(
+    fn resolve_member_call_prefilled_static_arguments(
         &self,
         module: &Module,
         receiver_id: LocalNodeId<Expression>,
@@ -2891,7 +2891,7 @@ impl Compiler {
             });
 
             return Ok(Some(
-                self.unknown_call_expression_type(expression_id, types),
+                self.default_to_unknown_call_type(expression_id, types),
             ));
         }
 
@@ -2926,7 +2926,7 @@ impl Compiler {
         Some(elements.clone())
     }
 
-    /// Infer fallback for unresolved union member-call candidate resolution.
+    /// Infer unresolved union member-call candidate resolution as unknown.
     #[allow(clippy::too_many_arguments)]
     fn infer_unresolved_union_member_call_expression(
         &self,
@@ -2959,7 +2959,7 @@ impl Compiler {
         );
 
         Ok(Some(
-            self.unknown_call_expression_type(expression_id, types),
+            self.default_to_unknown_call_type(expression_id, types),
         ))
     }
 
@@ -3346,7 +3346,7 @@ impl Compiler {
         let options = ctx.options;
 
         // query and normalize the constructor target
-        let target = self.query_new_expression_target(
+        let target = self.infer_new_expression_target(
             module,
             expression_id,
             left_id,
@@ -3406,7 +3406,7 @@ impl Compiler {
                     infer,
                     ctx,
                 )?,
-                CallExpressionSignatureResolution::Fallback(type_id) => type_id,
+                CallExpressionSignatureResolution::UnknownType(type_id) => type_id,
             }
         };
 
@@ -3426,9 +3426,9 @@ impl Compiler {
         Ok(ty_id)
     }
 
-    /// Query and normalize constructor target metadata for new-expression inference.
+    /// Infer and normalize constructor target metadata for new-expression inference.
     #[allow(clippy::too_many_arguments)]
-    fn query_new_expression_target(
+    fn infer_new_expression_target(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
@@ -3474,7 +3474,7 @@ impl Compiler {
         })
     }
 
-    /// Resolve one constructor signature for a new expression or return a fallback type.
+    /// Resolve one constructor signature for a new expression or default to unknown.
     #[allow(clippy::too_many_arguments)]
     fn resolve_new_expression_signature(
         &self,
@@ -3578,8 +3578,8 @@ impl Compiler {
                 ctx,
             )?;
 
-            return Ok(CallExpressionSignatureResolution::Fallback(
-                self.unknown_call_expression_type(expression_id, types),
+            return Ok(CallExpressionSignatureResolution::UnknownType(
+                self.default_to_unknown_call_type(expression_id, types),
             ));
         }
 
@@ -3611,8 +3611,8 @@ impl Compiler {
                 signature: resolved,
             })
         } else {
-            Ok(CallExpressionSignatureResolution::Fallback(
-                self.unknown_call_expression_type(expression_id, types),
+            Ok(CallExpressionSignatureResolution::UnknownType(
+                self.default_to_unknown_call_type(expression_id, types),
             ))
         }
     }
@@ -3655,7 +3655,7 @@ impl Compiler {
                 ctx,
             )?;
 
-            return Ok(self.unknown_call_expression_type(expression_id, types));
+            return Ok(self.default_to_unknown_call_type(expression_id, types));
         }
 
         // infer argument types and constraints
@@ -3729,10 +3729,10 @@ impl Compiler {
         }
 
         Ok(resolved_return_type
-            .unwrap_or_else(|| self.unknown_call_expression_type(expression_id, types)))
+            .unwrap_or_else(|| self.default_to_unknown_call_type(expression_id, types)))
     }
 
-    /// Infer fallback behavior for non-constructable new-expression targets.
+    /// Infer behavior for non-constructable new-expression targets.
     #[allow(clippy::too_many_arguments)]
     fn infer_non_constructable_new_expression(
         &self,
@@ -3775,7 +3775,7 @@ impl Compiler {
             ctx,
         )?;
 
-        Ok(self.unknown_call_expression_type(expression_id, types))
+        Ok(self.default_to_unknown_call_type(expression_id, types))
     }
 
     /// Resolve a function type for a call, substituting static parameters when provided.
@@ -3969,7 +3969,7 @@ impl Compiler {
         static_parameter_symbols
             .iter()
             .map(|symbol_id| {
-                self.collect_static_parameter(
+                self.resolve_static_parameter(
                     module, *symbol_id, node_id, profile, tree, symbols, types,
                 )
             })
@@ -4380,7 +4380,7 @@ impl Compiler {
         if static_parameter.kind == StaticParameterKind::Value {
             *has_missing_value_argument = true;
         }
-        let fallback = self.missing_static_argument_for_function(
+        let missing_argument = self.synthesize_missing_static_argument_for_function(
             module,
             profile,
             node_id,
@@ -4390,7 +4390,7 @@ impl Compiler {
             types,
         )?;
 
-        Ok(Some(fallback))
+        Ok(Some(missing_argument))
     }
 
     /// Resolve and validate one static argument substitution.
