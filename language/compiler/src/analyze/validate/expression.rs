@@ -7,8 +7,8 @@ use destack_dir::{
     ForEachBinding, ForEachKind, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalScopeId,
     LocalTypeId, MatchCase, MatchKind, MatchSelector, Member, Mutability, NodeTree, NodeType,
     Parameter, Path, Pattern, PatternField, Property, RuntimeCheckKind, ScalarLiteral, ScopeKind,
-    StaticKey, StringId, SymbolTable, SymbolType, TemplateLiteral, Type, TypeBinaryOperator,
-    TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator, WhereClause,
+    StaticKey, StringId, SymbolTable, SymbolType, TemplateLiteral, Timing, Type,
+    TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator, WhereClause,
 };
 use destack_workspace::{Module, ProfileId};
 use std::str::FromStr;
@@ -2606,6 +2606,18 @@ impl Compiler {
             }
 
             // reject defaults on object literal properties
+            if self.is_associated_comptime_field_in_object_literal(property) {
+                self.error(AnalyzeError::InvalidStaticArgument {
+                    node: property_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                    message:
+                        "associated comptime constants are only allowed on declaration members"
+                            .to_string(),
+                });
+                continue;
+            }
+
             if matches!(
                 property,
                 Property::Field {
@@ -2660,6 +2672,23 @@ impl Compiler {
                 ..
             } if *name == proto_name
         )
+    }
+
+    /// Return true when an object literal field spells an associated comptime declaration.
+    fn is_associated_comptime_field_in_object_literal(&self, property: &Property) -> bool {
+        let Property::Field {
+            modifiers,
+            default: Some(_),
+            ..
+        } = property
+        else {
+            return false;
+        };
+
+        let Some(modifiers) = modifiers.as_ref() else {
+            return false;
+        };
+        modifiers.timing == Some(Timing::Comptime)
     }
 
     /// Check whether await is valid in the current node context.

@@ -664,3 +664,94 @@ declare let value: Buffer<SIZE>;
         }
     });
 }
+
+/// Instantiate constrained associated projections in generic call return types.
+#[test]
+fn test_analyze_call_return_type_projects_constrained_associated_type() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+interface LocalCursor<T> {
+    type Item;
+    read(): Item;
+}
+
+struct Counter {
+    value: int32 = 0;
+}
+
+extension for Counter implements LocalCursor<int32> {
+    type Item = int32;
+
+    read(): Item {
+        this.value
+    }
+}
+
+function project<I: LocalCursor<int32>>(owner: I): I.Item {
+    owner.read()
+}
+
+declare const counter: Counter;
+let result = project(counter);
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load typed module data
+    let view = test.view(module_id);
+    let result_symbol = test
+        .resolve_to_symbol("test.ds", "result")
+        .expect("expected result symbol");
+    let result_type = view
+        .types()
+        .get_value_type(result_symbol)
+        .expect("expected result type");
+    let result_declarator_id = view.expect_let_declarator(test.program.strings.intern("result"));
+    let result_declarator = view.tree().get(result_declarator_id);
+    let result_initializer_id = result_declarator
+        .value
+        .expect("expected result initializer");
+    let initializer_type = view
+        .types()
+        .get_inferred_type(result_initializer_id.into_global_any(module_id))
+        .expect("expected initializer inferred type");
+    let result_instance_id = view
+        .types()
+        .get_instance_for_node(result_initializer_id.into_global_any(module_id))
+        .expect("expected call instance");
+    let result_instance = view.types().get_instance(result_instance_id);
+    assert_eq!(result_instance.static_arguments.len(), 1);
+    assert_eq!(result_instance.static_parameter_symbols.len(), 1);
+    let counter_symbol = test
+        .resolve_to_symbol("test.ds", "Counter")
+        .expect("expected counter symbol");
+    match &result_instance.static_arguments[0] {
+        StaticArgument::Evaluated {
+            value: StaticExpression::Type { ty },
+            ..
+        } => match view.types().get_type(*ty) {
+            Type::Reference { symbol, .. } => assert_eq!(*symbol, counter_symbol),
+            other => panic!("expected Counter static argument, found {other:?}"),
+        },
+        other => panic!("expected evaluated type static argument, found {other:?}"),
+    }
+    assert_eq!(
+        *initializer_type,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))
+        }
+    );
+
+    // result type should be int32
+    assert_eq!(
+        *result_type,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))
+        }
+    );
+}

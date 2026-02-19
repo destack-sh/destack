@@ -1,14 +1,17 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::analyze::common::{StaticMemberSymbolKind, TypeRewriteCache};
 use crate::timing::tags;
 use crate::{
-    AnalyzeError, AnalyzeResult, Compiler, FlowContext, InferSession, TaskDependencyError,
-    TaskResultCollector,
+    AnalyzeError, AnalyzeResult, Assignability, Compiler, FlowContext, InferSession,
+    TaskDependencyError, TaskResultCollector,
 };
 use destack_builtin::BuiltinLibKind;
 use destack_dir::{
-    Declaration, Expression, FlowGraphBuilder, IntType, LocalNodeId, NodeTree, PrimitiveType, Type,
-    TypeLiteral,
+    Declaration, Declarator, Expression, FlowGraphBuilder, InferTable, IntType, LocalNodeId,
+    NodeTree, Pattern, PrimitiveType, StaticArgument, StaticExpression, SymbolTable, Type,
+    TypeBinaryOperator, TypeLiteral, TypeTable,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
@@ -199,12 +202,10 @@ impl Compiler {
             );
         }
 
-        // report deferred associated comptime projection errors after inference convergence
-        self.report_deferred_associated_comptime_projection_errors(
+        // report associated comptime projection obligations after inference convergence
+        self.report_associated_comptime_projection_obligation_errors(
             &module,
             profile,
-            &tree,
-            &symbols,
             &mut types,
             session.table_mut(),
         );
@@ -212,7 +213,255 @@ impl Compiler {
         // discharge instance-commit obligations after inference convergence
         self.discharge_instance_commit_obligations(session.table_mut(), &mut types)?;
 
+        // commit instance-instantiated inferred types after inference convergence
+        self.commit_instance_instantiated_inferred_types(
+            &module,
+            profile,
+            &tree,
+            &symbols,
+            session.table(),
+            &mut types,
+        )?;
+        self.refresh_direct_binding_value_types_from_inferred_initializers(
+            &module,
+            profile,
+            &tree,
+            &symbols,
+            session.table(),
+            &mut types,
+        );
+        self.report_satisfies_type_errors_after_infer_convergence(
+            &module,
+            profile,
+            &tree,
+            &symbols,
+            session.table(),
+            &mut types,
+        );
+
         Ok(())
+    }
+
+    /// Commit inferred types that depend on resolved instance substitutions.
+    fn commit_instance_instantiated_inferred_types(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        infer: &InferTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        // apply substitutions to inferred types using explicit infer obligations
+        let node_attachments = infer
+            .iter_instance_commit_obligation_nodes()
+            .collect::<Vec<_>>();
+        for (node_id, obligation_id) in node_attachments {
+            if node_id.module_id != module.id {
+                continue;
+            }
+            let Some(inferred_type_id) = types.get_inferred_type_id(node_id) else {
+                continue;
+            };
+            let Some(obligation) = infer.instance_commit_obligation(obligation_id) else {
+                return Err(AnalyzeError::Internal {
+                    message: "missing instance commit obligation for inferred node".to_string(),
+                });
+            };
+
+            // build type substitutions from the committed obligation environment
+            let mut substitutions = HashMap::new();
+            for (parameter_symbol, argument) in obligation
+                .static_parameter_symbols
+                .iter()
+                .zip(obligation.static_arguments.iter())
+            {
+                let StaticArgument::Evaluated {
+                    value: StaticExpression::Type { ty },
+                    ..
+                } = argument
+                else {
+                    continue;
+                };
+                substitutions.insert(*parameter_symbol, types.unwrap_value_type_id(*ty));
+            }
+            if substitutions.is_empty() {
+                continue;
+            }
+
+            let mut materialize_cache = TypeRewriteCache::new();
+            let mut substitution_cache = HashMap::new();
+            let mapped_type_id = self.instantiate_type_with_substitutions(
+                module,
+                profile,
+                node_id.local_id,
+                None,
+                inferred_type_id,
+                &substitutions,
+                tree,
+                symbols,
+                types,
+                &mut materialize_cache,
+                &mut substitution_cache,
+            );
+
+            if mapped_type_id != inferred_type_id {
+                types.set_inferred_type(node_id, mapped_type_id);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Refresh direct binding value types from converged initializer inference.
+    fn refresh_direct_binding_value_types_from_inferred_initializers(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        infer: &InferTable,
+        types: &mut TypeTable,
+    ) {
+        // update direct unannotated declarators that still hold unresolved associated projections
+        for declarator_id in tree.iter_node_ids_of_type::<Declarator>() {
+            let declarator_node_id = declarator_id.into_global_any(module.id);
+            if types.get_declared_type_id(declarator_node_id).is_some() {
+                continue;
+            }
+
+            let declarator = tree.get(declarator_id);
+            let Some(value_id) = declarator.value else {
+                continue;
+            };
+            let Some(inferred_type_id) =
+                types.get_inferred_type_id(value_id.into_global_any(module.id))
+            else {
+                continue;
+            };
+            let value_node_id = value_id.into_global_any(module.id);
+            if infer
+                .instance_commit_obligation_id_for_node(value_node_id)
+                .is_none()
+            {
+                continue;
+            }
+
+            let Pattern::Binding {
+                symbol,
+                pattern: None,
+                ..
+            } = tree.get(declarator.pattern)
+            else {
+                continue;
+            };
+            let binding_symbol = symbol.into_global(module.id);
+            let Some(current_value_type_id) = types.get_value_type_id(binding_symbol) else {
+                continue;
+            };
+            if current_value_type_id == inferred_type_id {
+                continue;
+            }
+
+            let current_is_associated_projection = match types.get_type(current_value_type_id) {
+                Type::Reference { symbol, .. } => {
+                    matches!(
+                        self.query_static_member_symbol_kind_for_symbol(
+                            module, profile, *symbol, tree, symbols
+                        ),
+                        Ok(Some(StaticMemberSymbolKind::AssociatedType))
+                    )
+                }
+                _ => false,
+            };
+            if !current_is_associated_projection {
+                continue;
+            }
+
+            types.set_value_type(binding_symbol, inferred_type_id);
+        }
+    }
+
+    /// Report satisfies type errors using converged inferred types.
+    fn report_satisfies_type_errors_after_infer_convergence(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        infer: &InferTable,
+        types: &mut TypeTable,
+    ) {
+        // validate satisfies relations after solve and instance substitution convergence
+        let options = self.analyze_context_options_for_module(module.id);
+        for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+            let Expression::TypeBinary {
+                left,
+                operator: TypeBinaryOperator::Satisfies,
+                right,
+            } = tree.get(expression_id)
+            else {
+                continue;
+            };
+
+            let Some(actual_type_id) = types.get_inferred_type_id(left.into_global_any(module.id))
+            else {
+                continue;
+            };
+            let Some(target_type_id) = types.get_inferred_type_id(right.into_global_any(module.id))
+            else {
+                continue;
+            };
+
+            let target_type_id = match types.get_type(target_type_id) {
+                Type::Value { value } => *value,
+                _ => target_type_id,
+            };
+            let actual_type_id = match types.get_type(actual_type_id) {
+                Type::Value { value } => *value,
+                _ => actual_type_id,
+            };
+
+            let resolved_target = self.materialize_infer_type_for_check(
+                module,
+                profile,
+                symbols,
+                target_type_id,
+                infer,
+                types,
+                &options,
+            );
+            let resolved_actual = self.materialize_infer_type_for_check(
+                module,
+                profile,
+                symbols,
+                actual_type_id,
+                infer,
+                types,
+                &options,
+            );
+
+            if self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                resolved_target,
+                resolved_actual,
+                types,
+                &options,
+            ) != Assignability::NotAssignable
+            {
+                continue;
+            }
+
+            self.error(AnalyzeError::UnsatisfiedType {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+                expected_ty: resolved_target.into_global(module.id),
+                actual_ty: resolved_actual.into_global(module.id),
+            });
+        }
     }
 
     /// Collect root expressions that can produce runtime behavior.

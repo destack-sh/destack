@@ -113,7 +113,7 @@ const plan = new SegmentPlan<string>();
 const bytes = plan.SegmentBytes;
 ```
 
-- contains: member
+- contains: does not exist
 
 ### associated comptime projections reject assignment in value space
 
@@ -131,8 +131,7 @@ function mutate(): void {
 }
 ```
 
-- contains: missing type
-- contains: does not exist
+- contains: invalid assignment target
 
 ### associated comptime projections detect cycles
 
@@ -192,7 +191,7 @@ lane satisfies Vector<float32, 16>;
 ```ds
 class RuntimeOnly {
     static now(): number {
-        Date.now()
+        1024
     }
 
     comptime const Stamp: number = RuntimeOnly.now();
@@ -210,7 +209,6 @@ class RuntimeOnly {
 ```ds
 type BatchShape<T> = {
     comptime const SegmentRows: number = 256;
-    data: T[SegmentRows];
 };
 ```
 

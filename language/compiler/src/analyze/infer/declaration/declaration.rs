@@ -910,7 +910,7 @@ impl Compiler {
             contract_context.contract_symbol,
             tree,
             symbols,
-        );
+        )?;
 
         for requirement in requirements {
             let Some(declaration_member) = declaration_members.get(&requirement.name) else {
@@ -1026,14 +1026,14 @@ impl Compiler {
 
         // resolve and substitute the inherited default value
         let mut visited_symbols = HashSet::new();
-        let Some(default_value) = self.static_expression_from_constant_reference(
+        let Some(default_value) = self.static_expression_from_constant_reference_specialized(
             module,
             profile,
             requirement.symbol,
             tree,
             symbols,
             types,
-            Some(interface_substitutions),
+            interface_substitutions,
             &mut visited_symbols,
         )?
         else {
@@ -1116,7 +1116,7 @@ impl Compiler {
             contract_context.contract_symbol,
             tree,
             symbols,
-        );
+        )?;
 
         for requirement in requirements {
             let Some(declaration_member) = declaration_members.get(&requirement.name) else {
@@ -2144,6 +2144,11 @@ impl Compiler {
                                 .into_global_any(module.id)
                                 .into_anchored(Some(ctx.profile)),
                         });
+
+                        let error_type_id =
+                            types.insert_type_from_any(Type::Error, (*value).into_any());
+                        types.set_value_type(member_symbol, error_type_id);
+                        return Ok(());
                     }
 
                     // prefer static evaluation output for value typing
@@ -2177,7 +2182,10 @@ impl Compiler {
                 // validate initializer against annotation
                 if let (Some(constraint_type), Some(value_type)) = (constraint_type, value_type) {
                     // defer relation checks when the initializer type cannot be resolved yet
-                    if matches!(types.get_type(value_type), Type::Unevaluated(_)) {
+                    if matches!(
+                        types.get_type(value_type),
+                        Type::Unevaluated(_) | Type::Error
+                    ) {
                         return Ok(());
                     }
 

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use indexmap::IndexMap;
@@ -162,9 +163,9 @@ pub struct InferTable {
     cache_key_base: u64,
     /// Mutation generation for this table.
     cache_generation: u64,
-    /// Deferred associated comptime projection checks.
+    /// Associated comptime projection obligations collected during infer.
     #[serde(skip)]
-    pub deferred_associated_comptime_projections: Vec<DeferredAssociatedComptimeProjection>,
+    pub associated_comptime_projection_obligations: Vec<AssociatedComptimeProjectionObligation>,
     /// Instance-commit obligations collected during infer.
     #[serde(skip)]
     pub instance_commit_obligations: Vec<InstanceCommitObligation>,
@@ -178,17 +179,17 @@ pub struct InferTable {
         Vec<InstanceCommitResolutionCandidateAttachment>,
 }
 
-/// Deferred unresolved associated comptime projection check.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct DeferredAssociatedComptimeProjection {
-    /// The member expression being inferred.
+/// Associated comptime projection obligation collected during infer.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssociatedComptimeProjectionObligation {
+    /// The member expression that created this obligation.
     pub expression_id: LocalNodeId<Expression>,
-    /// The projection receiver expression.
-    pub receiver_id: LocalNodeId<Expression>,
-    /// The resolved member symbol when available.
-    pub member_symbol: Option<GlobalSymbolId>,
-    /// The inferred member type id.
+    /// The projected member symbol.
+    pub member_symbol: GlobalSymbolId,
+    /// The projected member type id.
     pub member_type_id: LocalTypeId,
+    /// The projection substitution environment captured at infer time.
+    pub substitutions: HashMap<GlobalSymbolId, LocalTypeId>,
 }
 
 /// Infer-local identifier for one instance-commit obligation.
@@ -256,7 +257,7 @@ impl Default for InferTable {
             type_by_var_id: Vec::new(),
             cache_key_base: infer_table_cache_key_base_default(),
             cache_generation: 0,
-            deferred_associated_comptime_projections: Vec::new(),
+            associated_comptime_projection_obligations: Vec::new(),
             instance_commit_obligations: Vec::new(),
             instance_commit_obligation_by_node_id: IndexMap::new(),
             instance_commit_obligation_by_resolution_candidate: Vec::new(),
@@ -306,20 +307,20 @@ impl InferTable {
         self.cache_generation = self.cache_generation.wrapping_add(1);
     }
 
-    /// Record one deferred associated comptime projection check.
-    pub fn push_deferred_associated_comptime_projection(
+    /// Record one associated comptime projection obligation.
+    pub fn push_associated_comptime_projection_obligation(
         &mut self,
-        projection: DeferredAssociatedComptimeProjection,
+        obligation: AssociatedComptimeProjectionObligation,
     ) {
-        self.deferred_associated_comptime_projections
-            .push(projection);
+        self.associated_comptime_projection_obligations
+            .push(obligation);
     }
 
-    /// Take deferred associated comptime projection checks.
-    pub fn take_deferred_associated_comptime_projections(
+    /// Take associated comptime projection obligations.
+    pub fn take_associated_comptime_projection_obligations(
         &mut self,
-    ) -> Vec<DeferredAssociatedComptimeProjection> {
-        std::mem::take(&mut self.deferred_associated_comptime_projections)
+    ) -> Vec<AssociatedComptimeProjectionObligation> {
+        std::mem::take(&mut self.associated_comptime_projection_obligations)
     }
 
     /// Upsert one instance-commit obligation and return its infer-local id.

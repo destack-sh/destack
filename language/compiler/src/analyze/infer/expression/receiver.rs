@@ -191,6 +191,12 @@ impl Compiler {
         ) {
             return None;
         }
+
+        // enum members are always value-like, even when symbol-space tagging reports type
+        if symbol.ty() == SymbolType::Enum {
+            return Some(symbol);
+        }
+
         let space = self.infer_symbol_space_for_global(module, profile, symbol, symbols);
         if matches!(space, SymbolSpace::Value | SymbolSpace::TypeValue) {
             Some(symbol)
@@ -210,6 +216,13 @@ impl Compiler {
     ) -> Option<GlobalSymbolId> {
         // peel parenthesized receivers to their core symbol
         let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
+
+        // preserve direct receiver symbols through instantiation wrappers
+        if let Expression::Instantiation { left, .. } = tree.get(receiver_id) {
+            return self.resolve_direct_receiver_symbol_for_expression(
+                module, *left, profile, tree, symbols,
+            );
+        }
 
         // resolve symbol references first and then fallback to the parse target symbol
         self.reference_symbol_for_expression(module, receiver_id, profile, tree, symbols)

@@ -90,6 +90,7 @@ const (x, _) = getPoint();
 Arrays are dense and bounds checked by default.
 Readonly arrays use `readonly T[]`, and tuples use explicit `()` syntax.
 Fixed-size arrays use `T[N]` and are distinct from dynamic `T[]`.
+(Because TS supports generic `T[x]` for indexing, sometimes we require `x as comptime` to force fixed-size array construction regardless of index admissibility.)
 
 ### Patterns
 

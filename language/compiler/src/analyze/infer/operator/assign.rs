@@ -1,4 +1,6 @@
 use super::*;
+use crate::analyze::common::StaticMemberSymbolKind;
+use destack_dir::Resolution;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -57,8 +59,15 @@ impl Compiler {
             static_arguments,
         } = tree.get(left_id)
         {
-            let receiver_ty_id =
-                self.infer_expression(module, *receiver_id, tree, symbols, types, infer, ctx)?;
+            let receiver_ty_id = self.infer_member_assignment_receiver_type(
+                module,
+                *receiver_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?;
             if self.type_is_immutable_reference(receiver_ty_id, types) {
                 self.error(AnalyzeError::ImmutableReferenceAssignment {
                     node: receiver_id
@@ -126,6 +135,27 @@ impl Compiler {
 
         let left_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
+
+        // reject assignments to associated projections in value space
+        if self.assignment_target_is_associated_projection(
+            module,
+            ctx.profile,
+            left_id,
+            tree,
+            symbols,
+            types,
+        )? {
+            self.error(AnalyzeError::InvalidAssignmentTarget {
+                node: left_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Void,
+            };
+            return Ok(types.insert_type_from(ty, expression_id));
+        }
 
         // use the left type as the expected type for the right expression
         let mut right_ctx = ctx.fork().with_expected_type(Some(left_ty_id));
@@ -261,8 +291,15 @@ impl Compiler {
             static_arguments,
         } = tree.get(left_id)
         {
-            let receiver_ty_id =
-                self.infer_expression(module, *receiver_id, tree, symbols, types, infer, ctx)?;
+            let receiver_ty_id = self.infer_member_assignment_receiver_type(
+                module,
+                *receiver_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?;
             if self.type_is_immutable_reference(receiver_ty_id, types) {
                 self.error(AnalyzeError::ImmutableReferenceAssignment {
                     node: receiver_id
@@ -331,6 +368,27 @@ impl Compiler {
         // infer left and right types
         let left_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
+
+        // reject assignments to associated projections in value space
+        if self.assignment_target_is_associated_projection(
+            module,
+            ctx.profile,
+            left_id,
+            tree,
+            symbols,
+            types,
+        )? {
+            self.error(AnalyzeError::InvalidAssignmentTarget {
+                node: left_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Void,
+            };
+            return Ok(types.insert_type_from(ty, expression_id));
+        }
 
         let mut right_ctx = ctx.fork().with_expected_type(Some(left_ty_id));
         let right_ty_id = self.infer_expression(
@@ -425,6 +483,83 @@ impl Compiler {
             return Some(Mutability::Immutable);
         }
         symbols.get_symbol(symbol.local_id).binding_mutability
+    }
+
+    /// Infer a member assignment receiver in value or projection mode.
+    fn infer_member_assignment_receiver_type(
+        &self,
+        module: &Module,
+        receiver_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<LocalTypeId> {
+        if self.query_expression_is_projection_receiver_for_infer(
+            module,
+            ctx.profile,
+            receiver_id,
+            tree,
+            symbols,
+            types,
+        ) {
+            return self.try_evaluate_expression_to_type(
+                module,
+                ctx.profile,
+                receiver_id,
+                tree,
+                symbols,
+                types,
+                true,
+                true,
+            );
+        }
+
+        self.infer_expression(module, receiver_id, tree, symbols, types, infer, ctx)
+    }
+
+    /// Return true when an assignment target resolves to an associated projection.
+    fn assignment_target_is_associated_projection(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        target_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> AnalyzeResult<bool> {
+        let target_id = self.unwrap_parenthesized_expression(target_id, tree);
+        if !matches!(tree.get(target_id), Expression::Member { .. }) {
+            return Ok(false);
+        }
+
+        let node_id = target_id.into_global_any(module.id);
+        let Some(resolution_id) = types.get_resolution_for_node(node_id) else {
+            return Ok(false);
+        };
+        let resolution = types.get_resolution(resolution_id);
+        let target_symbol = match resolution {
+            Resolution::Static { candidate, .. } => candidate.target_symbol,
+            _ => return Ok(false),
+        };
+
+        let kind = self
+            .query_static_member_symbol_kind_for_symbol(
+                module,
+                profile,
+                target_symbol,
+                tree,
+                symbols,
+            )
+            .map_err(AnalyzeError::from)?;
+        Ok(matches!(
+            kind,
+            Some(
+                StaticMemberSymbolKind::AssociatedType
+                    | StaticMemberSymbolKind::AssociatedComptimeConst
+            )
+        ))
     }
 
     /// Check whether a type is an immutable reference or pointer.

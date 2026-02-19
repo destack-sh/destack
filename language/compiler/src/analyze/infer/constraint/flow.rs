@@ -882,6 +882,15 @@ impl Compiler {
                 let guard_id = self.unwrap_parenthesized_expression(guard_id, tree);
 
                 match tree.get(guard_id) {
+                    Expression::Comptime { body } => self.narrow_environment_for_guard(
+                        module,
+                        FlowGuard::Expression(*body),
+                        tree,
+                        symbols,
+                        types,
+                        environment,
+                        context,
+                    ),
                     Expression::Unary {
                         operator: UnaryOperator::Not,
                         right,
@@ -1069,6 +1078,24 @@ impl Compiler {
                         operator,
                         right,
                     } => match operator {
+                        TypeBinaryOperator::Extends | TypeBinaryOperator::Implements => {
+                            if let Some(environments) = self
+                                .narrow_environment_for_comptime_relation_guard(
+                                    module,
+                                    guard_id,
+                                    *left,
+                                    *right,
+                                    tree,
+                                    symbols,
+                                    types,
+                                    environment,
+                                    context,
+                                )?
+                            {
+                                return Ok(environments);
+                            }
+                            Ok((environment.clone(), environment.clone()))
+                        }
                         TypeBinaryOperator::Is => {
                             // narrow using an `x is T` guard
                             if let Some(environments) = self.narrow_environment_for_is_guard(
@@ -1802,6 +1829,146 @@ impl Compiler {
         }
 
         Ok(Some((true_environment, false_environment)))
+    }
+
+    /// Split the environment for one comptime type relation guard.
+    #[allow(clippy::too_many_arguments)]
+    fn narrow_environment_for_comptime_relation_guard(
+        &self,
+        module: &Module,
+        guard_id: LocalNodeId<Expression>,
+        left_id: LocalNodeId<Expression>,
+        right_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        environment: &FlowEnvironment,
+        context: &InferContext,
+    ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
+        // resolve the comptime relation fact from the guard syntax
+        let Some(relation) = self.comptime_extends_relation_fact_for_guard(
+            module, left_id, right_id, tree, symbols, types, context,
+        )?
+        else {
+            return Ok(None);
+        };
+        let relation_symbol = relation.relation_symbol;
+        let target_type_id = relation.target_type_id;
+
+        // collect candidate value bindings for relation narrowing
+        let mut binding_symbols = environment.bindings.keys().copied().collect::<Vec<_>>();
+        for candidate_local_id in symbols.active_symbol_ids() {
+            let candidate_symbol = candidate_local_id.into_global(module.id);
+            if binding_symbols.contains(&candidate_symbol) {
+                continue;
+            }
+            if types.get_value_type_id(candidate_symbol).is_some() {
+                binding_symbols.push(candidate_symbol);
+            }
+        }
+
+        // refine all candidate bindings that reference the relation parameter
+        let mut true_environment = environment.clone();
+        let mut false_environment = environment.clone();
+        let mut did_narrow = false;
+
+        for binding_symbol in binding_symbols {
+            let base_type_id = self.symbol_type_for_guard(
+                module,
+                guard_id,
+                binding_symbol,
+                tree,
+                symbols,
+                types,
+                environment,
+                context,
+            )?;
+            let mut visited = Vec::new();
+            if !self.type_references_symbol(base_type_id, relation_symbol, types, &mut visited) {
+                continue;
+            }
+            let relation_base_type_id = base_type_id;
+
+            let (true_type_id, false_type_id) = self.type_guard_types(
+                module,
+                context.profile,
+                symbols,
+                relation_base_type_id,
+                target_type_id,
+                types,
+                &context.options,
+            );
+            if let Some(type_id) = true_type_id {
+                true_environment.bindings.insert(binding_symbol, type_id);
+            }
+            if let Some(type_id) = false_type_id {
+                false_environment.bindings.insert(binding_symbol, type_id);
+            }
+            did_narrow = true;
+        }
+
+        if !did_narrow {
+            return Ok(None);
+        }
+
+        Ok(Some((true_environment, false_environment)))
+    }
+
+    /// Resolve one comptime extends relation fact from guard syntax.
+    fn comptime_extends_relation_fact_for_guard(
+        &self,
+        module: &Module,
+        left_id: LocalNodeId<Expression>,
+        right_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        context: &InferContext,
+    ) -> AnalyzeResult<Option<ComptimeExtendsRelationFact>> {
+        // unwrap comptime wrappers around the relation operand
+        let mut relation_expression_id = self.unwrap_parenthesized_expression(left_id, tree);
+        while let Expression::Comptime { body } = tree.get(relation_expression_id) {
+            relation_expression_id = self.unwrap_parenthesized_expression(*body, tree);
+        }
+
+        // resolve the static parameter symbol directly from the relation operand
+        let relation_symbol = self
+            .reference_symbol_for_expression(
+                module,
+                relation_expression_id,
+                context.profile,
+                tree,
+                symbols,
+            )
+            .or_else(|| tree.get(relation_expression_id).target_symbol());
+        let Some(relation_symbol) = relation_symbol else {
+            return Ok(None);
+        };
+        if !self.symbol_is_static_parameter(
+            module,
+            context.profile,
+            relation_symbol,
+            symbols,
+            types,
+        ) {
+            return Ok(None);
+        }
+
+        // resolve the right-hand target type
+        let target_type_id = self.guard_target_type(
+            module,
+            context.profile,
+            self.unwrap_parenthesized_expression(right_id, tree),
+            tree,
+            symbols,
+            types,
+        )?;
+        let target_type_id = self.unwrap_type_value(target_type_id, types);
+
+        Ok(Some(ComptimeExtendsRelationFact {
+            relation_symbol,
+            target_type_id,
+        }))
     }
 
     /// Split the environment based on a class identity guard.
@@ -2814,55 +2981,8 @@ impl Compiler {
                 types,
             )?
         }
-        // resolve declarations in the current module
-        else if symbol.module_id == module.id {
-            let symbol = symbols.get_symbol(symbol.into());
-            // use the primary declaration type when available
-            if let Some(primary_declaration) = symbol.primary_declaration
-                && let Some(type_id) = types.get_declared_type_id(primary_declaration)
-            {
-                self.unwrap_type_alias_reference(
-                    module,
-                    context.profile,
-                    type_id,
-                    tree,
-                    symbols,
-                    types,
-                )?
-            } else {
-                // walk parent declarations to recover contextual types
-                let mut declared_type = None;
-                if let Some(primary_declaration) = symbol.primary_declaration {
-                    let mut current_id = primary_declaration.local_id;
-                    while let Some(parent_id) = tree.get_parent(current_id.id) {
-                        if let Some(type_id) =
-                            types.get_declared_type_id(parent_id.into_global(module.id))
-                        {
-                            declared_type = Some(self.unwrap_type_alias_reference(
-                                module,
-                                context.profile,
-                                type_id,
-                                tree,
-                                symbols,
-                                types,
-                            )?);
-                            break;
-                        }
-                        current_id = parent_id;
-                    }
-                }
-
-                // fall back to unknown when no type is available
-                declared_type.unwrap_or_else(|| {
-                    types.insert_type_from(
-                        Type::TypeLiteral {
-                            value: TypeLiteral::Unknown,
-                        },
-                        guard_id,
-                    )
-                })
-            }
-        } else {
+        // resolve remote symbol types through the compiler
+        else if symbol.module_id != module.id {
             // resolve remote symbol types through the compiler
             self.resolve_remote_symbol_value_type(
                 module,
@@ -2872,6 +2992,54 @@ impl Compiler {
                 false,
                 types,
             )?
+        } else if let Some(declarator_id) =
+            self.direct_binding_declarator_for_symbol(module, symbol, tree, symbols)
+        {
+            let declarator_node_id = declarator_id.into_global_any(module.id);
+            if let Some(type_id) = types.get_declared_type_id(declarator_node_id) {
+                self.unwrap_type_alias_reference(
+                    module,
+                    context.profile,
+                    type_id,
+                    tree,
+                    symbols,
+                    types,
+                )?
+            } else {
+                types.insert_type_from(
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    },
+                    guard_id,
+                )
+            }
+        } else if let Some(primary_declaration) =
+            symbols.get_symbol(symbol.into()).primary_declaration
+        {
+            if let Some(type_id) = types.get_declared_type_id(primary_declaration) {
+                self.unwrap_type_alias_reference(
+                    module,
+                    context.profile,
+                    type_id,
+                    tree,
+                    symbols,
+                    types,
+                )?
+            } else {
+                types.insert_type_from(
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    },
+                    guard_id,
+                )
+            }
+        } else {
+            types.insert_type_from(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                },
+                guard_id,
+            )
         };
 
         Ok(self.normalize_type(
@@ -2882,6 +3050,145 @@ impl Compiler {
             types,
             NormalizationMode::Flow,
         ))
+    }
+
+    /// Return whether one type graph references a target symbol.
+    fn type_references_symbol(
+        &self,
+        type_id: LocalTypeId,
+        target_symbol: GlobalSymbolId,
+        types: &TypeTable,
+        visited: &mut Vec<LocalTypeId>,
+    ) -> bool {
+        // stop recursive loops
+        if visited.contains(&type_id) {
+            return false;
+        }
+        visited.push(type_id);
+
+        let references = match types.get_type(type_id) {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => {
+                if *symbol == target_symbol {
+                    true
+                } else {
+                    static_arguments.as_deref().is_some_and(|arguments| {
+                        arguments.iter().any(|argument| {
+                            let maybe_type_id = match argument {
+                                destack_dir::StaticArgument::Evaluated {
+                                    value: destack_dir::StaticExpression::Type { ty },
+                                    ..
+                                } => Some(*ty),
+                                _ => None,
+                            };
+                            maybe_type_id.is_some_and(|type_id| {
+                                self.type_references_symbol(type_id, target_symbol, types, visited)
+                            })
+                        })
+                    })
+                }
+            }
+            Type::Value { value }
+            | Type::Unary { right: value, .. }
+            | Type::ValueOf { right: value, .. }
+            | Type::ReferenceOf { right: value, .. }
+            | Type::PointerOf { right: value, .. } => {
+                self.type_references_symbol(*value, target_symbol, types, visited)
+            }
+            Type::Binary { left, right, .. } | Type::Index { left, index: right } => {
+                self.type_references_symbol(*left, target_symbol, types, visited)
+                    || self.type_references_symbol(*right, target_symbol, types, visited)
+            }
+            Type::Conditional {
+                left,
+                right,
+                then_type,
+                else_type,
+                ..
+            } => {
+                self.type_references_symbol(*left, target_symbol, types, visited)
+                    || self.type_references_symbol(*right, target_symbol, types, visited)
+                    || self.type_references_symbol(*then_type, target_symbol, types, visited)
+                    || self.type_references_symbol(*else_type, target_symbol, types, visited)
+            }
+            Type::Mapped {
+                parameter, value, ..
+            } => {
+                self.type_references_symbol(parameter.constraint, target_symbol, types, visited)
+                    || parameter.key_remap.is_some_and(|type_id| {
+                        self.type_references_symbol(type_id, target_symbol, types, visited)
+                    })
+                    || self.type_references_symbol(*value, target_symbol, types, visited)
+            }
+            Type::ArraySized { element, count, .. } => {
+                self.type_references_symbol(*element, target_symbol, types, visited)
+                    || self.type_references_symbol(*count, target_symbol, types, visited)
+            }
+            Type::Array { element, .. } => element.is_some_and(|type_id| {
+                self.type_references_symbol(type_id, target_symbol, types, visited)
+            }),
+            Type::Tuple { elements, .. } => elements.iter().any(|element| {
+                self.type_references_symbol(element.ty, target_symbol, types, visited)
+            }),
+            Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
+                fields.iter().any(|field| {
+                    self.type_references_symbol(field.ty, target_symbol, types, visited)
+                }) || call_signatures.iter().any(|signature_type_id| {
+                    self.type_references_symbol(*signature_type_id, target_symbol, types, visited)
+                }) || construct_signatures.iter().any(|signature_type_id| {
+                    self.type_references_symbol(*signature_type_id, target_symbol, types, visited)
+                }) || index_signatures.iter().any(|signature| {
+                    self.type_references_symbol(signature.key_type, target_symbol, types, visited)
+                        || self.type_references_symbol(
+                            signature.value_type,
+                            target_symbol,
+                            types,
+                            visited,
+                        )
+                })
+            }
+            Type::TemplateLiteral { spans, .. } => spans.iter().any(|type_id| {
+                self.type_references_symbol(*type_id, target_symbol, types, visited)
+            }),
+            Type::Infer { constraint, .. } => constraint.is_some_and(|type_id| {
+                self.type_references_symbol(type_id, target_symbol, types, visited)
+            }),
+            Type::Predicate { target, .. } => target.is_some_and(|type_id| {
+                self.type_references_symbol(type_id, target_symbol, types, visited)
+            }),
+            Type::Union { elements } | Type::Intersection { elements } => {
+                elements.iter().any(|type_id| {
+                    self.type_references_symbol(*type_id, target_symbol, types, visited)
+                })
+            }
+            Type::Import {
+                static_arguments, ..
+            } => static_arguments.as_deref().is_some_and(|arguments| {
+                arguments.iter().any(|argument| {
+                    let maybe_type_id = match argument {
+                        destack_dir::StaticArgument::Evaluated {
+                            value: destack_dir::StaticExpression::Type { ty },
+                            ..
+                        } => Some(*ty),
+                        _ => None,
+                    };
+                    maybe_type_id.is_some_and(|type_id| {
+                        self.type_references_symbol(type_id, target_symbol, types, visited)
+                    })
+                })
+            }),
+            _ => false,
+        };
+
+        let _ = visited.pop();
+        references
     }
 
     /// Extract a nullish literal kind from an expression.
@@ -2900,6 +3207,15 @@ impl Compiler {
             _ => None,
         }
     }
+}
+
+/// Describe one `comptime T extends U` relation fact.
+#[derive(Debug, Clone, Copy)]
+struct ComptimeExtendsRelationFact {
+    /// The relation parameter symbol on the left side.
+    relation_symbol: GlobalSymbolId,
+    /// The target type on the right side.
+    target_type_id: LocalTypeId,
 }
 
 /// Describe the nullish guard literal kind.

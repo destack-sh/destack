@@ -473,7 +473,7 @@ impl Compiler {
                 )?;
                 self.validate_associated_type_contract_presence(
                     module, profile, heritage, members, false, tree, symbols,
-                );
+                )?;
 
                 // nominal reference for constructors
                 let symbol = descriptor.symbol.into_global(module.id);
@@ -598,7 +598,7 @@ impl Compiler {
                     descriptor.abstraction == destack_dir::DeclarationAbstraction::Abstract,
                     tree,
                     symbols,
-                );
+                )?;
 
                 // prepare nominal reference for constructors
                 let symbol = descriptor.symbol.into_global(module.id);
@@ -718,7 +718,7 @@ impl Compiler {
                 )?;
                 self.validate_associated_type_contract_presence(
                     module, profile, heritage, members, false, tree, symbols,
-                );
+                )?;
 
                 // prepare the nominal reference for enum values
                 let symbol = descriptor.symbol.into_global(module.id);
@@ -2212,11 +2212,18 @@ impl Compiler {
         if let Declaration::Struct { members, .. } | Declaration::Class { members, .. } =
             tree.get(declaration_id)
         {
+            let owner_static_parameters = match tree.get(declaration_id) {
+                Declaration::Struct { generics, .. } | Declaration::Class { generics, .. } => {
+                    generics.static_parameters.as_deref()
+                }
+                _ => None,
+            };
             let signature_id = self.struct_constructor_signature(
                 module,
                 profile,
                 nominal_reference_id,
                 declaration_id,
+                owner_static_parameters,
                 members,
                 tree,
                 symbols,
@@ -2244,10 +2251,22 @@ impl Compiler {
         }
 
         // fall back to a default constructor
+        let owner_static_parameters = match tree.get(declaration_id) {
+            Declaration::Struct { generics, .. } | Declaration::Class { generics, .. } => {
+                generics.static_parameters.as_deref()
+            }
+            _ => None,
+        };
+        let static_parameters = self.static_parameter_placeholders_for_declaration(
+            module,
+            owner_static_parameters,
+            tree,
+            types,
+        );
         let signature = Type::Function {
             asynchrony: Asynchrony::Sync,
             cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
+            static_parameters,
             this_parameter: None,
             dynamic_parameters: Vec::new(),
             return_type: Some(nominal_reference_id),
@@ -2265,6 +2284,7 @@ impl Compiler {
         profile: ProfileId,
         nominal_reference_id: LocalTypeId,
         declaration_id: LocalNodeId<Declaration>,
+        owner_static_parameters: Option<&[LocalNodeId<Parameter>]>,
         members: &[LocalNodeId<Member>],
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -2308,10 +2328,16 @@ impl Compiler {
         }
 
         // build the constructor signature
+        let static_parameters = self.static_parameter_placeholders_for_declaration(
+            module,
+            owner_static_parameters,
+            tree,
+            types,
+        );
         let signature = Type::Function {
             asynchrony: Asynchrony::Sync,
             cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
+            static_parameters,
             this_parameter: None,
             dynamic_parameters,
             return_type: Some(nominal_reference_id),
@@ -2728,10 +2754,10 @@ impl Compiler {
         allows_deferred_associated_types: bool,
         tree: &NodeTree,
         symbols: &SymbolTable,
-    ) {
+    ) -> AnalyzeResult<()> {
         // skip non-user modules
         if !matches!(module.source, ModuleSource::User) {
-            return;
+            return Ok(());
         }
 
         // collect declaration associated type names
@@ -2751,7 +2777,7 @@ impl Compiler {
             contract_expressions.extend(implements_types.iter().copied());
         }
         if contract_expressions.is_empty() {
-            return;
+            return Ok(());
         }
 
         // report missing requirements once per associated name
@@ -2766,7 +2792,7 @@ impl Compiler {
                 target_symbol,
                 tree,
                 symbols,
-            );
+            )?;
 
             for requirement in requirements {
                 if !requirement.requires_implementation
@@ -2786,6 +2812,8 @@ impl Compiler {
                 });
             }
         }
+
+        Ok(())
     }
 
     /// Declare a type member alias and its generics.

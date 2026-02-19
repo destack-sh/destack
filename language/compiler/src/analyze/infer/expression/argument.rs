@@ -2,7 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::analyze::common::{
     AnalyzeDependencyStage, CanonicalSymbolMode, ContextualTypingMode, MaterializationMode,
-    REWRITER_TAG_STATIC_ARGUMENT, TypeRewriteCache, TypeWalkContext, rewrite_type_with_cache,
+    REWRITER_TAG_STATIC_ARGUMENT, StaticMemberSymbolKind, TypeRewriteCache, TypeWalkContext,
+    rewrite_type_with_cache,
 };
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
@@ -2306,6 +2307,36 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
+        self.resolve_type_reference_static_arguments_for_symbol_with_bound_substitutions(
+            module,
+            profile,
+            node_id,
+            symbol,
+            static_arguments,
+            validate_static_argument_bounds,
+            options,
+            None,
+            tree,
+            symbols,
+            types,
+        )
+    }
+
+    /// Resolve static arguments for a canonicalized type reference in one substitution environment.
+    pub(crate) fn resolve_type_reference_static_arguments_for_symbol_with_bound_substitutions(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        static_arguments: Option<&[StaticArgument]>,
+        validate_static_argument_bounds: bool,
+        options: &AnalyzeOptions,
+        bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
         // ensure remote declarations are available before resolving arguments
         if symbol.module_id != module.id {
             self.require_analyze_module_declare(symbol.module_id, profile)
@@ -2317,13 +2348,17 @@ impl Compiler {
 
         // check for cached resolved static arguments
         let options_cache_key = options.cache_key();
-        let cache_key = self.static_argument_resolution_cache_key(
-            symbol,
-            static_arguments,
-            validate_static_argument_bounds,
-            treat_type_arguments_as_types,
-            options_cache_key,
-        );
+        let cache_key = if bound_substitutions.is_none() {
+            self.static_argument_resolution_cache_key(
+                symbol,
+                static_arguments,
+                validate_static_argument_bounds,
+                treat_type_arguments_as_types,
+                options_cache_key,
+            )
+        } else {
+            None
+        };
         if let Some(cache_key) = cache_key
             && let Some(cached) = types.get_static_argument_resolution_cache(cache_key)
         {
@@ -2393,6 +2428,7 @@ impl Compiler {
             static_arguments,
             validate_static_argument_bounds,
             options,
+            bound_substitutions,
             treat_type_arguments_as_types,
             tree,
             symbols,
@@ -2426,6 +2462,7 @@ impl Compiler {
         static_arguments: Option<&[StaticArgument]>,
         validate_static_argument_bounds: bool,
         options: &AnalyzeOptions,
+        bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         treat_type_arguments_as_types: bool,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -2659,10 +2696,13 @@ impl Compiler {
                 };
 
                 // collect resolved substitutions for prior static parameters
-                let bound_substitutions = self.static_argument_substitutions_for_bounds(
+                let local_bound_substitutions = self.static_argument_substitutions_for_bounds(
                     &static_parameters[..resolved_arguments.len()],
                     &resolved_arguments,
                 );
+                let mut bound_substitutions =
+                    bound_substitutions.cloned().unwrap_or_else(HashMap::new);
+                bound_substitutions.extend(local_bound_substitutions);
 
                 // validate type and value arguments against declared bounds
                 let validated_type = if validate_static_argument_bounds {
@@ -3683,7 +3723,7 @@ impl Compiler {
                 symbol,
                 static_arguments,
             } => {
-                if let Some(mapped) = substitutions.get(&symbol).copied() {
+                if let Some(mapped) = self.substitution_type_id_for_symbol(symbol, substitutions) {
                     mapped
                 } else if let Some(static_arguments) = static_arguments {
                     let mut changed = false;
@@ -4412,6 +4452,169 @@ impl Compiler {
         mapped
     }
 
+    /// Look up one substitution for a symbol id, tolerating placeholder symbol kinds.
+    fn substitution_type_id_for_symbol(
+        &self,
+        symbol: GlobalSymbolId,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+    ) -> Option<LocalTypeId> {
+        if let Some(type_id) = substitutions.get(&symbol) {
+            return Some(*type_id);
+        }
+
+        substitutions.iter().find_map(|(candidate, type_id)| {
+            if candidate.module_id == symbol.module_id
+                && candidate.local_id.id == symbol.local_id.id
+            {
+                Some(*type_id)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Resolve one projection receiver reference from the projection source expression.
+    fn projection_receiver_reference_from_type_source(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        projection_source_id: LocalNodeIdAny,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<(GlobalSymbolId, Vec<StaticArgument>)>> {
+        let Ok(mut projection_expression_id) = projection_source_id.try_into_typed::<Expression>()
+        else {
+            return Ok(None);
+        };
+        if !tree.has_node_id(projection_expression_id.id) {
+            return Ok(None);
+        }
+
+        if let Expression::Instantiation { left, .. } = tree.get(projection_expression_id) {
+            projection_expression_id = *left;
+        }
+        let Expression::Member { left, .. } = tree.get(projection_expression_id) else {
+            return Ok(None);
+        };
+
+        let receiver_expression_id = self.unwrap_parenthesized_expression(*left, tree);
+        match tree.get(receiver_expression_id) {
+            Expression::Instantiation {
+                left,
+                static_arguments,
+            } => {
+                let receiver_expression_id = self.unwrap_parenthesized_expression(*left, tree);
+                let receiver_symbol = self
+                    .reference_symbol_for_expression(
+                        module,
+                        receiver_expression_id,
+                        profile,
+                        tree,
+                        symbols,
+                    )
+                    .or_else(|| tree.get(receiver_expression_id).target_symbol());
+                let Some(receiver_symbol) = receiver_symbol else {
+                    return Ok(None);
+                };
+
+                let receiver_arguments = self
+                    .evaluate_static_arguments(
+                        module,
+                        profile,
+                        Some(static_arguments.as_slice()),
+                        tree,
+                        symbols,
+                        types,
+                    )?
+                    .unwrap_or_default();
+                Ok(Some((receiver_symbol, receiver_arguments)))
+            }
+            _ => {
+                let receiver_symbol = self
+                    .reference_symbol_for_expression(
+                        module,
+                        receiver_expression_id,
+                        profile,
+                        tree,
+                        symbols,
+                    )
+                    .or_else(|| tree.get(receiver_expression_id).target_symbol());
+                Ok(receiver_symbol.map(|receiver_symbol| (receiver_symbol, Vec::new())))
+            }
+        }
+    }
+
+    /// Resolve one projection receiver reference from static-parameter substitutions and owner constraints.
+    fn projection_receiver_reference_from_owner_substitutions(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        owner_symbol: GlobalSymbolId,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<(GlobalSymbolId, Vec<StaticArgument>)> {
+        let mut candidates = Vec::<(GlobalSymbolId, Vec<StaticArgument>)>::new();
+
+        for (parameter_symbol, substitution_type_id) in substitutions {
+            if !self.symbol_is_static_parameter(module, profile, *parameter_symbol, symbols, types)
+            {
+                continue;
+            }
+
+            let Some(constraint_type_id) = self.static_parameter_constraint_type(
+                module,
+                profile,
+                *parameter_symbol,
+                source_id,
+                symbols,
+                types,
+            ) else {
+                continue;
+            };
+            let constraint_symbol = self
+                .unwrap_type_symbol(types, constraint_type_id)
+                .map(|(symbol, _, _)| symbol)
+                .or_else(|| match types.get_type(constraint_type_id) {
+                    Type::Intersection { elements } | Type::Union { elements } => {
+                        elements.iter().find_map(|element_id| {
+                            self.unwrap_type_symbol(types, *element_id)
+                                .map(|(symbol, _, _)| symbol)
+                        })
+                    }
+                    _ => None,
+                });
+            let Some(constraint_symbol) = constraint_symbol else {
+                continue;
+            };
+            let constraint_symbol = self
+                .declaration_symbol_id(module, symbols, profile, constraint_symbol)
+                .unwrap_or(constraint_symbol);
+            if constraint_symbol != owner_symbol {
+                continue;
+            }
+
+            let substitution_type_id = types.unwrap_value_type_id(*substitution_type_id);
+            let Some((receiver_symbol, receiver_arguments, _)) =
+                self.unwrap_type_symbol(types, substitution_type_id)
+            else {
+                continue;
+            };
+            let candidate = (receiver_symbol, receiver_arguments.unwrap_or_default());
+            if !candidates.contains(&candidate) {
+                candidates.push(candidate);
+            }
+        }
+
+        if candidates.len() == 1 {
+            return candidates.pop();
+        }
+
+        None
+    }
+
     /// Materialize static arguments inside type references for substitution.
     pub(crate) fn materialize_static_arguments_in_type(
         &self,
@@ -4456,7 +4659,38 @@ impl Compiler {
         materialize_cache: &mut TypeRewriteCache,
         substitute_cache: &mut HashMap<LocalTypeId, LocalTypeId>,
     ) -> LocalTypeId {
-        // materialize static arguments before substitution
+        self.instantiate_type_with_substitutions(
+            module,
+            profile,
+            source_id,
+            owner_symbol,
+            ty_id,
+            substitutions,
+            tree,
+            symbols,
+            types,
+            materialize_cache,
+            substitute_cache,
+        )
+    }
+
+    /// Instantiate one type with a substitution environment, then normalize projections.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn instantiate_type_with_substitutions(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        owner_symbol: Option<GlobalSymbolId>,
+        ty_id: LocalTypeId,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        materialize_cache: &mut TypeRewriteCache,
+        substitute_cache: &mut HashMap<LocalTypeId, LocalTypeId>,
+    ) -> LocalTypeId {
+        // materialize source-level static arguments before substitution
         let materialized = self.materialize_static_arguments_in_type(
             module,
             profile,
@@ -4467,26 +4701,241 @@ impl Compiler {
             materialize_cache,
         );
 
-        // substitute resolved static arguments
-        let substituted =
-            self.substitute_static_parameters(materialized, substitutions, types, substitute_cache);
-
-        // rewrite owner-scoped associated aliases after substitution
-        let Some(owner_symbol) = owner_symbol else {
-            return substituted;
+        // apply static substitutions
+        let substituted = if substitutions.is_empty() {
+            materialized
+        } else {
+            self.substitute_static_parameters(materialized, substitutions, types, substitute_cache)
         };
 
-        self.rewrite_associated_aliases_for_owner(
+        // normalize substituted static arguments
+        let mut normalized = self.materialize_static_arguments_in_type(
             module,
             profile,
-            source_id,
-            owner_symbol,
-            substitutions,
             substituted,
             tree,
             symbols,
             types,
+            materialize_cache,
+        );
+
+        // resolve associated projections after substitution
+        if let Some(projected) = self.instantiate_substituted_projection_type_from_source(
+            module,
+            profile,
+            normalized,
+            substitutions,
+            tree,
+            symbols,
+            types,
+        ) {
+            normalized = projected;
+        }
+
+        // rewrite owner-scoped associated aliases
+        if let Some(owner_symbol) = owner_symbol {
+            normalized = self.rewrite_associated_aliases_for_owner(
+                module,
+                profile,
+                source_id,
+                owner_symbol,
+                substitutions,
+                normalized,
+                tree,
+                symbols,
+                types,
+            );
+        }
+
+        // substitute again after owner alias rewrites: alias materialization can expose static parameters
+        if !substitutions.is_empty() {
+            normalized = self.substitute_static_parameters(
+                normalized,
+                substitutions,
+                types,
+                substitute_cache,
+            );
+        }
+
+        // rematerialize projections exposed by the second substitution pass
+        if let Some(projected) = self.instantiate_substituted_projection_type_from_source(
+            module,
+            profile,
+            normalized,
+            substitutions,
+            tree,
+            symbols,
+            types,
+        ) {
+            normalized = projected;
+        }
+
+        self.materialize_static_arguments_in_type(
+            module,
+            profile,
+            normalized,
+            tree,
+            symbols,
+            types,
+            materialize_cache,
         )
+    }
+
+    /// Materialize one substituted associated projection from its source member expression.
+    pub(crate) fn instantiate_substituted_projection_type_from_source(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        ty_id: LocalTypeId,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        // only projection-like references can be concretized in this pass
+        let (projected_symbol, projected_arguments, projection_source_id) =
+            self.unwrap_type_symbol(types, ty_id)?;
+        if self
+            .query_static_member_symbol_kind_for_symbol(
+                module,
+                profile,
+                projected_symbol,
+                tree,
+                symbols,
+            )
+            .ok()?
+            != Some(StaticMemberSymbolKind::AssociatedType)
+        {
+            return None;
+        }
+        let projected_symbol = self
+            .declaration_symbol_id(module, symbols, profile, projected_symbol)
+            .unwrap_or(projected_symbol);
+        let owner_symbol =
+            self.owner_symbol_for_member_symbol(module, profile, projected_symbol, symbols);
+        let owner_symbol = owner_symbol.map(|owner_symbol| {
+            self.declaration_symbol_id(module, symbols, profile, owner_symbol)
+                .unwrap_or(owner_symbol)
+        });
+        let projected_member_key = self
+            .symbol_name_for_global(module, profile, projected_symbol)
+            .map(StaticKey::Name);
+        let Some(projected_member_key) = projected_member_key else {
+            return None;
+        };
+
+        // use projected reference arguments directly
+        let source_id = projection_source_id;
+        let explicit_member_arguments = projected_arguments.clone();
+        let projected_member_type = Type::Reference {
+            symbol: projected_symbol,
+            static_arguments: explicit_member_arguments.clone(),
+        };
+
+        // first materialize the projected member directly if it already resolves to a concrete alias
+        if let Ok(direct_materialized_type) = self.materialize_associated_member_projection(
+            module,
+            profile,
+            source_id,
+            projected_symbol,
+            None,
+            &[],
+            explicit_member_arguments.as_deref(),
+            projected_member_type.clone(),
+            tree,
+            symbols,
+            types,
+        ) {
+            if direct_materialized_type != projected_member_type {
+                return Some(types.insert_type_from_any(direct_materialized_type, source_id));
+            }
+        }
+
+        // resolve one projection receiver from source syntax and substitutions
+        let receiver_from_source = self
+            .projection_receiver_reference_from_type_source(
+                module,
+                profile,
+                projection_source_id,
+                tree,
+                symbols,
+                types,
+            )
+            .ok()
+            .flatten();
+        let receiver_from_owner = owner_symbol.and_then(|owner_symbol| {
+            self.projection_receiver_reference_from_owner_substitutions(
+                module,
+                profile,
+                source_id,
+                owner_symbol,
+                substitutions,
+                symbols,
+                types,
+            )
+        });
+        let Some((projection_receiver_symbol, projection_receiver_arguments)) =
+            receiver_from_source.or(receiver_from_owner)
+        else {
+            return None;
+        };
+        let receiver_substitution =
+            self.substitution_type_id_for_symbol(projection_receiver_symbol, substitutions);
+        let (mut receiver_symbol, receiver_arguments) =
+            if let Some(receiver_substitution) = receiver_substitution {
+                let receiver_substitution = types.unwrap_value_type_id(receiver_substitution);
+                let Some((receiver_symbol, receiver_arguments, _)) =
+                    self.unwrap_type_symbol(types, receiver_substitution)
+                else {
+                    return None;
+                };
+                (receiver_symbol, receiver_arguments.unwrap_or_default())
+            } else {
+                (projection_receiver_symbol, projection_receiver_arguments)
+            };
+
+        receiver_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            receiver_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        receiver_symbol = self
+            .declaration_symbol_id(module, symbols, profile, receiver_symbol)
+            .unwrap_or(receiver_symbol);
+        let target_symbol = self
+            .resolve_associated_member_symbol_for_receiver(
+                module,
+                profile,
+                receiver_symbol,
+                projected_member_key,
+                StaticMemberSymbolKind::AssociatedType,
+                tree,
+                symbols,
+            )
+            .ok()??;
+        let member_type = Type::Reference {
+            symbol: target_symbol,
+            static_arguments: explicit_member_arguments.clone(),
+        };
+        let projected_type = self
+            .materialize_associated_member_projection(
+                module,
+                profile,
+                source_id,
+                target_symbol,
+                Some(receiver_symbol),
+                &receiver_arguments,
+                explicit_member_arguments.as_deref(),
+                member_type,
+                tree,
+                symbols,
+                types,
+            )
+            .ok()?;
+
+        Some(types.insert_type_from_any(projected_type, source_id))
     }
 
     pub(crate) fn materialize_static_arguments_for_reference(

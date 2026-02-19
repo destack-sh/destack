@@ -243,9 +243,10 @@ Supporting fixed sized arrays with this clean syntax is very nice, but unfortuna
 So, `T[N]` has two meanings in Destack: indexed access and fixed-size arrays.
 This can get annoying, but, fortunately, it is _usually_ unambiguous:
 - In `.ts` and `.d.ts`, `T[N]` always uses TypeScript indexed-access semantics.
-- If `N` is type-space, `T[N]` is indexed access.
-- If `N` is value-space and resolves to a static integer expression, `T[N]` is a fixed-size array.
-- If `N` is ambiguous (in `.ds`), we require `as comptime` to force fixed-size array interpretation.
+- In `.ds`, `T[N as comptime]` always means fixed-size array construction.
+- In `.ds`, if `N` is type-space, `T[N]` is indexed access.
+- In `.ds`, otherwise we check indexed-access admissibility for `T[N]` using normal type-index rules.
+- If indexed access is admissible, `T[N]` is indexed access, else `N` resolves to a static integer value, `T[N]` is fixed-size array.
 
 Destack's rules for arrays (and tuples) center around correctness and performance.
 As with most other design decisions, if you're writing modern TypeScript, this will work fine.

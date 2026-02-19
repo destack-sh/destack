@@ -43,6 +43,24 @@ impl Compiler {
 
         // validate by member kind
         match member {
+            // associated comptime constant validation
+            Member::ComptimeConst {
+                modifiers,
+                ty: _,
+                value: _,
+                ..
+            } => {
+                let modifiers = modifiers.as_ref();
+                let has_static_anchor = modifiers
+                    .is_some_and(|modifiers| modifiers.anchor == Some(BindingAnchor::Static));
+
+                // associated comptime constants are owner scoped already: reject redundant static
+                if has_static_anchor {
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                    self.error(AnalyzeError::InvalidMemberModifier { node });
+                }
+            }
+
             // method validation
             Member::Method {
                 modifiers,

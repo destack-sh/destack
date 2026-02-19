@@ -111,7 +111,7 @@ class BadConfig {
 }
 ```
 
-- contains: static comptime const
+- contains: invalid member modifier
 
 ### class associated comptime constants can coexist with runtime static constants
 

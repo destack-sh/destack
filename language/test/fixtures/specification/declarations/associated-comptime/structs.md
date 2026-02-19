@@ -59,8 +59,12 @@ lane satisfies uint8[16];
 > Analyze static evaluation should reject this declaration.
 
 ```ds
+function runtimeColumns(): number {
+    8
+}
+
 struct BadLayout {
-    comptime const Columns: number = random();
+    comptime const Columns: number = runtimeColumns();
 }
 ```
 
