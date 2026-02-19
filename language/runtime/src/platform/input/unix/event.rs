@@ -19,7 +19,7 @@ use crate::platform::core as core_platform;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputDeviceKind, InputEvent, InputEventAction, InputMonitorEvent, InputMonitorEventKind,
-    InputReadMode,
+    InputReadMode, validation as input_validation,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 #[cfg(target_os = "linux")]
@@ -57,6 +57,9 @@ struct UnixInputMonitorBinding {
     known_devices: Vec<String>,
     /// Known device kinds keyed by stable device id.
     known_device_kinds: HashMap<String, InputDeviceKind>,
+    /// Stable ids keyed by Linux monitor node path.
+    #[cfg(target_os = "linux")]
+    known_linux_paths: HashMap<String, String>,
     /// Pending connect or disconnect events.
     pending_events: VecDeque<MonitorDeltaEvent>,
     /// Next per-monitor event sequence number.
@@ -133,6 +136,9 @@ fn validate_monitor_handle(
 struct MonitorDeviceSnapshot {
     /// Stable runtime device identifier.
     device_id: String,
+    /// Linux node path for this monitor-visible endpoint.
+    #[cfg(target_os = "linux")]
+    device_path: String,
     /// Classified runtime device kind.
     device_kind: InputDeviceKind,
 }
@@ -185,11 +191,13 @@ fn list_monitor_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<Monit
                 continue;
             }
 
-            let id = format!("{INPUT_MONITOR_LINUX_PATH}/{name}");
-            if Path::new(&id).exists() {
+            let path = format!("{INPUT_MONITOR_LINUX_PATH}/{name}");
+            if Path::new(&path).exists() {
+                let device_id = input_linux::linux_runtime_device_id_for_path(&path);
                 devices.push(MonitorDeviceSnapshot {
-                    device_kind: input_linux::linux_device_kind_for_path(&id),
-                    device_id: id,
+                    device_id,
+                    device_path: path.clone(),
+                    device_kind: input_linux::linux_device_kind_for_path(&path),
                 });
             }
         }
@@ -229,9 +237,16 @@ fn enqueue_monitor_delta(
 
     // collect newly discovered devices
     let mut connect_events = Vec::new();
-    for device_id in current_devices {
-        if !previous.contains(device_id.device_id.as_str()) {
-            connect_events.push(device_id.clone());
+    for device in current_devices {
+        #[cfg(target_os = "linux")]
+        {
+            binding
+                .known_linux_paths
+                .insert(device.device_path.clone(), device.device_id.clone());
+        }
+
+        if !previous.contains(device.device_id.as_str()) {
+            connect_events.push(device.clone());
         }
     }
 
@@ -255,6 +270,13 @@ fn enqueue_monitor_delta(
 
     // enqueue disconnect transitions
     for device_id in disconnect_events {
+        #[cfg(target_os = "linux")]
+        {
+            binding
+                .known_linux_paths
+                .retain(|_, known_id| known_id != &device_id);
+        }
+
         enqueue_monitor_action(binding, device_id, InputEventAction::Disconnect, None);
     }
 }
@@ -406,20 +428,32 @@ fn drain_linux_monitor_watch(binding: &mut UnixInputMonitorBinding) -> RuntimeRe
                 };
                 let name = unsafe { CStr::from_ptr(name_ptr) }.to_string_lossy();
                 if name.starts_with(INPUT_MONITOR_EVENT_PREFIX) {
-                    let device_id = format!("{INPUT_MONITOR_LINUX_PATH}/{name}");
+                    let device_path = format!("{INPUT_MONITOR_LINUX_PATH}/{name}");
                     let mask = event.mask;
 
                     if (mask & (libc::IN_CREATE | libc::IN_MOVED_TO)) != 0 {
-                        let device_kind = input_linux::linux_device_kind_for_path(&device_id);
+                        let device_kind = input_linux::linux_device_kind_for_path(&device_path);
+                        let device_id = input_linux::linux_runtime_device_id_for_path(&device_path);
+                        binding
+                            .known_linux_paths
+                            .insert(device_path.clone(), device_id.clone());
+
                         enqueue_monitor_action(
                             binding,
-                            device_id.clone(),
+                            device_id,
                             InputEventAction::Connect,
                             Some(device_kind),
                         );
                     }
 
                     if (mask & (libc::IN_DELETE | libc::IN_MOVED_FROM)) != 0 {
+                        let fallback_id =
+                            input_linux::linux_runtime_device_id_for_path(&device_path);
+                        let device_id = binding
+                            .known_linux_paths
+                            .remove(&device_path)
+                            .unwrap_or(fallback_id);
+
                         enqueue_monitor_action(
                             binding,
                             device_id,
@@ -770,27 +804,52 @@ pub(crate) unsafe fn destack_input_monitor_open(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
+    // initialize one watcher backend before taking the first topology snapshot
+    #[cfg(target_os = "linux")]
+    let watch_descriptor = open_linux_monitor_watch()?;
+
     // create one monitor payload from current device snapshot
     let known_devices = list_monitor_devices(context)?;
     let mut known_device_ids = Vec::with_capacity(known_devices.len());
     let mut known_device_kinds = HashMap::with_capacity(known_devices.len());
+    #[cfg(target_os = "linux")]
+    let mut known_linux_paths = HashMap::with_capacity(known_devices.len());
     for device in known_devices {
+        #[cfg(target_os = "linux")]
+        {
+            known_linux_paths.insert(device.device_path.clone(), device.device_id.clone());
+        }
+
         known_device_ids.push(device.device_id.clone());
         known_device_kinds.insert(device.device_id, device.device_kind);
     }
     #[cfg(target_os = "linux")]
-    let watch_descriptor = open_linux_monitor_watch()?;
+    let mut binding = UnixInputMonitorBinding {
+        known_devices: known_device_ids,
+        known_device_kinds,
+        known_linux_paths,
+        pending_events: VecDeque::new(),
+        next_sequence: 1,
+        watch_descriptor,
+    };
+
+    #[cfg(not(target_os = "linux"))]
+    let binding = UnixInputMonitorBinding {
+        known_devices: known_device_ids,
+        known_device_kinds,
+        pending_events: VecDeque::new(),
+        next_sequence: 1,
+    };
+
+    // drain watcher-delivered events queued during snapshot creation
+    #[cfg(target_os = "linux")]
+    if watch_descriptor.is_some() {
+        drain_linux_monitor_watch(&mut binding)?;
+    }
 
     let entry = ResourceEntry::new(ResourceKind::Input)
         .with_label(INPUT_MONITOR_RESOURCE_LABEL)
-        .with_payload(UnixInputMonitorBinding {
-            known_devices: known_device_ids,
-            known_device_kinds,
-            pending_events: VecDeque::new(),
-            next_sequence: 1,
-            #[cfg(target_os = "linux")]
-            watch_descriptor,
-        });
+        .with_payload(binding);
     #[cfg(target_os = "linux")]
     let entry = if let Some(descriptor) = watch_descriptor {
         entry.with_finalizer(MonitorWatchFinalizer { fd: descriptor })
@@ -958,18 +1017,12 @@ pub(crate) unsafe fn destack_input_read_batch(
     }
 
     // validate max-events contract
-    if maxevents == 0 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "maxevents",
-            "maxevents must be greater than zero",
-        ))
-        .boxed());
-    }
+    let maxevents = input_validation::validate_read_batch_maxevents(maxevents)?;
 
     // resolve binding and read the first blocking event
     let binding =
         input_core::resolve_unix_input_binding(context, handle, "destack.input.event.readBatch")?;
-    let mut events = Vec::with_capacity(maxevents as usize);
+    let mut events = Vec::with_capacity(maxevents);
     let first = input_core::read_unix_event(
         context,
         &binding,
@@ -980,7 +1033,7 @@ pub(crate) unsafe fn destack_input_read_batch(
     events.push(first);
 
     // continue with nonblocking reads until drained or full
-    while events.len() < maxevents as usize {
+    while events.len() < maxevents {
         match input_core::read_unix_event(
             context,
             &binding,
@@ -1095,6 +1148,8 @@ mod tests {
         UnixInputMonitorBinding {
             known_devices: Vec::new(),
             known_device_kinds: HashMap::new(),
+            #[cfg(target_os = "linux")]
+            known_linux_paths: HashMap::new(),
             pending_events: VecDeque::new(),
             next_sequence: 1,
             #[cfg(target_os = "linux")]
@@ -1106,13 +1161,15 @@ mod tests {
     #[test]
     fn test_enqueue_monitor_delta_collects_connect_and_disconnect() {
         let mut binding = empty_monitor_binding();
-        binding.known_devices = vec!["/dev/input/event0".to_string()];
+        binding.known_devices = vec!["device:old".to_string()];
         binding
             .known_device_kinds
-            .insert("/dev/input/event0".to_string(), InputDeviceKind::Keyboard);
+            .insert("device:old".to_string(), InputDeviceKind::Keyboard);
 
         let current = vec![MonitorDeviceSnapshot {
-            device_id: "/dev/input/event1".to_string(),
+            device_id: "device:new".to_string(),
+            #[cfg(target_os = "linux")]
+            device_path: "/dev/input/event1".to_string(),
             device_kind: InputDeviceKind::Mouse,
         }];
         enqueue_monitor_delta(&mut binding, &current);
@@ -1122,7 +1179,7 @@ mod tests {
             .pop_front()
             .expect("connect event expected");
         assert_eq!(first.action, InputEventAction::Connect);
-        assert_eq!(first.device_id, "/dev/input/event1");
+        assert_eq!(first.device_id, "device:new");
         assert_eq!(first.device_kind, InputDeviceKind::Mouse);
 
         let second = binding
@@ -1130,7 +1187,7 @@ mod tests {
             .pop_front()
             .expect("disconnect event expected");
         assert_eq!(second.action, InputEventAction::Disconnect);
-        assert_eq!(second.device_id, "/dev/input/event0");
+        assert_eq!(second.device_id, "device:old");
         assert_eq!(second.device_kind, InputDeviceKind::Keyboard);
     }
 
@@ -1140,13 +1197,13 @@ mod tests {
         let mut binding = empty_monitor_binding();
         enqueue_monitor_action(
             &mut binding,
-            "/dev/input/event2".to_string(),
+            "device:dup".to_string(),
             InputEventAction::Connect,
             Some(InputDeviceKind::Mouse),
         );
         enqueue_monitor_action(
             &mut binding,
-            "/dev/input/event2".to_string(),
+            "device:dup".to_string(),
             InputEventAction::Connect,
             Some(InputDeviceKind::Mouse),
         );
@@ -1154,13 +1211,13 @@ mod tests {
 
         enqueue_monitor_action(
             &mut binding,
-            "/dev/input/event2".to_string(),
+            "device:dup".to_string(),
             InputEventAction::Disconnect,
             None,
         );
         enqueue_monitor_action(
             &mut binding,
-            "/dev/input/event2".to_string(),
+            "device:dup".to_string(),
             InputEventAction::Disconnect,
             None,
         );

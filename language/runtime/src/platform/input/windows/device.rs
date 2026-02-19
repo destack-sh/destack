@@ -6,8 +6,9 @@ use super::{core as input_core, raw as raw_input, xinput as xinput_input};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputAxisInfo, InputButtonInfo, InputDeviceCapabilities, InputDeviceCapabilityKind,
-    InputDeviceInfo, InputReadMode, InputTextInputArea, InputTextInputType,
+    InputAxisInfo, InputButtonInfo, InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin,
+    InputDeviceCapabilities, InputDeviceCapabilityKind, InputDeviceInfo, InputDeviceKind,
+    InputReadMode, InputTextInputArea, InputTextInputType,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
@@ -25,7 +26,7 @@ pub(super) fn list_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<In
             hardware_id: context.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
             name: context.store_string(input_core::WINDOWS_INPUT_DEVICE_NAME),
             transport: context.store_string("console"),
-            kind: crate::platform::input::InputDeviceKind::Keyboard,
+            kind: InputDeviceKind::Keyboard,
             vendor_id: 0,
             product_id: 0,
             key_count: input_core::WINDOWS_CONSOLE_KEY_COUNT,
@@ -319,6 +320,9 @@ pub(super) fn device_capabilities(
                 kinds: context.store_array(kinds),
                 axes: context.store_array(axes),
                 buttons: context.store_array(buttons),
+                metadata_origin: InputCapabilityMetadataOrigin::Mixed,
+                axis_metadata_fidelity: InputCapabilityMetadataFidelity::Partial,
+                button_metadata_fidelity: InputCapabilityMetadataFidelity::Partial,
                 supports_relative_pointer: true,
                 supports_pointer_grab: true,
                 supports_pointer_capture: true,
@@ -458,7 +462,8 @@ pub(crate) unsafe fn destack_input_open(
 /// Unix and Windows.
 /// Uses evdev and libinput-style capability tables on Linux.
 /// Uses HID and raw-input capability queries on Windows.
-/// Uses backend-specific capability synthesis on other Unix hosts.
+/// Uses backend capability tables when available.
+/// Falls back to deriving capabilities from available device summary metadata.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.

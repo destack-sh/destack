@@ -1,29 +1,60 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
-#![allow(clippy::missing_safety_doc)]
+use super::core as input_core;
+#[cfg(target_os = "linux")]
+use super::linux as input_linux;
+#[cfg(target_os = "macos")]
+use super::macos as input_macos;
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::input::bindings_generated as bindings;
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
-
+use crate::platform::input::InputKeyboardState;
+use crate::platform::{PlatformError, resource};
 use crate::runtime::RuntimeCallContext;
-use bindings::*;
 
-use crate::platform::input::{
-    InputAxisInfo, InputButtonInfo, InputCompositionEvent, InputCompositionEventPayload,
-    InputDeviceCapabilities, InputDeviceCapabilityKind, InputDeviceEventPayload, InputDeviceInfo,
-    InputDeviceKind, InputEvent, InputEventAction, InputEventKind, InputEventPayload,
-    InputGamepadBatteryInfo, InputGamepadBatteryState, InputGamepadButtonState,
-    InputGamepadConnectionType, InputGamepadEventPayload, InputGamepadMappingType,
-    InputGamepadState, InputGamepadTouchState, InputHapticEffectParameters, InputHapticEffectType,
-    InputHapticsResult, InputKeyEventPayload, InputKeyboardState, InputMonitorEvent,
-    InputMonitorEventKind, InputPointerButtonEventPayload, InputPointerGrabMode,
-    InputPointerMotionEventPayload, InputPointerState, InputRawHidReport, InputReadMode,
-    InputScrollEventPayload, InputSensorConfig, InputSensorEffectiveConfig,
-    InputSensorEventPayload, InputSensorInfo, InputSensorKind, InputSensorSample,
-    InputTextEventPayload, InputTextInputArea, InputTextInputType, InputTouchContactPhase,
-    InputTouchContactState, InputTouchEventPayload, InputTouchState, InputWindowTarget,
-};
-use crate::platform::resource;
+/// Read one keyboard snapshot for one opened Unix input handle.
+fn keyboard_state(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    operation: &'static str,
+) -> RuntimeResult<InputKeyboardState> {
+    // resolve one opened unix input binding
+    let binding = input_core::resolve_unix_input_binding(context, handle, operation)?;
+
+    // allocate one sequence number for this snapshot read
+    let sequence = input_core::next_unix_event_sequence(context, handle, operation)?;
+
+    // route by backend and host support
+    match binding.backend {
+        input_core::UnixInputBackend::UnixTerminal => {
+            Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+        }
+        input_core::UnixInputBackend::Platform => {
+            #[cfg(target_os = "linux")]
+            {
+                let Some(descriptor) = binding.descriptor else {
+                    return Err(input_core::input_not_found(operation, handle));
+                };
+
+                return input_linux::keyboard_state_snapshot(
+                    context,
+                    descriptor,
+                    sequence,
+                    &binding.device_id,
+                    operation,
+                );
+            }
+
+            #[cfg(target_os = "macos")]
+            {
+                input_macos::keyboard_state_snapshot(context, sequence, &binding.device_id)
+            }
+
+            #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+            {
+                let _ = (context, sequence, binding);
+                Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+            }
+        }
+    }
+}
 
 /// Read one keyboard state snapshot.
 ///
@@ -47,10 +78,18 @@ pub(crate) unsafe fn destack_input_keyboard_state(
     out: *mut InputKeyboardState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
+    // validate output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.keyboard.state")).boxed())
+    // query one keyboard-state snapshot
+    let snapshot = keyboard_state(context, handle, "destack.input.keyboard.state")?;
+
+    // write output payload
+    unsafe {
+        *out = snapshot;
+    }
+
+    Ok(())
 }

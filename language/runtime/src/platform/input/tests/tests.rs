@@ -1,4 +1,4 @@
-#![cfg_attr(windows, allow(dead_code, unused_imports))]
+#![cfg_attr(any(windows, target_os = "macos"), allow(dead_code, unused_imports))]
 
 use destack_vm as vm;
 
@@ -10,7 +10,7 @@ use crate::tests::runtime::TestRuntime;
 
 #[path = "harness.rs"]
 mod harness;
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 pub(crate) use harness::InputKeyboardStateRecord;
 pub(crate) use harness::{InputDeviceRecord, InputEventRecord, InputMonitorEventRecord};
 

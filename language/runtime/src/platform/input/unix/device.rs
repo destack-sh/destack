@@ -5,15 +5,16 @@ use super::linux as input_linux;
 use super::macos as input_macos;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
-    InputAxisInfo, InputButtonInfo, InputDeviceCapabilities, InputDeviceCapabilityKind,
-    InputDeviceInfo, InputDeviceKind, InputReadMode,
+    InputAxisInfo, InputButtonInfo, InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin,
+    InputDeviceCapabilities, InputDeviceCapabilityKind, InputDeviceInfo, InputDeviceKind,
+    InputReadMode, InputTextInputArea, InputTextInputType,
 };
 use crate::platform::resource::ResourceEntry;
 use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
 use crate::runtime::RuntimeCallContext;
 
-/// Build one conservative capabilities payload from device metadata.
-fn derive_capabilities_from_device_info(
+/// Build one capabilities payload from available device summary metadata.
+fn derive_capabilities_from_device_summary(
     context: &RuntimeCallContext,
     device: InputDeviceInfo,
 ) -> InputDeviceCapabilities {
@@ -69,12 +70,15 @@ fn derive_capabilities_from_device_info(
         kinds: context.store_array(kinds),
         axes: context.store_array(axes),
         buttons: context.store_array(buttons),
+        metadata_origin: InputCapabilityMetadataOrigin::DeviceSummary,
+        axis_metadata_fidelity: InputCapabilityMetadataFidelity::Minimal,
+        button_metadata_fidelity: InputCapabilityMetadataFidelity::Minimal,
         supports_relative_pointer: matches!(
             device.kind,
             InputDeviceKind::Mouse | InputDeviceKind::Pen
         ),
         supports_pointer_grab: device.supports_exclusive_grab,
-        supports_pointer_capture: false,
+        supports_pointer_capture: device.supports_exclusive_grab,
         supports_pointer_warp: false,
         supports_text_input: device.supports_text,
         supports_composition: device.supports_text,
@@ -239,6 +243,21 @@ pub(crate) unsafe fn destack_input_open(
             input_core::UnixInputBackend::Platform => input_core::platform_default_read_mode(),
             input_core::UnixInputBackend::UnixTerminal => InputReadMode::Cooked,
         },
+        text_active: false,
+        text_input_type: InputTextInputType::Text,
+        text_area: InputTextInputArea {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            cursor: 0,
+        },
+        gamepad_player_index_override: None,
+        relative_mode_enabled: false,
+        last_pointer_x: 0.0,
+        last_pointer_y: 0.0,
+        sensor_enabled_kinds: std::collections::HashSet::new(),
+        sensor_effective_configs: std::collections::HashMap::new(),
         device_id: spec.device_id,
         device_kind,
         next_sequence: 1,
@@ -246,6 +265,8 @@ pub(crate) unsafe fn destack_input_open(
         linux_modifiers: 0,
         #[cfg(target_os = "linux")]
         linux_pointer_buttons: 0,
+        #[cfg(target_os = "linux")]
+        linux_active_rumble_effect_id: None,
         terminal_original_mode,
         #[cfg(target_os = "macos")]
         macos_state: input_core::initial_macos_state(spec.backend),
@@ -280,7 +301,8 @@ pub(crate) unsafe fn destack_input_open(
 /// Unix and Windows.
 /// Uses evdev and libinput-style capability tables on Linux.
 /// Uses HID and raw-input capability queries on Windows.
-/// Uses backend-specific capability synthesis on other Unix hosts.
+/// Uses backend capability tables when available.
+/// Falls back to deriving capabilities from available device summary metadata.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -317,7 +339,7 @@ pub(crate) unsafe fn destack_input_capabilities(
         }
     }
 
-    // synthesize fallback metadata when enumeration does not include this binding
+    // construct fallback metadata from the open binding when enumeration misses this handle
     let device_info = match device_info {
         Some(device_info) => device_info,
         None => {
@@ -345,7 +367,18 @@ pub(crate) unsafe fn destack_input_capabilities(
                 supports_rumble: false,
                 supports_battery: false,
                 supports_light: false,
-                supports_raw_hid: false,
+                supports_raw_hid: {
+                    #[cfg(target_os = "linux")]
+                    {
+                        input_linux::is_linux_hidraw_runtime_id(&binding.device_id)
+                            || binding.device_id.starts_with("/dev/hidraw")
+                    }
+
+                    #[cfg(not(target_os = "linux"))]
+                    {
+                        binding.device_id.starts_with("/dev/hidraw")
+                    }
+                },
                 is_virtual: false,
                 is_system: true,
             }
@@ -368,15 +401,15 @@ pub(crate) unsafe fn destack_input_capabilities(
                 device_info.supports_raw_hid,
             )
         } else {
-            derive_capabilities_from_device_info(context, device_info)
+            derive_capabilities_from_device_summary(context, device_info)
         }
     } else {
-        derive_capabilities_from_device_info(context, device_info)
+        derive_capabilities_from_device_summary(context, device_info)
     };
 
-    // synthesize capabilities for non-linux unix backends
+    // derive capabilities from available summary metadata for non-linux unix backends
     #[cfg(not(target_os = "linux"))]
-    let capabilities = derive_capabilities_from_device_info(context, device_info);
+    let capabilities = derive_capabilities_from_device_summary(context, device_info);
 
     // report explicit capability tables for the macOS global-session backend
     #[cfg(target_os = "macos")]

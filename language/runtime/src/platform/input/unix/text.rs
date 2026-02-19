@@ -1,29 +1,197 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
-#![allow(clippy::missing_safety_doc)]
+use super::core as input_core;
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::input::bindings_generated as bindings;
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
-
-use crate::runtime::RuntimeCallContext;
-use bindings::*;
-
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputAxisInfo, InputButtonInfo, InputCompositionEvent, InputCompositionEventPayload,
-    InputDeviceCapabilities, InputDeviceCapabilityKind, InputDeviceEventPayload, InputDeviceInfo,
-    InputDeviceKind, InputEvent, InputEventAction, InputEventKind, InputEventPayload,
-    InputGamepadBatteryInfo, InputGamepadBatteryState, InputGamepadButtonState,
-    InputGamepadConnectionType, InputGamepadEventPayload, InputGamepadMappingType,
-    InputGamepadState, InputGamepadTouchState, InputHapticEffectParameters, InputHapticEffectType,
-    InputHapticsResult, InputKeyEventPayload, InputKeyboardState, InputMonitorEvent,
-    InputMonitorEventKind, InputPointerButtonEventPayload, InputPointerGrabMode,
-    InputPointerMotionEventPayload, InputPointerState, InputRawHidReport, InputReadMode,
-    InputScrollEventPayload, InputSensorConfig, InputSensorEffectiveConfig,
-    InputSensorEventPayload, InputSensorInfo, InputSensorKind, InputSensorSample,
-    InputTextEventPayload, InputTextInputArea, InputTextInputType, InputTouchContactPhase,
-    InputTouchContactState, InputTouchEventPayload, InputTouchState, InputWindowTarget,
+    InputCompositionEvent, InputEvent, InputEventAction, InputEventKind, InputReadMode,
+    InputTextInputArea, InputTextInputType, InputWindowTarget, validation as input_validation,
 };
-use crate::platform::resource;
+use crate::platform::{PlatformError, resource};
+use crate::runtime::RuntimeCallContext;
+
+/// Validate text capability for one opened unix input handle.
+fn resolve_text_binding(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    operation: &'static str,
+) -> RuntimeResult<input_core::UnixInputBinding> {
+    // resolve one opened unix input binding
+    let binding = input_core::resolve_unix_input_binding(context, handle, operation)?;
+
+    // only terminal-backed unix inputs currently expose text-session semantics
+    if binding.backend != input_core::UnixInputBackend::UnixTerminal {
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+    }
+
+    Ok(binding)
+}
+
+/// Read text-session active state for one opened unix input handle.
+fn text_is_active(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    operation: &'static str,
+) -> RuntimeResult<bool> {
+    // validate capability and handle shape
+    let _binding = resolve_text_binding(context, handle, operation)?;
+
+    input_core::is_text_active(context, handle, operation)
+}
+
+/// Read text-area hint state for one opened unix input handle.
+fn text_get_area(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+    operation: &'static str,
+) -> RuntimeResult<InputTextInputArea> {
+    // reject explicit window-scoped text targets on unix backends
+    input_validation::validate_global_window_target(target, operation)?;
+
+    // validate capability and handle shape
+    let _binding = resolve_text_binding(context, handle, operation)?;
+
+    input_core::text_area(context, handle, operation)
+}
+
+/// Persist text-area hint state for one opened unix input handle.
+fn text_set_area(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+    area: InputTextInputArea,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    // reject explicit window-scoped text targets on unix backends
+    input_validation::validate_global_window_target(target, operation)?;
+
+    // validate capability and handle shape
+    let _binding = resolve_text_binding(context, handle, operation)?;
+
+    input_core::set_text_area(context, handle, area, operation)
+}
+
+/// Start one text session for one opened unix input handle.
+fn text_start(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+    input_type: InputTextInputType,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    // reject explicit window-scoped text targets on unix backends
+    input_validation::validate_global_window_target(target, operation)?;
+
+    // validate capability and handle shape
+    let _binding = resolve_text_binding(context, handle, operation)?;
+
+    input_core::set_text_state(context, handle, true, input_type, operation)
+}
+
+/// Stop one text session for one opened unix input handle.
+fn text_stop(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    target: InputWindowTarget,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    // reject explicit window-scoped text targets on unix backends
+    input_validation::validate_global_window_target(target, operation)?;
+
+    // validate capability and handle shape
+    let binding = resolve_text_binding(context, handle, operation)?;
+
+    input_core::set_text_state(context, handle, false, binding.text_input_type, operation)
+}
+
+/// Build io-would-block for one empty or unavailable composition stream.
+fn composition_would_block(operation: &'static str, message: &'static str) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoWouldBlock),
+        None,
+        Some(libc::EWOULDBLOCK),
+        Some(operation.to_string()),
+        None,
+        message.to_string(),
+    ))
+    .boxed()
+}
+
+/// Convert one input event into one composition event when one composition lane is present.
+fn composition_event_from_input_event(
+    context: &RuntimeCallContext,
+    event: InputEvent,
+) -> RuntimeResult<Option<InputCompositionEvent>> {
+    // map native composition events directly
+    if event.kind == InputEventKind::Composition {
+        let text = unsafe { event.payload.composition.text.as_str()? };
+        return Ok(Some(InputCompositionEvent {
+            timestamp_ns: event.timestamp_ns,
+            sequence: event.sequence,
+            device_id: event.device_id,
+            action: event.payload.composition.action,
+            text: context.store_string(text),
+            selection_start: event.payload.composition.selection_start,
+            selection_end: event.payload.composition.selection_end,
+        }));
+    }
+
+    // map plain text events into commit composition updates
+    if event.kind == InputEventKind::Text {
+        let text = unsafe { event.payload.text.text.as_str()? };
+        let selection_end = text.chars().count() as i32;
+        return Ok(Some(InputCompositionEvent {
+            timestamp_ns: event.timestamp_ns,
+            sequence: event.sequence,
+            device_id: event.device_id,
+            action: InputEventAction::Commit,
+            text: context.store_string(text),
+            selection_start: 0,
+            selection_end,
+        }));
+    }
+
+    Ok(None)
+}
+
+/// Read one composition event for one opened unix text binding.
+fn read_composition_event(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    nonblocking: bool,
+    operation: &'static str,
+) -> RuntimeResult<InputCompositionEvent> {
+    // resolve one text-capable unix binding
+    let binding = resolve_text_binding(context, handle, operation)?;
+
+    // require cooked mode so terminal bytes are decoded as text payloads
+    if binding.read_mode != InputReadMode::Cooked {
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+    }
+
+    // require one active text session before composition reads
+    if !input_core::is_text_active(context, handle, operation)? {
+        return Err(composition_would_block(
+            operation,
+            "text session is not active",
+        ));
+    }
+
+    // read until one composition-compatible event is produced
+    loop {
+        let event = input_core::read_unix_event(context, &binding, handle, nonblocking, operation)?;
+        if let Some(composition) = composition_event_from_input_event(context, event)? {
+            return Ok(composition);
+        }
+
+        if nonblocking {
+            return Err(composition_would_block(
+                operation,
+                "input queue does not contain composition event",
+            ));
+        }
+    }
+}
 
 /// Get text input area.
 ///
@@ -47,12 +215,20 @@ pub(crate) unsafe fn destack_input_text_get_area(
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
 ) -> RuntimeResult<()> {
+    // validate output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, target);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.getArea")).boxed())
+    // read one per-handle text-area hint
+    let area = text_get_area(context, handle, target, "destack.input.text.getArea")?;
+
+    // write output payload
+    unsafe {
+        *out = area;
+    }
+
+    Ok(())
 }
 
 /// Query text input active state.
@@ -76,12 +252,20 @@ pub(crate) unsafe fn destack_input_text_is_active(
     out: *mut bool,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
+    // validate output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.isActive")).boxed())
+    // query one per-handle text active state
+    let active = text_is_active(context, handle, "destack.input.text.isActive")?;
+
+    // write output payload
+    unsafe {
+        *out = active;
+    }
+
+    Ok(())
 }
 
 /// Read one composition event.
@@ -106,15 +290,21 @@ pub(crate) unsafe fn destack_input_text_read_composition(
     out: *mut InputCompositionEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
+    // validate output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.input.text.readComposition",
-    ))
-    .boxed())
+    // read one blocking composition event from the active text stream
+    let composition =
+        read_composition_event(context, handle, false, "destack.input.text.readComposition")?;
+
+    // write output payload
+    unsafe {
+        *out = composition;
+    }
+
+    Ok(())
 }
 
 /// Set text input area.
@@ -140,9 +330,7 @@ pub(crate) unsafe fn destack_input_text_set_area(
     target: InputWindowTarget,
     area: InputTextInputArea,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, target, area);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.setArea")).boxed())
+    text_set_area(context, handle, target, area, "destack.input.text.setArea")
 }
 
 /// Start text input.
@@ -168,9 +356,13 @@ pub(crate) unsafe fn destack_input_text_start(
     target: InputWindowTarget,
     inputtype: InputTextInputType,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, target, inputtype);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.start")).boxed())
+    text_start(
+        context,
+        handle,
+        target,
+        inputtype,
+        "destack.input.text.start",
+    )
 }
 
 /// Stop text input.
@@ -195,9 +387,7 @@ pub(crate) unsafe fn destack_input_text_stop(
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, target);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.stop")).boxed())
+    text_stop(context, handle, target, "destack.input.text.stop")
 }
 
 /// Poll one composition event without blocking.
@@ -222,13 +412,23 @@ pub(crate) unsafe fn destack_input_text_try_read_composition(
     out: *mut InputCompositionEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
+    // validate output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
+    // read one nonblocking composition event from the active text stream
+    let composition = read_composition_event(
+        context,
+        handle,
+        true,
         "destack.input.text.tryReadComposition",
-    ))
-    .boxed())
+    )?;
+
+    // write output payload
+    unsafe {
+        *out = composition;
+    }
+
+    Ok(())
 }

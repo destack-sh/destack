@@ -89,6 +89,28 @@ export enum InputDeviceCapabilityKind {
     TextInput = 8,
 }
 
+/// Capability metadata origin kind.
+export enum InputCapabilityMetadataOrigin {
+    /// Metadata was read from backend capability tables.
+    BackendDescriptor = 1,
+    /// Metadata was derived from device summary fields.
+    DeviceSummary = 2,
+    /// Metadata was derived from count-only topology fallback.
+    CountDerived = 3,
+    /// Metadata was merged from multiple origin kinds.
+    Mixed = 255,
+}
+
+/// Capability metadata fidelity level.
+export enum InputCapabilityMetadataFidelity {
+    /// Metadata contains full backend detail for this field family.
+    Full = 1,
+    /// Metadata contains partial backend detail with normalized defaults.
+    Partial = 2,
+    /// Metadata contains minimal count-derived placeholders only.
+    Minimal = 3,
+}
+
 /// Input axis capability entry.
 export struct InputAxisInfo {
     /// Backend-native axis code.
@@ -121,6 +143,12 @@ export struct InputDeviceCapabilities {
     axes: Array<InputAxisInfo>;
     /// Button capability entries when reported by backend.
     buttons: Array<InputButtonInfo>;
+    /// Aggregate metadata origin for this capability snapshot.
+    metadataOrigin: InputCapabilityMetadataOrigin;
+    /// Aggregate axis metadata fidelity for this capability snapshot.
+    axisMetadataFidelity: InputCapabilityMetadataFidelity;
+    /// Aggregate button metadata fidelity for this capability snapshot.
+    buttonMetadataFidelity: InputCapabilityMetadataFidelity;
     /// Whether relative-pointer mode can be enabled.
     supportsRelativePointer: boolean;
     /// Whether pointer confinement or locking is supported.
@@ -157,7 +185,8 @@ declare namespace input {
     /// Device ordering and hotplug visibility follow host input subsystem semantics.
     ///
     /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one discoverable input backend.
+    /// Unix and Windows.
+    /// Returns operation-level `notSupported` on hosts that do not expose one discoverable input backend.
     /// Uses evdev device-node enumeration on Linux.
     /// Uses global-session and terminal discovery on macOS.
     /// Uses terminal input discovery on other Unix hosts.
@@ -247,7 +276,8 @@ declare namespace input {
     /// Unix and Windows.
     /// Uses evdev and libinput-style capability tables on Linux.
     /// Uses HID and raw-input capability queries on Windows.
-    /// Uses backend-specific capability synthesis on other Unix hosts.
+    /// Uses backend capability tables when available.
+    /// Falls back to deriving capabilities from available device summary metadata.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.

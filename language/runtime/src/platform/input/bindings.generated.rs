@@ -241,22 +241,26 @@ fn encode_destack_input_device_capabilities_result(
         let field_0 = value.kinds.to_value(context);
         let field_1 = value.axes.to_value(context);
         let field_2 = value.buttons.to_value(context);
-        let field_3 = vm::Value::bool(value.supports_relative_pointer);
-        let field_4 = vm::Value::bool(value.supports_pointer_grab);
-        let field_5 = vm::Value::bool(value.supports_pointer_capture);
-        let field_6 = vm::Value::bool(value.supports_pointer_warp);
-        let field_7 = vm::Value::bool(value.supports_text_input);
-        let field_8 = vm::Value::bool(value.supports_composition);
-        let field_9 = vm::Value::bool(value.supports_rumble);
-        let field_10 = vm::Value::bool(value.supports_trigger_rumble);
-        let field_11 = vm::Value::bool(value.supports_sensors);
-        let field_12 = vm::Value::bool(value.supports_battery_state);
-        let field_13 = vm::Value::bool(value.supports_light_control);
-        let field_14 = vm::Value::bool(value.supports_raw_hid);
-        let field_15 = vm::Value::bool(value.supports_player_index);
+        let field_3 = vm::Value::uint(value.metadata_origin as u8 as u64, 8);
+        let field_4 = vm::Value::uint(value.axis_metadata_fidelity as u8 as u64, 8);
+        let field_5 = vm::Value::uint(value.button_metadata_fidelity as u8 as u64, 8);
+        let field_6 = vm::Value::bool(value.supports_relative_pointer);
+        let field_7 = vm::Value::bool(value.supports_pointer_grab);
+        let field_8 = vm::Value::bool(value.supports_pointer_capture);
+        let field_9 = vm::Value::bool(value.supports_pointer_warp);
+        let field_10 = vm::Value::bool(value.supports_text_input);
+        let field_11 = vm::Value::bool(value.supports_composition);
+        let field_12 = vm::Value::bool(value.supports_rumble);
+        let field_13 = vm::Value::bool(value.supports_trigger_rumble);
+        let field_14 = vm::Value::bool(value.supports_sensors);
+        let field_15 = vm::Value::bool(value.supports_battery_state);
+        let field_16 = vm::Value::bool(value.supports_light_control);
+        let field_17 = vm::Value::bool(value.supports_raw_hid);
+        let field_18 = vm::Value::bool(value.supports_player_index);
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11, field_12, field_13, field_14, field_15,
+            field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+            field_17, field_18,
         ])
     })
 }
@@ -3268,6 +3272,10 @@ fn destack_input_device_capabilities_replay(
                     };
                     result_recorded_buttons.push(result_recorded_buttons_item_recorded);
                 }
+                let result_recorded_metadata_origin = result_value.metadata_origin;
+                let result_recorded_axis_metadata_fidelity = result_value.axis_metadata_fidelity;
+                let result_recorded_button_metadata_fidelity =
+                    result_value.button_metadata_fidelity;
                 let result_recorded_supports_relative_pointer =
                     result_value.supports_relative_pointer;
                 let result_recorded_supports_pointer_grab = result_value.supports_pointer_grab;
@@ -3287,6 +3295,9 @@ fn destack_input_device_capabilities_replay(
                     kinds: result_recorded_kinds,
                     axes: result_recorded_axes,
                     buttons: result_recorded_buttons,
+                    metadata_origin: result_recorded_metadata_origin,
+                    axis_metadata_fidelity: result_recorded_axis_metadata_fidelity,
+                    button_metadata_fidelity: result_recorded_button_metadata_fidelity,
                     supports_relative_pointer: result_recorded_supports_relative_pointer,
                     supports_pointer_grab: result_recorded_supports_pointer_grab,
                     supports_pointer_capture: result_recorded_supports_pointer_capture,
@@ -3359,6 +3370,9 @@ fn destack_input_device_capabilities_replay(
                         value_native_buttons_values.push(value_native_buttons_item_native);
                     }
                     let value_native_buttons = context.store_array(value_native_buttons_values);
+                    let value_native_metadata_origin = value.metadata_origin;
+                    let value_native_axis_metadata_fidelity = value.axis_metadata_fidelity;
+                    let value_native_button_metadata_fidelity = value.button_metadata_fidelity;
                     let value_native_supports_relative_pointer = value.supports_relative_pointer;
                     let value_native_supports_pointer_grab = value.supports_pointer_grab;
                     let value_native_supports_pointer_capture = value.supports_pointer_capture;
@@ -3376,6 +3390,9 @@ fn destack_input_device_capabilities_replay(
                         kinds: value_native_kinds,
                         axes: value_native_axes,
                         buttons: value_native_buttons,
+                        metadata_origin: value_native_metadata_origin,
+                        axis_metadata_fidelity: value_native_axis_metadata_fidelity,
+                        button_metadata_fidelity: value_native_button_metadata_fidelity,
                         supports_relative_pointer: value_native_supports_relative_pointer,
                         supports_pointer_grab: value_native_supports_pointer_grab,
                         supports_pointer_capture: value_native_supports_pointer_capture,
@@ -8554,6 +8571,11 @@ fn destack_input_device_capabilities_vm_replay(
                         };
                         result_recorded_buttons.push(result_recorded_buttons_item_recorded);
                     }
+                    let result_recorded_metadata_origin = result_value.metadata_origin;
+                    let result_recorded_axis_metadata_fidelity =
+                        result_value.axis_metadata_fidelity;
+                    let result_recorded_button_metadata_fidelity =
+                        result_value.button_metadata_fidelity;
                     let result_recorded_supports_relative_pointer =
                         result_value.supports_relative_pointer;
                     let result_recorded_supports_pointer_grab = result_value.supports_pointer_grab;
@@ -8576,6 +8598,9 @@ fn destack_input_device_capabilities_vm_replay(
                         kinds: result_recorded_kinds,
                         axes: result_recorded_axes,
                         buttons: result_recorded_buttons,
+                        metadata_origin: result_recorded_metadata_origin,
+                        axis_metadata_fidelity: result_recorded_axis_metadata_fidelity,
+                        button_metadata_fidelity: result_recorded_button_metadata_fidelity,
                         supports_relative_pointer: result_recorded_supports_relative_pointer,
                         supports_pointer_grab: result_recorded_supports_pointer_grab,
                         supports_pointer_capture: result_recorded_supports_pointer_capture,
@@ -8685,6 +8710,9 @@ fn destack_input_device_capabilities_vm_replay(
                             capacity: value.buttons.len() as u32,
                             _marker: std::marker::PhantomData,
                         };
+                        let vm_result_metadata_origin = value.metadata_origin;
+                        let vm_result_axis_metadata_fidelity = value.axis_metadata_fidelity;
+                        let vm_result_button_metadata_fidelity = value.button_metadata_fidelity;
                         let vm_result_supports_relative_pointer = value.supports_relative_pointer;
                         let vm_result_supports_pointer_grab = value.supports_pointer_grab;
                         let vm_result_supports_pointer_capture = value.supports_pointer_capture;
@@ -8702,6 +8730,9 @@ fn destack_input_device_capabilities_vm_replay(
                             kinds: vm_result_kinds,
                             axes: vm_result_axes,
                             buttons: vm_result_buttons,
+                            metadata_origin: vm_result_metadata_origin,
+                            axis_metadata_fidelity: vm_result_axis_metadata_fidelity,
+                            button_metadata_fidelity: vm_result_button_metadata_fidelity,
                             supports_relative_pointer: vm_result_supports_relative_pointer,
                             supports_pointer_grab: vm_result_supports_pointer_grab,
                             supports_pointer_capture: vm_result_supports_pointer_capture,

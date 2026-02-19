@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::ffi::CString;
 use std::mem::MaybeUninit;
 use std::os::unix::io::RawFd;
@@ -12,7 +13,8 @@ use crate::platform::input::{
     InputCompositionEventPayload, InputDeviceEventPayload, InputDeviceInfo, InputDeviceKind,
     InputEvent, InputEventAction, InputEventKind, InputEventPayload, InputGamepadEventPayload,
     InputKeyEventPayload, InputPointerButtonEventPayload, InputPointerMotionEventPayload,
-    InputReadMode, InputScrollEventPayload, InputSensorEventPayload, InputTextEventPayload,
+    InputReadMode, InputScrollEventPayload, InputSensorEffectiveConfig, InputSensorEventPayload,
+    InputSensorKind, InputTextEventPayload, InputTextInputArea, InputTextInputType,
     InputTouchEventPayload,
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
@@ -138,6 +140,24 @@ pub(super) struct UnixInputBinding {
     pub(super) backend: UnixInputBackend,
     /// Current read mode.
     pub(super) read_mode: InputReadMode,
+    /// Whether text input is active for this handle.
+    pub(super) text_active: bool,
+    /// The active text input type for this handle.
+    pub(super) text_input_type: InputTextInputType,
+    /// The current text input area hint for this handle.
+    pub(super) text_area: InputTextInputArea,
+    /// Optional gamepad player-index override for this handle.
+    pub(super) gamepad_player_index_override: Option<u8>,
+    /// Whether relative pointer mode is enabled for this handle.
+    pub(super) relative_mode_enabled: bool,
+    /// Last pointer x position used for relative delta projection.
+    pub(super) last_pointer_x: f64,
+    /// Last pointer y position used for relative delta projection.
+    pub(super) last_pointer_y: f64,
+    /// Set of enabled sensor lanes for this handle.
+    pub(super) sensor_enabled_kinds: HashSet<InputSensorKind>,
+    /// Effective sensor configurations keyed by sensor lane.
+    pub(super) sensor_effective_configs: HashMap<InputSensorKind, InputSensorEffectiveConfig>,
     /// Stable runtime device identifier used in emitted events.
     pub(super) device_id: String,
     /// Classified device kind for backend-specific event mapping.
@@ -150,6 +170,9 @@ pub(super) struct UnixInputBinding {
     /// Current Linux pointer-button bitset for this stream.
     #[cfg(target_os = "linux")]
     pub(super) linux_pointer_buttons: u32,
+    /// Linux uploaded rumble effect id for this handle, when one is active.
+    #[cfg(target_os = "linux")]
+    pub(super) linux_active_rumble_effect_id: Option<i16>,
     /// Original terminal mode snapshot for tty-backed streams.
     pub(super) terminal_original_mode: Option<libc::termios>,
     /// Cached macOS session polling state.
@@ -234,6 +257,15 @@ pub(super) fn resolve_unix_input_binding(
                 descriptor: binding.descriptor,
                 backend: binding.backend,
                 read_mode: binding.read_mode,
+                text_active: binding.text_active,
+                text_input_type: binding.text_input_type,
+                text_area: binding.text_area,
+                gamepad_player_index_override: binding.gamepad_player_index_override,
+                relative_mode_enabled: binding.relative_mode_enabled,
+                last_pointer_x: binding.last_pointer_x,
+                last_pointer_y: binding.last_pointer_y,
+                sensor_enabled_kinds: binding.sensor_enabled_kinds.clone(),
+                sensor_effective_configs: binding.sensor_effective_configs.clone(),
                 device_id: binding.device_id.clone(),
                 device_kind: binding.device_kind,
                 next_sequence: binding.next_sequence,
@@ -241,6 +273,8 @@ pub(super) fn resolve_unix_input_binding(
                 linux_modifiers: binding.linux_modifiers,
                 #[cfg(target_os = "linux")]
                 linux_pointer_buttons: binding.linux_pointer_buttons,
+                #[cfg(target_os = "linux")]
+                linux_active_rumble_effect_id: binding.linux_active_rumble_effect_id,
                 terminal_original_mode: binding.terminal_original_mode,
                 #[cfg(target_os = "macos")]
                 macos_state: None,
@@ -308,12 +342,29 @@ pub(super) fn open_input_descriptor(path: &str) -> RuntimeResult<RawFd> {
         .boxed()
     })?;
 
-    // open one read-only nonblocking descriptor
-    let descriptor = unsafe {
-        libc::open(
-            path_cstring.as_ptr(),
-            libc::O_RDONLY | libc::O_NONBLOCK | libc::O_CLOEXEC,
-        )
+    // prefer read-write mode and fall back to read-only when write access is denied
+    let descriptor = {
+        let read_write_descriptor = unsafe {
+            libc::open(
+                path_cstring.as_ptr(),
+                libc::O_RDWR | libc::O_NONBLOCK | libc::O_CLOEXEC,
+            )
+        };
+        if read_write_descriptor >= 0 {
+            read_write_descriptor
+        } else {
+            let errno = core_platform::get_errno();
+            if errno != libc::EACCES && errno != libc::EPERM {
+                return Err(core_platform::io_error("open", Some(path)));
+            }
+
+            unsafe {
+                libc::open(
+                    path_cstring.as_ptr(),
+                    libc::O_RDONLY | libc::O_NONBLOCK | libc::O_CLOEXEC,
+                )
+            }
+        }
     };
     if descriptor < 0 {
         return Err(core_platform::io_error("open", Some(path)));
@@ -496,6 +547,388 @@ pub(super) fn set_unix_read_mode(
     }
 }
 
+/// Persist one text active flag and type for one Unix input handle.
+pub(super) fn set_text_state(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    active: bool,
+    input_type: InputTextInputType,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let updated = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::Input {
+                return None;
+            }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            binding.text_active = active;
+            binding.text_input_type = input_type;
+            Some(())
+        });
+
+    match updated.flatten() {
+        Some(()) => Ok(()),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Persist one text-area hint for one Unix input handle.
+pub(super) fn set_text_area(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    area: InputTextInputArea,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let updated = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::Input {
+                return None;
+            }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            binding.text_area = area;
+            Some(())
+        });
+
+    match updated.flatten() {
+        Some(()) => Ok(()),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Return whether text input is active for one Unix input handle.
+pub(super) fn is_text_active(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    operation: &'static str,
+) -> RuntimeResult<bool> {
+    let active = context.runtime().resources.with_entry(handle.0, |entry| {
+        if entry.kind != ResourceKind::Input {
+            return None;
+        }
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
+        Some(binding.text_active)
+    });
+
+    match active.flatten() {
+        Some(active) => Ok(active),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Return the text-area hint for one Unix input handle.
+pub(super) fn text_area(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    operation: &'static str,
+) -> RuntimeResult<InputTextInputArea> {
+    let area = context.runtime().resources.with_entry(handle.0, |entry| {
+        if entry.kind != ResourceKind::Input {
+            return None;
+        }
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
+        Some(binding.text_area)
+    });
+
+    match area.flatten() {
+        Some(area) => Ok(area),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Persist one gamepad player-index override for one Unix input handle.
+pub(super) fn set_gamepad_player_index(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    player_index: u8,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    if player_index == 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "playerindex",
+            "playerindex must be greater than zero",
+        ))
+        .boxed());
+    }
+
+    let updated = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::Input {
+                return None;
+            }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            binding.gamepad_player_index_override = Some(player_index);
+            Some(())
+        });
+
+    match updated.flatten() {
+        Some(()) => Ok(()),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Return the effective gamepad player index for one Unix input handle.
+pub(super) fn gamepad_player_index(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    operation: &'static str,
+) -> RuntimeResult<u8> {
+    let player_index = context.runtime().resources.with_entry(handle.0, |entry| {
+        if entry.kind != ResourceKind::Input {
+            return None;
+        }
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
+        Some(binding.gamepad_player_index_override.unwrap_or(1))
+    });
+
+    match player_index.flatten() {
+        Some(player_index) => Ok(player_index),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Persist one relative-mode flag for one unix input handle.
+pub(super) fn set_relative_mode_flag(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    enabled: bool,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let updated = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::Input {
+                return None;
+            }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            binding.relative_mode_enabled = enabled;
+            Some(())
+        });
+
+    match updated.flatten() {
+        Some(()) => Ok(()),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Persist one pointer snapshot baseline for one unix input handle.
+pub(super) fn set_pointer_snapshot(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    x: f64,
+    y: f64,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let updated = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::Input {
+                return None;
+            }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            binding.last_pointer_x = x;
+            binding.last_pointer_y = y;
+            Some(())
+        });
+
+    match updated.flatten() {
+        Some(()) => Ok(()),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Persist one effective sensor-stream configuration for one handle and one sensor lane.
+pub(super) fn set_sensor_stream_config(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    sensor_kind: InputSensorKind,
+    config: InputSensorEffectiveConfig,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let updated = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::Input {
+                return None;
+            }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            if config.enabled {
+                binding.sensor_enabled_kinds.insert(sensor_kind);
+                binding.sensor_effective_configs.insert(sensor_kind, config);
+            } else {
+                binding.sensor_enabled_kinds.remove(&sensor_kind);
+                binding.sensor_effective_configs.remove(&sensor_kind);
+            }
+
+            Some(())
+        });
+
+    match updated.flatten() {
+        Some(()) => Ok(()),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Return whether one sensor stream is currently enabled for one handle and one sensor lane.
+pub(super) fn is_sensor_stream_enabled(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    sensor_kind: InputSensorKind,
+    operation: &'static str,
+) -> RuntimeResult<bool> {
+    let enabled = context.runtime().resources.with_entry(handle.0, |entry| {
+        if entry.kind != ResourceKind::Input {
+            return None;
+        }
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
+        Some(binding.sensor_enabled_kinds.contains(&sensor_kind))
+    });
+
+    match enabled.flatten() {
+        Some(enabled) => Ok(enabled),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Persist the active uploaded rumble effect id for one Linux handle.
+#[cfg(target_os = "linux")]
+pub(super) fn set_linux_active_rumble_effect_id(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    effect_id: Option<i16>,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let updated = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::Input {
+                return None;
+            }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            binding.linux_active_rumble_effect_id = effect_id;
+            Some(())
+        });
+
+    match updated.flatten() {
+        Some(()) => Ok(()),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Return the active uploaded rumble effect id for one Linux handle, when present.
+#[cfg(target_os = "linux")]
+pub(super) fn linux_active_rumble_effect_id(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    operation: &'static str,
+) -> RuntimeResult<Option<i16>> {
+    let effect_id = context.runtime().resources.with_entry(handle.0, |entry| {
+        if entry.kind != ResourceKind::Input {
+            return None;
+        }
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
+        Some(binding.linux_active_rumble_effect_id)
+    });
+
+    match effect_id.flatten() {
+        Some(effect_id) => Ok(effect_id),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
 /// Return one default read mode for platform-backed inputs.
 pub(super) fn platform_default_read_mode() -> InputReadMode {
     InputReadMode::Raw
@@ -526,8 +959,10 @@ pub(super) fn release_macos_subscription(
 #[cfg(target_os = "linux")]
 fn normalize_platform_input_spec(id: &str, _id_lower: &str) -> RuntimeResult<UnixInputOpenSpec> {
     let path = input_linux::normalize_input_path(id)?;
+    let device_id = input_linux::linux_runtime_device_id_for_path(&path);
+
     Ok(UnixInputOpenSpec {
-        device_id: path.clone(),
+        device_id,
         path,
         backend: UnixInputBackend::Platform,
     })
@@ -950,7 +1385,7 @@ pub(super) fn monotonic_timestamp_ns() -> u64 {
 }
 
 /// Allocate the next sequence number for one Unix input stream.
-fn next_unix_event_sequence(
+pub(super) fn next_unix_event_sequence(
     context: &RuntimeCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,

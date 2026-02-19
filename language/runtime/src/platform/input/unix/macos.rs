@@ -9,9 +9,10 @@ use super::core as input_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputAxisInfo, InputButtonInfo, InputDeviceCapabilities, InputDeviceCapabilityKind, InputEvent,
-    InputEventAction, InputEventKind, InputKeyEventPayload, InputPointerButtonEventPayload,
-    InputPointerMotionEventPayload, InputReadMode, InputScrollEventPayload,
+    InputAxisInfo, InputButtonInfo, InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin,
+    InputDeviceCapabilities, InputDeviceCapabilityKind, InputEvent, InputEventAction,
+    InputEventKind, InputKeyEventPayload, InputKeyboardState, InputPointerButtonEventPayload,
+    InputPointerMotionEventPayload, InputPointerState, InputReadMode, InputScrollEventPayload,
 };
 use crate::platform::resource::ResourceKind;
 use crate::platform::{PlatformError, resource};
@@ -150,6 +151,8 @@ type CFRunLoopRef = *mut libc::c_void;
 type CFRunLoopSourceRef = *mut libc::c_void;
 /// CoreFoundation mach-port reference type.
 type CFMachPortRef = *mut libc::c_void;
+/// CoreGraphics event-source reference type.
+type CGEventSourceRef = *const libc::c_void;
 /// CoreGraphics event-tap callback function type.
 type CGEventTapCallBack =
     Option<unsafe extern "C" fn(CGEventTapProxy, u32, CGEventRef, *mut libc::c_void) -> CGEventRef>;
@@ -174,6 +177,16 @@ unsafe extern "C" {
     fn CGEventGetIntegerValueField(event: CGEventRef, field: i32) -> i64;
     /// Return one modifier-flags bitset from one CoreGraphics event object.
     fn CGEventGetFlags(event: CGEventRef) -> u64;
+    /// Return one modifier-flags bitset for one event-source state.
+    fn CGEventSourceFlagsState(state_id: i32) -> u64;
+    /// Return whether one key is currently pressed for one event-source state.
+    fn CGEventSourceKeyState(state_id: i32, key: u16) -> bool;
+    /// Return whether one mouse button is currently pressed for one event-source state.
+    fn CGEventSourceButtonState(state_id: i32, button: u32) -> bool;
+    /// Warp one global cursor position to one absolute display-space point.
+    fn CGWarpMouseCursorPosition(new_cursor_position: CGPoint) -> i32;
+    /// Create one synthetic event from one event source.
+    fn CGEventCreate(source: CGEventSourceRef) -> CGEventRef;
 }
 
 // link CoreFoundation symbols used for run-loop integration
@@ -320,6 +333,28 @@ static MACOS_TAP_STATE: OnceLock<Arc<MacosTapState>> = OnceLock::new();
 static MACOS_TAP_WORKER: OnceLock<Result<(), String>> = OnceLock::new();
 /// Global event-tap port pointer for callback-side re-enable handling.
 static MACOS_TAP_PORT: AtomicUsize = AtomicUsize::new(0);
+/// CoreGraphics state id for combined session input state.
+const KCG_EVENT_SOURCE_STATE_COMBINED_SESSION_STATE: i32 = 0;
+/// Runtime modifier bit for shift.
+const MODIFIER_SHIFT: u32 = 1 << 0;
+/// Runtime modifier bit for control.
+const MODIFIER_CONTROL: u32 = 1 << 1;
+/// Runtime modifier bit for alt.
+const MODIFIER_ALT: u32 = 1 << 2;
+/// Runtime modifier bit for meta.
+const MODIFIER_META: u32 = 1 << 3;
+/// Runtime modifier bit for caps lock.
+const MODIFIER_CAPS_LOCK: u32 = 1 << 4;
+/// Runtime pointer button bit for left.
+const POINTER_BUTTON_LEFT: u32 = 1u32 << 0;
+/// Runtime pointer button bit for right.
+const POINTER_BUTTON_RIGHT: u32 = 1u32 << 1;
+/// Runtime pointer button bit for middle.
+const POINTER_BUTTON_MIDDLE: u32 = 1u32 << 2;
+/// Runtime pointer button bit for x1.
+const POINTER_BUTTON_X1: u32 = 1u32 << 3;
+/// Runtime pointer button bit for x2.
+const POINTER_BUTTON_X2: u32 = 1u32 << 4;
 
 /// Return one shared event-tap state instance.
 fn macos_tap_state() -> &'static Arc<MacosTapState> {
@@ -638,10 +673,13 @@ pub(super) fn query_macos_session_capabilities(
         kinds: context.store_array(kinds),
         axes: context.store_array(axes),
         buttons: context.store_array(buttons),
-        supports_relative_pointer: false,
+        metadata_origin: InputCapabilityMetadataOrigin::Mixed,
+        axis_metadata_fidelity: InputCapabilityMetadataFidelity::Partial,
+        button_metadata_fidelity: InputCapabilityMetadataFidelity::Partial,
+        supports_relative_pointer: true,
         supports_pointer_grab: false,
         supports_pointer_capture: false,
-        supports_pointer_warp: false,
+        supports_pointer_warp: true,
         supports_text_input: false,
         supports_composition: false,
         supports_rumble: false,
@@ -652,6 +690,155 @@ pub(super) fn query_macos_session_capabilities(
         supports_raw_hid: false,
         supports_player_index: false,
     }
+}
+
+/// Decode runtime modifier bits from one CoreGraphics modifier-flag payload.
+fn runtime_modifiers_from_cg_flags(flags: u64) -> u32 {
+    let mut modifiers = 0u32;
+    if (flags & KCG_EVENT_FLAG_MASK_SHIFT) != 0 {
+        modifiers |= MODIFIER_SHIFT;
+    }
+    if (flags & KCG_EVENT_FLAG_MASK_CONTROL) != 0 {
+        modifiers |= MODIFIER_CONTROL;
+    }
+    if (flags & KCG_EVENT_FLAG_MASK_OPTION) != 0 {
+        modifiers |= MODIFIER_ALT;
+    }
+    if (flags & KCG_EVENT_FLAG_MASK_COMMAND) != 0 {
+        modifiers |= MODIFIER_META;
+    }
+    if (flags & KCG_EVENT_FLAG_MASK_CAPS_LOCK) != 0 {
+        modifiers |= MODIFIER_CAPS_LOCK;
+    }
+
+    modifiers
+}
+
+/// Build one stable pointer-button bitset from CoreGraphics button state.
+fn pointer_buttons_from_event_source_state() -> u32 {
+    let mut buttons = 0u32;
+    if unsafe { CGEventSourceButtonState(KCG_EVENT_SOURCE_STATE_COMBINED_SESSION_STATE, 0) } {
+        buttons |= POINTER_BUTTON_LEFT;
+    }
+    if unsafe { CGEventSourceButtonState(KCG_EVENT_SOURCE_STATE_COMBINED_SESSION_STATE, 1) } {
+        buttons |= POINTER_BUTTON_RIGHT;
+    }
+    if unsafe { CGEventSourceButtonState(KCG_EVENT_SOURCE_STATE_COMBINED_SESSION_STATE, 2) } {
+        buttons |= POINTER_BUTTON_MIDDLE;
+    }
+    if unsafe { CGEventSourceButtonState(KCG_EVENT_SOURCE_STATE_COMBINED_SESSION_STATE, 3) } {
+        buttons |= POINTER_BUTTON_X1;
+    }
+    if unsafe { CGEventSourceButtonState(KCG_EVENT_SOURCE_STATE_COMBINED_SESSION_STATE, 4) } {
+        buttons |= POINTER_BUTTON_X2;
+    }
+
+    buttons
+}
+
+/// Return one current cursor position from one synthetic CoreGraphics event.
+fn current_pointer_position(operation: &'static str) -> RuntimeResult<(f64, f64)> {
+    let event = unsafe { CGEventCreate(std::ptr::null::<libc::c_void>()) };
+    if event.is_null() {
+        return Err(RuntimeError::from(PlatformError::io_with(
+            Some(PlatformErrorCode::IoInvalidData),
+            None,
+            None,
+            Some(operation.to_string()),
+            None,
+            "failed to sample current macos pointer position".to_string(),
+        ))
+        .boxed());
+    }
+
+    let point = unsafe { CGEventGetLocation(event) };
+    unsafe {
+        CFRelease(event.cast::<libc::c_void>());
+    }
+
+    Ok((point.x, point.y))
+}
+
+/// Read one host keyboard snapshot from macOS global event-source state.
+pub(super) fn keyboard_state_snapshot(
+    context: &RuntimeCallContext,
+    sequence: u64,
+    device_id: &str,
+) -> RuntimeResult<InputKeyboardState> {
+    let mut pressed_codes = Vec::new();
+    for code in 0u16..=255u16 {
+        if unsafe { CGEventSourceKeyState(KCG_EVENT_SOURCE_STATE_COMBINED_SESSION_STATE, code) } {
+            pressed_codes.push(code as u32);
+        }
+    }
+
+    let flags = unsafe { CGEventSourceFlagsState(KCG_EVENT_SOURCE_STATE_COMBINED_SESSION_STATE) };
+    let modifiers = runtime_modifiers_from_cg_flags(flags);
+
+    Ok(InputKeyboardState {
+        timestamp_ns: input_core::monotonic_timestamp_ns(),
+        sequence,
+        device_id: context.store_string(device_id),
+        modifiers,
+        pressed_codes: context.store_array(pressed_codes.clone()),
+        pressed_scan_codes: context.store_array(pressed_codes),
+    })
+}
+
+/// Read one host pointer snapshot from macOS global event-source state.
+pub(super) fn pointer_state_snapshot(operation: &'static str) -> RuntimeResult<InputPointerState> {
+    let (x, y) = current_pointer_position(operation)?;
+    let flags = unsafe { CGEventSourceFlagsState(KCG_EVENT_SOURCE_STATE_COMBINED_SESSION_STATE) };
+    let modifiers = runtime_modifiers_from_cg_flags(flags);
+    let buttons = pointer_buttons_from_event_source_state();
+
+    Ok(InputPointerState {
+        x,
+        y,
+        buttons,
+        modifiers,
+        has_pen_data: false,
+        pressure: 0.0,
+        tangential_pressure: 0.0,
+        tilt_x: 0.0,
+        tilt_y: 0.0,
+        twist: 0.0,
+        in_contact: buttons != 0,
+        in_range: true,
+    })
+}
+
+/// Warp one global macOS cursor to one absolute display-space position.
+pub(super) fn warp_pointer_position(x: f64, y: f64, operation: &'static str) -> RuntimeResult<()> {
+    // validate finite warp coordinates before host calls
+    if !x.is_finite() || !y.is_finite() {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "x",
+            "x and y must be finite",
+        ))
+        .boxed());
+    }
+
+    // apply one global cursor warp through coregraphics
+    let status = unsafe {
+        CGWarpMouseCursorPosition(CGPoint {
+            x: x.round(),
+            y: y.round(),
+        })
+    };
+    if status != 0 {
+        return Err(RuntimeError::from(PlatformError::io_with(
+            Some(PlatformErrorCode::IoPermissionDenied),
+            None,
+            Some(status),
+            Some(operation.to_string()),
+            None,
+            "failed to warp macos pointer position".to_string(),
+        ))
+        .boxed());
+    }
+
+    Ok(())
 }
 
 /// Resolve or allocate one subscription id for one opened handle.
@@ -872,7 +1059,10 @@ fn stamp_pointer_button_state(queues: &mut MacosTapQueues, packet: &mut MacosTap
 
     // stamp current pressed-state context onto pointer motion and scroll packets
     if packet.kind == InputEventKind::PointerMotion || packet.kind == InputEventKind::Scroll {
-        packet.buttons = queues.pointer_buttons;
+        // keep packet button state synchronized with host state snapshots
+        let buttons = pointer_buttons_from_event_source_state();
+        queues.pointer_buttons = buttons;
+        packet.buttons = buttons;
     }
 }
 
@@ -880,7 +1070,8 @@ fn stamp_pointer_button_state(queues: &mut MacosTapQueues, packet: &mut MacosTap
 fn map_tap_event(event_type: u32, event: CGEventRef) -> Option<MacosTapPacket> {
     let timestamp_ns = input_core::monotonic_timestamp_ns();
     let point = unsafe { CGEventGetLocation(event) };
-    let modifiers = unsafe { CGEventGetFlags(event) as u32 };
+    let raw_flags = unsafe { CGEventGetFlags(event) };
+    let modifiers = runtime_modifiers_from_cg_flags(raw_flags);
 
     match event_type {
         KCG_EVENT_KEY_DOWN | KCG_EVENT_KEY_UP => {
@@ -1020,7 +1211,7 @@ fn map_tap_event(event_type: u32, event: CGEventRef) -> Option<MacosTapPacket> {
             }
 
             let key_code = key_code as u32;
-            let (action, value) = flags_changed_action_and_value(key_code, modifiers as u64)?;
+            let (action, value) = flags_changed_action_and_value(key_code, raw_flags)?;
 
             Some(MacosTapPacket {
                 timestamp_ns,
@@ -1106,5 +1297,22 @@ mod tests {
     #[test]
     fn test_flags_changed_action_and_value_rejects_unknown_keycode() {
         assert_eq!(flags_changed_action_and_value(999, 0), None);
+    }
+
+    /// Normalize coregraphics modifier flags into runtime modifier bits.
+    #[test]
+    fn test_runtime_modifiers_from_cg_flags_normalizes_expected_bits() {
+        let flags = KCG_EVENT_FLAG_MASK_SHIFT
+            | KCG_EVENT_FLAG_MASK_CONTROL
+            | KCG_EVENT_FLAG_MASK_OPTION
+            | KCG_EVENT_FLAG_MASK_COMMAND
+            | KCG_EVENT_FLAG_MASK_CAPS_LOCK;
+        let modifiers = runtime_modifiers_from_cg_flags(flags);
+
+        assert_eq!(modifiers & MODIFIER_SHIFT, MODIFIER_SHIFT);
+        assert_eq!(modifiers & MODIFIER_CONTROL, MODIFIER_CONTROL);
+        assert_eq!(modifiers & MODIFIER_ALT, MODIFIER_ALT);
+        assert_eq!(modifiers & MODIFIER_META, MODIFIER_META);
+        assert_eq!(modifiers & MODIFIER_CAPS_LOCK, MODIFIER_CAPS_LOCK);
     }
 }

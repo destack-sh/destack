@@ -8,11 +8,17 @@ use super::core as input_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputAxisInfo, InputButtonInfo, InputCompositionEventPayload, InputDeviceCapabilities,
-    InputDeviceCapabilityKind, InputDeviceEventPayload, InputDeviceInfo, InputDeviceKind,
-    InputEvent, InputEventAction, InputEventKind, InputGamepadEventPayload, InputKeyEventPayload,
-    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputScrollEventPayload,
-    InputSensorEventPayload, InputTextEventPayload, InputTouchEventPayload,
+    InputAxisInfo, InputButtonInfo, InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin,
+    InputCompositionEventPayload, InputDeviceCapabilities, InputDeviceCapabilityKind,
+    InputDeviceEventPayload, InputDeviceInfo, InputDeviceKind, InputEvent, InputEventAction,
+    InputEventKind, InputGamepadBatteryInfo, InputGamepadBatteryState, InputGamepadButtonState,
+    InputGamepadConnectionType, InputGamepadEventPayload, InputGamepadMappingType,
+    InputGamepadState, InputGamepadTouchState, InputHapticEffectParameters, InputHapticEffectType,
+    InputKeyEventPayload, InputKeyboardState, InputPointerButtonEventPayload,
+    InputPointerMotionEventPayload, InputPointerState, InputScrollEventPayload,
+    InputSensorEventPayload, InputSensorInfo, InputSensorKind, InputSensorSample,
+    InputTextEventPayload, InputTouchContactPhase, InputTouchContactState, InputTouchEventPayload,
+    InputTouchState,
 };
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::RuntimeCallContext;
@@ -21,6 +27,14 @@ use crate::runtime::RuntimeCallContext;
 pub(super) const INPUT_DEVICE_DIRECTORY: &str = "/dev/input";
 /// Prefix for Linux evdev event nodes.
 pub(super) const INPUT_EVENT_PREFIX: &str = "event";
+/// Linux hidraw root directory path.
+const INPUT_HIDRAW_DIRECTORY: &str = "/dev";
+/// Prefix for Linux hidraw nodes.
+const INPUT_HIDRAW_PREFIX: &str = "hidraw";
+/// Prefix for Linux runtime evdev identifiers.
+const LINUX_EVDEV_ID_PREFIX: &str = "linux:evdev:";
+/// Prefix for Linux runtime hidraw identifiers.
+const LINUX_HIDRAW_ID_PREFIX: &str = "linux:hidraw:";
 /// Linux EV_SYN event kind.
 const EV_SYN: u16 = 0x00;
 /// Linux EV_KEY event kind.
@@ -29,6 +43,8 @@ const EV_KEY: u16 = 0x01;
 const EV_REL: u16 = 0x02;
 /// Linux EV_ABS event kind.
 const EV_ABS: u16 = 0x03;
+/// Linux EV_FF event kind.
+const EV_FF: u16 = 0x15;
 /// Linux REL_X event code.
 const REL_X: u16 = 0x00;
 /// Linux REL_Y event code.
@@ -75,12 +91,22 @@ const ABS_HAT2Y: u16 = 0x15;
 const ABS_HAT3X: u16 = 0x16;
 /// Linux ABS_HAT3Y event code.
 const ABS_HAT3Y: u16 = 0x17;
+/// Linux ABS_PRESSURE event code.
+const ABS_PRESSURE: u16 = 0x18;
+/// Linux ABS_TILT_X event code.
+const ABS_TILT_X: u16 = 0x1a;
+/// Linux ABS_TILT_Y event code.
+const ABS_TILT_Y: u16 = 0x1b;
 /// Linux ABS_MT_SLOT event code.
 const ABS_MT_SLOT: u16 = 0x2f;
+/// Linux ABS_MT_TRACKING_ID event code.
+const ABS_MT_TRACKING_ID: u16 = 0x39;
 /// Linux ABS_MT_POSITION_X event code.
 const ABS_MT_POSITION_X: u16 = 0x35;
 /// Linux ABS_MT_POSITION_Y event code.
 const ABS_MT_POSITION_Y: u16 = 0x36;
+/// Linux ABS_MT_PRESSURE event code.
+const ABS_MT_PRESSURE: u16 = 0x3a;
 /// Linux KEY_A key-bit index.
 const KEY_A: usize = 30;
 /// Linux KEY_LEFTSHIFT key-bit index.
@@ -111,6 +137,40 @@ const BTN_MOUSE_LEFT: usize = 0x110;
 const BTN_TOUCH: usize = 0x14a;
 /// Linux BTN_STYLUS key-bit index.
 const BTN_STYLUS: usize = 0x14b;
+/// Linux BTN_SOUTH key-bit index.
+const BTN_SOUTH: usize = 0x130;
+/// Linux BTN_EAST key-bit index.
+const BTN_EAST: usize = 0x131;
+/// Linux BTN_NORTH key-bit index.
+const BTN_NORTH: usize = 0x133;
+/// Linux BTN_WEST key-bit index.
+const BTN_WEST: usize = 0x134;
+/// Linux BTN_TL key-bit index.
+const BTN_TL: usize = 0x136;
+/// Linux BTN_TR key-bit index.
+const BTN_TR: usize = 0x137;
+/// Linux BTN_TL2 key-bit index.
+const BTN_TL2: usize = 0x138;
+/// Linux BTN_TR2 key-bit index.
+const BTN_TR2: usize = 0x139;
+/// Linux BTN_SELECT key-bit index.
+const BTN_SELECT: usize = 0x13a;
+/// Linux BTN_START key-bit index.
+const BTN_START: usize = 0x13b;
+/// Linux BTN_MODE key-bit index.
+const BTN_MODE: usize = 0x13c;
+/// Linux BTN_THUMBL key-bit index.
+const BTN_THUMBL: usize = 0x13d;
+/// Linux BTN_THUMBR key-bit index.
+const BTN_THUMBR: usize = 0x13e;
+/// Linux BTN_DPAD_UP key-bit index.
+const BTN_DPAD_UP: usize = 0x220;
+/// Linux BTN_DPAD_DOWN key-bit index.
+const BTN_DPAD_DOWN: usize = 0x221;
+/// Linux BTN_DPAD_LEFT key-bit index.
+const BTN_DPAD_LEFT: usize = 0x222;
+/// Linux BTN_DPAD_RIGHT key-bit index.
+const BTN_DPAD_RIGHT: usize = 0x223;
 /// Linux BTN_GAMEPAD key-bit index.
 const BTN_GAMEPAD: usize = 0x130;
 /// Linux BTN_MISC range start.
@@ -149,12 +209,26 @@ const MAX_KEY_BITS: usize = 256;
 const MAX_REL_BITS: usize = 64;
 /// Buffer size for Linux absolute-axis capability bitsets.
 const MAX_ABS_BITS: usize = 64;
+/// Buffer size for Linux force-feedback capability bitsets.
+const MAX_FF_BITS: usize = 16;
+/// Linux force-feedback rumble effect code.
+const FF_RUMBLE: usize = 0x50;
 /// Linux EVIOCGID ioctl request number.
 const EVIOCGID_REQUEST: libc::c_ulong =
     ior_request(b'E', 0x02, std::mem::size_of::<LinuxInputId>());
 /// Linux EVIOCGRAB ioctl request number.
 const EVIOCGRAB_REQUEST: libc::c_ulong =
     iow_request(b'E', 0x90, std::mem::size_of::<libc::c_int>());
+/// Linux EVIOCSFF ioctl request number.
+const EVIOCSFF_REQUEST: libc::c_ulong =
+    iow_request(b'E', 0x80, std::mem::size_of::<LinuxFfEffect>());
+/// Linux EVIOCRMFF ioctl request number.
+const EVIOCRMFF_REQUEST: libc::c_ulong =
+    iow_request(b'E', 0x81, std::mem::size_of::<libc::c_int>());
+/// Linux force-feedback event-value for start.
+const FF_EVENT_START: i32 = 1;
+/// Linux force-feedback event-value for stop.
+const FF_EVENT_STOP: i32 = 0;
 /// Modifier bit: one or more shift keys are active.
 const MODIFIER_SHIFT: u32 = 1 << 0;
 /// Modifier bit: one or more control keys are active.
@@ -182,6 +256,18 @@ struct LinuxInputId {
     product: u16,
     /// Device version id.
     version: u16,
+}
+
+/// Linux hidraw device info payload returned by HIDIOCGRAWINFO.
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct LinuxHidrawDevInfo {
+    /// Bus type identifier.
+    bustype: u32,
+    /// Device vendor id.
+    vendor: u16,
+    /// Device product id.
+    product: u16,
 }
 
 /// Linux absolute-axis payload returned by EVIOCGABS.
@@ -216,6 +302,58 @@ pub(super) struct LinuxInputEvent {
     value: i32,
 }
 
+/// Linux force-feedback trigger payload.
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct LinuxFfTrigger {
+    /// Trigger button code.
+    button: u16,
+    /// Trigger interval.
+    interval: u16,
+}
+
+/// Linux force-feedback replay payload.
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct LinuxFfReplay {
+    /// Replay duration in milliseconds.
+    length: u16,
+    /// Replay delay in milliseconds.
+    delay: u16,
+}
+
+/// Linux force-feedback rumble payload.
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct LinuxFfRumbleEffect {
+    /// Strong-motor magnitude.
+    strong_magnitude: u16,
+    /// Weak-motor magnitude.
+    weak_magnitude: u16,
+}
+
+/// Linux force-feedback effect payload.
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct LinuxFfEffect {
+    /// Force-feedback effect type.
+    type_: u16,
+    /// Kernel-managed effect id.
+    id: i16,
+    /// Direction value for directional effects.
+    direction: u16,
+    /// Trigger payload.
+    trigger: LinuxFfTrigger,
+    /// Replay payload.
+    replay: LinuxFfReplay,
+    /// Union payload bytes for effect-specific parameters.
+    #[cfg(target_pointer_width = "64")]
+    payload: [u64; 4],
+    /// Union payload bytes for effect-specific parameters.
+    #[cfg(target_pointer_width = "32")]
+    payload: [u32; 7],
+}
+
 /// Device metadata collected from Linux evdev descriptors.
 #[derive(Clone)]
 struct InputDeviceMetadata {
@@ -237,6 +375,12 @@ struct InputDeviceMetadata {
     button_count: u16,
     /// Number of logical axes when reported by the backend.
     axis_count: u16,
+    /// Whether this endpoint supports force-feedback rumble.
+    supports_rumble: bool,
+    /// Whether this endpoint supports raw-hid report lanes.
+    supports_raw_hid: bool,
+    /// Host transport name for this endpoint.
+    transport: &'static str,
 }
 
 /// Build one Linux ioctl request number for read-only payloads.
@@ -295,7 +439,48 @@ fn eviocgabs_request(code: u16) -> libc::c_ulong {
     )
 }
 
-/// Normalize one Linux input id into one absolute evdev path.
+/// Build EVIOCGKEY request number for one key-state bitset length.
+fn eviocgkey_request(length: usize) -> libc::c_ulong {
+    ior_request(b'E', 0x18, length)
+}
+
+/// Build HIDIOCGRAWNAME request number for one buffer length.
+fn hidiocgrawname_request(length: usize) -> libc::c_ulong {
+    ior_request(b'H', 0x04, length)
+}
+
+/// Build HIDIOCGRAWINFO request number.
+fn hidiocgrawinfo_request() -> libc::c_ulong {
+    ior_request(b'H', 0x03, std::mem::size_of::<LinuxHidrawDevInfo>())
+}
+
+/// Return whether one Linux node name matches `<prefix><digits>`.
+fn is_linux_node_name(name: &str, prefix: &str) -> bool {
+    let Some(suffix) = name.strip_prefix(prefix) else {
+        return false;
+    };
+    if suffix.is_empty() {
+        return false;
+    }
+
+    suffix.as_bytes().iter().all(|byte| byte.is_ascii_digit())
+}
+
+/// Return whether one Linux absolute path matches `<directory>/<prefix><digits>`.
+fn is_linux_node_path(path: &str, directory: &str, prefix: &str) -> bool {
+    let node_path = Path::new(path);
+    if node_path.parent() != Some(Path::new(directory)) {
+        return false;
+    }
+
+    let Some(name) = node_path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+
+    is_linux_node_name(name, prefix)
+}
+
+/// Normalize one Linux input id into one canonical evdev or hidraw path.
 pub(super) fn normalize_input_path(id: &str) -> RuntimeResult<String> {
     if id.is_empty() {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -313,40 +498,147 @@ pub(super) fn normalize_input_path(id: &str) -> RuntimeResult<String> {
         .boxed());
     }
 
-    if id.starts_with("/dev/input/event") {
+    if is_linux_node_path(id, INPUT_DEVICE_DIRECTORY, INPUT_EVENT_PREFIX) {
+        return Ok(id.to_string());
+    }
+    if is_linux_node_path(id, INPUT_HIDRAW_DIRECTORY, INPUT_HIDRAW_PREFIX) {
         return Ok(id.to_string());
     }
 
-    if id.starts_with(INPUT_EVENT_PREFIX) {
+    if is_linux_node_name(id, INPUT_EVENT_PREFIX) {
         return Ok(format!("{INPUT_DEVICE_DIRECTORY}/{id}"));
+    }
+    if is_linux_node_name(id, INPUT_HIDRAW_PREFIX) {
+        return Ok(format!("{INPUT_HIDRAW_DIRECTORY}/{id}"));
+    }
+
+    // resolve stable runtime identifiers by scanning current device metadata
+    if id.starts_with(LINUX_EVDEV_ID_PREFIX) || id.starts_with(LINUX_HIDRAW_ID_PREFIX) {
+        let resolved = resolve_runtime_device_id_path(id)?;
+        if let Some(path) = resolved {
+            return Ok(path);
+        }
     }
 
     Err(RuntimeError::from(PlatformError::invalid_argument_value(
         "id",
-        "id must be one /dev/input/event path or event node name",
+        "id must be one runtime input id, /dev/input/event path, /dev/hidraw path, or node name",
     ))
     .boxed())
+}
+
+/// Resolve one stable runtime Linux device identifier into one openable path.
+fn resolve_runtime_device_id_path(id: &str) -> RuntimeResult<Option<String>> {
+    // scan evdev endpoints and match one runtime identifier
+    let evdev_paths = list_linux_device_paths()?;
+    for path in evdev_paths {
+        let fallback_name = Path::new(&path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or(INPUT_EVENT_PREFIX);
+        let metadata = query_device_metadata(&path, fallback_name);
+        if linux_runtime_device_id(path.as_str(), &metadata, false) == id {
+            return Ok(Some(path));
+        }
+    }
+
+    // scan hidraw endpoints and match one runtime identifier
+    let hidraw_paths = list_linux_hidraw_paths()?;
+    for path in hidraw_paths {
+        let fallback_name = Path::new(&path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or(INPUT_HIDRAW_PREFIX);
+        let metadata = query_hidraw_metadata(&path, fallback_name);
+        if linux_runtime_device_id(path.as_str(), &metadata, true) == id {
+            return Ok(Some(path));
+        }
+    }
+
+    Ok(None)
+}
+
+/// Build one stable runtime identifier for one Linux input endpoint.
+fn linux_runtime_device_id(path: &str, metadata: &InputDeviceMetadata, is_hidraw: bool) -> String {
+    let prefix = if is_hidraw {
+        LINUX_HIDRAW_ID_PREFIX
+    } else {
+        LINUX_EVDEV_ID_PREFIX
+    };
+
+    // prefer backend instance identifiers because they survive path renumbering
+    if !metadata.instance_id.is_empty() && metadata.instance_id != path {
+        return format!("{prefix}instance:{}", metadata.instance_id);
+    }
+
+    // otherwise use backend hardware topology identifiers when available
+    if !metadata.hardware_id.is_empty() && metadata.hardware_id != path {
+        return format!("{prefix}hardware:{}", metadata.hardware_id);
+    }
+
+    // use vendor and product fingerprints only when hardware identifiers are unavailable
+    if metadata.vendor_id != 0 || metadata.product_id != 0 {
+        return format!(
+            "{prefix}fingerprint:{:04x}:{:04x}:{}:{path}",
+            metadata.vendor_id,
+            metadata.product_id,
+            metadata.name.to_ascii_lowercase(),
+        );
+    }
+
+    // fall back to path identifiers on hosts that expose no stable metadata
+    format!("{prefix}path:{path}")
+}
+
+/// Return whether one identifier is one Linux hidraw runtime id.
+pub(super) fn is_linux_hidraw_runtime_id(id: &str) -> bool {
+    id.starts_with(LINUX_HIDRAW_ID_PREFIX)
+}
+
+/// Build one runtime identifier for one Linux device path.
+pub(super) fn linux_runtime_device_id_for_path(path: &str) -> String {
+    if is_linux_node_path(path, INPUT_DEVICE_DIRECTORY, INPUT_EVENT_PREFIX) {
+        let fallback_name = Path::new(path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or(INPUT_EVENT_PREFIX);
+        let metadata = query_device_metadata(path, fallback_name);
+        return linux_runtime_device_id(path, &metadata, false);
+    }
+
+    if is_linux_node_path(path, INPUT_HIDRAW_DIRECTORY, INPUT_HIDRAW_PREFIX) {
+        let fallback_name = Path::new(path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or(INPUT_HIDRAW_PREFIX);
+        let metadata = query_hidraw_metadata(path, fallback_name);
+        return linux_runtime_device_id(path, &metadata, true);
+    }
+
+    format!("{LINUX_EVDEV_ID_PREFIX}path:{path}")
 }
 
 /// Enumerate Linux evdev devices and map them into runtime metadata.
 pub(super) fn list_linux_devices(
     context: &RuntimeCallContext,
 ) -> RuntimeResult<Vec<InputDeviceInfo>> {
-    let paths = list_linux_device_paths()?;
-    let mut devices = Vec::with_capacity(paths.len());
-    for path in paths {
+    let evdev_paths = list_linux_device_paths()?;
+    let hidraw_paths = list_linux_hidraw_paths()?;
+    let mut devices = Vec::with_capacity(evdev_paths.len() + hidraw_paths.len());
+    for path in evdev_paths {
         let fallback_name = Path::new(&path)
             .file_name()
             .and_then(|name| name.to_str())
             .unwrap_or(INPUT_EVENT_PREFIX);
         let metadata = query_device_metadata(&path, fallback_name);
+        let runtime_id = linux_runtime_device_id(path.as_str(), &metadata, false);
 
         devices.push(InputDeviceInfo {
-            id: context.store_string(&path),
+            id: context.store_string(&runtime_id),
             instance_id: context.store_string(&metadata.instance_id),
             hardware_id: context.store_string(&metadata.hardware_id),
             name: context.store_string(&metadata.name),
-            transport: context.store_string("evdev"),
+            transport: context.store_string(metadata.transport),
             kind: metadata.kind,
             vendor_id: metadata.vendor_id,
             product_id: metadata.product_id,
@@ -357,14 +649,53 @@ pub(super) fn list_linux_devices(
             supports_exclusive_grab: true,
             supports_raw: true,
             supports_text: false,
-            supports_rumble: false,
+            supports_rumble: metadata.supports_rumble,
             supports_battery: false,
             supports_light: false,
-            supports_raw_hid: false,
+            supports_raw_hid: metadata.supports_raw_hid,
             is_virtual: false,
             is_system: true,
         });
     }
+
+    for path in hidraw_paths {
+        let fallback_name = Path::new(&path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or(INPUT_HIDRAW_PREFIX);
+        let metadata = query_hidraw_metadata(&path, fallback_name);
+        let runtime_id = linux_runtime_device_id(path.as_str(), &metadata, true);
+
+        devices.push(InputDeviceInfo {
+            id: context.store_string(&runtime_id),
+            instance_id: context.store_string(&metadata.instance_id),
+            hardware_id: context.store_string(&metadata.hardware_id),
+            name: context.store_string(&metadata.name),
+            transport: context.store_string(metadata.transport),
+            kind: metadata.kind,
+            vendor_id: metadata.vendor_id,
+            product_id: metadata.product_id,
+            key_count: metadata.key_count,
+            button_count: metadata.button_count,
+            axis_count: metadata.axis_count,
+            connected: true,
+            supports_exclusive_grab: false,
+            supports_raw: true,
+            supports_text: false,
+            supports_rumble: metadata.supports_rumble,
+            supports_battery: false,
+            supports_light: false,
+            supports_raw_hid: metadata.supports_raw_hid,
+            is_virtual: false,
+            is_system: true,
+        });
+    }
+
+    devices.sort_unstable_by(|left, right| {
+        let left_id = unsafe { left.id.as_str() }.unwrap_or_default();
+        let right_id = unsafe { right.id.as_str() }.unwrap_or_default();
+        left_id.cmp(right_id)
+    });
 
     Ok(devices)
 }
@@ -509,6 +840,924 @@ pub(super) fn set_linux_grab(descriptor: RawFd, enable: bool) -> RuntimeResult<(
     Ok(())
 }
 
+/// Read one EVIOCGKEY state bitset from one Linux input descriptor.
+fn read_key_state_bits(
+    descriptor: RawFd,
+    operation: &'static str,
+) -> RuntimeResult<[u8; MAX_KEY_BITS]> {
+    let mut key_bits = [0u8; MAX_KEY_BITS];
+    let status = unsafe {
+        libc::ioctl(
+            descriptor,
+            eviocgkey_request(key_bits.len()),
+            key_bits.as_mut_ptr(),
+        )
+    };
+    if status < 0 {
+        return Err(RuntimeError::from(PlatformError::io_with(
+            None,
+            None,
+            Some(core_platform::get_errno()),
+            Some(operation.to_string()),
+            None,
+            "failed to query current key state".to_string(),
+        ))
+        .boxed());
+    }
+
+    Ok(key_bits)
+}
+
+/// Read one EVIOCGABS axis payload from one Linux input descriptor.
+fn read_abs_axis_info(descriptor: RawFd, axis: u16) -> Option<LinuxInputAbsInfo> {
+    let mut abs_info = MaybeUninit::<LinuxInputAbsInfo>::uninit();
+    let status = unsafe { libc::ioctl(descriptor, eviocgabs_request(axis), abs_info.as_mut_ptr()) };
+    if status < 0 {
+        return None;
+    }
+
+    Some(unsafe { abs_info.assume_init() })
+}
+
+/// Normalize one signed absolute axis value to `[-1, 1]`.
+fn normalize_signed_axis(value: i32, minimum: i32, maximum: i32) -> f64 {
+    if maximum <= minimum {
+        return 0.0;
+    }
+
+    let clamped = value.clamp(minimum, maximum);
+    let min = minimum as f64;
+    let max = maximum as f64;
+    ((clamped as f64 - min) / (max - min) * 2.0 - 1.0).clamp(-1.0, 1.0)
+}
+
+/// Normalize one unsigned absolute axis value to `[0, 1]`.
+fn normalize_unsigned_axis(value: i32, minimum: i32, maximum: i32) -> f64 {
+    if maximum <= minimum {
+        return 0.0;
+    }
+
+    let clamped = value.clamp(minimum, maximum);
+    let min = minimum as f64;
+    let max = maximum as f64;
+    ((clamped as f64 - min) / (max - min)).clamp(0.0, 1.0)
+}
+
+/// Build runtime modifier bits from one EVIOCGKEY bitset.
+fn modifiers_from_key_bits(key_bits: &[u8]) -> u32 {
+    let mut modifiers = 0u32;
+
+    if bit_is_set(key_bits, KEY_LEFTSHIFT as usize) || bit_is_set(key_bits, KEY_RIGHTSHIFT as usize)
+    {
+        modifiers |= MODIFIER_SHIFT;
+    }
+    if bit_is_set(key_bits, KEY_LEFTCTRL as usize) || bit_is_set(key_bits, KEY_RIGHTCTRL as usize) {
+        modifiers |= MODIFIER_CONTROL;
+    }
+    if bit_is_set(key_bits, KEY_LEFTALT as usize) || bit_is_set(key_bits, KEY_RIGHTALT as usize) {
+        modifiers |= MODIFIER_ALT;
+    }
+    if bit_is_set(key_bits, KEY_LEFTMETA as usize) || bit_is_set(key_bits, KEY_RIGHTMETA as usize) {
+        modifiers |= MODIFIER_META;
+    }
+    if bit_is_set(key_bits, KEY_CAPSLOCK as usize) {
+        modifiers |= MODIFIER_CAPS_LOCK;
+    }
+    if bit_is_set(key_bits, KEY_NUMLOCK as usize) {
+        modifiers |= MODIFIER_NUM_LOCK;
+    }
+    if bit_is_set(key_bits, KEY_SCROLLLOCK as usize) {
+        modifiers |= MODIFIER_SCROLL_LOCK;
+    }
+
+    modifiers
+}
+
+/// Build stable pointer-button bits from one EVIOCGKEY bitset.
+fn pointer_buttons_from_key_bits(key_bits: &[u8]) -> u32 {
+    let mut buttons = 0u32;
+
+    if bit_is_set(key_bits, BTN_MOUSE_LEFT) {
+        buttons |= 1u32 << 0;
+    }
+    if bit_is_set(key_bits, BTN_MOUSE_LEFT + 1) {
+        buttons |= 1u32 << 1;
+    }
+    if bit_is_set(key_bits, BTN_MOUSE_LEFT + 2) {
+        buttons |= 1u32 << 2;
+    }
+    if bit_is_set(key_bits, BTN_MOUSE_LEFT + 3) {
+        buttons |= 1u32 << 3;
+    }
+    if bit_is_set(key_bits, BTN_MOUSE_LEFT + 4) {
+        buttons |= 1u32 << 4;
+    }
+
+    buttons
+}
+
+/// Query one keyboard snapshot from one Linux input descriptor.
+pub(super) fn keyboard_state_snapshot(
+    context: &RuntimeCallContext,
+    descriptor: RawFd,
+    sequence: u64,
+    device_id: &str,
+    operation: &'static str,
+) -> RuntimeResult<InputKeyboardState> {
+    // load currently pressed key bits from the kernel
+    let key_bits = read_key_state_bits(descriptor, operation)?;
+
+    // project logical key codes excluding button namespaces
+    let mut pressed_codes = Vec::new();
+    for code in 0..(key_bits.len() * 8) {
+        if !bit_is_set(&key_bits, code) || is_button_code(code) {
+            continue;
+        }
+        pressed_codes.push(code as u32);
+    }
+
+    // derive current modifier flags from pressed key bits
+    let modifiers = modifiers_from_key_bits(&key_bits);
+
+    Ok(InputKeyboardState {
+        timestamp_ns: input_core::monotonic_timestamp_ns(),
+        sequence,
+        device_id: context.store_string(device_id),
+        modifiers,
+        pressed_codes: context.store_array(pressed_codes.clone()),
+        pressed_scan_codes: context.store_array(pressed_codes),
+    })
+}
+
+/// Query one pointer snapshot from one Linux input descriptor.
+pub(super) fn pointer_state_snapshot(
+    descriptor: RawFd,
+    operation: &'static str,
+) -> RuntimeResult<InputPointerState> {
+    // load currently pressed key bits from the kernel
+    let key_bits = read_key_state_bits(descriptor, operation)?;
+
+    // derive current modifier and pointer-button state
+    let modifiers = modifiers_from_key_bits(&key_bits);
+    let buttons = pointer_buttons_from_key_bits(&key_bits);
+
+    // query absolute pointer coordinates when the device reports them
+    let x = read_abs_axis_info(descriptor, ABS_X)
+        .map(|axis| axis.value as f64)
+        .unwrap_or(0.0);
+    let y = read_abs_axis_info(descriptor, ABS_Y)
+        .map(|axis| axis.value as f64)
+        .unwrap_or(0.0);
+
+    // query pen pressure and tilt when supported by the descriptor
+    let pressure_axis = read_abs_axis_info(descriptor, ABS_PRESSURE)
+        .or_else(|| read_abs_axis_info(descriptor, ABS_MT_PRESSURE));
+    let pressure = pressure_axis
+        .map(|axis| normalize_unsigned_axis(axis.value, axis.minimum, axis.maximum))
+        .unwrap_or(0.0);
+    let tilt_x = read_abs_axis_info(descriptor, ABS_TILT_X)
+        .map(|axis| normalize_signed_axis(axis.value, axis.minimum, axis.maximum))
+        .unwrap_or(0.0);
+    let tilt_y = read_abs_axis_info(descriptor, ABS_TILT_Y)
+        .map(|axis| normalize_signed_axis(axis.value, axis.minimum, axis.maximum))
+        .unwrap_or(0.0);
+
+    // derive contact and in-range state from key and pressure lanes
+    let has_pen_data = pressure_axis.is_some()
+        || tilt_x != 0.0
+        || tilt_y != 0.0
+        || bit_is_set(&key_bits, BTN_STYLUS);
+    let in_contact = bit_is_set(&key_bits, BTN_TOUCH) || pressure > 0.0 || buttons != 0;
+    let in_range = if has_pen_data {
+        bit_is_set(&key_bits, BTN_STYLUS) || in_contact
+    } else {
+        true
+    };
+
+    Ok(InputPointerState {
+        x,
+        y,
+        buttons,
+        modifiers,
+        has_pen_data,
+        pressure,
+        tangential_pressure: 0.0,
+        tilt_x,
+        tilt_y,
+        twist: 0.0,
+        in_contact,
+        in_range,
+    })
+}
+
+/// Build one standard gamepad-button state payload.
+fn standard_gamepad_button_state(pressed: bool, value: f64) -> InputGamepadButtonState {
+    InputGamepadButtonState {
+        pressed,
+        touched: pressed || value > 0.0,
+        value,
+    }
+}
+
+/// Read one standard gamepad axis value from one Linux absolute axis code.
+fn read_gamepad_axis(descriptor: RawFd, axis: u16) -> f64 {
+    let Some(info) = read_abs_axis_info(descriptor, axis) else {
+        return 0.0;
+    };
+
+    normalize_signed_axis(info.value, info.minimum, info.maximum)
+}
+
+/// Read one gamepad trigger value from one Linux absolute axis code.
+fn read_gamepad_trigger(descriptor: RawFd, axis: u16) -> f64 {
+    let Some(info) = read_abs_axis_info(descriptor, axis) else {
+        return 0.0;
+    };
+
+    normalize_unsigned_axis(info.value, info.minimum, info.maximum)
+}
+
+/// Query one gamepad snapshot from one Linux input descriptor.
+pub(super) fn gamepad_state_snapshot(
+    context: &RuntimeCallContext,
+    descriptor: RawFd,
+    player_index: u8,
+    operation: &'static str,
+) -> RuntimeResult<InputGamepadState> {
+    // load currently pressed key bits from the kernel
+    let key_bits = read_key_state_bits(descriptor, operation)?;
+
+    // project standard gamepad axes from Linux absolute axis lanes
+    let axes = vec![
+        read_gamepad_axis(descriptor, ABS_X),
+        read_gamepad_axis(descriptor, ABS_Y),
+        read_gamepad_axis(descriptor, ABS_RX),
+        read_gamepad_axis(descriptor, ABS_RY),
+    ];
+
+    // project standard gamepad button table from key and trigger lanes
+    let left_trigger_axis = read_gamepad_trigger(descriptor, ABS_Z);
+    let right_trigger_axis = read_gamepad_trigger(descriptor, ABS_RZ);
+    let left_trigger_pressed = bit_is_set(&key_bits, BTN_TL2);
+    let right_trigger_pressed = bit_is_set(&key_bits, BTN_TR2);
+    let left_trigger_value = if left_trigger_pressed {
+        1.0
+    } else {
+        left_trigger_axis
+    };
+    let right_trigger_value = if right_trigger_pressed {
+        1.0
+    } else {
+        right_trigger_axis
+    };
+
+    let mut buttons = vec![
+        standard_gamepad_button_state(
+            bit_is_set(&key_bits, BTN_SOUTH),
+            if bit_is_set(&key_bits, BTN_SOUTH) {
+                1.0
+            } else {
+                0.0
+            },
+        ),
+        standard_gamepad_button_state(
+            bit_is_set(&key_bits, BTN_EAST),
+            if bit_is_set(&key_bits, BTN_EAST) {
+                1.0
+            } else {
+                0.0
+            },
+        ),
+        standard_gamepad_button_state(
+            bit_is_set(&key_bits, BTN_WEST),
+            if bit_is_set(&key_bits, BTN_WEST) {
+                1.0
+            } else {
+                0.0
+            },
+        ),
+        standard_gamepad_button_state(
+            bit_is_set(&key_bits, BTN_NORTH),
+            if bit_is_set(&key_bits, BTN_NORTH) {
+                1.0
+            } else {
+                0.0
+            },
+        ),
+        standard_gamepad_button_state(
+            bit_is_set(&key_bits, BTN_TL),
+            if bit_is_set(&key_bits, BTN_TL) {
+                1.0
+            } else {
+                0.0
+            },
+        ),
+        standard_gamepad_button_state(
+            bit_is_set(&key_bits, BTN_TR),
+            if bit_is_set(&key_bits, BTN_TR) {
+                1.0
+            } else {
+                0.0
+            },
+        ),
+        standard_gamepad_button_state(left_trigger_pressed, left_trigger_value),
+        standard_gamepad_button_state(right_trigger_pressed, right_trigger_value),
+        standard_gamepad_button_state(
+            bit_is_set(&key_bits, BTN_SELECT),
+            if bit_is_set(&key_bits, BTN_SELECT) {
+                1.0
+            } else {
+                0.0
+            },
+        ),
+        standard_gamepad_button_state(
+            bit_is_set(&key_bits, BTN_START),
+            if bit_is_set(&key_bits, BTN_START) {
+                1.0
+            } else {
+                0.0
+            },
+        ),
+        standard_gamepad_button_state(
+            bit_is_set(&key_bits, BTN_THUMBL),
+            if bit_is_set(&key_bits, BTN_THUMBL) {
+                1.0
+            } else {
+                0.0
+            },
+        ),
+        standard_gamepad_button_state(
+            bit_is_set(&key_bits, BTN_THUMBR),
+            if bit_is_set(&key_bits, BTN_THUMBR) {
+                1.0
+            } else {
+                0.0
+            },
+        ),
+        standard_gamepad_button_state(
+            bit_is_set(&key_bits, BTN_DPAD_UP),
+            if bit_is_set(&key_bits, BTN_DPAD_UP) {
+                1.0
+            } else {
+                0.0
+            },
+        ),
+        standard_gamepad_button_state(
+            bit_is_set(&key_bits, BTN_DPAD_DOWN),
+            if bit_is_set(&key_bits, BTN_DPAD_DOWN) {
+                1.0
+            } else {
+                0.0
+            },
+        ),
+        standard_gamepad_button_state(
+            bit_is_set(&key_bits, BTN_DPAD_LEFT),
+            if bit_is_set(&key_bits, BTN_DPAD_LEFT) {
+                1.0
+            } else {
+                0.0
+            },
+        ),
+        standard_gamepad_button_state(
+            bit_is_set(&key_bits, BTN_DPAD_RIGHT),
+            if bit_is_set(&key_bits, BTN_DPAD_RIGHT) {
+                1.0
+            } else {
+                0.0
+            },
+        ),
+        standard_gamepad_button_state(
+            bit_is_set(&key_bits, BTN_MODE),
+            if bit_is_set(&key_bits, BTN_MODE) {
+                1.0
+            } else {
+                0.0
+            },
+        ),
+    ];
+
+    // include hat-axis dpad fallback when key-button lanes are absent
+    let hat_x = read_abs_axis_info(descriptor, ABS_HAT0X)
+        .map(|axis| axis.value)
+        .unwrap_or(0);
+    let hat_y = read_abs_axis_info(descriptor, ABS_HAT0Y)
+        .map(|axis| axis.value)
+        .unwrap_or(0);
+    if hat_y < 0 {
+        buttons[12] = standard_gamepad_button_state(true, 1.0);
+    } else if hat_y > 0 {
+        buttons[13] = standard_gamepad_button_state(true, 1.0);
+    }
+    if hat_x < 0 {
+        buttons[14] = standard_gamepad_button_state(true, 1.0);
+    } else if hat_x > 0 {
+        buttons[15] = standard_gamepad_button_state(true, 1.0);
+    }
+
+    Ok(InputGamepadState {
+        timestamp_ns: input_core::monotonic_timestamp_ns(),
+        connected: true,
+        mapping: InputGamepadMappingType::Standard,
+        connection_type: InputGamepadConnectionType::Wired,
+        player_index,
+        battery: InputGamepadBatteryInfo {
+            state: InputGamepadBatteryState::Unknown,
+            level: 0.0,
+        },
+        supports_rumble: supports_linux_rumble(descriptor),
+        supports_trigger_rumble: false,
+        axes: context.store_array(axes),
+        buttons: context.store_array(buttons),
+        touches: context.store_array(Vec::<InputGamepadTouchState>::new()),
+    })
+}
+
+/// Query one touch snapshot from one Linux input descriptor.
+pub(super) fn touch_state_snapshot(
+    context: &RuntimeCallContext,
+    descriptor: RawFd,
+    sequence: u64,
+    device_id: &str,
+    operation: &'static str,
+) -> RuntimeResult<InputTouchState> {
+    // load currently pressed key bits from the kernel
+    let key_bits = read_key_state_bits(descriptor, operation)?;
+
+    // derive in-contact state from BTN_TOUCH and pressure lanes
+    let pressure_axis = read_abs_axis_info(descriptor, ABS_MT_PRESSURE)
+        .or_else(|| read_abs_axis_info(descriptor, ABS_PRESSURE));
+    let pressure = pressure_axis
+        .map(|axis| normalize_unsigned_axis(axis.value, axis.minimum, axis.maximum))
+        .unwrap_or(0.0);
+    let in_contact = bit_is_set(&key_bits, BTN_TOUCH) || pressure > 0.0;
+
+    // project one primary touch contact when the device is currently in contact
+    let mut contacts = Vec::new();
+    if in_contact {
+        let contact_id = read_abs_axis_info(descriptor, ABS_MT_TRACKING_ID)
+            .map(|axis| axis.value.max(0) as u32)
+            .unwrap_or(0);
+        let x = read_abs_axis_info(descriptor, ABS_MT_POSITION_X)
+            .or_else(|| read_abs_axis_info(descriptor, ABS_X))
+            .map(|axis| axis.value as f64)
+            .unwrap_or(0.0);
+        let y = read_abs_axis_info(descriptor, ABS_MT_POSITION_Y)
+            .or_else(|| read_abs_axis_info(descriptor, ABS_Y))
+            .map(|axis| axis.value as f64)
+            .unwrap_or(0.0);
+
+        contacts.push(InputTouchContactState {
+            contact_id,
+            phase: InputTouchContactPhase::Move,
+            x,
+            y,
+            pressure,
+            radius_x: 0.0,
+            radius_y: 0.0,
+            tilt_x: 0.0,
+            tilt_y: 0.0,
+        });
+    }
+
+    Ok(InputTouchState {
+        timestamp_ns: input_core::monotonic_timestamp_ns(),
+        sequence,
+        device_id: context.store_string(device_id),
+        contacts: context.store_array(contacts),
+    })
+}
+
+/// Return whether one Linux input descriptor reports force-feedback rumble support.
+pub(super) fn supports_linux_rumble(descriptor: RawFd) -> bool {
+    // ensure the descriptor reports EV_FF before querying FF capabilities
+    let mut event_bits = [0u8; MAX_EVENT_BITS];
+    let event_status = unsafe {
+        libc::ioctl(
+            descriptor,
+            eviocgbit_request(0, event_bits.len()),
+            event_bits.as_mut_ptr(),
+        )
+    };
+    if event_status < 0 || !bit_is_set(&event_bits, EV_FF as usize) {
+        return false;
+    }
+
+    // inspect force-feedback capabilities for FF_RUMBLE support
+    let mut ff_bits = [0u8; MAX_FF_BITS];
+    let ff_status = unsafe {
+        libc::ioctl(
+            descriptor,
+            eviocgbit_request(EV_FF, ff_bits.len()),
+            ff_bits.as_mut_ptr(),
+        )
+    };
+    if ff_status < 0 {
+        return false;
+    }
+
+    bit_is_set(&ff_bits, FF_RUMBLE)
+}
+
+/// Return one axis tuple for one supported sensor kind.
+fn sensor_axes_for_kind(kind: InputSensorKind) -> Option<(u16, u16, u16)> {
+    match kind {
+        InputSensorKind::Accelerometer
+        | InputSensorKind::Gravity
+        | InputSensorKind::LinearAcceleration => Some((ABS_X, ABS_Y, ABS_Z)),
+        InputSensorKind::Gyroscope | InputSensorKind::Orientation => Some((ABS_RX, ABS_RY, ABS_RZ)),
+        InputSensorKind::Magnetometer => None,
+    }
+}
+
+/// Return whether one absolute axis is available on one descriptor.
+fn has_absolute_axis(descriptor: RawFd, axis: u16) -> bool {
+    read_abs_axis_info(descriptor, axis).is_some()
+}
+
+/// Return supported sensor kinds for one Linux input descriptor.
+fn sensor_kinds_for_descriptor(
+    descriptor: RawFd,
+    device_kind: InputDeviceKind,
+) -> Vec<InputSensorKind> {
+    // keep sensor lanes constrained to raw descriptors to avoid conflating gamepad axes
+    if device_kind != InputDeviceKind::Raw {
+        return Vec::new();
+    }
+
+    // detect accelerometer-like axis triples
+    let has_acceleration_axes = has_absolute_axis(descriptor, ABS_X)
+        && has_absolute_axis(descriptor, ABS_Y)
+        && has_absolute_axis(descriptor, ABS_Z);
+
+    // detect gyroscope-like axis triples
+    let has_gyroscope_axes = has_absolute_axis(descriptor, ABS_RX)
+        && has_absolute_axis(descriptor, ABS_RY)
+        && has_absolute_axis(descriptor, ABS_RZ);
+
+    // project supported kinds from detected axis families
+    let mut kinds = Vec::new();
+    if has_acceleration_axes {
+        kinds.push(InputSensorKind::Accelerometer);
+        kinds.push(InputSensorKind::Gravity);
+        kinds.push(InputSensorKind::LinearAcceleration);
+    }
+    if has_gyroscope_axes {
+        kinds.push(InputSensorKind::Gyroscope);
+        kinds.push(InputSensorKind::Orientation);
+    }
+
+    kinds
+}
+
+/// Query Linux sensor capability metadata from one descriptor.
+pub(super) fn linux_sensor_infos(
+    descriptor: RawFd,
+    device_kind: InputDeviceKind,
+) -> Vec<InputSensorInfo> {
+    // query supported sensor kinds from descriptor axis topology
+    let kinds = sensor_kinds_for_descriptor(descriptor, device_kind);
+    let mut infos = Vec::with_capacity(kinds.len());
+
+    for kind in kinds {
+        let Some((axis_x, axis_y, axis_z)) = sensor_axes_for_kind(kind) else {
+            continue;
+        };
+
+        // aggregate one representative resolution estimate from axis metadata
+        let mut resolution_sum = 0.0f64;
+        let mut resolution_count = 0usize;
+        for axis in [axis_x, axis_y, axis_z] {
+            if let Some(info) = read_abs_axis_info(descriptor, axis)
+                && info.resolution > 0
+            {
+                resolution_sum += f64::from(info.resolution);
+                resolution_count = resolution_count.saturating_add(1);
+            }
+        }
+        let resolution = if resolution_count > 0 {
+            resolution_sum / resolution_count as f64
+        } else {
+            0.0
+        };
+
+        infos.push(InputSensorInfo {
+            kind,
+            min_sample_rate_hz: 0.0,
+            max_sample_rate_hz: 0.0,
+            resolution,
+            supports_wake: false,
+        });
+    }
+
+    infos
+}
+
+/// Build one io-would-block sensor error.
+fn sensor_would_block(operation: &'static str) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoWouldBlock),
+        None,
+        Some(libc::EWOULDBLOCK),
+        Some(operation.to_string()),
+        None,
+        "sensor queue is empty".to_string(),
+    ))
+    .boxed()
+}
+
+/// Wait for one descriptor to become readable for sensor sampling.
+fn wait_for_sensor_readable(
+    descriptor: RawFd,
+    nonblocking: bool,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    // choose one nonblocking or blocking poll timeout
+    let timeout_ms = if nonblocking { 0 } else { -1 };
+    let mut pollfd = libc::pollfd {
+        fd: descriptor,
+        events: libc::POLLIN,
+        revents: 0,
+    };
+
+    loop {
+        let status = unsafe { libc::poll(&mut pollfd as *mut libc::pollfd, 1, timeout_ms) };
+        if status > 0 {
+            return Ok(());
+        }
+        if status == 0 {
+            return Err(sensor_would_block(operation));
+        }
+
+        let errno = core_platform::get_errno();
+        if errno == libc::EINTR {
+            continue;
+        }
+
+        return Err(core_platform::io_error("poll", None));
+    }
+}
+
+/// Consume one raw evdev packet from one descriptor.
+fn consume_linux_event_packet(descriptor: RawFd, operation: &'static str) -> RuntimeResult<()> {
+    let mut event = MaybeUninit::<LinuxInputEvent>::uninit();
+    let total_bytes = std::mem::size_of::<LinuxInputEvent>();
+    let mut read_offset = 0usize;
+
+    while read_offset < total_bytes {
+        let read_ptr = unsafe { (event.as_mut_ptr() as *mut u8).add(read_offset) };
+        let read_len = total_bytes - read_offset;
+        let read_status =
+            unsafe { libc::read(descriptor, read_ptr.cast::<libc::c_void>(), read_len) };
+        if read_status == 0 {
+            return Err(RuntimeError::from(PlatformError::io_with(
+                Some(PlatformErrorCode::IoNotFound),
+                None,
+                None,
+                Some("read".to_string()),
+                None,
+                "input device reached end of stream".to_string(),
+            ))
+            .boxed());
+        }
+        if read_status < 0 {
+            let errno = core_platform::get_errno();
+            if errno == libc::EINTR {
+                continue;
+            }
+            if errno == libc::EAGAIN || errno == libc::EWOULDBLOCK {
+                return Err(sensor_would_block(operation));
+            }
+
+            return Err(core_platform::io_error("read", None));
+        }
+
+        read_offset += read_status as usize;
+    }
+
+    Ok(())
+}
+
+/// Read one Linux sensor sample from absolute-axis state.
+pub(super) fn read_linux_sensor_sample(
+    descriptor: RawFd,
+    device_kind: InputDeviceKind,
+    kind: InputSensorKind,
+    nonblocking: bool,
+    operation: &'static str,
+) -> RuntimeResult<InputSensorSample> {
+    // verify sensor-kind support before issuing reads
+    let supported = sensor_kinds_for_descriptor(descriptor, device_kind);
+    if !supported.contains(&kind) {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "kind",
+            "sensor kind is not supported by this device",
+        ))
+        .boxed());
+    }
+
+    // wait for one readable packet to preserve stream semantics
+    wait_for_sensor_readable(descriptor, nonblocking, operation)?;
+
+    // consume one packet to advance the descriptor stream
+    if let Err(error) = consume_linux_event_packet(descriptor, operation) {
+        if nonblocking && is_io_would_block_error(&error) {
+            return Err(sensor_would_block(operation));
+        }
+
+        return Err(error);
+    }
+
+    // load sampled axes from current absolute-axis state
+    let Some((axis_x, axis_y, axis_z)) = sensor_axes_for_kind(kind) else {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "kind",
+            "sensor kind is not supported by this backend",
+        ))
+        .boxed());
+    };
+    let axis_info_x = read_abs_axis_info(descriptor, axis_x)
+        .ok_or_else(|| RuntimeError::from(PlatformError::not_supported(operation)).boxed())?;
+    let axis_info_y = read_abs_axis_info(descriptor, axis_y)
+        .ok_or_else(|| RuntimeError::from(PlatformError::not_supported(operation)).boxed())?;
+    let axis_info_z = read_abs_axis_info(descriptor, axis_z)
+        .ok_or_else(|| RuntimeError::from(PlatformError::not_supported(operation)).boxed())?;
+
+    // project one sample payload with backend-native units
+    let w = if kind == InputSensorKind::Orientation {
+        1.0
+    } else {
+        0.0
+    };
+    Ok(InputSensorSample {
+        kind,
+        timestamp_ns: input_core::monotonic_timestamp_ns(),
+        x: f64::from(axis_info_x.value),
+        y: f64::from(axis_info_y.value),
+        z: f64::from(axis_info_z.value),
+        w,
+        flags: 0,
+    })
+}
+
+/// Return haptics effect kinds supported by one Linux descriptor.
+pub(super) fn linux_haptics_effects(descriptor: RawFd) -> Vec<InputHapticEffectType> {
+    if !supports_linux_rumble(descriptor) {
+        return Vec::new();
+    }
+
+    vec![InputHapticEffectType::DualRumble]
+}
+
+/// Return one runtime-clamped rumble magnitude.
+fn clamped_rumble_magnitude(value: f64) -> u16 {
+    if !value.is_finite() {
+        return 0;
+    }
+
+    let normalized = value.clamp(0.0, 1.0);
+    (normalized * f64::from(u16::MAX)).round() as u16
+}
+
+/// Build one Linux force-feedback effect payload for rumble.
+fn rumble_effect_payload(effect_id: i16, params: InputHapticEffectParameters) -> LinuxFfEffect {
+    let mut effect = LinuxFfEffect {
+        type_: FF_RUMBLE as u16,
+        id: effect_id,
+        direction: 0,
+        trigger: LinuxFfTrigger {
+            button: 0,
+            interval: 0,
+        },
+        replay: LinuxFfReplay {
+            length: params.duration_ms.min(u64::from(u16::MAX)) as u16,
+            delay: params.start_delay_ms.min(u64::from(u16::MAX)) as u16,
+        },
+        #[cfg(target_pointer_width = "64")]
+        payload: [0u64; 4],
+        #[cfg(target_pointer_width = "32")]
+        payload: [0u32; 7],
+    };
+
+    let rumble = LinuxFfRumbleEffect {
+        strong_magnitude: clamped_rumble_magnitude(params.strong_magnitude),
+        weak_magnitude: clamped_rumble_magnitude(params.weak_magnitude),
+    };
+    unsafe {
+        std::ptr::write(
+            effect.payload.as_mut_ptr().cast::<LinuxFfRumbleEffect>(),
+            rumble,
+        );
+    }
+
+    effect
+}
+
+/// Write one force-feedback start or stop event to one descriptor.
+fn write_rumble_event(descriptor: RawFd, effect_id: i16, value: i32) -> RuntimeResult<()> {
+    let mut event = LinuxInputEvent {
+        time: libc::timeval {
+            tv_sec: 0,
+            tv_usec: 0,
+        },
+        kind: EV_FF,
+        code: effect_id.max(0) as u16,
+        value,
+    };
+
+    let mut write_offset = 0usize;
+    let total_bytes = std::mem::size_of::<LinuxInputEvent>();
+    while write_offset < total_bytes {
+        let write_ptr = unsafe {
+            (&mut event as *mut LinuxInputEvent)
+                .cast::<u8>()
+                .add(write_offset)
+        };
+        let write_len = total_bytes - write_offset;
+        let write_status =
+            unsafe { libc::write(descriptor, write_ptr.cast::<libc::c_void>(), write_len) };
+        if write_status < 0 {
+            let errno = core_platform::get_errno();
+            if errno == libc::EINTR {
+                continue;
+            }
+
+            return Err(core_platform::io_error("write", None));
+        }
+        if write_status == 0 {
+            return Err(RuntimeError::from(PlatformError::io_with(
+                Some(PlatformErrorCode::IoNotFound),
+                None,
+                None,
+                Some("write".to_string()),
+                None,
+                "haptics endpoint reached end of stream".to_string(),
+            ))
+            .boxed());
+        }
+
+        write_offset += write_status as usize;
+    }
+
+    Ok(())
+}
+
+/// Upload and play one Linux rumble effect and return the active effect id.
+pub(super) fn play_linux_rumble(
+    descriptor: RawFd,
+    params: InputHapticEffectParameters,
+    operation: &'static str,
+) -> RuntimeResult<i16> {
+    // upload one rumble effect to the kernel ff table
+    let mut effect = rumble_effect_payload(-1, params);
+    let status = unsafe { libc::ioctl(descriptor, EVIOCSFF_REQUEST, &mut effect) };
+    if status < 0 {
+        let errno = core_platform::get_errno();
+        if errno == libc::ENOSYS || errno == libc::ENOTTY {
+            return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+        }
+
+        return Err(core_platform::io_error("ioctl(EVIOCSFF)", None));
+    }
+
+    // start playback for the uploaded effect id
+    write_rumble_event(descriptor, effect.id, FF_EVENT_START)?;
+    Ok(effect.id)
+}
+
+/// Stop one active Linux rumble effect and remove it from the kernel table.
+pub(super) fn stop_linux_rumble(
+    descriptor: RawFd,
+    effect_id: i16,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    // ignore invalid ids because no active effect is present
+    if effect_id < 0 {
+        return Ok(());
+    }
+
+    // stop active playback before erasing kernel state
+    write_rumble_event(descriptor, effect_id, FF_EVENT_STOP)?;
+
+    // erase one kernel-side effect slot
+    let effect_id_raw = libc::c_int::from(effect_id);
+    let status = unsafe { libc::ioctl(descriptor, EVIOCRMFF_REQUEST, effect_id_raw) };
+    if status < 0 {
+        let errno = core_platform::get_errno();
+        if errno == libc::ENOSYS || errno == libc::ENOTTY {
+            return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+        }
+
+        return Err(core_platform::io_error("ioctl(EVIOCRMFF)", None));
+    }
+
+    Ok(())
+}
+
+/// Return whether one runtime error is one io-would-block platform error.
+fn is_io_would_block_error(error: &RuntimeError) -> bool {
+    error.platform_error().map(|platform| platform.code) == Some(PlatformErrorCode::IoWouldBlock)
+}
+
 /// Return whether one bit is set in one packed bitset.
 fn bit_is_set(bits: &[u8], index: usize) -> bool {
     let byte_index = index / 8;
@@ -526,7 +1775,7 @@ fn input_event_kind(raw_kind: u16, code: u16, device_kind: InputDeviceKind) -> I
         EV_KEY => {
             if code as usize == BTN_TOUCH {
                 InputEventKind::Touch
-            } else if (BTN_MOUSE_LEFT..=(BTN_MOUSE_LEFT + 2)).contains(&(code as usize)) {
+            } else if (BTN_MOUSE_LEFT..=(BTN_MOUSE_LEFT + 4)).contains(&(code as usize)) {
                 InputEventKind::PointerButton
             } else if is_gamepad_button_code(code as usize)
                 || (device_kind == InputDeviceKind::Gamepad && is_button_code(code as usize))
@@ -546,6 +1795,8 @@ fn input_event_kind(raw_kind: u16, code: u16, device_kind: InputDeviceKind) -> I
         EV_ABS => {
             if is_touch_absolute_code(code) {
                 InputEventKind::Touch
+            } else if device_kind == InputDeviceKind::Raw && is_sensor_absolute_code(code) {
+                InputEventKind::Sensor
             } else if is_gamepad_absolute_code(code) || device_kind == InputDeviceKind::Gamepad {
                 InputEventKind::Gamepad
             } else if code == ABS_X || code == ABS_Y {
@@ -592,6 +1843,11 @@ fn is_gamepad_absolute_code(code: u16) -> bool {
     )
 }
 
+/// Return whether one EV_ABS code belongs to one sensor-axis namespace.
+fn is_sensor_absolute_code(code: u16) -> bool {
+    matches!(code, ABS_X | ABS_Y | ABS_Z | ABS_RX | ABS_RY | ABS_RZ)
+}
+
 /// Return whether one EV_ABS code belongs to one multitouch namespace.
 fn is_touch_absolute_code(code: u16) -> bool {
     matches!(code, ABS_MT_SLOT | ABS_MT_POSITION_X | ABS_MT_POSITION_Y)
@@ -634,7 +1890,7 @@ fn map_linux_event(
             }
         }
         EV_ABS => {
-            if kind == InputEventKind::Gamepad {
+            if kind == InputEventKind::Gamepad || kind == InputEventKind::Sensor {
                 InputEventAction::Axis
             } else {
                 InputEventAction::Move
@@ -722,13 +1978,28 @@ fn map_linux_event(
             };
         }
         InputEventKind::Sensor => {
+            let sensor_x = if raw.code == ABS_X || raw.code == ABS_RX {
+                raw.value as f64
+            } else {
+                0.0
+            };
+            let sensor_y = if raw.code == ABS_Y || raw.code == ABS_RY {
+                raw.value as f64
+            } else {
+                0.0
+            };
+            let sensor_z = if raw.code == ABS_Z || raw.code == ABS_RZ {
+                raw.value as f64
+            } else {
+                0.0
+            };
             payload.sensor = InputSensorEventPayload {
                 action,
                 backend_code: raw.code as u32,
                 backend_value: raw.value as i64,
-                x,
-                y,
-                z: 0.0,
+                x: sensor_x,
+                y: sensor_y,
+                z: sensor_z,
             };
         }
         InputEventKind::Composition => {
@@ -843,21 +2114,9 @@ fn update_modifier_bit(current: u32, bit: u32, is_active: bool) -> u32 {
 
 /// Classify one Linux device kind from descriptor capabilities.
 fn detect_device_kind(name: &str, descriptor: RawFd) -> InputDeviceKind {
-    let name_lower = name.to_lowercase();
-    if name_lower.contains("keyboard") {
-        return InputDeviceKind::Keyboard;
-    }
-    if name_lower.contains("mouse") || name_lower.contains("trackpad") {
-        return InputDeviceKind::Mouse;
-    }
-    if name_lower.contains("touch") {
-        return InputDeviceKind::Touch;
-    }
-    if name_lower.contains("gamepad") || name_lower.contains("controller") {
-        return InputDeviceKind::Gamepad;
-    }
-    if name_lower.contains("stylus") || name_lower.contains("pen") {
-        return InputDeviceKind::Pen;
+    let name_kind = detect_device_kind_from_name(name);
+    if name_kind != InputDeviceKind::Raw {
+        return name_kind;
     }
 
     let mut event_bits = [0u8; MAX_EVENT_BITS];
@@ -912,6 +2171,28 @@ fn detect_device_kind(name: &str, descriptor: RawFd) -> InputDeviceKind {
     }
     if bit_is_set(&key_bits, KEY_A) {
         return InputDeviceKind::Keyboard;
+    }
+
+    InputDeviceKind::Raw
+}
+
+/// Classify one Linux device kind from one human-readable device name.
+fn detect_device_kind_from_name(name: &str) -> InputDeviceKind {
+    let name_lower = name.to_lowercase();
+    if name_lower.contains("keyboard") {
+        return InputDeviceKind::Keyboard;
+    }
+    if name_lower.contains("mouse") || name_lower.contains("trackpad") {
+        return InputDeviceKind::Mouse;
+    }
+    if name_lower.contains("touch") {
+        return InputDeviceKind::Touch;
+    }
+    if name_lower.contains("gamepad") || name_lower.contains("controller") {
+        return InputDeviceKind::Gamepad;
+    }
+    if name_lower.contains("stylus") || name_lower.contains("pen") {
+        return InputDeviceKind::Pen;
     }
 
     InputDeviceKind::Raw
@@ -1043,6 +2324,8 @@ pub(super) fn query_linux_capabilities(
     let has_relative = has_event_bits && bit_is_set(&event_bits, EV_REL as usize);
     let has_absolute = has_event_bits && bit_is_set(&event_bits, EV_ABS as usize);
     let has_key = has_event_bits && bit_is_set(&event_bits, EV_KEY as usize);
+    let sensor_infos = linux_sensor_infos(descriptor, device_kind);
+    let has_sensors = !sensor_infos.is_empty();
 
     // build capability kinds from device identity and supported feature lanes
     let mut kinds = Vec::new();
@@ -1067,6 +2350,9 @@ pub(super) fn query_linux_capabilities(
         kinds.push(InputDeviceCapabilityKind::Haptics);
     }
     if has_absolute && device_kind == InputDeviceKind::Raw {
+        kinds.push(InputDeviceCapabilityKind::Sensor);
+    }
+    if has_sensors && !kinds.contains(&InputDeviceCapabilityKind::Sensor) {
         kinds.push(InputDeviceCapabilityKind::Sensor);
     }
 
@@ -1172,20 +2458,36 @@ pub(super) fn query_linux_capabilities(
         }
     }
 
+    let axis_metadata_fidelity = if axes.is_empty() {
+        InputCapabilityMetadataFidelity::Minimal
+    } else if has_absolute {
+        InputCapabilityMetadataFidelity::Partial
+    } else {
+        InputCapabilityMetadataFidelity::Full
+    };
+    let button_metadata_fidelity = if buttons.is_empty() {
+        InputCapabilityMetadataFidelity::Minimal
+    } else {
+        InputCapabilityMetadataFidelity::Full
+    };
+
     InputDeviceCapabilities {
         kinds: context.store_array(kinds),
         axes: context.store_array(axes),
         buttons: context.store_array(buttons),
+        metadata_origin: InputCapabilityMetadataOrigin::BackendDescriptor,
+        axis_metadata_fidelity,
+        button_metadata_fidelity,
         supports_relative_pointer: has_relative
             && matches!(device_kind, InputDeviceKind::Mouse | InputDeviceKind::Pen),
         supports_pointer_grab: supports_exclusive_grab,
-        supports_pointer_capture: false,
+        supports_pointer_capture: supports_exclusive_grab,
         supports_pointer_warp: false,
         supports_text_input: supports_text,
         supports_composition: supports_text,
         supports_rumble,
         supports_trigger_rumble: false,
-        supports_sensors: has_absolute && matches!(device_kind, InputDeviceKind::Raw),
+        supports_sensors: has_sensors,
         supports_battery_state: supports_battery,
         supports_light_control: supports_light,
         supports_raw_hid,
@@ -1205,6 +2507,9 @@ fn query_device_metadata(path: &str, fallback_name: &str) -> InputDeviceMetadata
         key_count: 0,
         button_count: 0,
         axis_count: 0,
+        supports_rumble: false,
+        supports_raw_hid: false,
+        transport: "evdev",
     };
 
     let Ok(path_cstring) = CString::new(path) else {
@@ -1268,6 +2573,88 @@ fn query_device_metadata(path: &str, fallback_name: &str) -> InputDeviceMetadata
     metadata.key_count = key_count;
     metadata.button_count = button_count;
     metadata.axis_count = axis_count;
+    metadata.supports_rumble = supports_linux_rumble(descriptor);
+    metadata.supports_raw_hid = false;
+
+    unsafe {
+        libc::close(descriptor);
+    }
+
+    metadata
+}
+
+/// Query Linux hidraw metadata for one device path.
+fn query_hidraw_metadata(path: &str, fallback_name: &str) -> InputDeviceMetadata {
+    let mut metadata = InputDeviceMetadata {
+        name: fallback_name.to_string(),
+        instance_id: path.to_string(),
+        hardware_id: path.to_string(),
+        kind: InputDeviceKind::Raw,
+        vendor_id: 0,
+        product_id: 0,
+        key_count: 0,
+        button_count: 0,
+        axis_count: 0,
+        supports_rumble: false,
+        supports_raw_hid: true,
+        transport: "hidraw",
+    };
+
+    let Ok(path_cstring) = CString::new(path) else {
+        return metadata;
+    };
+
+    let descriptor = unsafe {
+        libc::open(
+            path_cstring.as_ptr(),
+            libc::O_RDWR | libc::O_NONBLOCK | libc::O_CLOEXEC,
+        )
+    };
+    let descriptor = if descriptor >= 0 {
+        descriptor
+    } else {
+        let errno = core_platform::get_errno();
+        if errno != libc::EACCES && errno != libc::EPERM {
+            return metadata;
+        }
+
+        unsafe {
+            libc::open(
+                path_cstring.as_ptr(),
+                libc::O_RDONLY | libc::O_NONBLOCK | libc::O_CLOEXEC,
+            )
+        }
+    };
+    if descriptor < 0 {
+        return metadata;
+    }
+
+    if let Some(name) = query_hidraw_string(descriptor, hidiocgrawname_request(256))
+        && !name.is_empty()
+    {
+        metadata.name = name;
+    }
+
+    let mut hidraw_info = MaybeUninit::<LinuxHidrawDevInfo>::uninit();
+    let info_status = unsafe {
+        libc::ioctl(
+            descriptor,
+            hidiocgrawinfo_request(),
+            hidraw_info.as_mut_ptr(),
+        )
+    };
+    if info_status == 0 {
+        let hidraw_info = unsafe { hidraw_info.assume_init() };
+        metadata.vendor_id = hidraw_info.vendor;
+        metadata.product_id = hidraw_info.product;
+        metadata.hardware_id = format!(
+            "hid:{:04x}:{:04x}:{:04x}",
+            hidraw_info.bustype, hidraw_info.vendor, hidraw_info.product
+        );
+    }
+
+    metadata.kind = detect_device_kind_from_name(&metadata.name);
+    metadata.supports_raw_hid = true;
 
     unsafe {
         libc::close(descriptor);
@@ -1278,6 +2665,27 @@ fn query_device_metadata(path: &str, fallback_name: &str) -> InputDeviceMetadata
 
 /// Query one null-terminated UTF-8 metadata string from one evdev ioctl.
 fn query_device_string(descriptor: RawFd, request: libc::c_ulong) -> Option<String> {
+    let mut buffer = [0u8; 256];
+    let status = unsafe { libc::ioctl(descriptor, request, buffer.as_mut_ptr()) };
+    if status <= 0 {
+        return None;
+    }
+
+    let raw_len = status as usize;
+    let trunc_len = raw_len.min(buffer.len());
+    let zero_index = buffer[..trunc_len]
+        .iter()
+        .position(|byte| *byte == 0)
+        .unwrap_or(trunc_len);
+    if zero_index == 0 {
+        return None;
+    }
+
+    Some(String::from_utf8_lossy(&buffer[..zero_index]).to_string())
+}
+
+/// Query one null-terminated UTF-8 metadata string from one hidraw ioctl.
+fn query_hidraw_string(descriptor: RawFd, request: libc::c_ulong) -> Option<String> {
     let mut buffer = [0u8; 256];
     let status = unsafe { libc::ioctl(descriptor, request, buffer.as_mut_ptr()) };
     if status <= 0 {
@@ -1341,6 +2749,59 @@ fn list_linux_device_paths() -> RuntimeResult<Vec<String>> {
         }
 
         let path = format!("{INPUT_DEVICE_DIRECTORY}/{name}");
+        if Path::new(&path).exists() {
+            paths.push(path);
+        }
+    }
+
+    paths.sort_unstable();
+    Ok(paths)
+}
+
+/// List Linux `/dev/hidraw*` node paths.
+fn list_linux_hidraw_paths() -> RuntimeResult<Vec<String>> {
+    let entries = match fs::read_dir(INPUT_HIDRAW_DIRECTORY) {
+        Ok(entries) => entries,
+        Err(error) => {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                return Ok(Vec::new());
+            }
+
+            return Err(RuntimeError::from(PlatformError::io_with(
+                None,
+                None,
+                error.raw_os_error(),
+                Some("read_dir".to_string()),
+                Some(INPUT_HIDRAW_DIRECTORY.to_string()),
+                format!("failed to read {INPUT_HIDRAW_DIRECTORY}: {error}"),
+            ))
+            .boxed());
+        }
+    };
+
+    let mut paths = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|error| {
+            RuntimeError::from(PlatformError::io_with(
+                None,
+                None,
+                error.raw_os_error(),
+                Some("read_dir".to_string()),
+                Some(INPUT_HIDRAW_DIRECTORY.to_string()),
+                format!("failed to read directory entry: {error}"),
+            ))
+            .boxed()
+        })?;
+
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else {
+            continue;
+        };
+        if !is_linux_node_name(name, INPUT_HIDRAW_PREFIX) {
+            continue;
+        }
+
+        let path = format!("{INPUT_HIDRAW_DIRECTORY}/{name}");
         if Path::new(&path).exists() {
             paths.push(path);
         }
@@ -1476,5 +2937,49 @@ mod tests {
         event.value = 1;
         modifiers = update_linux_modifiers(modifiers, &event);
         assert_eq!(modifiers & MODIFIER_CAPS_LOCK, 0);
+    }
+
+    /// Classify raw absolute-axis sensor lanes as sensor events.
+    #[test]
+    fn test_input_event_kind_maps_raw_sensor_axes_to_sensor_kind() {
+        assert_eq!(
+            input_event_kind(EV_ABS, ABS_Z, InputDeviceKind::Raw),
+            InputEventKind::Sensor
+        );
+        assert_eq!(
+            input_event_kind(EV_ABS, ABS_RY, InputDeviceKind::Raw),
+            InputEventKind::Sensor
+        );
+    }
+
+    /// Map sensor-axis packets into sensor payload coordinates.
+    #[test]
+    fn test_map_linux_event_sets_sensor_axis_payload() {
+        let runtime = TestRuntime::deterministic_random();
+        runtime.with_native_call_context(|context| {
+            let raw = LinuxInputEvent {
+                time: libc::timeval {
+                    tv_sec: 1,
+                    tv_usec: 0,
+                },
+                kind: EV_ABS,
+                code: ABS_Z,
+                value: 7,
+            };
+
+            let event = map_linux_event(
+                context,
+                raw,
+                "/dev/input/event0",
+                InputDeviceKind::Raw,
+                0,
+                0,
+            );
+            assert_eq!(event.kind, InputEventKind::Sensor);
+            assert_eq!(event.payload.sensor.action, InputEventAction::Axis);
+            assert_eq!(event.payload.sensor.x, 0.0);
+            assert_eq!(event.payload.sensor.y, 0.0);
+            assert_eq!(event.payload.sensor.z, 7.0);
+        });
     }
 }

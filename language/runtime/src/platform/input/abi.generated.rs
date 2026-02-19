@@ -13,6 +13,79 @@ use crate::platform::{
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
+/// ABI enum for InputCapabilityMetadataFidelity.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum InputCapabilityMetadataFidelity {
+    /// Full.
+    Full = 1,
+    /// Partial.
+    Partial = 2,
+    /// Minimal.
+    Minimal = 3,
+}
+
+impl VmValueCodec for InputCapabilityMetadataFidelity {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Full,
+            2u8 => Self::Partial,
+            3u8 => Self::Minimal,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown InputCapabilityMetadataFidelity value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for InputCapabilityMetadataOrigin.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum InputCapabilityMetadataOrigin {
+    /// BackendDescriptor.
+    BackendDescriptor = 1,
+    /// DeviceSummary.
+    DeviceSummary = 2,
+    /// CountDerived.
+    CountDerived = 3,
+    /// Mixed.
+    Mixed = 255,
+}
+
+impl VmValueCodec for InputCapabilityMetadataOrigin {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::BackendDescriptor,
+            2u8 => Self::DeviceSummary,
+            3u8 => Self::CountDerived,
+            255u8 => Self::Mixed,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown InputCapabilityMetadataOrigin value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
 /// ABI enum for InputDeviceCapabilityKind.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -968,6 +1041,12 @@ pub struct InputDeviceCapabilitiesAbi<A: BindingAbi> {
     pub axes: A::Array<InputAxisInfo>,
     /// The buttons field.
     pub buttons: A::Array<InputButtonInfo>,
+    /// The metadata_origin field.
+    pub metadata_origin: InputCapabilityMetadataOrigin,
+    /// The axis_metadata_fidelity field.
+    pub axis_metadata_fidelity: InputCapabilityMetadataFidelity,
+    /// The button_metadata_fidelity field.
+    pub button_metadata_fidelity: InputCapabilityMetadataFidelity,
     /// The supports_relative_pointer field.
     pub supports_relative_pointer: bool,
     /// The supports_pointer_grab field.
@@ -1035,10 +1114,10 @@ impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 16 {
+        if slots.len() != 19 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 16 fields",
+                "expected 19 fields",
             ))
             .boxed());
         }
@@ -1051,36 +1130,51 @@ impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
         let field_buttons = <VmArray<InputButtonInfoVm> as VmAggregateCodec>::decode_with_context(
             context, slots[2],
         )?;
+        let field_metadata_origin =
+            <InputCapabilityMetadataOrigin as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
+        let field_axis_metadata_fidelity =
+            <InputCapabilityMetadataFidelity as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
+        let field_button_metadata_fidelity =
+            <InputCapabilityMetadataFidelity as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
+            )?;
         let field_supports_relative_pointer =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_supports_pointer_grab =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_supports_pointer_capture =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_supports_pointer_warp =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_supports_text_input =
+        let field_supports_pointer_grab =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_supports_composition =
+        let field_supports_pointer_capture =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_supports_rumble =
+        let field_supports_pointer_warp =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_supports_trigger_rumble =
+        let field_supports_text_input =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_supports_sensors =
+        let field_supports_composition =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
-        let field_supports_battery_state =
+        let field_supports_rumble =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
-        let field_supports_light_control =
+        let field_supports_trigger_rumble =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[13])?;
-        let field_supports_raw_hid =
+        let field_supports_sensors =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
-        let field_supports_player_index =
+        let field_supports_battery_state =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+        let field_supports_light_control =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+        let field_supports_raw_hid =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+        let field_supports_player_index =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[18])?;
         Ok(Self {
             kinds: field_kinds,
             axes: field_axes,
             buttons: field_buttons,
+            metadata_origin: field_metadata_origin,
+            axis_metadata_fidelity: field_axis_metadata_fidelity,
+            button_metadata_fidelity: field_button_metadata_fidelity,
             supports_relative_pointer: field_supports_relative_pointer,
             supports_pointer_grab: field_supports_pointer_grab,
             supports_pointer_capture: field_supports_pointer_capture,
@@ -1110,6 +1204,18 @@ impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
             )?,
             <VmArray<InputButtonInfoVm> as VmAggregateCodec>::encode_with_context(
                 self.buttons,
+                context,
+            )?,
+            <InputCapabilityMetadataOrigin as VmAggregateCodec>::encode_with_context(
+                self.metadata_origin,
+                context,
+            )?,
+            <InputCapabilityMetadataFidelity as VmAggregateCodec>::encode_with_context(
+                self.axis_metadata_fidelity,
+                context,
+            )?,
+            <InputCapabilityMetadataFidelity as VmAggregateCodec>::encode_with_context(
+                self.button_metadata_fidelity,
                 context,
             )?,
             <bool as VmAggregateCodec>::encode_with_context(
@@ -3626,6 +3732,12 @@ pub struct InputDeviceCapabilitiesReplayRecord {
     pub axes: Vec<InputAxisInfo>,
     /// The buttons field.
     pub buttons: Vec<InputButtonInfo>,
+    /// The metadata_origin field.
+    pub metadata_origin: InputCapabilityMetadataOrigin,
+    /// The axis_metadata_fidelity field.
+    pub axis_metadata_fidelity: InputCapabilityMetadataFidelity,
+    /// The button_metadata_fidelity field.
+    pub button_metadata_fidelity: InputCapabilityMetadataFidelity,
     /// The supports_relative_pointer field.
     pub supports_relative_pointer: bool,
     /// The supports_pointer_grab field.

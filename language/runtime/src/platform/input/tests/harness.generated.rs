@@ -7,7 +7,8 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
-    InputAxisInfo, InputAxisInfoVm, InputButtonInfo, InputButtonInfoVm, InputCompositionEvent,
+    InputAxisInfo, InputAxisInfoVm, InputButtonInfo, InputButtonInfoVm,
+    InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin, InputCompositionEvent,
     InputCompositionEventPayload, InputCompositionEventPayloadVm, InputCompositionEventVm,
     InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceCapabilityKind,
     InputDeviceEventPayload, InputDeviceEventPayloadVm, InputDeviceInfo, InputDeviceInfoVm,
@@ -64,7 +65,8 @@ impl<'call> InputHarnessContext<'call> {
     /// Unix and Windows.
     /// Uses evdev and libinput-style capability tables on Linux.
     /// Uses HID and raw-input capability queries on Windows.
-    /// Uses backend-specific capability synthesis on other Unix hosts.
+    /// Uses backend capability tables when available.
+    /// Falls back to deriving capabilities from available device summary metadata.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -919,7 +921,8 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific relative motion streams from evdev or libinput style backends on Unix and raw-input relative motion on Windows.
+    /// Uses backend-specific relative motion streams from evdev or libinput-style backends on Unix.
+    /// Uses raw-input relative motion on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1052,7 +1055,8 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific pointer state queries from evdev or libinput style streams on Unix and raw-input or console pointer state snapshots on Windows.
+    /// Uses backend-specific pointer state queries from evdev or libinput-style streams on Unix.
+    /// Uses raw-input or console pointer state snapshots on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1446,7 +1450,8 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` where sensor streams are unavailable.
-    /// Uses backend-specific sensor capability tables from evdev and hidraw class stacks on Unix and HID sensor or controller APIs on Windows.
+    /// Uses backend-specific sensor capability tables from evdev and hidraw class stacks on Unix.
+    /// Uses HID sensor or controller APIs on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.

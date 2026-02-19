@@ -19,8 +19,9 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputCompositionEvent, InputDeviceEventPayload, InputEvent, InputEventAction, InputEventKind,
-    InputKeyEventPayload, InputMonitorEvent, InputPointerButtonEventPayload,
-    InputPointerMotionEventPayload, InputReadMode, InputScrollEventPayload,
+    InputGamepadEventPayload, InputKeyEventPayload, InputMonitorEvent,
+    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputReadMode,
+    InputScrollEventPayload, InputTextEventPayload, validation as input_validation,
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, core as core_platform, resource};
@@ -214,6 +215,7 @@ fn decode_console_button_transition(
     previous_state: u32,
     current_state: u32,
 ) -> Vec<(u32, InputEventAction, i64)> {
+    // map console mouse bits to stable runtime button codes
     const BUTTON_CASES: &[(u32, u32)] = &[
         (FROM_LEFT_1ST_BUTTON_PRESSED, 0),
         (RIGHTMOST_BUTTON_PRESSED, 1),
@@ -311,7 +313,7 @@ fn map_console_record(
 
             let mut payload = input_core::empty_event_payload(context);
             if is_text {
-                payload.text = crate::platform::input::InputTextEventPayload {
+                payload.text = InputTextEventPayload {
                     text: context.store_string(text.as_deref().unwrap_or("")),
                 };
             } else {
@@ -918,7 +920,7 @@ pub(super) fn read_event(
         && let Some(transition) = pop_pending_console_button_transition(context, handle, operation)?
     {
         let mut payload = input_core::empty_event_payload(context);
-        payload.pointer_button = crate::platform::input::InputPointerButtonEventPayload {
+        payload.pointer_button = InputPointerButtonEventPayload {
             action: transition.action,
             backend_code: transition.code,
             backend_value: transition.value,
@@ -928,7 +930,7 @@ pub(super) fn read_event(
         };
         let mut event = input_core::build_input_event(
             context,
-            crate::platform::input::InputEventKind::PointerButton,
+            InputEventKind::PointerButton,
             transition.timestamp_ns,
             0,
             input_core::WINDOWS_INPUT_DEVICE_ID,
@@ -1015,14 +1017,14 @@ pub(super) fn read_event(
 
                 // publish one gamepad-change event keyed by packet-number deltas
                 let mut payload = input_core::empty_event_payload(context);
-                payload.gamepad = crate::platform::input::InputGamepadEventPayload {
-                    action: crate::platform::input::InputEventAction::Axis,
+                payload.gamepad = InputGamepadEventPayload {
+                    action: InputEventAction::Axis,
                     backend_code: user_index as u32,
                     backend_value: next_packet as i64,
                 };
                 let event = input_core::build_input_event(
                     context,
-                    crate::platform::input::InputEventKind::Gamepad,
+                    InputEventKind::Gamepad,
                     input_core::now_timestamp_ns(),
                     0,
                     &xinput_input::xinput_device_id(user_index),
@@ -1523,21 +1525,15 @@ pub(crate) unsafe fn destack_input_read_batch(
     }
 
     // validate max-events contract
-    if maxevents == 0 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "maxevents",
-            "maxevents must be greater than zero",
-        ))
-        .boxed());
-    }
+    let maxevents = input_validation::validate_read_batch_maxevents(maxevents)?;
 
     // read at least one event to preserve blocking readBatch semantics
-    let mut events = Vec::with_capacity(maxevents as usize);
+    let mut events = Vec::with_capacity(maxevents);
     let first = read_event(context, handle, false, "destack.input.event.readBatch")?;
     events.push(first);
 
     // keep polling until queue is drained or the batch is full
-    while events.len() < maxevents as usize {
+    while events.len() < maxevents {
         match read_event(context, handle, true, "destack.input.event.readBatch") {
             Ok(event) => events.push(event),
             Err(error) => {

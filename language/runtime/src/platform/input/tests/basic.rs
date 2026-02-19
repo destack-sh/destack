@@ -1,4 +1,4 @@
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 use super::InputKeyboardStateRecord;
 use super::{
     InputDeviceRecord, InputEventRecord, InputHarnessContext, InputMonitorEventRecord,
@@ -6,6 +6,7 @@ use super::{
 };
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::input::validation::{MAX_RAW_HID_BYTES, MAX_READ_BATCH_EVENTS};
 use crate::platform::input::{
     InputDeviceCapabilityKind, InputDeviceKind, InputEventAction, InputEventKind,
     InputMonitorEventKind, InputReadMode, InputTextInputArea, InputWindowTarget,
@@ -14,6 +15,11 @@ use crate::platform::input::{
 use crate::platform::input::{
     InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult, InputPointerGrabMode,
     InputSensorConfig, InputSensorKind, InputTextInputType,
+};
+#[cfg(target_os = "linux")]
+use crate::platform::input::{
+    InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult, InputSensorConfig,
+    InputSensorKind, InputTextInputType,
 };
 use crate::platform::resource::{
     InputDeviceHandle, InputMonitorHandle, ResourceEntry, ResourceId, ResourceKind, WindowHandle,
@@ -62,6 +68,76 @@ fn open_first_device_with_record_or_skip(
         if let Some(handle) = opened {
             return Ok(Some((handle, device)));
         }
+    }
+
+    Ok(None)
+}
+
+/// Open the first device that exposes one of the requested capability kinds.
+#[cfg(target_os = "linux")]
+fn open_first_device_with_capabilities_or_skip(
+    context: &mut InputHarnessContext<'_>,
+    required_capabilities: &[InputDeviceCapabilityKind],
+) -> RuntimeResult<Option<InputDeviceHandle>> {
+    // enumerate devices and keep the first opened handle that advertises requested capabilities
+    let devices = context.destack_input_list()?;
+    let devices = context.device_records_from_value(devices)?;
+    for device in devices {
+        let opened = assert_ok_or_expected_error(
+            context.destack_input_open(context.string_value(&device.id)),
+            &[
+                PlatformErrorCode::IoPermissionDenied,
+                PlatformErrorCode::IoNotFound,
+                PlatformErrorCode::IoWouldBlock,
+            ],
+        )?;
+        let Some(handle) = opened else {
+            continue;
+        };
+
+        let capabilities = context.destack_input_capabilities(handle)?;
+        let capabilities = context.capabilities_from_value(capabilities)?;
+        if required_capabilities
+            .iter()
+            .any(|required| capabilities.kinds.contains(required))
+        {
+            return Ok(Some(handle));
+        }
+
+        context.destack_input_close(handle)?;
+    }
+
+    Ok(None)
+}
+
+/// Open the first Linux device that reports raw-hid capability.
+#[cfg(target_os = "linux")]
+fn open_first_linux_raw_hid_device_or_skip(
+    context: &mut InputHarnessContext<'_>,
+) -> RuntimeResult<Option<InputDeviceHandle>> {
+    // enumerate devices and keep the first opened handle that reports raw-hid support
+    let devices = context.destack_input_list()?;
+    let devices = context.device_records_from_value(devices)?;
+    for device in devices {
+        let opened = assert_ok_or_expected_error(
+            context.destack_input_open(context.string_value(&device.id)),
+            &[
+                PlatformErrorCode::IoPermissionDenied,
+                PlatformErrorCode::IoNotFound,
+                PlatformErrorCode::IoWouldBlock,
+            ],
+        )?;
+        let Some(handle) = opened else {
+            continue;
+        };
+
+        let capabilities = context.destack_input_capabilities(handle)?;
+        let capabilities = context.capabilities_from_value(capabilities)?;
+        if capabilities.supports_raw_hid {
+            return Ok(Some(handle));
+        }
+
+        context.destack_input_close(handle)?;
     }
 
     Ok(None)
@@ -413,7 +489,7 @@ fn assert_monitor_event_record_semantics(event: &InputMonitorEventRecord) {
 }
 
 /// Assert one decoded keyboard snapshot uses coherent runtime fields.
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 fn assert_keyboard_state_record_semantics(state: &InputKeyboardStateRecord) {
     assert!(
         !state.device_id.is_empty(),
@@ -431,6 +507,71 @@ fn assert_keyboard_state_record_semantics(state: &InputKeyboardStateRecord) {
         state.pressed_scan_code_count <= 256,
         "keyboard snapshot pressed scan-code count should stay in vk range"
     );
+}
+
+/// Exercise keyboard snapshots on the macos global-session endpoint.
+#[cfg(target_os = "macos")]
+#[test]
+fn test_input_macos_keyboard_state_surface_matches_capabilities() {
+    with_harness_context(|mut context| {
+        let handle = context.destack_input_open(context.string_value("macos:session"))?;
+        let state = context.destack_input_keyboard_state(handle)?;
+        let state = context.keyboard_state_from_value(state)?;
+
+        assert_keyboard_state_record_semantics(&state);
+        assert_eq!(
+            state.device_id, "macos:session",
+            "macos keyboard snapshots should report the session device id"
+        );
+
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
+}
+
+/// Exercise pointer snapshots and relative-mode toggles on the macos global-session endpoint.
+#[cfg(target_os = "macos")]
+#[test]
+fn test_input_macos_pointer_state_and_relative_mode_surface_matches_capabilities() {
+    with_harness_context(|mut context| {
+        let handle = context.destack_input_open(context.string_value("macos:session"))?;
+
+        let absolute = context.destack_input_pointer_state(handle)?;
+        let absolute = context.pointer_state_from_value(absolute);
+        assert!(
+            absolute.x.is_finite() && absolute.y.is_finite(),
+            "macos absolute pointer snapshots should use finite coordinates"
+        );
+
+        context.destack_input_pointer_set_relative_mode(handle, true)?;
+        let relative = context.destack_input_pointer_relative_state(handle)?;
+        let relative = context.pointer_state_from_value(relative);
+        assert!(
+            relative.x.is_finite() && relative.y.is_finite(),
+            "macos relative pointer snapshots should use finite deltas"
+        );
+        context.destack_input_pointer_set_relative_mode(handle, false)?;
+
+        let target = InputWindowTarget {
+            window: WindowHandle(ResourceId(0)),
+        };
+        assert_platform_error_code(
+            context.destack_input_pointer_capture(handle, context.window_target(target), true),
+            PlatformErrorCode::NotSupported,
+        )?;
+        assert_platform_error_code(
+            context.destack_input_pointer_capture(handle, context.window_target(target), false),
+            PlatformErrorCode::NotSupported,
+        )?;
+
+        let _ = assert_ok_or_expected_error(
+            context.destack_input_pointer_warp(handle, context.window_target(target), 4.0, 4.0),
+            &[PlatformErrorCode::IoPermissionDenied],
+        )?;
+
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
 }
 
 /// Keep window-target harness conversion available for target-scoped API tests.
@@ -667,6 +808,14 @@ fn test_input_capabilities_for_macos_session_report_keyboard_and_pointer() {
             capabilities.axis_codes.len() >= 4,
             "macos session should expose pointer and wheel axes"
         );
+        assert!(
+            capabilities.supports_pointer_warp,
+            "macos session capabilities should report pointer warp support"
+        );
+        assert!(
+            !capabilities.supports_pointer_capture,
+            "macos session capabilities should report pointer capture as unsupported"
+        );
 
         context.destack_input_close(handle)?;
         Ok(())
@@ -686,6 +835,59 @@ fn test_input_open_close_roundtrip_for_available_device() {
             context.destack_input_close(handle),
             PlatformErrorCode::IoNotFound,
         )?;
+
+        Ok(())
+    });
+}
+
+/// Keep linux event payload ids aligned with listed stable device ids.
+#[cfg(target_os = "linux")]
+#[test]
+fn test_input_linux_event_device_id_matches_listed_device_id() {
+    with_harness_context(|mut context| {
+        let Some((handle, device)) = open_first_device_with_record_or_skip(&mut context)? else {
+            return Ok(());
+        };
+
+        // accept empty queues and permission-gated hosts while enforcing id coherence when events exist
+        if let Some(event) = assert_ok_or_expected_error(
+            context.destack_input_try_read(handle),
+            &[
+                PlatformErrorCode::IoWouldBlock,
+                PlatformErrorCode::IoPermissionDenied,
+                PlatformErrorCode::NotSupported,
+            ],
+        )? {
+            let event = context.event_from_value(event)?;
+            assert_eq!(
+                event.device_id, device.id,
+                "linux events should report the same stable device id returned by input.list/open"
+            );
+        }
+
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
+}
+
+/// Emit stable runtime ids for Linux host input devices.
+#[cfg(target_os = "linux")]
+#[test]
+fn test_input_linux_list_uses_stable_runtime_ids() {
+    with_harness_context(|mut context| {
+        let devices = context.destack_input_list()?;
+        let devices = context.device_records_from_value(devices)?;
+        for device in devices {
+            if device.id == "tty:stdin" {
+                continue;
+            }
+
+            assert!(
+                device.id.starts_with("linux:evdev:") || device.id.starts_with("linux:hidraw:"),
+                "linux device ids should use stable runtime prefixes: got {}",
+                device.id
+            );
+        }
 
         Ok(())
     });
@@ -943,6 +1145,20 @@ fn test_input_read_batch_rejects_zero_maxevents() {
         let invalid = InputDeviceHandle(ResourceId(u64::MAX - 4));
         assert_platform_error_code(
             context.destack_input_read_batch(invalid, 0),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        Ok(())
+    });
+}
+
+/// Reject readBatch requests that exceed one bounded batch-size limit.
+#[test]
+fn test_input_read_batch_rejects_excessive_maxevents() {
+    with_harness_context(|mut context| {
+        let invalid = InputDeviceHandle(ResourceId(u64::MAX - 34));
+        assert_platform_error_code(
+            context.destack_input_read_batch(invalid, MAX_READ_BATCH_EVENTS + 1),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
@@ -1337,6 +1553,86 @@ fn test_input_windows_pointer_capture_accepts_default_target() {
     });
 }
 
+/// Accept default-target pointer capture toggles for Linux pointer-capable handles.
+#[cfg(target_os = "linux")]
+#[test]
+fn test_input_linux_pointer_capture_accepts_default_target() {
+    with_harness_context(|mut context| {
+        let Some(handle) = open_first_device_with_capabilities_or_skip(
+            &mut context,
+            &[InputDeviceCapabilityKind::Pointer],
+        )?
+        else {
+            return Ok(());
+        };
+
+        let target = InputWindowTarget {
+            window: WindowHandle(ResourceId(0)),
+        };
+        assert_ok_or_expected_error(
+            context.destack_input_pointer_capture(handle, context.window_target(target), true),
+            &[PlatformErrorCode::IoPermissionDenied],
+        )?;
+        assert_ok_or_expected_error(
+            context.destack_input_pointer_capture(handle, context.window_target(target), false),
+            &[PlatformErrorCode::IoPermissionDenied],
+        )?;
+
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
+}
+
+/// Exercise pointer snapshots and relative-mode toggles for one Linux pointer-capable handle.
+#[cfg(target_os = "linux")]
+#[test]
+fn test_input_linux_pointer_state_and_relative_mode_surface_matches_capabilities() {
+    with_harness_context(|mut context| {
+        let Some(handle) = open_first_device_with_capabilities_or_skip(
+            &mut context,
+            &[InputDeviceCapabilityKind::Pointer],
+        )?
+        else {
+            return Ok(());
+        };
+
+        let absolute = context.destack_input_pointer_state(handle)?;
+        let absolute = context.pointer_state_from_value(absolute);
+        assert!(
+            absolute.x.is_finite() && absolute.y.is_finite(),
+            "absolute pointer snapshots should use finite coordinates"
+        );
+        assert!(
+            absolute.pressure.is_finite(),
+            "absolute pointer snapshots should use finite pressure values"
+        );
+
+        assert_platform_error_code(
+            context.destack_input_pointer_relative_state(handle),
+            PlatformErrorCode::NotSupported,
+        )?;
+        assert_ok_or_expected_error(
+            context.destack_input_pointer_set_relative_mode(handle, true),
+            &[PlatformErrorCode::IoPermissionDenied],
+        )?;
+
+        let relative = context.destack_input_pointer_relative_state(handle)?;
+        let relative = context.pointer_state_from_value(relative);
+        assert!(
+            relative.x.is_finite() && relative.y.is_finite(),
+            "relative pointer snapshots should use finite deltas"
+        );
+
+        assert_ok_or_expected_error(
+            context.destack_input_pointer_set_relative_mode(handle, false),
+            &[PlatformErrorCode::IoPermissionDenied],
+        )?;
+
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
+}
+
 /// Reject unknown explicit window targets on windows text APIs.
 #[cfg(windows)]
 #[test]
@@ -1409,6 +1705,45 @@ fn test_input_windows_text_composition_requires_pending_event() {
             context.destack_input_text_try_read_composition(handle),
             &[PlatformErrorCode::IoWouldBlock],
         )?;
+
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
+}
+
+/// Report io-would-block composition reads when no Unix composition event is queued.
+#[cfg(target_os = "linux")]
+#[test]
+fn test_input_unix_text_composition_requires_pending_event() {
+    with_harness_context(|mut context| {
+        let Some(handle) = open_first_device_with_capabilities_or_skip(
+            &mut context,
+            &[InputDeviceCapabilityKind::TextInput],
+        )?
+        else {
+            return Ok(());
+        };
+
+        assert_platform_error_code(
+            context.destack_input_text_read_composition(handle),
+            PlatformErrorCode::IoWouldBlock,
+        )?;
+        let target = InputWindowTarget {
+            window: WindowHandle(ResourceId(0)),
+        };
+        context.destack_input_text_start(
+            handle,
+            context.window_target(target),
+            InputTextInputType::Text,
+        )?;
+        let _ = assert_ok_or_expected_error(
+            context.destack_input_text_try_read_composition(handle),
+            &[
+                PlatformErrorCode::IoWouldBlock,
+                PlatformErrorCode::IoInterrupted,
+            ],
+        )?;
+        context.destack_input_text_stop(handle, context.window_target(target))?;
 
         context.destack_input_close(handle)?;
         Ok(())
@@ -1559,6 +1894,32 @@ fn test_input_windows_raw_hid_rejects_zero_maxbytes() {
     });
 }
 
+/// Reject max-byte budgets that exceed one bounded raw-hid payload limit.
+#[test]
+fn test_input_raw_hid_rejects_excessive_maxbytes() {
+    with_harness_context(|mut context| {
+        let invalid = InputDeviceHandle(ResourceId(u64::MAX - 35));
+        let excessive_maxbytes = MAX_RAW_HID_BYTES + 1;
+
+        assert_platform_error_code(
+            context.destack_input_raw_hid_read(invalid, excessive_maxbytes, 0),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        assert_platform_error_code(
+            context.destack_input_raw_hid_try_read(invalid, excessive_maxbytes),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        assert_platform_error_code(
+            context.destack_input_raw_hid_get_feature(invalid, 0, excessive_maxbytes),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        Ok(())
+    });
+}
+
 /// Exercise windows raw-hid calls with capability-aware assertions.
 #[cfg(windows)]
 #[test]
@@ -1672,6 +2033,66 @@ fn test_input_windows_raw_hid_surface_matches_capabilities() {
     });
 }
 
+/// Exercise Linux raw-hid bindings with capability-aware assertions.
+#[cfg(target_os = "linux")]
+#[test]
+fn test_input_linux_raw_hid_surface_matches_capabilities() {
+    with_harness_context(|mut context| {
+        let Some(handle) = open_first_linux_raw_hid_device_or_skip(&mut context)? else {
+            return Ok(());
+        };
+
+        if let Some(report) = assert_ok_or_expected_error(
+            context.destack_input_raw_hid_try_read(handle, 64),
+            &[PlatformErrorCode::IoWouldBlock],
+        )? {
+            let report = context.raw_hid_report_from_value(report)?;
+            assert!(
+                report.data.len() <= 64,
+                "raw-hid report bytes should honor max-byte budget"
+            );
+        }
+
+        if let Some(feature) = assert_ok_or_expected_error(
+            context.destack_input_raw_hid_get_feature(handle, 0, 64),
+            &[
+                PlatformErrorCode::IoWouldBlock,
+                PlatformErrorCode::IoPermissionDenied,
+                PlatformErrorCode::IoInvalidData,
+            ],
+        )? {
+            let bytes = context.bytes_from_value(feature)?;
+            assert!(
+                bytes.len() <= 64,
+                "feature-report bytes should honor max-byte budget"
+            );
+        }
+
+        let payload = context.bytes_value(&[0])?;
+        assert_ok_or_expected_error(
+            context.destack_input_raw_hid_set_feature(handle, 0, payload),
+            &[
+                PlatformErrorCode::IoWouldBlock,
+                PlatformErrorCode::IoPermissionDenied,
+                PlatformErrorCode::IoInvalidData,
+            ],
+        )?;
+
+        let payload = context.bytes_value(&[0])?;
+        assert_ok_or_expected_error(
+            context.destack_input_raw_hid_write(handle, 0, payload),
+            &[
+                PlatformErrorCode::IoWouldBlock,
+                PlatformErrorCode::IoPermissionDenied,
+                PlatformErrorCode::IoInvalidData,
+            ],
+        )?;
+
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
+}
+
 /// Exercise windows touch-state reads with capability-aware assertions.
 #[cfg(windows)]
 #[test]
@@ -1754,6 +2175,80 @@ fn test_input_windows_sensor_surface_matches_capabilities() {
                 "sensor sample kind should match requested sensor lane"
             );
         }
+
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
+}
+
+/// Exercise Linux sensor bindings with capability-aware assertions.
+#[cfg(target_os = "linux")]
+#[test]
+fn test_input_linux_sensor_surface_matches_capabilities() {
+    with_harness_context(|mut context| {
+        let Some(handle) = open_first_device_with_capabilities_or_skip(
+            &mut context,
+            &[InputDeviceCapabilityKind::Sensor],
+        )?
+        else {
+            return Ok(());
+        };
+
+        let Some(sensors) = assert_ok_or_expected_error(
+            context.destack_input_sensor_list(handle),
+            &[PlatformErrorCode::NotSupported],
+        )?
+        else {
+            context.destack_input_close(handle)?;
+            return Ok(());
+        };
+        let sensors = context.sensor_infos_from_value(sensors)?;
+        assert!(
+            !sensors.is_empty(),
+            "sensor-capable handles should list at least one sensor lane"
+        );
+
+        let kind = sensors[0].kind;
+        let config = InputSensorConfig {
+            enabled: true,
+            sample_rate_hz: 60.0,
+            batch_latency_ms: 0,
+            flags: 0,
+        };
+        let effective =
+            context.destack_input_sensor_configure(handle, kind, context.sensor_config(config))?;
+        let effective = context.sensor_effective_config_from_value(effective);
+        assert!(
+            effective.enabled,
+            "enabled sensor configuration should report one enabled effective config"
+        );
+
+        if let Some(sample) = assert_ok_or_expected_error(
+            context.destack_input_sensor_try_read(handle, kind),
+            &[PlatformErrorCode::IoWouldBlock],
+        )? {
+            let sample = context.sensor_sample_from_value(sample);
+            assert_eq!(
+                sample.kind, kind,
+                "sensor sample kind should match requested sensor lane"
+            );
+        }
+
+        let disabled_config = InputSensorConfig {
+            enabled: false,
+            sample_rate_hz: 0.0,
+            batch_latency_ms: 0,
+            flags: 0,
+        };
+        let _ = context.destack_input_sensor_configure(
+            handle,
+            kind,
+            context.sensor_config(disabled_config),
+        )?;
+        assert_platform_error_code(
+            context.destack_input_sensor_try_read(handle, kind),
+            PlatformErrorCode::IoWouldBlock,
+        )?;
 
         context.destack_input_close(handle)?;
         Ok(())
@@ -1930,7 +2425,10 @@ fn test_input_windows_pointer_set_grab_mode_surface_matches_capabilities() {
                 context.window_target(default_input_target()),
                 InputPointerGrabMode::None,
             ),
-            &[PlatformErrorCode::IoPermissionDenied],
+            &[
+                PlatformErrorCode::IoPermissionDenied,
+                PlatformErrorCode::NotSupported,
+            ],
         )?;
         assert_ok_or_expected_error(
             context.destack_input_pointer_set_grab_mode(
@@ -1938,13 +2436,83 @@ fn test_input_windows_pointer_set_grab_mode_surface_matches_capabilities() {
                 context.window_target(default_input_target()),
                 InputPointerGrabMode::Locked,
             ),
-            &[PlatformErrorCode::IoPermissionDenied],
+            &[
+                PlatformErrorCode::IoPermissionDenied,
+                PlatformErrorCode::NotSupported,
+            ],
         )?;
         assert_platform_error_code(
             context.destack_input_pointer_set_grab_mode(
                 handle,
                 context.window_target(default_input_target()),
                 InputPointerGrabMode::Confined,
+            ),
+            PlatformErrorCode::NotSupported,
+        )?;
+
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
+}
+
+/// Reject non-finite pointer-warp coordinates on windows pointer-capable handles.
+#[cfg(windows)]
+#[test]
+fn test_input_windows_pointer_warp_rejects_non_finite_coordinates() {
+    with_harness_context(|mut context| {
+        let Some(handle) = open_windows_console_device_or_skip(&mut context)? else {
+            return Ok(());
+        };
+
+        assert_platform_error_code(
+            context.destack_input_pointer_warp(
+                handle,
+                context.window_target(default_input_target()),
+                f64::NAN,
+                0.0,
+            ),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+        assert_platform_error_code(
+            context.destack_input_pointer_warp(
+                handle,
+                context.window_target(default_input_target()),
+                0.0,
+                f64::INFINITY,
+            ),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
+}
+
+/// Report not-supported pointer capture for windows raw pointer handles.
+#[cfg(windows)]
+#[test]
+fn test_input_windows_raw_pointer_capture_reports_not_supported() {
+    with_harness_context(|mut context| {
+        let Some(handle) = open_first_windows_raw_device_with_capabilities_or_skip(
+            &mut context,
+            &[InputDeviceCapabilityKind::Pointer],
+        )?
+        else {
+            return Ok(());
+        };
+
+        let capabilities = context.destack_input_capabilities(handle)?;
+        let capabilities = context.capabilities_from_value(capabilities)?;
+        assert!(
+            !capabilities.supports_pointer_capture,
+            "windows raw pointer capabilities should report pointer capture as unsupported"
+        );
+
+        assert_platform_error_code(
+            context.destack_input_pointer_capture(
+                handle,
+                context.window_target(default_input_target()),
+                true,
             ),
             PlatformErrorCode::NotSupported,
         )?;
@@ -2058,6 +2626,143 @@ fn test_input_windows_haptics_surface_matches_capabilities() {
             context.destack_input_haptics_stop(handle),
             &[PlatformErrorCode::IoNotFound],
         )?;
+
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
+}
+
+/// Reject out-of-range haptics parameters on windows xinput endpoints.
+#[cfg(windows)]
+#[test]
+fn test_input_windows_haptics_play_rejects_out_of_range_params() {
+    with_harness_context(|mut context| {
+        let Some(handle) = open_first_windows_xinput_device_or_skip(&mut context)? else {
+            return Ok(());
+        };
+
+        let params = InputHapticEffectParameters {
+            duration_ms: 16,
+            start_delay_ms: 0,
+            strong_magnitude: 1.25,
+            weak_magnitude: 0.3,
+            left_trigger: 0.0,
+            right_trigger: 0.0,
+        };
+        let result = assert_ok_or_expected_error(
+            context.destack_input_haptics_play(
+                handle,
+                InputHapticEffectType::DualRumble,
+                context.haptics_parameters(params),
+            ),
+            &[
+                PlatformErrorCode::InvalidArgument,
+                PlatformErrorCode::IoNotFound,
+            ],
+        )?;
+        assert!(
+            result.is_none(),
+            "out-of-range haptics magnitudes should fail instead of silently succeeding"
+        );
+
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
+}
+
+/// Exercise Linux haptics effect listing and playback when one rumble endpoint is available.
+#[cfg(target_os = "linux")]
+#[test]
+fn test_input_linux_haptics_surface_matches_capabilities() {
+    with_harness_context(|mut context| {
+        let Some(handle) = open_first_device_with_capabilities_or_skip(
+            &mut context,
+            &[InputDeviceCapabilityKind::Haptics],
+        )?
+        else {
+            return Ok(());
+        };
+
+        let effects = context.destack_input_haptics_effects(handle)?;
+        let effects = context.haptic_effects_from_value(effects)?;
+        assert!(
+            !effects.is_empty(),
+            "haptics-capable endpoints should report at least one effect kind"
+        );
+
+        let effect = effects[0];
+        assert_eq!(
+            effect,
+            InputHapticEffectType::DualRumble,
+            "linux haptics should expose dual-rumble effect lanes"
+        );
+
+        let params = InputHapticEffectParameters {
+            duration_ms: 16,
+            start_delay_ms: 0,
+            strong_magnitude: 0.7,
+            weak_magnitude: 0.3,
+            left_trigger: 0.0,
+            right_trigger: 0.0,
+        };
+        if let Some(result) = assert_ok_or_expected_error(
+            context.destack_input_haptics_play(handle, effect, context.haptics_parameters(params)),
+            &[PlatformErrorCode::IoPermissionDenied],
+        )? {
+            assert!(
+                matches!(
+                    result,
+                    InputHapticsResult::Complete | InputHapticsResult::Preempted
+                ),
+                "haptics playback should report one concrete completion state"
+            );
+        }
+
+        let _ = assert_ok_or_expected_error(
+            context.destack_input_haptics_stop(handle),
+            &[PlatformErrorCode::IoPermissionDenied],
+        )?;
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
+}
+
+/// Reject out-of-range haptics parameters on Linux rumble endpoints.
+#[cfg(target_os = "linux")]
+#[test]
+fn test_input_linux_haptics_play_rejects_out_of_range_params() {
+    with_harness_context(|mut context| {
+        let Some(handle) = open_first_device_with_capabilities_or_skip(
+            &mut context,
+            &[InputDeviceCapabilityKind::Haptics],
+        )?
+        else {
+            return Ok(());
+        };
+
+        let params = InputHapticEffectParameters {
+            duration_ms: 16,
+            start_delay_ms: 0,
+            strong_magnitude: 1.25,
+            weak_magnitude: 0.3,
+            left_trigger: 0.0,
+            right_trigger: 0.0,
+        };
+        let result = assert_ok_or_expected_error(
+            context.destack_input_haptics_play(
+                handle,
+                InputHapticEffectType::DualRumble,
+                context.haptics_parameters(params),
+            ),
+            &[
+                PlatformErrorCode::InvalidArgument,
+                PlatformErrorCode::IoNotFound,
+            ],
+        )?;
+        assert!(
+            result.is_none(),
+            "out-of-range haptics magnitudes should fail instead of silently succeeding"
+        );
 
         context.destack_input_close(handle)?;
         Ok(())
