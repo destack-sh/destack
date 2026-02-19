@@ -1,7 +1,7 @@
 use super::*;
 use crate::analysis::timing::tags;
 use crate::declaration::imports::sort_dependency_items;
-use destack_ast::ImportTarget;
+use destack_ast::{Comment, CommentStyle, ImportTarget};
 use destack_fir::write;
 
 /// Return whether a statement wrapper should print a trailing semicolon.
@@ -40,6 +40,37 @@ fn statement_expression_needs_semicolon(
     !(is_declaration_statement || is_block_statement || is_control_flow_statement)
 }
 
+/// Return whether one expression has a multiline block postfix annotation.
+fn expression_has_multiline_block_postfix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotation_ids) = context.annotations(expression_id) else {
+        return false;
+    };
+
+    annotation_ids.into_iter().any(|annotation_id| {
+        let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
+            return false;
+        };
+        if !matches!(
+            position,
+            AnnotationPosition::LinePostfixBoundary | AnnotationPosition::BlockPostfix
+        ) {
+            return false;
+        }
+
+        let comment = context.tree.get::<Comment>(node);
+        if comment.style != CommentStyle::Star {
+            return false;
+        }
+
+        context
+            .span_str(context.annotation_span(annotation_id))
+            .contains('\n')
+    })
+}
+
 /// Format one statement wrapper inner expression with an optional trailing semicolon.
 fn format_statement_wrapped_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -53,9 +84,19 @@ fn format_statement_wrapped_expression<'ast>(
     write!(f, [f.context().any_prefix_annotations(node_id)])?;
     format_expression(f, node_id, expression, directive)?;
 
+    let semicolon_after_multiline_as_const_postfix = needs_semicolon
+        && matches!(
+            expression,
+            Expression::TypeUnary {
+                operator: TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime,
+                ..
+            }
+        )
+        && expression_has_multiline_block_postfix_annotation(f.context(), node_id);
+
     // statement terminator should stay attached to the statement expression,
     // not drift after postfix trivia into its own line
-    if needs_semicolon {
+    if needs_semicolon && !semicolon_after_multiline_as_const_postfix {
         write!(f, [token(";")])?;
     }
 
@@ -92,6 +133,10 @@ fn format_statement_wrapped_expression<'ast>(
         } else {
             write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
         }
+    }
+
+    if semicolon_after_multiline_as_const_postfix {
+        write!(f, [token(";")])?;
     }
 
     Ok(())

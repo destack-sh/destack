@@ -33,7 +33,9 @@ fn chain_annotation_is_inline_non_breaking(
     let position = annotation.position();
     if !matches!(
         position,
-        AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+        AnnotationPosition::BlockPrefix
+            | AnnotationPosition::LinePrefix
+            | AnnotationPosition::LinePostfixBoundary
     ) {
         return false;
     }
@@ -405,11 +407,42 @@ pub(crate) fn analyze_chain_break(
             Expression::Member { .. } | Expression::PrivateMember { .. }
         )
     });
-    let has_chain_annotations = chain
+    let has_chain_node_annotations = chain
         .iter()
         .copied()
-        .any(|expression_id| chain_node_has_breaking_annotation(context, expression_id))
-        || chain_node_has_breaking_annotation(context, chain_head);
+        .any(|expression_id| chain_node_has_breaking_annotation(context, expression_id));
+    let head_has_non_prefix_breaking_annotation = context
+        .visit_annotations(chain_head, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                if chain_annotation_is_inline_non_breaking(context, *annotation_id)
+                    || chain_annotation_is_internal_call_argument_infix(
+                        context,
+                        chain_head,
+                        *annotation_id,
+                    )
+                {
+                    return false;
+                }
+
+                let position = context.annotation(*annotation_id).position();
+                if matches!(
+                    position,
+                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                ) {
+                    return false;
+                }
+
+                matches!(
+                    position,
+                    AnnotationPosition::LinePostfixBoundary
+                        | AnnotationPosition::BlockInfix
+                        | AnnotationPosition::BlockPostfix
+                )
+            })
+        })
+        .unwrap_or(false);
+    let has_chain_annotations =
+        has_chain_node_annotations || head_has_non_prefix_breaking_annotation;
     let chain_root_has_inline_non_breaking_prefix_annotation = context
         .visit_annotations(chain_root, |annotations| {
             annotations.iter().any(|annotation_id| {
@@ -502,6 +535,7 @@ pub(crate) fn chain_node_has_breaking_annotation(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
+    let is_chain_link = is_chain_expression(context.tree.get(node_id));
     context
         .visit_annotations(node_id, |annotations| {
             annotations.iter().any(|annotation_id| {
@@ -517,6 +551,14 @@ pub(crate) fn chain_node_has_breaking_annotation(
 
                 let annotation = context.annotation(*annotation_id);
                 let position = annotation.position();
+                if !is_chain_link
+                    && matches!(
+                        position,
+                        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                    )
+                {
+                    return false;
+                }
 
                 matches!(
                     position,
@@ -536,6 +578,7 @@ pub(crate) fn chain_node_has_non_inline_annotation(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
+    let is_chain_link = is_chain_expression(context.tree.get(node_id));
     context
         .visit_annotations(node_id, |annotations| {
             annotations.iter().any(|annotation_id| {
@@ -551,6 +594,14 @@ pub(crate) fn chain_node_has_non_inline_annotation(
 
                 let annotation = context.annotation(*annotation_id);
                 let position = annotation.position();
+                if !is_chain_link
+                    && matches!(
+                        position,
+                        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                    )
+                {
+                    return false;
+                }
 
                 match annotation {
                     Annotation::Blank { .. } => true,

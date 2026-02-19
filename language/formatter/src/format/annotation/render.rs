@@ -272,41 +272,6 @@ fn annotation_has_leading_newline<'ast>(
         .any(|character| character == '\n')
 }
 
-/// Return whether annotation source is followed by one blank line before the next token.
-fn annotation_has_trailing_blank_line<'ast>(
-    context: &DestackFormatContext<'ast>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> bool {
-    let span = annotation_content_span(context, annotation_id);
-    if span.end >= context.file.len {
-        return false;
-    }
-
-    let tail_span = Span::new(span.file, span.end, context.file.len);
-    let Some(tail_source) = context.file.get_span_str(tail_span) else {
-        return false;
-    };
-
-    let mut newline_count = 0usize;
-    for character in tail_source.chars() {
-        if character == '\n' {
-            newline_count += 1;
-            if newline_count >= 2 {
-                return true;
-            }
-            continue;
-        }
-
-        if character.is_whitespace() {
-            continue;
-        }
-
-        break;
-    }
-
-    false
-}
-
 /// Return whether an annotation is slash-style.
 fn annotation_is_slash_style(context: &DestackFormatContext<'_>, annotation: &Annotation) -> bool {
     match annotation {
@@ -726,9 +691,13 @@ where
                 && position == AnnotationPosition::LinePostfixBoundary
                 && starts_on_own_line
             {
-                write!(f, [hard_line_break()])?;
-                annotation.format_node(annotation_id, f)?;
-                write!(f, [hard_line_break()])?;
+                let comment = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    annotation.format_node(annotation_id, f)
+                });
+                let indented_comment = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    write!(f, [hard_line_break(), comment])
+                });
+                write!(f, [indent(&indented_comment), hard_line_break()])?;
                 continue;
             }
 
@@ -856,8 +825,6 @@ where
                     if render_facts.is_slash_comment {
                         if next_token_is_on_same_line {
                             write!(f, [space()])?;
-                        } else if annotation_has_trailing_blank_line(f.context(), annotation_id) {
-                            write!(f, [empty_line()])?;
                         } else {
                             write!(f, [hard_line_break()])?;
                         }
@@ -923,6 +890,12 @@ where
                         write!(f, [space()])?;
                     } else if render_facts.is_star_comment && !starts_on_own_line {
                         // keep block boundary comments adjacent to list separators
+                        // but avoid collapsing adjacent block comments
+                        if render_facts.next_character == Some('/')
+                            && annotation_next_token_is_on_same_line(f.context(), annotation_id)
+                        {
+                            write!(f, [space()])?;
+                        }
                     } else {
                         write!(f, [soft_line_break()])?;
                     }

@@ -84,6 +84,8 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
 
     // blank seams that already contain line comments should not add extra spacing
     if seam_has_line_comment
+        && !token_before_span.is_some_and(|token| token.token.ty == TokenType::CloseBrace)
+        && !token_after_span.is_some_and(|token| token.token.ty == TokenType::Identifier)
         && !token_before_span.is_some_and(|token| token.token.ty == TokenType::Assign)
     {
         return (None, AnnotationPosition::BlockInfix);
@@ -250,6 +252,11 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
     }
 
     if let Some(target_node) = right_owner {
+        let target_node = token_after_span
+            .map(|token| {
+                promote_owner_by_shared_start(tree, parents, target_node, token.span.start)
+            })
+            .unwrap_or(target_node);
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return (Some(target_node), AnnotationPosition::BlockPrefix);
     }

@@ -362,9 +362,12 @@ mod tests {
 
         assert!(matches!(
             position,
-            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPostfix
+            AnnotationPosition::LinePrefix
+                | AnnotationPosition::LinePostfixBoundary
+                | AnnotationPosition::BlockPostfix
         ));
     }
+
     /// Type-binary block comments between operator and right type must stay attached and render.
     #[test]
     fn test_type_binary_block_comment_between_operator_and_right_type_renders() {
@@ -719,7 +722,7 @@ mod tests {
     fn test_format_empty_doc_comment_on_arrow() {
         assert_format!(
             "() /**/ => 1",
-            "/**/ () => 1",
+            "() /**/ => 1",
             |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );

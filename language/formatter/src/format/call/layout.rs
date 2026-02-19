@@ -279,6 +279,12 @@ fn format_default_call_argument_list<'ast>(
     } else {
         false
     };
+    let last_argument_has_source_separator_line_comment_annotation = dynamic_arguments
+        .last()
+        .copied()
+        .is_some_and(|argument_id| {
+            argument_has_source_separator_line_comment_annotation(f.context(), argument_id)
+        });
     let can_use_plain_default_fast_path = !f.context().has_ignore_directive_markers()
         && dynamic_arguments.len() > 1
         && !has_any_argument_annotation
@@ -315,10 +321,14 @@ fn format_default_call_argument_list<'ast>(
     {
         list.disallow_trailing_separator();
     }
-    if trailing_collection_has_comment_signal
-        || single_argument_has_source_separator_line_comment_annotation
-    {
+    if trailing_collection_has_comment_signal {
         list.disallow_trailing_separator();
+    }
+    if last_argument_has_source_separator_line_comment_annotation {
+        list.force_trailing_separator();
+    }
+    if single_argument_has_source_separator_line_comment_annotation {
+        list.force_trailing_separator();
     }
 
     write!(f, [list])
@@ -333,9 +343,16 @@ fn format_comment_expanded_call_argument_list<'ast>(
         trailing_collection_argument_has_comment_signal(f.context(), dynamic_arguments);
     let has_single_argument_source_separator_line_comment_annotation = dynamic_arguments.len() == 1
         && argument_has_source_separator_line_comment_annotation(f.context(), dynamic_arguments[0]);
+    let has_last_argument_source_separator_line_comment_annotation = dynamic_arguments
+        .last()
+        .copied()
+        .is_some_and(|argument_id| {
+            argument_has_source_separator_line_comment_annotation(f.context(), argument_id)
+        });
     let use_trailing_comma = f.context().options.trailing_comma == TrailingComma::All
         && !has_trailing_collection_with_source_comment
         && !has_single_argument_source_separator_line_comment_annotation;
+    let force_source_trailing_comma = has_last_argument_source_separator_line_comment_annotation;
 
     write!(f, [token("("), hard_line_break()])?;
     let format_result = write!(
@@ -357,7 +374,10 @@ fn format_comment_expanded_call_argument_list<'ast>(
                     }
 
                     write!(f, [group(argument_id)])?;
-                    if index + 1 < dynamic_arguments.len() || use_trailing_comma {
+                    if index + 1 < dynamic_arguments.len()
+                        || use_trailing_comma
+                        || force_source_trailing_comma
+                    {
                         write!(f, [token(",")])?;
                     }
                 }

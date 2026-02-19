@@ -239,6 +239,52 @@ fn expression_has_effective_prefix_annotation(
     }
 }
 
+/// Return whether an expression or declaration wrapper has one non-comment prefix annotation.
+fn expression_has_effective_non_comment_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let has_non_comment_prefix_annotation = context
+        .annotations(expression_id)
+        .map(|annotation_ids| {
+            annotation_ids.into_iter().any(|annotation_id| {
+                matches!(
+                    context.annotation(annotation_id),
+                    Annotation::Decorator {
+                        position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
+                        ..
+                    }
+                )
+            })
+        })
+        .unwrap_or(false);
+    if has_non_comment_prefix_annotation {
+        return true;
+    }
+
+    match context.tree.get(expression_id) {
+        Expression::Declaration(declaration_id) => context
+            .annotations(*declaration_id)
+            .map(|annotation_ids| {
+                annotation_ids.into_iter().any(|annotation_id| {
+                    matches!(
+                        context.annotation(annotation_id),
+                        Annotation::Decorator {
+                            position: AnnotationPosition::BlockPrefix
+                                | AnnotationPosition::LinePrefix,
+                            ..
+                        }
+                    )
+                })
+            })
+            .unwrap_or(false),
+        Expression::Statement(inner_id) => {
+            expression_has_effective_non_comment_prefix_annotation(context, *inner_id)
+        }
+        _ => false,
+    }
+}
+
 /// Return whether an expression or its declaration wrapper has a blank prefix annotation.
 fn expression_has_effective_blank_prefix_annotation(
     context: &DestackFormatContext<'_>,
@@ -410,8 +456,8 @@ pub(crate) fn format_block_of_statements<'ast>(
             let previous_expression_id = effective_expressions[i - 1];
             let has_blank_prefix_annotation =
                 expression_has_effective_blank_prefix_annotation(f.context(), expression_id);
-            let has_prefix_annotation =
-                expression_has_effective_prefix_annotation(f.context(), expression_id);
+            let has_non_comment_prefix_annotation =
+                expression_has_effective_non_comment_prefix_annotation(f.context(), expression_id);
             let previous_has_postfix_annotation =
                 expression_has_effective_postfix_annotation(f.context(), previous_expression_id);
             let source_has_blank_line_between = if has_ignore_range {
@@ -452,7 +498,7 @@ pub(crate) fn format_block_of_statements<'ast>(
             };
             let uses_source_blank_line_without_leading_break = source_has_blank_line_between
                 && !has_blank_prefix_annotation
-                && !has_prefix_annotation
+                && !has_non_comment_prefix_annotation
                 && !previous_has_postfix_annotation
                 && !has_ignore_range;
             if (!has_blank_prefix_annotation || has_ignore_range)
@@ -481,7 +527,7 @@ pub(crate) fn format_block_of_statements<'ast>(
                 !has_blank_prefix_annotation || has_ignore_range
             } else if source_has_blank_line_between {
                 (!has_blank_prefix_annotation
-                    && !has_prefix_annotation
+                    && !has_non_comment_prefix_annotation
                     && !previous_has_postfix_annotation)
                     || has_ignore_range
             } else {
@@ -1241,5 +1287,22 @@ function func() {
         );
 
         assert_eq!(formatted, expected);
+    }
+
+    /// Expression statements keep inline optional-call star boundary comments.
+    #[test]
+    fn test_statement_optional_call_keeps_inline_boundary_star_comment() {
+        let source = r#"// Issue #18969 - comment between callee and optional chaining operator
+alert/* comment */?.('value')"#;
+        let expected = r#"// Issue #18969 - comment between callee and optional chaining operator
+alert /* comment */?.("value");"#;
+        let (test, expressions) =
+            TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+                .unwrap();
+        let formatted = test.format(
+            &super::statement_list(expressions.as_slice()),
+            DestackFormatOptions::default(),
+        );
+        assert_eq!(formatted.trim_end_matches('\n'), expected);
     }
 }

@@ -10,7 +10,7 @@ use crate::declaration::r#where::format_where_clause_with_break;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Declaration, DeclarationDescriptor, Expression, FunctionCardinality, FunctionKind,
-    FunctionSignature, Keyword, LocalNodeId, Parameter, Pattern,
+    FunctionSignature, Keyword, LocalNodeId, NodeType, Parameter, Pattern,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -56,6 +56,37 @@ fn lambda_parameter_is_simple_tail(
             default: None,
             ..
         }
+    )
+}
+
+/// Return whether one lambda declaration appears in statement position.
+fn lambda_declaration_is_statement_position(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Declaration>,
+) -> bool {
+    let Some((declaration_expression_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+    let declaration_expression_id = LocalNodeId::<Expression>::new(declaration_expression_id);
+
+    let Some((parent_id, parent_type)) = context.parent(declaration_expression_id) else {
+        return false;
+    };
+    if parent_type == NodeType::Block {
+        return true;
+    }
+
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+    matches!(
+        context.tree.get(parent_expression_id),
+        Expression::Statement(inner_id) if inner_id.id == declaration_expression_id.id
     )
 }
 
@@ -319,11 +350,14 @@ pub(super) fn format_function_declaration<'ast>(
     // trailing semicolon policy
     let is_exported_lambda_declaration =
         signature.kind == FunctionKind::Lambda && descriptor.export.is_some();
+    let is_statement_lambda_declaration = signature.kind == FunctionKind::Lambda
+        && lambda_declaration_is_statement_position(f.context(), node_id);
     let is_bodyless_function_declaration =
         signature.kind == FunctionKind::Function && body.is_none();
 
-    let needs_trailing_semicolon =
-        is_exported_lambda_declaration || is_bodyless_function_declaration;
+    let needs_trailing_semicolon = is_exported_lambda_declaration
+        || is_statement_lambda_declaration
+        || is_bodyless_function_declaration;
 
     if needs_trailing_semicolon {
         write!(f, [token(";")])?;

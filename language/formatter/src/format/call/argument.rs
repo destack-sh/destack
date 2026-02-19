@@ -381,7 +381,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
             && argument_prefix_lambda_comment_needs_forced_break(f.context(), node_id);
 
         if has_lambda_value {
-            write!(f, [f.context().block_prefix_annotations(node_id)])?;
+            write!(f, [f.context().any_prefix_annotations(node_id)])?;
         } else if should_emit_prefix_annotations {
             if should_preserve_blank_line_before_prefix_comment && has_argument_prefix_comment {
                 write!(f, [hard_line_break()])?;

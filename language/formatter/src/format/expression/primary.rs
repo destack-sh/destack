@@ -597,9 +597,18 @@ pub(super) fn format_primary_expression<'ast>(
                     parenthesized_has_leading_inner_newline(f.context(), node_id, *expression);
                 let has_parenthesized_leading_inner_comments =
                     parenthesized_has_leading_inner_comments(f.context(), node_id, *expression);
+                let inner_has_effective_prefix_annotation =
+                    expression_has_effective_prefix_annotation(f.context(), *expression);
                 let has_parenthesized_prefix_annotation =
                     expression_has_effective_prefix_annotation(f.context(), node_id)
-                        || expression_has_effective_prefix_annotation(f.context(), *expression);
+                        || inner_has_effective_prefix_annotation;
+                let has_parenthesized_leading_inner_comments =
+                    has_parenthesized_leading_inner_comments && has_parenthesized_prefix_annotation;
+                let node_has_only_slash_prefix_comment_annotations =
+                    expression_has_only_slash_prefix_comment_annotations(f.context(), node_id);
+                let should_preserve_leading_inner_newline = has_parenthesized_leading_inner_newline
+                    && (!node_has_only_slash_prefix_comment_annotations
+                        || inner_has_effective_prefix_annotation);
                 let should_expand_assignment_target = match inner_expression {
                     // prefer expanded destructuring targets once they become moderately wide
                     Expression::ObjectExpression { properties, .. } => {
@@ -690,7 +699,7 @@ pub(super) fn format_primary_expression<'ast>(
                             *expression,
                         );
                     if f.context().node_has_newline(*expression)
-                        || has_parenthesized_leading_inner_newline
+                        || should_preserve_leading_inner_newline
                         || inner_has_decorator_prefix_annotation
                     {
                         write!(
@@ -835,6 +844,37 @@ fn argument_is_sparse_hole(
     };
     let value_id = transparent_inner_expression(context, *value);
     matches!(context.tree.get(value_id), Expression::Stub)
+}
+
+/// Return whether an expression has only slash-style prefix comment annotations on the node itself.
+fn expression_has_only_slash_prefix_comment_annotations(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotation_ids) = context.annotations(expression_id) else {
+        return false;
+    };
+
+    let mut has_prefix_comment = false;
+    for annotation_id in annotation_ids {
+        let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
+            continue;
+        };
+        if !matches!(
+            position,
+            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+        ) {
+            continue;
+        }
+
+        has_prefix_comment = true;
+        let comment = context.tree.get::<destack_ast::Comment>(node);
+        if comment.style != destack_ast::CommentStyle::Slash {
+            return false;
+        }
+    }
+
+    has_prefix_comment
 }
 
 /// Format sparse arrays while preserving elision comma count.

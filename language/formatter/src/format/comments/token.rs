@@ -41,7 +41,6 @@ pub(super) fn token_after_prefers_left_ownership(token_type: TokenType) -> bool 
             | TokenType::CloseParenthesis
             | TokenType::CloseBrace
             | TokenType::CloseBracket
-            | TokenType::Maybe
             | TokenType::ElementwiseAnd
             | TokenType::ElementwiseOr
             | TokenType::ElementwiseXor
