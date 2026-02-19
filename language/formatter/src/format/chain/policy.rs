@@ -228,7 +228,14 @@ pub(super) fn decide_chain_render(
         && (inputs.is_chain_call_like_argument
             || inputs.in_template_literal_interpolation
             || inputs.is_chain_conditional_branch);
-    if inputs.compact_chain_len > inputs.inline_budget && !should_probe_dynamic_call_overflow {
+    let source_overflow_without_operation_overflow = inputs.compact_chain_len
+        > inputs.inline_budget
+        && inputs.operation_facts.inline_chain_len <= inputs.inline_budget
+        && !inputs.operation_facts.has_call_with_dynamic_arguments;
+    if inputs.compact_chain_len > inputs.inline_budget
+        && !should_probe_dynamic_call_overflow
+        && !source_overflow_without_operation_overflow
+    {
         return ChainRenderDecision::BreakForOverflow;
     }
 

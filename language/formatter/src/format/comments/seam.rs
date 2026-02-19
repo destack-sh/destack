@@ -1,4 +1,4 @@
-use ast::{NodeParentIndex, NodeTree, TokenSpan, TokenType};
+use ast::{AnnotationPosition, NodeParentIndex, NodeTree, TokenSpan, TokenType};
 use destack_ast as ast;
 use destack_source::File;
 
@@ -196,30 +196,50 @@ impl CommentSeamFacts {
     }
 }
 
-/// Mutable caches for one seam rule evaluation.
+/// Mutable caches for one seam attachment evaluation.
 #[derive(Default)]
-pub(super) struct CommentSeamRuleState {
+pub(super) struct CommentSeamOwnerCache {
     /// Lazily resolved smallest owner that encloses seam token range.
     pub(super) seam_owner: Option<u32>,
     /// Whether seam owner lookup was executed.
     pub(super) seam_owner_resolved: bool,
 }
 
+/// One resolved attachment decision for one comment seam.
+pub(super) type CommentAttachmentDecision = (Option<u32>, AnnotationPosition);
+
+/// Owner candidates adjacent to one comment seam.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct CommentAttachmentOwners {
+    /// The nearest left owner candidate.
+    pub(super) left: Option<u32>,
+    /// The nearest right owner candidate.
+    pub(super) right: Option<u32>,
+}
+
+impl CommentAttachmentOwners {
+    /// Build one owner candidate pair.
+    #[inline]
+    pub(super) fn new(left: Option<u32>, right: Option<u32>) -> Self {
+        Self { left, right }
+    }
+}
+
 /// Resolve one seam owner lazily from seam token range.
 pub(super) fn resolve_comment_seam_owner(
     context: &CommentSeamContext<'_>,
-    state: &mut CommentSeamRuleState,
+    cache: &mut CommentSeamOwnerCache,
 ) -> Option<u32> {
-    if state.seam_owner_resolved {
-        return state.seam_owner;
+    if cache.seam_owner_resolved {
+        return cache.seam_owner;
     }
 
-    state.seam_owner_resolved = true;
-    state.seam_owner = context
+    cache.seam_owner_resolved = true;
+    cache.seam_owner = context
         .token_before_span
         .zip(context.token_after_span)
         .and_then(|(before, after)| {
             find_smallest_owner_enclosing_range(context.tree, before.span.start, after.span.end)
         });
-    state.seam_owner
+    cache.seam_owner
 }

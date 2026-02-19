@@ -262,7 +262,7 @@ expect(genCode(createVNodeCall(null, "`div`", mockProps)))
 
 ```ts expected
 expect(genCode(createVNodeCall(null, "`div`", mockProps))).toMatchInlineSnapshot(`
-    `);
+  `);
 ```
 
 ### optional call boundary line comment
@@ -525,8 +525,7 @@ const isValid = hasPermission && isActive && !isDisabled
 ```
 
 ```ds expected
-const isValid =
-    hasPermission &&
+const isValid = hasPermission &&
     isActive &&
     !isDisabled;
 ```

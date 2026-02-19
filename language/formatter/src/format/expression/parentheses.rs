@@ -744,6 +744,58 @@ pub(crate) fn parenthesized_associative_type_binary_can_drop(
     }
 }
 
+/// Return whether a parenthesized call callee wrapper can drop safely.
+fn parenthesized_call_callee_wrapper_can_drop(
+    context: &DestackFormatContext<'_>,
+    parent_expression: &Expression,
+    node_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Call { left, .. } = parent_expression else {
+        return false;
+    };
+    if *left != node_id {
+        return false;
+    }
+
+    if !expression_has_trailing_static_instantiation(context.tree, inner_expression_id) {
+        return false;
+    }
+
+    if context.has_annotation(node_id) || context.has_annotation(inner_expression_id) {
+        return false;
+    }
+
+    !parenthesized_has_leading_inner_trivia(context, node_id, inner_expression_id)
+}
+
+/// Return whether one expression ends in static instantiation arguments.
+fn expression_has_trailing_static_instantiation(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    match tree.get(expression_id) {
+        Expression::Instantiation {
+            static_arguments, ..
+        } => !static_arguments.is_empty(),
+        Expression::Path {
+            static_arguments, ..
+        }
+        | Expression::Member {
+            static_arguments, ..
+        }
+        | Expression::PrivateMember {
+            static_arguments, ..
+        } => static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty()),
+        Expression::Parenthesized { expression } => {
+            expression_has_trailing_static_instantiation(tree, *expression)
+        }
+        _ => false,
+    }
+}
+
 /// Decide whether a parenthesized expression should drop wrappers in generic expression contexts.
 fn should_drop_parenthesized_expression_wrapper(
     context: &DestackFormatContext<'_>,
@@ -824,9 +876,16 @@ fn should_drop_parenthesized_expression_wrapper(
                 Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
             )
     ) && !context.has_annotation(node_id);
+    let should_drop_call_callee_instantiation_wrapper = parenthesized_call_callee_wrapper_can_drop(
+        context,
+        parent_expression,
+        node_id,
+        inner_expression_id,
+    );
     should_drop_statement_type_binary_wrapper
         || should_drop_assignment_must
         || should_drop_statement_lambda
+        || should_drop_call_callee_instantiation_wrapper
         || should_drop_type_parentheses
 }
 

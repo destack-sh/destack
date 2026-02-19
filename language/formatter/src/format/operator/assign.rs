@@ -20,6 +20,29 @@ fn is_assignment_operator_token(token_type: TokenType) -> bool {
     AssignOperator::from_token(token_type).is_some()
 }
 
+/// Return whether the next non-whitespace token after one annotation starts on the same line.
+fn annotation_next_token_is_on_same_line(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let span = context.annotation_span(annotation_id);
+    let tokens = context.tokens;
+    let mut index = tokens.partition_point(|token| token.span.start < span.end);
+
+    while let Some(token) = tokens.get(index).copied() {
+        match token.token.ty {
+            TokenType::Whitespace => {
+                index += 1;
+                continue;
+            }
+            TokenType::Newline => return false,
+            _ => return true,
+        }
+    }
+
+    false
+}
+
 /// Return whether one span contains at least one assignment operator token.
 fn span_contains_assignment_operator_token(context: &DestackFormatContext<'_>, span: Span) -> bool {
     for token in context.tokens {
@@ -37,8 +60,8 @@ fn span_contains_assignment_operator_token(context: &DestackFormatContext<'_>, s
     false
 }
 
-/// Return whether one expression has a line-prefix slash comment on an assignment seam.
-fn expression_has_assignment_seam_line_prefix_comment(
+/// Return whether one expression has an inline prefix comment on an assignment seam.
+fn expression_has_assignment_seam_inline_prefix_comment(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -54,12 +77,20 @@ fn expression_has_assignment_seam_line_prefix_comment(
                 }
 
                 let comment = context.tree.get::<Comment>(node);
-                if comment.style != CommentStyle::Slash {
+                if !previous_non_whitespace_token_before_annotation(context, *annotation_id)
+                    .is_some_and(|token| is_assignment_operator_token(token.token.ty))
+                {
                     return false;
                 }
 
-                previous_non_whitespace_token_before_annotation(context, *annotation_id)
-                    .is_some_and(|token| is_assignment_operator_token(token.token.ty))
+                match comment.style {
+                    CommentStyle::Slash => true,
+                    CommentStyle::Star => {
+                        let annotation_span = context.annotation_span(*annotation_id);
+                        !context.has_newline(annotation_span)
+                            && annotation_next_token_is_on_same_line(context, *annotation_id)
+                    }
+                }
             })
         })
         .unwrap_or(false)
@@ -185,11 +216,11 @@ pub(super) fn format_assign_expression<'ast>(
         || right_is_chain_tail_lambda
         || right_is_lambda;
     let right_has_prefix_annotation = f.context().has_prefix_annotation(right);
-    let right_has_assignment_seam_prefix_line_comment =
-        expression_has_assignment_seam_line_prefix_comment(f.context(), right)
+    let right_has_assignment_seam_inline_prefix_comment =
+        expression_has_assignment_seam_inline_prefix_comment(f.context(), right)
             || assignment_seam_has_line_comment_between(f.context(), left, right);
     let right_has_prefix_annotation_that_forces_operator_break =
-        right_has_prefix_annotation && !right_has_assignment_seam_prefix_line_comment;
+        right_has_prefix_annotation && !right_has_assignment_seam_inline_prefix_comment;
     let left_has_newline = f.context().node_has_newline(left);
     let right_has_newline = f.context().node_has_newline(right);
     let right_has_between_comment = has_comment_between_expressions(f.context(), left, right);
@@ -258,8 +289,8 @@ pub(super) fn format_assign_expression<'ast>(
         Ok(())
     });
 
-    // keep assignment seam slash comments inline with the operator
-    if right_has_assignment_seam_prefix_line_comment {
+    // keep assignment seam inline prefix comments with the operator
+    if right_has_assignment_seam_inline_prefix_comment {
         write!(
             f,
             [group(&format_args![

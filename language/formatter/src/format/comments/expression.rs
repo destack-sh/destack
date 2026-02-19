@@ -4,11 +4,12 @@ use ast::{
 use destack_ast as ast;
 
 use super::index::*;
-use super::operator::resolve_comment_expression_operator_rules;
+use super::operator::try_attach_comment_expression_operator;
 use super::owner::*;
 use super::rule::normalize_owner_with_shared_end;
 use super::seam::{
-    CommentSeamContext, CommentSeamFacts, CommentSeamRuleState, resolve_comment_seam_owner,
+    CommentAttachmentDecision, CommentAttachmentOwners, CommentSeamContext, CommentSeamFacts,
+    CommentSeamOwnerCache, resolve_comment_seam_owner,
 };
 
 /// Promote cast owners to their consuming expression when grouped lhs wrappers are required.
@@ -71,16 +72,17 @@ fn promote_cast_owner_to_grouping_parenthesized_wrapper(
 }
 
 /// Resolve expression and type seam comment rules.
-pub(super) fn resolve_comment_expression_rules(
+pub(super) fn try_attach_comment_expression(
     tree: &NodeTree,
     owner_index: &FormatterTriviaOwnerIndex,
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
     facts: &CommentSeamFacts,
-    state: &mut CommentSeamRuleState,
-    left_owner: Option<u32>,
-    right_owner: Option<u32>,
-) -> Option<(Option<u32>, AnnotationPosition)> {
+    seam_owner_cache: &mut CommentSeamOwnerCache,
+    owners: CommentAttachmentOwners,
+) -> Option<CommentAttachmentDecision> {
+    let left_owner = owners.left;
+    let right_owner = owners.right;
     let token_after = context.token_after;
     let token_before_span = context.token_before_span;
     let token_after_span = context.token_after_span;
@@ -199,7 +201,7 @@ pub(super) fn resolve_comment_expression_rules(
         && !has_trailing_newline
         && token_before_is_spread
         && comment_is_star
-        && let Some(target_node) = resolve_comment_seam_owner(context, state)
+        && let Some(target_node) = resolve_comment_seam_owner(context, seam_owner_cache)
             .or(left_owner)
             .or(right_owner)
     {
@@ -324,7 +326,7 @@ pub(super) fn resolve_comment_expression_rules(
                 promote_owner_to_parenthesized_expression_ancestor(tree, parents, owner)
             })
             .or_else(|| {
-                resolve_comment_seam_owner(context, state).and_then(|owner| {
+                resolve_comment_seam_owner(context, seam_owner_cache).and_then(|owner| {
                     promote_owner_to_parenthesized_expression_ancestor(tree, parents, owner)
                 })
             })
@@ -344,7 +346,7 @@ pub(super) fn resolve_comment_expression_rules(
         && comment_is_star
         && token_before_is_open_brace
         && token_after_is_open_bracket
-        && let Some(target_node) = resolve_comment_seam_owner(context, state)
+        && let Some(target_node) = resolve_comment_seam_owner(context, seam_owner_cache)
     {
         if tree.get_node_type(target_node) == NodeType::Expression {
             let expression_id = LocalNodeId::<Expression>::new(target_node);
@@ -368,7 +370,7 @@ pub(super) fn resolve_comment_expression_rules(
         && let Some(mut target_node) = token_after_span
             .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
             .or(right_owner)
-            .or_else(|| resolve_comment_seam_owner(context, state))
+            .or_else(|| resolve_comment_seam_owner(context, seam_owner_cache))
     {
         if tree.get_node_type(target_node) != NodeType::Expression
             && let Some(expression_target) = promote_owner_to_node_type_ancestor(
@@ -393,14 +395,13 @@ pub(super) fn resolve_comment_expression_rules(
         return Some((Some(target_node), AnnotationPosition::LinePrefix));
     }
 
-    if let Some(decision) = resolve_comment_expression_operator_rules(
+    if let Some(decision) = try_attach_comment_expression_operator(
         tree,
         parents,
         context,
         facts,
-        state,
-        left_owner,
-        right_owner,
+        seam_owner_cache,
+        owners,
     ) {
         return Some(decision);
     }

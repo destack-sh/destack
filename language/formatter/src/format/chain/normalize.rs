@@ -104,6 +104,7 @@ pub(super) struct ChainLayoutPlan {
     pub(super) should_break: bool,
     pub(super) has_calls: bool,
     pub(super) in_template_literal_interpolation: bool,
+    pub(super) instantiation_prefix_wrap_body_ops: Option<usize>,
 }
 
 /// Build base head and synthetic root operations for a chain root.
@@ -523,6 +524,163 @@ fn apply_argument_chain_line_promotions(
     merge_argument_short_member_hop_lines(context, node_id, lines);
 }
 
+/// Return the expression node id carried by one chain operation.
+fn chain_operation_node_id(operation: &ChainExpression) -> LocalNodeId<Expression> {
+    match operation {
+        ChainExpression::Member { node_id, .. }
+        | ChainExpression::Instantiation { node_id, .. }
+        | ChainExpression::Call { node_id, .. }
+        | ChainExpression::Index { node_id, .. }
+        | ChainExpression::Maybe { node_id, .. }
+        | ChainExpression::Must { node_id, .. } => *node_id,
+    }
+}
+
+/// Return whether one chain operation carries static instantiation arguments.
+fn chain_operation_has_static_instantiation_arguments(operation: &ChainExpression) -> bool {
+    match operation {
+        ChainExpression::Instantiation {
+            static_arguments, ..
+        } => !static_arguments.is_empty(),
+        ChainExpression::Member {
+            static_arguments, ..
+        } => static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty()),
+        _ => false,
+    }
+}
+
+/// Return whether one operation is a member carrying static instantiation arguments.
+fn chain_operation_is_static_instantiation_member(operation: &ChainExpression) -> bool {
+    matches!(
+        operation,
+        ChainExpression::Member {
+            static_arguments: Some(arguments),
+            ..
+        } if !arguments.is_empty()
+    )
+}
+
+/// Promote the first grouped instantiation prefix segment into the chain base.
+fn promote_leading_grouped_instantiation_prefix(
+    context: &DestackFormatContext<'_>,
+    base: &mut ChainExpressionBase,
+    lines: &mut Vec<SmallVec<[ChainExpression; 2]>>,
+) {
+    let Some(first_line) = lines.first_mut() else {
+        return;
+    };
+
+    let Some(prefix_end_index) = first_line
+        .iter()
+        .position(chain_operation_has_static_instantiation_arguments)
+    else {
+        return;
+    };
+
+    let prefix_is_supported = first_line.iter().take(prefix_end_index).all(|operation| {
+        matches!(
+            operation,
+            ChainExpression::Member { .. } | ChainExpression::Index { .. }
+        )
+    });
+    if !prefix_is_supported {
+        return;
+    }
+
+    let prefix_has_non_inline_annotation =
+        first_line
+            .iter()
+            .take(prefix_end_index + 1)
+            .any(|operation| {
+                chain_node_has_non_inline_annotation(context, chain_operation_node_id(operation))
+            });
+    if prefix_has_non_inline_annotation {
+        return;
+    }
+
+    let promoted_prefix: Vec<_> = first_line.drain(..=prefix_end_index).collect();
+    base.body.extend(promoted_prefix);
+    if first_line.is_empty() {
+        lines.remove(0);
+    }
+}
+
+/// Return whether one chain base head expression carries trailing static instantiation arguments.
+fn chain_expression_has_trailing_static_instantiation_arguments(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    match tree.get(expression_id) {
+        Expression::Instantiation {
+            static_arguments, ..
+        } => !static_arguments.is_empty(),
+        Expression::Path {
+            static_arguments, ..
+        }
+        | Expression::Member {
+            static_arguments, ..
+        }
+        | Expression::PrivateMember {
+            static_arguments, ..
+        } => static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty()),
+        Expression::Parenthesized { expression } => {
+            chain_expression_has_trailing_static_instantiation_arguments(tree, *expression)
+        }
+        _ => false,
+    }
+}
+
+/// Return one base-body wrap prefix count for static instantiation member tail wrapping.
+fn chain_instantiation_prefix_wrap_body_ops(
+    context: &DestackFormatContext<'_>,
+    base: &ChainExpressionBase,
+    lines: &[SmallVec<[ChainExpression; 2]>],
+) -> Option<usize> {
+    let head_has_static_instantiation_prefix = match &base.head {
+        ChainExpressionBaseHead::Expression(expression_id) => {
+            chain_expression_has_trailing_static_instantiation_arguments(
+                context.tree,
+                *expression_id,
+            )
+        }
+        ChainExpressionBaseHead::Path {
+            static_arguments, ..
+        } => static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty()),
+    };
+    let static_instantiation_body_index = base
+        .body
+        .iter()
+        .position(chain_operation_has_static_instantiation_arguments);
+    let Some(prefix_body_ops) = (if head_has_static_instantiation_prefix {
+        Some(0usize)
+    } else {
+        static_instantiation_body_index.map(|index| index + 1)
+    }) else {
+        return None;
+    };
+
+    let has_member_tail_in_base = base
+        .body
+        .iter()
+        .skip(prefix_body_ops)
+        .any(|operation| matches!(operation, ChainExpression::Member { .. }));
+    let has_member_tail_in_lines = lines
+        .first()
+        .and_then(|line| line.first())
+        .is_some_and(|operation| matches!(operation, ChainExpression::Member { .. }));
+    if !(has_member_tail_in_base || has_member_tail_in_lines) {
+        return None;
+    }
+
+    Some(prefix_body_ops)
+}
+
 /// Normalize a chain root into base and operation inputs for planning.
 fn normalize_chain_layout(
     context: &DestackFormatContext<'_>,
@@ -546,18 +704,20 @@ fn normalize_chain_layout(
     // append operation nodes from the original chain
     append_chain_operations(tree, &chain, &mut body)?;
 
-    // keep a leading call with the base so alignment stays stable
-    if let Some(first_op) = body.first()
-        && matches!(
-            first_op,
-            ChainExpression::Call {
-                position: PostfixPosition::Direct,
-                ..
-            } | ChainExpression::Instantiation { .. }
-        )
-    {
-        base.body.push(first_op.clone());
-        body.remove(0);
+    // keep a leading call-like or static-instantiation member with the base
+    if let Some(first_op) = body.first() {
+        let should_promote_leading_operation =
+            matches!(
+                first_op,
+                ChainExpression::Call {
+                    position: PostfixPosition::Direct,
+                    ..
+                } | ChainExpression::Instantiation { .. }
+            ) || chain_operation_is_static_instantiation_member(first_op);
+        if should_promote_leading_operation {
+            base.body.push(first_op.clone());
+            body.remove(0);
+        }
     }
 
     Ok(NormalizedChainLayout {
@@ -623,6 +783,9 @@ pub(super) fn plan_chain_layout(
     // group chain operations and then apply argument-chain compaction rules
     let mut lines = group_chain_expression_lines(context, normalized.body);
     apply_argument_chain_line_promotions(context, node_id, &mut normalized.base, &mut lines);
+    promote_leading_grouped_instantiation_prefix(context, &mut normalized.base, &mut lines);
+    let instantiation_prefix_wrap_body_ops =
+        chain_instantiation_prefix_wrap_body_ops(context, &normalized.base, &lines);
 
     Ok(ChainLayoutPlan {
         base: normalized.base,
@@ -632,5 +795,6 @@ pub(super) fn plan_chain_layout(
         in_template_literal_interpolation: expression_is_in_template_literal_interpolation(
             context, node_id,
         ),
+        instantiation_prefix_wrap_body_ops,
     })
 }

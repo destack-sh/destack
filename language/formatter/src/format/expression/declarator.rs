@@ -1,7 +1,9 @@
 use super::*;
+use crate::analysis::scan::previous_non_whitespace_token_before_annotation;
 use crate::operator::{
     binary_rhs_prefers_break_after_operator, is_type_context, union_source_has_leading_pipe,
 };
+use destack_ast::{Comment, CommentStyle};
 use destack_fir::{format_args, write};
 
 // declarator inline width constants
@@ -11,6 +13,65 @@ const DECLARATOR_ASSIGNMENT_SEPARATOR_INLINE_WIDTH: usize = 3;
 // declarator chain and binary thresholds
 const COMPLEX_CHAIN_CALL_COUNT_THRESHOLD: usize = 1;
 const LONG_BINARY_OPERAND_COUNT_THRESHOLD: usize = 2;
+
+/// Return whether the next non-whitespace token after one annotation starts on the same line.
+fn annotation_next_token_is_on_same_line(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let span = context.annotation_span(annotation_id);
+    let tokens = context.tokens;
+    let mut index = tokens.partition_point(|token| token.span.start < span.end);
+
+    while let Some(token) = tokens.get(index).copied() {
+        match token.token.ty {
+            TokenType::Whitespace => {
+                index += 1;
+                continue;
+            }
+            TokenType::Newline => return false,
+            _ => return true,
+        }
+    }
+
+    false
+}
+
+/// Return whether one declarator value has an inline prefix comment on the `=` seam.
+fn declarator_value_has_inline_assignment_seam_prefix_comment(
+    context: &DestackFormatContext<'_>,
+    value_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .visit_annotations(value_id, |annotation_ids| {
+            annotation_ids.iter().any(|annotation_id| {
+                let Annotation::Comment { node, position } = context.annotation(*annotation_id)
+                else {
+                    return false;
+                };
+                if position != AnnotationPosition::LinePrefix {
+                    return false;
+                }
+
+                if !previous_non_whitespace_token_before_annotation(context, *annotation_id)
+                    .is_some_and(|token| token.token.ty == TokenType::Assign)
+                {
+                    return false;
+                }
+
+                let comment = context.tree.get::<Comment>(node);
+                match comment.style {
+                    CommentStyle::Slash => true,
+                    CommentStyle::Star => {
+                        let annotation_span = context.annotation_span(*annotation_id);
+                        !context.has_newline(annotation_span)
+                            && annotation_next_token_is_on_same_line(context, *annotation_id)
+                    }
+                }
+            })
+        })
+        .unwrap_or(false)
+}
 
 /// Return whether one pattern subtree contains at least one default assignment.
 fn pattern_has_default_assignment(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> bool {
@@ -603,8 +664,11 @@ pub(super) fn format_declarator<'ast>(
     let value_has_prefix_annotation = f.context().has_prefix_annotation(*value_id);
     let value_is_inline_closure_cast_type_binary =
         value_is_inline_closure_cast_type_binary(f.context(), *value_id);
-    let value_has_prefix_annotation_that_forces_break =
-        value_has_prefix_annotation && !value_is_inline_closure_cast_type_binary;
+    let value_has_assignment_seam_inline_prefix_comment =
+        declarator_value_has_inline_assignment_seam_prefix_comment(f.context(), *value_id);
+    let value_has_prefix_annotation_that_forces_break = value_has_prefix_annotation
+        && !value_is_inline_closure_cast_type_binary
+        && !value_has_assignment_seam_inline_prefix_comment;
     let value_annotation_len = if value_is_inline_closure_cast_type_binary {
         0
     } else {

@@ -43,6 +43,31 @@ fn call_operation_should_emit_prefix_annotations(
     !has_leading_prefix_before_left
 }
 
+/// Return whether one chain operation is an index access.
+fn chain_operation_is_index(operation: &ChainExpression) -> bool {
+    matches!(operation, ChainExpression::Index { .. })
+}
+
+/// Return the first operation of the first grouped line.
+fn first_grouped_line_operation(
+    lines: &[SmallVec<[ChainExpression; 2]>],
+) -> Option<&ChainExpression> {
+    lines.first().and_then(|line| line.first())
+}
+
+/// Format static arguments for chain operations that may need relational spacing.
+fn format_chain_static_argument_list<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    static_arguments: &[LocalNodeId<Argument>],
+    next_operation: Option<&ChainExpression>,
+) -> FormatResult<()> {
+    if next_operation.is_some_and(chain_operation_is_index) {
+        return format_static_argument_list_with_relational_spacing(f, static_arguments);
+    }
+
+    format_static_argument_list(f, static_arguments)
+}
+
 /// Format a member/call/maybe/index chain with prettier-style breaking.
 pub(crate) fn format_expression_chain<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -55,6 +80,7 @@ pub(crate) fn format_expression_chain<'ast>(
         should_break: chain_should_break,
         has_calls: chain_has_calls,
         in_template_literal_interpolation,
+        instantiation_prefix_wrap_body_ops,
     } = plan;
 
     // indent chain lines consistently, even in assignment rhs positions
@@ -62,7 +88,13 @@ pub(crate) fn format_expression_chain<'ast>(
 
     // inline variant keeps everything on one line when it fits
     let format_inline = format_with(|f| {
-        format_chain_base(f, node_id, &base)?;
+        format_chain_base(
+            f,
+            node_id,
+            &base,
+            &lines,
+            instantiation_prefix_wrap_body_ops,
+        )?;
         for line in &lines {
             format_chain_expression_line(f, node_id, line)?;
         }
@@ -77,7 +109,13 @@ pub(crate) fn format_expression_chain<'ast>(
 
         group(&format_with(|f| {
             // always print the base first so indentation aligns subsequent lines
-            format_chain_base(f, node_id, &base)?;
+            format_chain_base(
+                f,
+                node_id,
+                &base,
+                &lines,
+                instantiation_prefix_wrap_body_ops,
+            )?;
             // indent chained entries so each operation sits on its own line
             // use indent with manual line breaks instead of block_indent to avoid trailing newline
             // this keeps semicolons on the same line as the last chain element
@@ -154,7 +192,33 @@ fn format_chain_base<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     formatted_root_id: LocalNodeId<Expression>,
     base: &ChainExpressionBase,
+    lines: &[SmallVec<[ChainExpression; 2]>],
+    instantiation_prefix_wrap_body_ops: Option<usize>,
 ) -> FormatResult<()> {
+    format_chain_base_content(
+        f,
+        formatted_root_id,
+        base,
+        lines,
+        instantiation_prefix_wrap_body_ops,
+    )
+}
+
+/// Format the unwrapped base segment of a chain.
+fn format_chain_base_content<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    formatted_root_id: LocalNodeId<Expression>,
+    base: &ChainExpressionBase,
+    lines: &[SmallVec<[ChainExpression; 2]>],
+    instantiation_prefix_wrap_body_ops: Option<usize>,
+) -> FormatResult<()> {
+    let mut has_open_prefix_wrap = false;
+    let mut has_closed_prefix_wrap = false;
+    if instantiation_prefix_wrap_body_ops.is_some() {
+        write!(f, [token("(")])?;
+        has_open_prefix_wrap = true;
+    }
+
     match &base.head {
         ChainExpressionBaseHead::Path {
             node_id,
@@ -165,7 +229,11 @@ fn format_chain_base<'ast>(
             write!(f, [f.context().any_prefix_annotations(*node_id)])?;
             write!(f, [*segment])?;
             if let Some(arguments) = static_arguments {
-                format_static_argument_list(f, arguments)?;
+                let next_operation = base
+                    .body
+                    .first()
+                    .or_else(|| first_grouped_line_operation(lines));
+                format_chain_static_argument_list(f, arguments, next_operation)?;
             }
             if *emit_postfix_annotations {
                 write!(f, [f.context().any_infix_or_postfix_annotations(*node_id)])?;
@@ -188,8 +256,25 @@ fn format_chain_base<'ast>(
         }
     }
 
-    for op in &base.body {
-        format_chain_expression(f, formatted_root_id, op)?;
+    if instantiation_prefix_wrap_body_ops == Some(0) {
+        write!(f, [token(")")])?;
+        has_closed_prefix_wrap = true;
+    }
+
+    for (index, op) in base.body.iter().enumerate() {
+        let next_operation = base
+            .body
+            .get(index + 1)
+            .or_else(|| first_grouped_line_operation(lines));
+        format_chain_expression(f, formatted_root_id, op, next_operation)?;
+        if !has_closed_prefix_wrap && instantiation_prefix_wrap_body_ops == Some(index + 1) {
+            write!(f, [token(")")])?;
+            has_closed_prefix_wrap = true;
+        }
+    }
+
+    if has_open_prefix_wrap && !has_closed_prefix_wrap {
+        write!(f, [token(")")])?;
     }
 
     Ok(())
@@ -200,6 +285,7 @@ fn format_chain_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     formatted_root_id: LocalNodeId<Expression>,
     op: &ChainExpression,
+    next_operation: Option<&ChainExpression>,
 ) -> FormatResult<()> {
     // output any line prefix annotations before the operation
     let (node_id, emit_prefix_annotations, emit_postfix_annotations) = match op {
@@ -254,13 +340,13 @@ fn format_chain_expression<'ast>(
             }
             write!(f, [*segment])?;
             if let Some(arguments) = static_arguments {
-                format_static_argument_list(f, arguments)?;
+                format_chain_static_argument_list(f, arguments, next_operation)?;
             }
         }
         ChainExpression::Instantiation {
             static_arguments, ..
         } => {
-            format_static_argument_list(f, static_arguments)?;
+            format_chain_static_argument_list(f, static_arguments, next_operation)?;
         }
         ChainExpression::Call {
             node_id: call_node_id,
@@ -338,8 +424,9 @@ fn format_chain_expression_line<'ast>(
     formatted_root_id: LocalNodeId<Expression>,
     ops: &[ChainExpression],
 ) -> FormatResult<()> {
-    for op in ops {
-        format_chain_expression(f, formatted_root_id, op)?;
+    for (index, op) in ops.iter().enumerate() {
+        let next_operation = ops.get(index + 1);
+        format_chain_expression(f, formatted_root_id, op, next_operation)?;
     }
     Ok(())
 }

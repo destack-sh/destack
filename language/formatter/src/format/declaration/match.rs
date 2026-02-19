@@ -114,7 +114,7 @@ pub(crate) fn format_match_case_with_style<'ast>(
                         write!(
                             f,
                             [block_indent(&format_with(|f| {
-                                format_block_of_statements(f, &block.expressions)
+                                format_block_of_statements(f, &block.expressions, false)
                             }))]
                         )?;
                     } else {

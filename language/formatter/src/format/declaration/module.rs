@@ -40,7 +40,7 @@ pub(super) fn format_global_declaration<'ast>(
         write!(
             f,
             [group(&block_indent(&format_with(|f| {
-                format_block_of_statements(f, expressions)
+                format_block_of_statements(f, expressions, false)
             })))]
         )?;
         write!(
@@ -103,7 +103,7 @@ pub(super) fn format_namespace_declaration<'ast>(
         write!(
             f,
             [group(&block_indent(&format_with(|f| {
-                format_block_of_statements(f, expressions)
+                format_block_of_statements(f, expressions, false)
             })))]
         )?;
         write!(

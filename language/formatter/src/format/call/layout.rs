@@ -89,6 +89,26 @@ fn resolve_call_argument_comment_profile(
     CallArgumentCommentProfile::default()
 }
 
+/// Return whether one single template literal argument can stay inline.
+fn call_arguments_use_single_template_literal_argument_inline(
+    context: &DestackFormatContext<'_>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    planner_state: CallArgumentPlannerState,
+    has_boundary_comments: bool,
+) -> bool {
+    if dynamic_arguments.len() != 1
+        || has_boundary_comments
+        || planner_state.has_call_infix_annotations
+        || planner_state.argument_shape.has_any_argument_annotation
+    {
+        return false;
+    }
+
+    let argument_id = dynamic_arguments[0];
+    argument_is_template_literal(context, argument_id)
+        && !argument_is_interpolated_template_literal(context, argument_id)
+}
+
 /// Decide post-hugged call argument layout.
 fn decide_post_hugged_call_argument_layout(
     context: &DestackFormatContext<'_>,
@@ -129,6 +149,17 @@ fn decide_post_hugged_call_argument_layout(
     );
     if use_single_simple_argument {
         context.increment_counter("call.arguments.path.single_simple", 1);
+        return CallArgumentLayoutDecision::InlineSingle;
+    }
+
+    // keep non-interpolated template literal snapshot arguments wrapped inline
+    if call_arguments_use_single_template_literal_argument_inline(
+        context,
+        dynamic_arguments,
+        planner_state,
+        has_boundary_comments,
+    ) {
+        context.increment_counter("call.arguments.path.single_template_inline", 1);
         return CallArgumentLayoutDecision::InlineSingle;
     }
 

@@ -6,6 +6,7 @@ pub mod signature;
 pub mod statement;
 pub mod r#where;
 
+mod block_policy;
 mod dispatch;
 mod function;
 mod module;

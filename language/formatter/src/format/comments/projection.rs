@@ -7,7 +7,7 @@ use crate::format::context::{Annotation, FormatterAnnotationEntry};
 
 use super::blank::resolve_formatter_blank_trivia_attachment;
 use super::index::{build_formatter_trivia_owner_index, build_formatter_trivia_seam_index};
-use super::resolve::resolve_formatter_comment_trivia_attachment;
+use super::resolve::resolve_comment_trivia_attachment;
 pub(crate) fn build_formatter_annotation_projection(
     file: &File,
     tree: &NodeTree,
@@ -57,14 +57,8 @@ pub(crate) fn build_formatter_annotation_projection(
 
     // add comment trivia with formatter-side placement resolution
     for trivia in tree.comment_trivia().iter().copied() {
-        let (target_id, position) = resolve_formatter_comment_trivia_attachment(
-            file,
-            tree,
-            tokens,
-            trivia,
-            &owner_index,
-            parents,
-        );
+        let (target_id, position) =
+            resolve_comment_trivia_attachment(file, tree, tokens, trivia, &owner_index, parents);
 
         let Some(target_id) = target_id else {
             continue;
