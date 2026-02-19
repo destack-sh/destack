@@ -158,7 +158,10 @@ declare namespace input {
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one discoverable input backend.
-    /// Uses evdev device-node enumeration on Linux, global-session and terminal discovery on macOS, terminal input discovery on other Unix hosts, and console plus raw-state discovery on Windows.
+    /// Uses evdev device-node enumeration on Linux.
+    /// Uses global-session and terminal discovery on macOS.
+    /// Uses terminal input discovery on other Unix hosts.
+    /// Uses console and raw-state discovery on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -185,7 +188,10 @@ declare namespace input {
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one openable input backend.
-    /// Uses evdev device-node open on Linux, global-session or terminal-device open on macOS, terminal-device open on other Unix hosts, and duplicated console-input handles or raw-state handles on Windows.
+    /// Uses evdev device-node open on Linux.
+    /// Uses global-session or terminal-device open on macOS.
+    /// Uses terminal-device open on other Unix hosts.
+    /// Uses duplicated console-input handles or raw-state handles on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -239,7 +245,9 @@ declare namespace input {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses evdev and libinput-style capability tables on Linux, HID and raw-input capability queries on Windows, and backend-specific capability synthesis on other Unix hosts.
+    /// Uses evdev and libinput-style capability tables on Linux.
+    /// Uses HID and raw-input capability queries on Windows.
+    /// Uses backend-specific capability synthesis on other Unix hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.

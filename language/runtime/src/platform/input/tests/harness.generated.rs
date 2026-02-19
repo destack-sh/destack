@@ -7,8 +7,29 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
-    InputDeviceInfo, InputDeviceInfoVm, InputDeviceKind, InputEvent, InputEventAction,
-    InputEventKind, InputEventVm, InputReadMode, native as input_native, vm as input_vm,
+    InputAxisInfo, InputAxisInfoVm, InputButtonInfo, InputButtonInfoVm, InputCompositionEvent,
+    InputCompositionEventPayload, InputCompositionEventPayloadVm, InputCompositionEventVm,
+    InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceCapabilityKind,
+    InputDeviceEventPayload, InputDeviceEventPayloadVm, InputDeviceInfo, InputDeviceInfoVm,
+    InputDeviceKind, InputEvent, InputEventAction, InputEventKind, InputEventPayload,
+    InputEventPayloadVm, InputEventVm, InputGamepadBatteryInfo, InputGamepadBatteryInfoVm,
+    InputGamepadBatteryState, InputGamepadButtonState, InputGamepadButtonStateVm,
+    InputGamepadConnectionType, InputGamepadEventPayload, InputGamepadEventPayloadVm,
+    InputGamepadMappingType, InputGamepadState, InputGamepadStateVm, InputGamepadTouchState,
+    InputGamepadTouchStateVm, InputHapticEffectParameters, InputHapticEffectParametersVm,
+    InputHapticEffectType, InputHapticsResult, InputKeyEventPayload, InputKeyEventPayloadVm,
+    InputKeyboardState, InputKeyboardStateVm, InputMonitorEvent, InputMonitorEventKind,
+    InputMonitorEventVm, InputPointerButtonEventPayload, InputPointerButtonEventPayloadVm,
+    InputPointerGrabMode, InputPointerMotionEventPayload, InputPointerMotionEventPayloadVm,
+    InputPointerState, InputPointerStateVm, InputRawHidReport, InputRawHidReportVm, InputReadMode,
+    InputScrollEventPayload, InputScrollEventPayloadVm, InputSensorConfig, InputSensorConfigVm,
+    InputSensorEffectiveConfig, InputSensorEffectiveConfigVm, InputSensorEventPayload,
+    InputSensorEventPayloadVm, InputSensorInfo, InputSensorInfoVm, InputSensorKind,
+    InputSensorSample, InputSensorSampleVm, InputTextEventPayload, InputTextEventPayloadVm,
+    InputTextInputArea, InputTextInputAreaVm, InputTextInputType, InputTouchContactPhase,
+    InputTouchContactState, InputTouchContactStateVm, InputTouchEventPayload,
+    InputTouchEventPayloadVm, InputTouchState, InputTouchStateVm, InputWindowTarget,
+    InputWindowTargetVm, native as input_native, vm as input_vm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
@@ -32,6 +53,49 @@ impl<'call> InputHarnessContext<'call> {
     /// Return one standardized value payload for VM and native variants.
     pub(crate) fn harness_value_vm<Native, Vm>(&self, vm: Vm) -> HarnessValue<Native, Vm> {
         HarnessValue::Vm(vm)
+    }
+
+    /// Query capabilities for one opened input device.
+    ///
+    /// Return detailed axis, button, and feature capability metadata for one opened device.
+    /// Metadata values are backend-derived and may be partially unavailable.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses evdev and libinput-style capability tables on Linux.
+    /// Uses HID and raw-input capability queries on Windows.
+    /// Uses backend-specific capability synthesis on other Unix hosts.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_capabilities(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<InputDeviceCapabilities, InputDeviceCapabilitiesVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_capabilities(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputDeviceCapabilities>::uninit();
+                unsafe {
+                    input_native::destack_input_capabilities(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
     }
 
     /// Close one input device.
@@ -68,7 +132,10 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one discoverable input backend.
-    /// Uses evdev device-node enumeration on Linux, global-session and terminal discovery on macOS, terminal input discovery on other Unix hosts, and console plus raw-state discovery on Windows.
+    /// Uses evdev device-node enumeration on Linux.
+    /// Uses global-session and terminal discovery on macOS.
+    /// Uses terminal input discovery on other Unix hosts.
+    /// Uses console and raw-state discovery on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -104,7 +171,10 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one openable input backend.
-    /// Uses evdev device-node open on Linux, global-session or terminal-device open on macOS, terminal-device open on other Unix hosts, and duplicated console-input handles or raw-state handles on Windows.
+    /// Uses evdev device-node open on Linux.
+    /// Uses global-session or terminal-device open on macOS.
+    /// Uses terminal-device open on other Unix hosts.
+    /// Uses duplicated console-input handles or raw-state handles on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -172,7 +242,10 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
-    /// Uses inotify-backed `/dev/input` monitor events on Linux with snapshot fallback when watcher setup is unavailable, global-session subscriptions on macOS, terminal-device scans on other Unix hosts, and raw-input device-change subscriptions on Windows.
+    /// Uses inotify-backed `/dev/input` monitor events on Linux.
+    /// Falls back to snapshot scans on Linux when watcher setup is unavailable.
+    /// Uses session and terminal-device scans on macOS and other Unix hosts.
+    /// Uses raw-input device-change subscriptions on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -204,11 +277,14 @@ impl<'call> InputHarnessContext<'call> {
     /// Read one global input monitor event.
     ///
     /// Read one pending monitor event from the global input monitor stream.
-    /// This stream is the canonical source for device connect and disconnect events.
+    /// This stream is the canonical source for device connect, disconnect, and metadata-change events.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
-    /// Uses blocking reads from inotify-backed Linux monitor queues with snapshot fallback on watcherless hosts, terminal or session monitor streams on Unix hosts, and raw-input monitor queues on Windows.
+    /// Uses blocking reads from inotify-backed Linux monitor queues.
+    /// Falls back to snapshot scans on Linux when watcher setup is unavailable.
+    /// Uses terminal or session monitor streams on Unix hosts.
+    /// Uses raw-input monitor queues on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -221,14 +297,14 @@ impl<'call> InputHarnessContext<'call> {
     pub(crate) fn destack_input_monitor_read(
         &mut self,
         handle: resource::InputMonitorHandle,
-    ) -> RuntimeResult<HarnessValue<InputEvent, InputEventVm>> {
+    ) -> RuntimeResult<HarnessValue<InputMonitorEvent, InputMonitorEventVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out = input_vm::destack_input_monitor_read(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<InputEvent>::uninit();
+                let mut out = std::mem::MaybeUninit::<InputMonitorEvent>::uninit();
                 unsafe {
                     input_native::destack_input_monitor_read(
                         self.call_context,
@@ -249,7 +325,10 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
-    /// Uses nonblocking reads from inotify-backed Linux monitor queues with snapshot fallback on watcherless hosts, terminal or session monitor streams on Unix hosts, and raw-input monitor queues on Windows.
+    /// Uses nonblocking reads from inotify-backed Linux monitor queues.
+    /// Falls back to snapshot scans on Linux when watcher setup is unavailable.
+    /// Uses terminal or session monitor streams on Unix hosts.
+    /// Uses raw-input monitor queues on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -262,7 +341,7 @@ impl<'call> InputHarnessContext<'call> {
     pub(crate) fn destack_input_monitor_try_read(
         &mut self,
         handle: resource::InputMonitorHandle,
-    ) -> RuntimeResult<HarnessValue<InputEvent, InputEventVm>> {
+    ) -> RuntimeResult<HarnessValue<InputMonitorEvent, InputMonitorEventVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out =
@@ -270,7 +349,7 @@ impl<'call> InputHarnessContext<'call> {
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<InputEvent>::uninit();
+                let mut out = std::mem::MaybeUninit::<InputMonitorEvent>::uninit();
                 unsafe {
                     input_native::destack_input_monitor_try_read(
                         self.call_context,
@@ -289,11 +368,14 @@ impl<'call> InputHarnessContext<'call> {
     /// Read one pending input event from one opened device stream.
     /// Per-device streams report control and motion events for that device and exclude global device topology events.
     /// Backend framing packets are filtered from this semantic stream.
-    /// Queue pressure can report one device cancel packet that carries overflow details in code and value.
+    /// Queue pressure can report one device cancel packet through the typed payload.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
-    /// Uses evdev event reads on Linux, global-session state polling on macOS, terminal-byte event reads on other Unix hosts, and ReadConsoleInputW queue reads or raw-state polling on Windows.
+    /// Uses evdev event reads on Linux.
+    /// Uses event-tap queue reads on macOS.
+    /// Uses terminal-byte event reads on other Unix hosts.
+    /// Uses `ReadConsoleInputW` queue reads or raw-state polling on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -328,7 +410,7 @@ impl<'call> InputHarnessContext<'call> {
     /// Read up to `maxEvents` events from one opened device stream in one call.
     /// Batch ordering matches backend delivery order and excludes global device topology events.
     /// Backend framing packets are filtered from this semantic stream.
-    /// Queue pressure can report one device cancel packet that carries overflow details in code and value.
+    /// Queue pressure can report one device cancel packet through the typed payload.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
@@ -376,11 +458,14 @@ impl<'call> InputHarnessContext<'call> {
     /// Enable or disable exclusive device grab.
     ///
     /// Toggle exclusive-grab mode for one input device when the host backend supports it.
+    /// This is one device-wide exclusivity control and is distinct from pointer confinement or locking modes.
     /// Grabs can prevent event delivery to other clients.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` where exclusive grab is not defined by host policy.
-    /// Uses EVIOCGRAB on Linux, returns notSupported for global-session and terminal-backed Unix input, and uses SetConsoleMode capture toggles on Windows console input.
+    /// Uses `EVIOCGRAB` on Linux.
+    /// Returns `notSupported` for global-session and terminal-backed Unix input.
+    /// Uses `SetConsoleMode` capture toggles on Windows console input.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -390,17 +475,20 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_input_set_grab(
+    pub(crate) fn destack_input_set_exclusive_grab(
         &mut self,
         handle: resource::InputDeviceHandle,
         enable: bool,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => {
-                input_vm::destack_input_set_grab(self.call_context, context, handle, enable)
-            }
+            Some(context) => input_vm::destack_input_set_exclusive_grab(
+                self.call_context,
+                context,
+                handle,
+                enable,
+            ),
             None => unsafe {
-                input_native::destack_input_set_grab(self.call_context, handle, enable)
+                input_native::destack_input_set_exclusive_grab(self.call_context, handle, enable)
             },
         }
     }
@@ -412,7 +500,9 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses per-stream runtime mode selection on Linux evdev and macOS session backends, termios raw and cooked mode updates on Unix TTY paths, and SetConsoleMode updates on Windows.
+    /// Uses per-stream runtime mode selection on Linux evdev and macOS session backends.
+    /// Uses termios raw and cooked mode updates on Unix TTY paths.
+    /// Uses `SetConsoleMode` updates on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -442,11 +532,14 @@ impl<'call> InputHarnessContext<'call> {
     /// Poll one pending input event from one opened device stream and return immediately when no event is queued.
     /// Empty queue state is reported through ioWouldBlock.
     /// Backend framing packets are filtered from this semantic stream.
-    /// Queue pressure can report one device cancel packet that carries overflow details in code and value.
+    /// Queue pressure can report one device cancel packet through the typed payload.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
-    /// Uses nonblocking evdev reads on Linux, nonblocking global-session polling on macOS, nonblocking terminal-byte reads on other Unix hosts, and nonblocking console queue reads or raw-state polling on Windows.
+    /// Uses nonblocking evdev reads on Linux.
+    /// Uses nonblocking event-tap queue reads on macOS.
+    /// Uses nonblocking terminal-byte reads on other Unix hosts.
+    /// Uses nonblocking console queue reads or raw-state polling on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -469,6 +562,1357 @@ impl<'call> InputHarnessContext<'call> {
                 let mut out = std::mem::MaybeUninit::<InputEvent>::uninit();
                 unsafe {
                     input_native::destack_input_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Set one gamepad light color.
+    ///
+    /// Apply one rgb light color for one opened gamepad-capable device when supported.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where gamepad light control is unavailable.
+    /// Uses backend-specific gamepad light-control APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_gamepad_set_light(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        red: u8,
+        green: u8,
+        blue: u8,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => input_vm::destack_input_gamepad_set_light(
+                self.call_context,
+                context,
+                handle,
+                red,
+                green,
+                blue,
+            ),
+            None => unsafe {
+                input_native::destack_input_gamepad_set_light(
+                    self.call_context,
+                    handle,
+                    red,
+                    green,
+                    blue,
+                )
+            },
+        }
+    }
+
+    /// Set one gamepad player index.
+    ///
+    /// Apply one player index hint for one opened gamepad-capable device.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where player-index assignment is unavailable.
+    /// Uses backend-specific gamepad player-index assignment APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_gamepad_set_player_index(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        playerindex: u8,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => input_vm::destack_input_gamepad_set_player_index(
+                self.call_context,
+                context,
+                handle,
+                playerindex,
+            ),
+            None => unsafe {
+                input_native::destack_input_gamepad_set_player_index(
+                    self.call_context,
+                    handle,
+                    playerindex,
+                )
+            },
+        }
+    }
+
+    /// Read one gamepad state snapshot.
+    ///
+    /// Return one full gamepad state snapshot for one opened gamepad-capable device.
+    /// Snapshot fields mirror backend-standardized gamepad semantics for axes, buttons, touches, and battery metadata.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where gamepad snapshots are unavailable.
+    /// Uses backend-specific gamepad state APIs with normalized axes, buttons, touch contacts, and battery metadata.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_gamepad_state(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<InputGamepadState, InputGamepadStateVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    input_vm::destack_input_gamepad_state(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputGamepadState>::uninit();
+                unsafe {
+                    input_native::destack_input_gamepad_state(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// List supported haptic effects.
+    ///
+    /// Return supported haptic effect kinds for one opened haptics-capable device.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where haptics is unavailable.
+    /// Uses backend-specific haptic capability queries for controller and endpoint actuators.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.haptics`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_haptics_effects(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<
+        HarnessValue<NativeArray<InputHapticEffectType>, VmArray<InputHapticEffectType>>,
+    > {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    input_vm::destack_input_haptics_effects(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<InputHapticEffectType>>::uninit();
+                unsafe {
+                    input_native::destack_input_haptics_effects(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Play one haptic effect.
+    ///
+    /// Schedule one haptic effect on one opened haptics-capable device.
+    /// Effect playback timing and motor resolution follow backend capabilities.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where one effect type is unavailable.
+    /// Uses backend-specific rumble and haptics APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.haptics`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_haptics_play(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        effect: InputHapticEffectType,
+        params: HarnessValue<InputHapticEffectParameters, InputHapticEffectParametersVm>,
+    ) -> RuntimeResult<InputHapticsResult> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let params = params.into_vm("params")?;
+                let out = input_vm::destack_input_haptics_play(
+                    self.call_context,
+                    context,
+                    handle,
+                    effect,
+                    params,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let params = params.into_native("params")?;
+                let mut out = std::mem::MaybeUninit::<InputHapticsResult>::uninit();
+                unsafe {
+                    input_native::destack_input_haptics_play(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        effect,
+                        params,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Stop active haptic effects.
+    ///
+    /// Stop active haptic playback on one opened haptics-capable device.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific haptic stop operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.haptics`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_haptics_stop(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                input_vm::destack_input_haptics_stop(self.call_context, context, handle)
+            }
+            None => unsafe { input_native::destack_input_haptics_stop(self.call_context, handle) },
+        }
+    }
+
+    /// Read one keyboard state snapshot.
+    ///
+    /// Return one current keyboard key and modifier snapshot for one opened keyboard-capable device.
+    /// Snapshot values represent one point-in-time backend state and can change immediately after read.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where keyboard snapshots are unavailable.
+    /// Uses backend-specific key-state tables from evdev or terminal backends on Unix and console or raw-input key-state paths on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_keyboard_state(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<InputKeyboardState, InputKeyboardStateVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    input_vm::destack_input_keyboard_state(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputKeyboardState>::uninit();
+                unsafe {
+                    input_native::destack_input_keyboard_state(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Enable or disable pointer capture.
+    ///
+    /// Toggle pointer capture for one opened pointer-capable device and one optional window target.
+    /// Captured pointers can continue delivering events outside focused bounds when supported for that target scope.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where capture or one window scope is unavailable.
+    /// Uses backend-specific pointer capture primitives for global or window-scoped paths.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.grab`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_pointer_capture(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        target: HarnessValue<InputWindowTarget, InputWindowTargetVm>,
+        enabled: bool,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let target = target.into_vm("target")?;
+                input_vm::destack_input_pointer_capture(
+                    self.call_context,
+                    context,
+                    handle,
+                    target,
+                    enabled,
+                )
+            }
+            None => {
+                let target = target.into_native("target")?;
+                unsafe {
+                    input_native::destack_input_pointer_capture(
+                        self.call_context,
+                        handle,
+                        target,
+                        enabled,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Read one relative pointer state snapshot.
+    ///
+    /// Return one relative motion and button state snapshot for one opened pointer-capable device.
+    /// Delta units follow backend-native relative motion semantics.
+    /// Pen-capable devices can populate pressure and tilt metadata.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific relative motion streams from evdev or libinput style backends on Unix and raw-input relative motion on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_pointer_relative_state(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<InputPointerState, InputPointerStateVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_pointer_relative_state(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputPointerState>::uninit();
+                unsafe {
+                    input_native::destack_input_pointer_relative_state(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Set pointer grab mode.
+    ///
+    /// Apply one grab mode for one opened pointer-capable device and one optional window target.
+    /// Grab modes can confine or lock pointer movement depending on backend support and target scope.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where one grab mode or one window scope is unavailable.
+    /// Uses backend-specific pointer grab or lock primitives for global or window-scoped paths.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.grab`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_pointer_set_grab_mode(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        target: HarnessValue<InputWindowTarget, InputWindowTargetVm>,
+        mode: InputPointerGrabMode,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let target = target.into_vm("target")?;
+                input_vm::destack_input_pointer_set_grab_mode(
+                    self.call_context,
+                    context,
+                    handle,
+                    target,
+                    mode,
+                )
+            }
+            None => {
+                let target = target.into_native("target")?;
+                unsafe {
+                    input_native::destack_input_pointer_set_grab_mode(
+                        self.call_context,
+                        handle,
+                        target,
+                        mode,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Enable or disable relative pointer mode.
+    ///
+    /// Toggle relative pointer mode for one opened pointer-capable device.
+    /// Relative mode semantics follow backend pointer-lock behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where relative mode is unavailable.
+    /// Uses backend-specific relative mode toggles for active input endpoints.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_pointer_set_relative_mode(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        enabled: bool,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => input_vm::destack_input_pointer_set_relative_mode(
+                self.call_context,
+                context,
+                handle,
+                enabled,
+            ),
+            None => unsafe {
+                input_native::destack_input_pointer_set_relative_mode(
+                    self.call_context,
+                    handle,
+                    enabled,
+                )
+            },
+        }
+    }
+
+    /// Read one absolute pointer state snapshot.
+    ///
+    /// Return one current pointer position and button state snapshot for one opened pointer-capable device.
+    /// Position values follow backend coordinate space for that device.
+    /// Pen-capable devices can populate pressure and tilt metadata.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific pointer state queries from evdev or libinput style streams on Unix and raw-input or console pointer state snapshots on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_pointer_state(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<InputPointerState, InputPointerStateVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    input_vm::destack_input_pointer_state(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputPointerState>::uninit();
+                unsafe {
+                    input_native::destack_input_pointer_state(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Warp pointer position.
+    ///
+    /// Set one pointer position for one opened pointer-capable device and one optional window target.
+    /// Warped coordinates are interpreted in backend-native window or surface space for the selected target scope.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where pointer warping or one window scope is unavailable.
+    /// Uses backend-specific pointer warp operations for global or window-scoped paths.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_pointer_warp(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        target: HarnessValue<InputWindowTarget, InputWindowTargetVm>,
+        x: f64,
+        y: f64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let target = target.into_vm("target")?;
+                input_vm::destack_input_pointer_warp(
+                    self.call_context,
+                    context,
+                    handle,
+                    target,
+                    x,
+                    y,
+                )
+            }
+            None => {
+                let target = target.into_native("target")?;
+                unsafe {
+                    input_native::destack_input_pointer_warp(
+                        self.call_context,
+                        handle,
+                        target,
+                        x,
+                        y,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Read one raw-hid feature report.
+    ///
+    /// Read one feature report from one opened raw-hid-capable input endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where raw-hid feature reports are unavailable.
+    /// Uses hid feature-report query APIs on Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_raw_hid_get_feature(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        reportid: u8,
+        maxbytes: u32,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_raw_hid_get_feature(
+                    self.call_context,
+                    context,
+                    handle,
+                    reportid,
+                    maxbytes,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    input_native::destack_input_raw_hid_get_feature(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        reportid,
+                        maxbytes,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one raw-hid report.
+    ///
+    /// Read one pending raw-hid report from one opened raw-hid-capable input endpoint.
+    /// Timeout and blocking behavior follow backend raw-hid queue semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where raw-hid reports are unavailable.
+    /// Uses hidraw or equivalent raw report APIs on Unix and raw-input hid report APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_raw_hid_read(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        maxbytes: u32,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<InputRawHidReport, InputRawHidReportVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_raw_hid_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    maxbytes,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputRawHidReport>::uninit();
+                unsafe {
+                    input_native::destack_input_raw_hid_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        maxbytes,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Write one raw-hid feature report.
+    ///
+    /// Write one feature report to one opened raw-hid-capable input endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where raw-hid feature reports are unavailable.
+    /// Uses hid feature-report set APIs on Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_raw_hid_set_feature(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        reportid: u8,
+        data: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let data = data.into_vm("data")?;
+                input_vm::destack_input_raw_hid_set_feature(
+                    self.call_context,
+                    context,
+                    handle,
+                    reportid,
+                    data,
+                )
+            }
+            None => {
+                let data = data.into_native("data")?;
+                unsafe {
+                    input_native::destack_input_raw_hid_set_feature(
+                        self.call_context,
+                        handle,
+                        reportid,
+                        data,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Poll one raw-hid report without blocking.
+    ///
+    /// Poll one pending raw-hid report and return immediately when none is available.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where raw-hid reports are unavailable.
+    /// Uses nonblocking hidraw or equivalent raw report APIs on Unix and nonblocking raw-input hid report APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_raw_hid_try_read(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        maxbytes: u32,
+    ) -> RuntimeResult<HarnessValue<InputRawHidReport, InputRawHidReportVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_raw_hid_try_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    maxbytes,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputRawHidReport>::uninit();
+                unsafe {
+                    input_native::destack_input_raw_hid_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        maxbytes,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Write one raw-hid output report.
+    ///
+    /// Submit one raw-hid output report to one opened raw-hid-capable input endpoint.
+    /// Short writes can occur based on backend transport behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where raw-hid output reports are unavailable.
+    /// Uses hidraw or equivalent raw report write APIs on Unix and raw-input hid report write APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.write`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_raw_hid_write(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        reportid: u8,
+        data: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<u32> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let data = data.into_vm("data")?;
+                let out = input_vm::destack_input_raw_hid_write(
+                    self.call_context,
+                    context,
+                    handle,
+                    reportid,
+                    data,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let data = data.into_native("data")?;
+                let mut out = std::mem::MaybeUninit::<u32>::uninit();
+                unsafe {
+                    input_native::destack_input_raw_hid_write(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        reportid,
+                        data,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Configure one sensor stream.
+    ///
+    /// Apply one enable and sample-rate configuration for one sensor stream on one opened input device.
+    /// Backends can negotiate one effective sample rate and one effective batching latency.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where sensor stream configuration is unavailable.
+    /// Uses backend-specific sensor configuration APIs on Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_sensor_configure(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        kind: InputSensorKind,
+        config: HarnessValue<InputSensorConfig, InputSensorConfigVm>,
+    ) -> RuntimeResult<HarnessValue<InputSensorEffectiveConfig, InputSensorEffectiveConfigVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let config = config.into_vm("config")?;
+                let out = input_vm::destack_input_sensor_configure(
+                    self.call_context,
+                    context,
+                    handle,
+                    kind,
+                    config,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let config = config.into_native("config")?;
+                let mut out = std::mem::MaybeUninit::<InputSensorEffectiveConfig>::uninit();
+                unsafe {
+                    input_native::destack_input_sensor_configure(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        kind,
+                        config,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// List supported sensors for one opened input device.
+    ///
+    /// Return sensor capability metadata for one opened sensor-capable device.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where sensor streams are unavailable.
+    /// Uses backend-specific sensor capability tables from evdev and hidraw class stacks on Unix and HID sensor or controller APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_sensor_list(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<NativeArray<InputSensorInfo>, VmArray<InputSensorInfoVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_sensor_list(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<InputSensorInfo>>::uninit();
+                unsafe {
+                    input_native::destack_input_sensor_list(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one sensor sample.
+    ///
+    /// Read one pending sample from one configured sensor stream.
+    /// Timeout and blocking behavior follow backend stream semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where sensor streams are unavailable.
+    /// Uses backend-specific blocking sensor queue reads on Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_sensor_read(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        kind: InputSensorKind,
+    ) -> RuntimeResult<HarnessValue<InputSensorSample, InputSensorSampleVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    input_vm::destack_input_sensor_read(self.call_context, context, handle, kind)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputSensorSample>::uninit();
+                unsafe {
+                    input_native::destack_input_sensor_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        kind,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one sensor sample without blocking.
+    ///
+    /// Poll one pending sample from one configured sensor stream and return immediately when none is available.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where sensor streams are unavailable.
+    /// Uses backend-specific nonblocking sensor queue reads on Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_sensor_try_read(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        kind: InputSensorKind,
+    ) -> RuntimeResult<HarnessValue<InputSensorSample, InputSensorSampleVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_sensor_try_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    kind,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputSensorSample>::uninit();
+                unsafe {
+                    input_native::destack_input_sensor_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        kind,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Get text input area.
+    ///
+    /// Return the currently configured text input area and cursor position hint for one opened input device and one optional window target.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
+    /// Uses backend-specific text-area hint state tracking for global or window-scoped paths.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_text_get_area(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        target: HarnessValue<InputWindowTarget, InputWindowTargetVm>,
+    ) -> RuntimeResult<HarnessValue<InputTextInputArea, InputTextInputAreaVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let target = target.into_vm("target")?;
+                let out = input_vm::destack_input_text_get_area(
+                    self.call_context,
+                    context,
+                    handle,
+                    target,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let target = target.into_native("target")?;
+                let mut out = std::mem::MaybeUninit::<InputTextInputArea>::uninit();
+                unsafe {
+                    input_native::destack_input_text_get_area(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        target,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Query text input active state.
+    ///
+    /// Return whether text input is currently active for one opened input device.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific text session status checks.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_text_is_active(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<bool> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    input_vm::destack_input_text_is_active(self.call_context, context, handle)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<bool>::uninit();
+                unsafe {
+                    input_native::destack_input_text_is_active(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Read one composition event.
+    ///
+    /// Read one pending composition lifecycle event for one opened input device.
+    /// Composition events represent begin, update, commit, end, and cancel transitions.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where composition events are unavailable.
+    /// Uses backend-specific IME composition queues.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_text_read_composition(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<InputCompositionEvent, InputCompositionEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_text_read_composition(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputCompositionEvent>::uninit();
+                unsafe {
+                    input_native::destack_input_text_read_composition(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Set text input area.
+    ///
+    /// Set one text input area and cursor position hint for one opened input device and one optional window target.
+    /// Area hints are used by host IME placement when supported for the selected target scope.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where text-area hints or one window scope are unavailable.
+    /// Uses backend-specific IME candidate window placement hints for global or window-scoped paths.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_text_set_area(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        target: HarnessValue<InputWindowTarget, InputWindowTargetVm>,
+        area: HarnessValue<InputTextInputArea, InputTextInputAreaVm>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let target = target.into_vm("target")?;
+                let area = area.into_vm("area")?;
+                input_vm::destack_input_text_set_area(
+                    self.call_context,
+                    context,
+                    handle,
+                    target,
+                    area,
+                )
+            }
+            None => {
+                let target = target.into_native("target")?;
+                let area = area.into_native("area")?;
+                unsafe {
+                    input_native::destack_input_text_set_area(
+                        self.call_context,
+                        handle,
+                        target,
+                        area,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Start text input.
+    ///
+    /// Enable text input and composition dispatch for one opened input device and one optional window target.
+    /// Text conversion behavior follows host IME and keyboard policy for the selected target scope.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where text input sessions or one window scope are unavailable.
+    /// Uses backend-specific text input activation primitives and host IME activation for global or window-scoped paths.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_text_start(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        target: HarnessValue<InputWindowTarget, InputWindowTargetVm>,
+        inputtype: InputTextInputType,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let target = target.into_vm("target")?;
+                input_vm::destack_input_text_start(
+                    self.call_context,
+                    context,
+                    handle,
+                    target,
+                    inputtype,
+                )
+            }
+            None => {
+                let target = target.into_native("target")?;
+                unsafe {
+                    input_native::destack_input_text_start(
+                        self.call_context,
+                        handle,
+                        target,
+                        inputtype,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Stop text input.
+    ///
+    /// Disable text input and composition dispatch for one opened input device and one optional window target.
+    /// Pending composition updates are finalized or canceled according to backend policy for the selected target scope.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
+    /// Uses backend-specific text input deactivation primitives for global or window-scoped paths.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_text_stop(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        target: HarnessValue<InputWindowTarget, InputWindowTargetVm>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let target = target.into_vm("target")?;
+                input_vm::destack_input_text_stop(self.call_context, context, handle, target)
+            }
+            None => {
+                let target = target.into_native("target")?;
+                unsafe { input_native::destack_input_text_stop(self.call_context, handle, target) }
+            }
+        }
+    }
+
+    /// Poll one composition event without blocking.
+    ///
+    /// Poll one pending composition lifecycle event and return immediately when no event is queued.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where composition events are unavailable.
+    /// Uses backend-specific nonblocking IME composition queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_text_try_read_composition(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<InputCompositionEvent, InputCompositionEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_text_try_read_composition(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputCompositionEvent>::uninit();
+                unsafe {
+                    input_native::destack_input_text_try_read_composition(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one touch state snapshot.
+    ///
+    /// Return one current touch-contact snapshot for one opened touch-capable device.
+    /// Contact ordering follows backend delivery order.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where touch snapshots are unavailable.
+    /// Uses backend-specific contact tables from evdev or libinput style paths on Unix and pointer-contact APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_touch_state(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<InputTouchState, InputTouchStateVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_touch_state(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputTouchState>::uninit();
+                unsafe {
+                    input_native::destack_input_touch_state(
                         self.call_context,
                         out.as_mut_ptr(),
                         handle,

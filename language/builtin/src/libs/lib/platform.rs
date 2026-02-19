@@ -217,10 +217,64 @@ builtin_lib_sources_targeted!(
             "event.ds"
         ),
         (
+            LIB_PLATFORM_INPUT_GAMEPAD_DS,
+            "lib",
+            "platform/input",
+            "gamepad.ds"
+        ),
+        (
+            LIB_PLATFORM_INPUT_HAPTICS_DS,
+            "lib",
+            "platform/input",
+            "haptics.ds"
+        ),
+        (
             LIB_PLATFORM_INPUT_INDEX_DS,
             "lib",
             "platform/input",
             "index.ds"
+        ),
+        (
+            LIB_PLATFORM_INPUT_KEYBOARD_DS,
+            "lib",
+            "platform/input",
+            "keyboard.ds"
+        ),
+        (
+            LIB_PLATFORM_INPUT_POINTER_DS,
+            "lib",
+            "platform/input",
+            "pointer.ds"
+        ),
+        (
+            LIB_PLATFORM_INPUT_RAWHID_DS,
+            "lib",
+            "platform/input",
+            "rawhid.ds"
+        ),
+        (
+            LIB_PLATFORM_INPUT_SENSOR_DS,
+            "lib",
+            "platform/input",
+            "sensor.ds"
+        ),
+        (
+            LIB_PLATFORM_INPUT_TARGET_DS,
+            "lib",
+            "platform/input",
+            "target.ds"
+        ),
+        (
+            LIB_PLATFORM_INPUT_TEXT_DS,
+            "lib",
+            "platform/input",
+            "text.ds"
+        ),
+        (
+            LIB_PLATFORM_INPUT_TOUCH_DS,
+            "lib",
+            "platform/input",
+            "touch.ds"
         ),
         (
             LIB_PLATFORM_IO_COMPLETION_DS,
@@ -639,7 +693,16 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_INDEX_DS,
         LIB_PLATFORM_INPUT_DEVICE_DS,
         LIB_PLATFORM_INPUT_EVENT_DS,
+        LIB_PLATFORM_INPUT_GAMEPAD_DS,
+        LIB_PLATFORM_INPUT_HAPTICS_DS,
         LIB_PLATFORM_INPUT_INDEX_DS,
+        LIB_PLATFORM_INPUT_KEYBOARD_DS,
+        LIB_PLATFORM_INPUT_POINTER_DS,
+        LIB_PLATFORM_INPUT_RAWHID_DS,
+        LIB_PLATFORM_INPUT_SENSOR_DS,
+        LIB_PLATFORM_INPUT_TARGET_DS,
+        LIB_PLATFORM_INPUT_TEXT_DS,
+        LIB_PLATFORM_INPUT_TOUCH_DS,
         LIB_PLATFORM_IO_COMPLETION_DS,
         LIB_PLATFORM_IO_CONTROL_DS,
         LIB_PLATFORM_IO_DEVICE_DS,

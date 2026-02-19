@@ -50,7 +50,8 @@ declare namespace input {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific pointer state queries from evdev or libinput style streams on Unix and raw-input or console pointer state snapshots on Windows.
+    /// Uses backend-specific pointer state queries from evdev or libinput-style streams on Unix.
+    /// Uses raw-input or console pointer state snapshots on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -78,7 +79,8 @@ declare namespace input {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific relative motion streams from evdev or libinput style backends on Unix and raw-input relative motion on Windows.
+    /// Uses backend-specific relative motion streams from evdev or libinput-style backends on Unix.
+    /// Uses raw-input relative motion on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

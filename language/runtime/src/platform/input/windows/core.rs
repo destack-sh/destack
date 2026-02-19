@@ -1,102 +1,287 @@
-use std::ffi::c_void;
-use std::mem::MaybeUninit;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use windows_sys::Win32::Foundation::{
-    CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, ERROR_ACCESS_DENIED, ERROR_INVALID_HANDLE,
-    ERROR_INVALID_PARAMETER, HANDLE, INVALID_HANDLE_VALUE,
+    CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, ERROR_ACCESS_DENIED,
+    ERROR_DEVICE_NOT_CONNECTED, ERROR_INVALID_HANDLE, ERROR_INVALID_PARAMETER, HANDLE, HWND,
+    INVALID_HANDLE_VALUE, POINT, RECT,
 };
+use windows_sys::Win32::Graphics::Gdi::ClientToScreen;
 use windows_sys::Win32::System::Console::{
-    ENABLE_ECHO_INPUT, ENABLE_EXTENDED_FLAGS, ENABLE_LINE_INPUT, ENABLE_MOUSE_INPUT,
-    ENABLE_PROCESSED_INPUT, ENABLE_QUICK_EDIT_MODE, ENABLE_WINDOW_INPUT, FOCUS_EVENT,
-    FROM_LEFT_1ST_BUTTON_PRESSED, FROM_LEFT_2ND_BUTTON_PRESSED, FROM_LEFT_3RD_BUTTON_PRESSED,
-    FROM_LEFT_4TH_BUTTON_PRESSED, GetConsoleMode, GetNumberOfConsoleInputEvents, GetStdHandle,
-    INPUT_RECORD, KEY_EVENT, MENU_EVENT, MOUSE_EVENT, MOUSE_HWHEELED, MOUSE_MOVED, MOUSE_WHEELED,
-    RIGHTMOST_BUTTON_PRESSED, ReadConsoleInputW, STD_INPUT_HANDLE, SetConsoleMode,
-    WINDOW_BUFFER_SIZE_EVENT,
+    ENABLE_ECHO_INPUT, ENABLE_LINE_INPUT, ENABLE_PROCESSED_INPUT, GetConsoleMode, GetStdHandle,
+    INPUT_RECORD, STD_INPUT_HANDLE, SetConsoleMode,
 };
 use windows_sys::Win32::System::Performance::{QueryPerformanceCounter, QueryPerformanceFrequency};
 use windows_sys::Win32::System::Threading::GetCurrentProcess;
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+    GetAsyncKeyState, GetKeyState, VK_CAPITAL, VK_CONTROL, VK_LBUTTON, VK_MBUTTON, VK_MENU,
+    VK_NUMLOCK, VK_RBUTTON, VK_SCROLL, VK_SHIFT, VK_XBUTTON1, VK_XBUTTON2,
+};
+use windows_sys::Win32::UI::WindowsAndMessaging::{ClipCursor, GetClientRect, GetCursorPos};
 
-use super::raw as raw_input;
+use super::{raw as raw_input, xinput as xinput_input};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputDeviceInfo, InputDeviceKind, InputEvent, InputEventAction, InputEventKind, InputReadMode,
+    InputCompositionEventPayload, InputDeviceEventPayload, InputEvent, InputEventAction,
+    InputEventKind, InputEventPayload, InputGamepadEventPayload, InputKeyEventPayload,
+    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputReadMode,
+    InputScrollEventPayload, InputSensorEffectiveConfig, InputSensorEventPayload, InputSensorKind,
+    InputTextEventPayload, InputTextInputArea, InputTextInputType, InputTouchEventPayload,
+    InputWindowTarget,
 };
-use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind};
+use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform, resource};
 use crate::runtime::RuntimeCallContext;
 
 /// Resource-table label for opened input-device entries.
 pub(super) const INPUT_RESOURCE_LABEL: &str = "input.device";
 /// Stable console input device identifier.
-const WINDOWS_INPUT_DEVICE_ID: &str = "console:stdin";
+pub(super) const WINDOWS_INPUT_DEVICE_ID: &str = "console:stdin";
 /// Console identifier alias accepted by open.
-const WINDOWS_INPUT_DEVICE_ID_ALIAS: &str = "console";
+pub(super) const WINDOWS_INPUT_DEVICE_ID_ALIAS: &str = "console";
 /// Stdin identifier alias accepted by open.
-const WINDOWS_INPUT_DEVICE_ID_STDIN: &str = "stdin";
+pub(super) const WINDOWS_INPUT_DEVICE_ID_STDIN: &str = "stdin";
 /// Win32 console input pseudo-path accepted by open.
-const WINDOWS_INPUT_DEVICE_ID_PATH: &str = "\\\\.\\CONIN$";
+pub(super) const WINDOWS_INPUT_DEVICE_ID_PATH: &str = "\\\\.\\CONIN$";
 /// Display name for console input device metadata.
-const WINDOWS_INPUT_DEVICE_NAME: &str = "windows console input";
+pub(super) const WINDOWS_INPUT_DEVICE_NAME: &str = "windows console input";
 /// Reported key count for console input.
-const WINDOWS_CONSOLE_KEY_COUNT: u16 = 255;
+pub(super) const WINDOWS_CONSOLE_KEY_COUNT: u16 = 255;
 /// Reported button count for console input.
-const WINDOWS_CONSOLE_BUTTON_COUNT: u16 = 5;
+pub(super) const WINDOWS_CONSOLE_BUTTON_COUNT: u16 = 5;
 /// Reported axis count for console input.
-const WINDOWS_CONSOLE_AXIS_COUNT: u16 = 2;
-/// Stable raw keyboard pseudo-device identifier.
-pub(super) const WINDOWS_INPUT_RAW_KEYBOARD_ID: &str = "raw:keyboard";
-/// Stable raw mouse pseudo-device identifier.
-pub(super) const WINDOWS_INPUT_RAW_MOUSE_ID: &str = "raw:mouse";
-/// Display name for raw keyboard pseudo-device metadata.
-const WINDOWS_INPUT_RAW_KEYBOARD_NAME: &str = "windows raw keyboard state";
-/// Display name for raw mouse pseudo-device metadata.
-const WINDOWS_INPUT_RAW_MOUSE_NAME: &str = "windows raw mouse state";
-/// Empty text payload for non-text events.
-const WINDOWS_INPUT_EMPTY_TEXT: &str = "";
-/// Singleton counter for active raw keyboard streams.
-static WINDOWS_RAW_KEYBOARD_STREAMS: AtomicUsize = AtomicUsize::new(0);
-/// Singleton counter for active raw mouse streams.
-static WINDOWS_RAW_MOUSE_STREAMS: AtomicUsize = AtomicUsize::new(0);
+pub(super) const WINDOWS_CONSOLE_AXIS_COUNT: u16 = 2;
+/// CONTROL_KEY_STATE bit for shift.
+const SHIFT_PRESSED: u32 = 0x0010;
+/// CONTROL_KEY_STATE bit for left control.
+const LEFT_CTRL_PRESSED: u32 = 0x0008;
+/// CONTROL_KEY_STATE bit for left alt.
+const LEFT_ALT_PRESSED: u32 = 0x0002;
+/// CONTROL_KEY_STATE bit for caps lock.
+const CAPSLOCK_ON: u32 = 0x0080;
+/// CONTROL_KEY_STATE bit for num lock.
+const NUMLOCK_ON: u32 = 0x0020;
+/// CONTROL_KEY_STATE bit for scroll lock.
+const SCROLLLOCK_ON: u32 = 0x0040;
+/// Stable bit for left pointer button in pointer snapshots.
+const POINTER_BUTTON_LEFT: u32 = 1u32 << 0;
+/// Stable bit for right pointer button in pointer snapshots.
+const POINTER_BUTTON_RIGHT: u32 = 1u32 << 1;
+/// Stable bit for middle pointer button in pointer snapshots.
+const POINTER_BUTTON_MIDDLE: u32 = 1u32 << 2;
+/// Stable bit for x1 pointer button in pointer snapshots.
+const POINTER_BUTTON_X1: u32 = 1u32 << 3;
+/// Stable bit for x2 pointer button in pointer snapshots.
+const POINTER_BUTTON_X2: u32 = 1u32 << 4;
+/// Sentinel window resource id for one omitted target window.
+const WINDOW_TARGET_DEFAULT_RESOURCE_ID: u64 = 0;
+/// Minimum supported XInput player index.
+const XINPUT_PLAYER_INDEX_MIN: u8 = 1;
+/// Maximum supported XInput player index.
+const XINPUT_PLAYER_INDEX_MAX: u8 = 4;
+/// Number of active console input streams.
+pub(super) static WINDOWS_CONSOLE_STREAMS: AtomicUsize = AtomicUsize::new(0);
+
+/// Build one zeroed payload shell for event-kind projection.
+pub(super) fn empty_event_payload(context: &RuntimeCallContext) -> InputEventPayload {
+    let empty_text = context.store_string("");
+    InputEventPayload {
+        key: InputKeyEventPayload {
+            action: InputEventAction::Cancel,
+            backend_code: 0,
+            backend_scan_code: 0,
+            backend_value: 0,
+            modifiers: 0,
+            repeat: false,
+        },
+        pointer_motion: InputPointerMotionEventPayload {
+            x: 0.0,
+            y: 0.0,
+            buttons: 0,
+            modifiers: 0,
+        },
+        pointer_button: InputPointerButtonEventPayload {
+            action: InputEventAction::Cancel,
+            backend_code: 0,
+            backend_value: 0,
+            x: 0.0,
+            y: 0.0,
+            modifiers: 0,
+        },
+        scroll: InputScrollEventPayload {
+            wheel_x: 0.0,
+            wheel_y: 0.0,
+            x: 0.0,
+            y: 0.0,
+            modifiers: 0,
+        },
+        touch: InputTouchEventPayload {
+            action: InputEventAction::Cancel,
+            contact_id: 0,
+            x: 0.0,
+            y: 0.0,
+            pressure: 0.0,
+        },
+        gamepad: InputGamepadEventPayload {
+            action: InputEventAction::Cancel,
+            backend_code: 0,
+            backend_value: 0,
+        },
+        text: InputTextEventPayload { text: empty_text },
+        device: InputDeviceEventPayload {
+            action: InputEventAction::Cancel,
+            backend_code: 0,
+            backend_value: 0,
+        },
+        sensor: InputSensorEventPayload {
+            action: InputEventAction::Cancel,
+            backend_code: 0,
+            backend_value: 0,
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        },
+        composition: InputCompositionEventPayload {
+            action: InputEventAction::Cancel,
+            text: empty_text,
+            selection_start: 0,
+            selection_end: 0,
+        },
+    }
+}
+
+/// Build one typed input event from one prepared payload.
+pub(super) fn build_input_event(
+    context: &RuntimeCallContext,
+    kind: InputEventKind,
+    timestamp_ns: u64,
+    sequence: u64,
+    device_id: &str,
+    payload: InputEventPayload,
+) -> InputEvent {
+    InputEvent {
+        kind,
+        timestamp_ns,
+        sequence,
+        device_id: context.store_string(device_id),
+        payload,
+    }
+}
 
 /// Resolved backend kind for one opened windows input handle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum WindowsInputBackend {
+pub(super) enum WindowsInputBackend {
     /// Console input queue backend.
     Console,
-    /// Raw keyboard backend routed through the worker service.
-    RawKeyboard,
-    /// Raw mouse backend routed through the worker service.
-    RawMouse,
+    /// Per-device raw-input backend routed through the worker service.
+    RawDevice,
+    /// XInput gamepad backend.
+    XInput,
 }
 
 /// Normalized input-open selector parsed from one identifier.
-#[derive(Debug, Clone, Copy)]
-enum WindowsInputOpenSpec {
+#[derive(Debug, Clone)]
+pub(super) enum WindowsInputOpenSpec {
     /// Open console input.
     Console,
-    /// Open raw keyboard stream.
-    RawKeyboard,
-    /// Open raw mouse stream.
-    RawMouse,
+    /// Open one enumerated raw-input device.
+    RawDevice(raw_input::RawInputDeviceDescriptor),
+    /// Open one xinput gamepad endpoint.
+    XInput(u8),
 }
 
 /// Payload stored in the resource table for one opened windows input handle.
 #[derive(Debug)]
 pub(super) struct WindowsInputBinding {
     /// Active backend kind.
-    backend: WindowsInputBackend,
+    pub(super) backend: WindowsInputBackend,
     /// Current read-mode selection.
-    read_mode: InputReadMode,
+    pub(super) read_mode: InputReadMode,
     /// Next per-handle event sequence number.
-    next_sequence: u64,
+    pub(super) next_sequence: u64,
     /// Last observed console button-state bitmask.
-    console_button_state: u32,
+    pub(super) console_button_state: u32,
+    /// Pending pointer-button transitions split from one console record.
+    pub(super) pending_console_button_transitions: VecDeque<PendingConsoleButtonTransition>,
+    /// Pending console records queued for input.read calls.
+    pub(super) pending_console_records: VecDeque<PendingConsoleRecord>,
+    /// Pending composition events queued for text.readComposition calls.
+    pub(super) pending_console_composition_events: VecDeque<PendingConsoleCompositionEvent>,
     /// Original console mode captured at open time.
-    original_mode: Option<u32>,
+    pub(super) original_mode: Option<u32>,
+    /// Raw-input descriptor for per-device backends.
+    pub(super) raw_device: Option<raw_input::RawInputDeviceDescriptor>,
+    /// XInput user index for gamepad backends.
+    pub(super) xinput_user_index: Option<u8>,
+    /// Last observed XInput packet number.
+    pub(super) xinput_packet_number: u32,
+    /// Optional player-index override set through control bindings.
+    pub(super) xinput_player_index_override: Option<u8>,
+    /// Last sampled pointer x position.
+    pub(super) last_pointer_x: f64,
+    /// Last sampled pointer y position.
+    pub(super) last_pointer_y: f64,
+    /// Whether relative pointer mode is enabled.
+    pub(super) relative_mode_enabled: bool,
+    /// Whether text input is currently active.
+    pub(super) text_active: bool,
+    /// Current text input type selection.
+    pub(super) text_input_type: InputTextInputType,
+    /// Current text-area hint for IME placement.
+    pub(super) text_area: InputTextInputArea,
+    /// Enabled sensor stream kinds for this opened handle.
+    pub(super) sensor_enabled_kinds: HashSet<InputSensorKind>,
+    /// Effective sensor stream configurations for this opened handle.
+    pub(super) sensor_effective_configs: HashMap<InputSensorKind, InputSensorEffectiveConfig>,
+}
+
+/// Deferred console pointer-button transition queued for later reads.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct PendingConsoleButtonTransition {
+    /// Event timestamp in monotonic nanoseconds.
+    pub(super) timestamp_ns: u64,
+    /// Stable pointer button code.
+    pub(super) code: u32,
+    /// Pointer action.
+    pub(super) action: InputEventAction,
+    /// Scalar value for press, release, or repeat transitions.
+    pub(super) value: i64,
+    /// Pointer x position snapshot.
+    pub(super) x: f64,
+    /// Pointer y position snapshot.
+    pub(super) y: f64,
+    /// Modifier bitset snapshot.
+    pub(super) modifiers: u32,
+}
+
+/// Deferred console record queued for input-event decoding.
+pub(super) struct PendingConsoleRecord {
+    /// Event timestamp in monotonic nanoseconds.
+    pub(super) timestamp_ns: u64,
+    /// Host INPUT_RECORD payload.
+    pub(super) record: INPUT_RECORD,
+}
+
+impl std::fmt::Debug for PendingConsoleRecord {
+    /// Format queued console metadata without dumping non-debug host unions.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PendingConsoleRecord")
+            .field("timestamp_ns", &self.timestamp_ns)
+            .field("event_type", &(self.record.EventType as u32))
+            .finish()
+    }
+}
+
+/// Deferred composition code unit queued for text-session reads.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct PendingConsoleCompositionEvent {
+    /// Event timestamp in monotonic nanoseconds.
+    pub(super) timestamp_ns: u64,
+    /// UTF-16 code unit observed from one key-down record.
+    pub(super) code_unit: u16,
 }
 
 /// Finalizer payload for console-backed windows input resources.
@@ -106,28 +291,43 @@ pub(super) struct WindowsInputFinalizer {
     pub(super) handle: HANDLE,
     /// Console mode snapshot to restore on close.
     pub(super) restore_mode: Option<u32>,
+    /// Whether this finalizer releases the singleton console stream lane.
+    pub(super) release_console_lane: bool,
 }
 
 /// Resolved input-handle state for one read or control operation.
-#[derive(Debug, Clone, Copy)]
-struct WindowsInputResolved {
+#[derive(Debug, Clone)]
+pub(super) struct WindowsInputResolved {
     /// Backend kind.
-    backend: WindowsInputBackend,
+    pub(super) backend: WindowsInputBackend,
     /// Active read mode.
-    read_mode: InputReadMode,
+    pub(super) read_mode: InputReadMode,
     /// Last observed console button-state bitmask.
-    console_button_state: u32,
+    pub(super) console_button_state: u32,
     /// Host handle when this backend is descriptor-backed.
-    host_handle: Option<HANDLE>,
+    pub(super) host_handle: Option<HANDLE>,
     /// Original mode snapshot for console backends.
-    original_mode: Option<u32>,
-}
-
-/// Finalizer payload for singleton raw-stream ownership counters.
-#[derive(Debug)]
-struct RawInputStreamFinalizer {
-    /// Counter for one raw stream lane.
-    counter: &'static AtomicUsize,
+    pub(super) original_mode: Option<u32>,
+    /// Raw-input descriptor for per-device backends.
+    pub(super) raw_device: Option<raw_input::RawInputDeviceDescriptor>,
+    /// XInput user index for gamepad backends.
+    pub(super) xinput_user_index: Option<u8>,
+    /// Last observed XInput packet number.
+    pub(super) xinput_packet_number: u32,
+    /// Optional player-index override set through control bindings.
+    pub(super) xinput_player_index_override: Option<u8>,
+    /// Last sampled pointer x position.
+    pub(super) last_pointer_x: f64,
+    /// Last sampled pointer y position.
+    pub(super) last_pointer_y: f64,
+    /// Whether relative pointer mode is enabled.
+    pub(super) relative_mode_enabled: bool,
+    /// Whether text input is currently active.
+    pub(super) text_active: bool,
+    /// Current text input type selection.
+    pub(super) text_input_type: InputTextInputType,
+    /// Current text-area hint for IME placement.
+    pub(super) text_area: InputTextInputArea,
 }
 
 impl ResourceFinalizer for WindowsInputFinalizer {
@@ -142,13 +342,24 @@ impl ResourceFinalizer for WindowsInputFinalizer {
         unsafe {
             CloseHandle(self.handle);
         }
+
+        if self.release_console_lane {
+            WINDOWS_CONSOLE_STREAMS.fetch_sub(1, Ordering::AcqRel);
+        }
     }
 }
 
-impl ResourceFinalizer for RawInputStreamFinalizer {
-    /// Release one raw stream lane on resource finalization.
+/// Finalizer payload for one raw-input stream registration.
+#[derive(Debug)]
+pub(super) struct RawInputDeviceFinalizer {
+    /// Registered raw-input device identifier.
+    pub(super) device_id: String,
+}
+
+impl ResourceFinalizer for RawInputDeviceFinalizer {
+    /// Release one registered raw-input stream on resource finalization.
     fn finalize(self: Box<Self>, _resource_id: ResourceId) {
-        self.counter.fetch_sub(1, Ordering::AcqRel);
+        raw_input::release_input_stream(&self.device_id);
     }
 }
 
@@ -169,7 +380,7 @@ pub(super) fn input_not_found(
 }
 
 /// Build io-would-block for one empty input queue read.
-fn io_would_block(operation: &'static str, message: &'static str) -> Box<RuntimeError> {
+pub(super) fn io_would_block(operation: &'static str, message: &'static str) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::io_with(
         Some(PlatformErrorCode::IoWouldBlock),
         None,
@@ -181,46 +392,18 @@ fn io_would_block(operation: &'static str, message: &'static str) -> Box<Runtime
     .boxed()
 }
 
-/// Acquire one singleton raw input stream lane.
-fn acquire_raw_stream(
-    counter: &'static AtomicUsize,
-    operation: &'static str,
-    stream_name: &'static str,
-) -> RuntimeResult<()> {
-    let mut current = counter.load(Ordering::Acquire);
-    loop {
-        if current > 0 {
-            return Err(io_would_block(
-                operation,
-                match stream_name {
-                    "keyboard" => "raw keyboard stream is already open",
-                    "mouse" => "raw mouse stream is already open",
-                    _ => "raw stream is already open",
-                },
-            ));
-        }
-
-        match counter.compare_exchange_weak(
-            current,
-            current + 1,
-            Ordering::AcqRel,
-            Ordering::Acquire,
-        ) {
-            Ok(_) => return Ok(()),
-            Err(next) => current = next,
-        }
-    }
-}
-
 /// Build one windows io error with mapped platform error code.
-fn io_error_with_code(
+pub(super) fn io_error_with_code(
     operation: &'static str,
     syscall: &'static str,
     code: u32,
     message: &str,
 ) -> Box<RuntimeError> {
     // map known Win32 codes to stable platform error categories
-    let platform_code = if code == ERROR_INVALID_HANDLE || code == ERROR_INVALID_PARAMETER {
+    let platform_code = if code == ERROR_INVALID_HANDLE
+        || code == ERROR_INVALID_PARAMETER
+        || code == ERROR_DEVICE_NOT_CONNECTED
+    {
         Some(PlatformErrorCode::IoNotFound)
     } else if code == ERROR_ACCESS_DENIED {
         Some(PlatformErrorCode::IoPermissionDenied)
@@ -239,8 +422,78 @@ fn io_error_with_code(
     .boxed()
 }
 
+/// Return one current pointer position in desktop coordinates.
+pub(super) fn current_pointer_position() -> (f64, f64) {
+    let mut point = POINT { x: 0, y: 0 };
+    let status = unsafe { GetCursorPos(&mut point) };
+    if status == 0 {
+        return (0.0, 0.0);
+    }
+
+    (point.x as f64, point.y as f64)
+}
+
+/// Return whether one virtual key is currently pressed.
+pub(super) fn is_key_pressed(virtual_key: i32) -> bool {
+    let key_state = unsafe { GetAsyncKeyState(virtual_key) as u16 };
+    (key_state & 0x8000) != 0
+}
+
+/// Return one stable pointer-button bitset from host key state.
+pub(super) fn pointer_buttons_from_host() -> u32 {
+    let mut buttons = 0u32;
+    if is_key_pressed(i32::from(VK_LBUTTON)) {
+        buttons |= POINTER_BUTTON_LEFT;
+    }
+    if is_key_pressed(i32::from(VK_RBUTTON)) {
+        buttons |= POINTER_BUTTON_RIGHT;
+    }
+    if is_key_pressed(i32::from(VK_MBUTTON)) {
+        buttons |= POINTER_BUTTON_MIDDLE;
+    }
+    if is_key_pressed(i32::from(VK_XBUTTON1)) {
+        buttons |= POINTER_BUTTON_X1;
+    }
+    if is_key_pressed(i32::from(VK_XBUTTON2)) {
+        buttons |= POINTER_BUTTON_X2;
+    }
+
+    buttons
+}
+
+/// Return one CONTROL_KEY_STATE-compatible modifier bitset from host key state.
+pub(super) fn modifier_bits_from_host() -> u32 {
+    let mut modifiers = 0u32;
+    if is_key_pressed(i32::from(VK_SHIFT)) {
+        modifiers |= SHIFT_PRESSED;
+    }
+    if is_key_pressed(i32::from(VK_CONTROL)) {
+        modifiers |= LEFT_CTRL_PRESSED;
+    }
+    if is_key_pressed(i32::from(VK_MENU)) {
+        modifiers |= LEFT_ALT_PRESSED;
+    }
+
+    let caps_lock = unsafe { GetKeyState(i32::from(VK_CAPITAL)) as u16 };
+    if (caps_lock & 0x0001) != 0 {
+        modifiers |= CAPSLOCK_ON;
+    }
+
+    let num_lock = unsafe { GetKeyState(i32::from(VK_NUMLOCK)) as u16 };
+    if (num_lock & 0x0001) != 0 {
+        modifiers |= NUMLOCK_ON;
+    }
+
+    let scroll_lock = unsafe { GetKeyState(i32::from(VK_SCROLL)) as u16 };
+    if (scroll_lock & 0x0001) != 0 {
+        modifiers |= SCROLLLOCK_ON;
+    }
+
+    modifiers
+}
+
 /// Return the stdin console mode when console input is available.
-fn get_stdin_console_mode() -> RuntimeResult<Option<(HANDLE, u32)>> {
+pub(super) fn get_stdin_console_mode() -> RuntimeResult<Option<(HANDLE, u32)>> {
     // resolve standard input handle
     let std_input = unsafe { GetStdHandle(STD_INPUT_HANDLE) };
     if std_input == 0 || std_input == INVALID_HANDLE_VALUE {
@@ -266,7 +519,7 @@ fn get_stdin_console_mode() -> RuntimeResult<Option<(HANDLE, u32)>> {
 }
 
 /// Duplicate one console handle for independent resource ownership.
-fn duplicate_console_handle(handle: HANDLE) -> RuntimeResult<HANDLE> {
+pub(super) fn duplicate_console_handle(handle: HANDLE) -> RuntimeResult<HANDLE> {
     // duplicate into the current process with matching access rights
     let process = unsafe { GetCurrentProcess() };
     let mut duplicated = 0;
@@ -294,8 +547,36 @@ fn duplicate_console_handle(handle: HANDLE) -> RuntimeResult<HANDLE> {
     Ok(duplicated)
 }
 
+/// Acquire the singleton console stream lane for this process.
+pub(super) fn acquire_console_stream(operation: &'static str) -> RuntimeResult<()> {
+    let mut current = WINDOWS_CONSOLE_STREAMS.load(Ordering::Acquire);
+    loop {
+        if current > 0 {
+            return Err(RuntimeError::from(PlatformError::io_with(
+                Some(PlatformErrorCode::IoWouldBlock),
+                None,
+                None,
+                Some(operation.to_string()),
+                None,
+                "console input stream is already open".to_string(),
+            ))
+            .boxed());
+        }
+
+        match WINDOWS_CONSOLE_STREAMS.compare_exchange_weak(
+            current,
+            current + 1,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        ) {
+            Ok(_) => return Ok(()),
+            Err(next) => current = next,
+        }
+    }
+}
+
 /// Normalize one input identifier into a known windows open spec.
-fn normalize_windows_input_id(id: &str) -> RuntimeResult<WindowsInputOpenSpec> {
+pub(super) fn normalize_input_id(id: &str) -> RuntimeResult<WindowsInputOpenSpec> {
     // validate basic identifier invariants
     if id.is_empty() {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -323,24 +604,26 @@ fn normalize_windows_input_id(id: &str) -> RuntimeResult<WindowsInputOpenSpec> {
         return Ok(WindowsInputOpenSpec::Console);
     }
 
-    // classify known raw pseudo-devices
-    if id_lower == WINDOWS_INPUT_RAW_KEYBOARD_ID {
-        return Ok(WindowsInputOpenSpec::RawKeyboard);
+    // classify xinput gamepad identifiers
+    if let Some(user_index) = xinput_input::parse_xinput_device_id(&id_lower) {
+        return Ok(WindowsInputOpenSpec::XInput(user_index));
     }
 
-    if id_lower == WINDOWS_INPUT_RAW_MOUSE_ID {
-        return Ok(WindowsInputOpenSpec::RawMouse);
+    // classify one enumerated raw-input device id
+    let raw_device = raw_input::resolve_raw_input_device(&id_lower, "destack.input.device.open")?;
+    if let Some(raw_device) = raw_device {
+        return Ok(WindowsInputOpenSpec::RawDevice(raw_device));
     }
 
     Err(RuntimeError::from(PlatformError::invalid_argument_value(
         "id",
-        "id must be one supported windows input identifier",
+        "id must be one supported windows input identifier from input.list",
     ))
     .boxed())
 }
 
 /// Derive runtime read mode from one console mode bitset.
-fn read_mode_from_console_mode(mode: u32) -> InputReadMode {
+pub(super) fn read_mode_from_console_mode(mode: u32) -> InputReadMode {
     let is_cooked = (mode & ENABLE_PROCESSED_INPUT) != 0
         && (mode & ENABLE_LINE_INPUT) != 0
         && (mode & ENABLE_ECHO_INPUT) != 0;
@@ -351,161 +634,8 @@ fn read_mode_from_console_mode(mode: u32) -> InputReadMode {
     }
 }
 
-/// Enumerate windows input devices and pseudo-devices.
-pub(super) fn list_windows_devices(
-    context: &RuntimeCallContext,
-) -> RuntimeResult<Vec<InputDeviceInfo>> {
-    // append console input when available for this process
-    let mut devices = Vec::new();
-
-    if get_stdin_console_mode()?.is_some() {
-        devices.push(InputDeviceInfo {
-            id: context.store_string(WINDOWS_INPUT_DEVICE_ID),
-            name: context.store_string(WINDOWS_INPUT_DEVICE_NAME),
-            kind: InputDeviceKind::Keyboard,
-            vendor_id: 0,
-            product_id: 0,
-            key_count: WINDOWS_CONSOLE_KEY_COUNT,
-            button_count: WINDOWS_CONSOLE_BUTTON_COUNT,
-            axis_count: WINDOWS_CONSOLE_AXIS_COUNT,
-            connected: true,
-            supports_grab: true,
-            supports_raw: true,
-            supports_text: true,
-            supports_rumble: false,
-        });
-    }
-
-    // append raw keyboard pseudo-device
-    devices.push(InputDeviceInfo {
-        id: context.store_string(WINDOWS_INPUT_RAW_KEYBOARD_ID),
-        name: context.store_string(WINDOWS_INPUT_RAW_KEYBOARD_NAME),
-        kind: InputDeviceKind::Keyboard,
-        vendor_id: 0,
-        product_id: 0,
-        key_count: 255,
-        button_count: 0,
-        axis_count: 0,
-        connected: true,
-        supports_grab: false,
-        supports_raw: true,
-        supports_text: false,
-        supports_rumble: false,
-    });
-
-    // append raw mouse pseudo-device
-    devices.push(InputDeviceInfo {
-        id: context.store_string(WINDOWS_INPUT_RAW_MOUSE_ID),
-        name: context.store_string(WINDOWS_INPUT_RAW_MOUSE_NAME),
-        kind: InputDeviceKind::Mouse,
-        vendor_id: 0,
-        product_id: 0,
-        key_count: 0,
-        button_count: 5,
-        axis_count: 2,
-        connected: true,
-        supports_grab: false,
-        supports_raw: true,
-        supports_text: false,
-        supports_rumble: false,
-    });
-
-    Ok(devices)
-}
-
-/// Open one windows input endpoint by identifier.
-pub(super) fn open_windows_device(
-    context: &RuntimeCallContext,
-    id: &str,
-) -> RuntimeResult<resource::InputDeviceHandle> {
-    // normalize the input identifier into one backend selector
-    let spec = normalize_windows_input_id(id)?;
-
-    match spec {
-        WindowsInputOpenSpec::Console => {
-            // resolve and duplicate console input for resource ownership
-            let Some((stdin, mode)) = get_stdin_console_mode()? else {
-                return Err(RuntimeError::from(PlatformError::io_with(
-                    Some(PlatformErrorCode::IoNotFound),
-                    None,
-                    None,
-                    Some("destack.input.device.open".to_string()),
-                    None,
-                    "console input is not available for this process",
-                ))
-                .boxed());
-            };
-            let duplicated = duplicate_console_handle(stdin)?;
-
-            // insert console binding with restore finalizer
-            let entry = ResourceEntry::new(ResourceKind::Input)
-                .with_label(INPUT_RESOURCE_LABEL)
-                .with_handle(duplicated as usize as *mut c_void)
-                .with_payload(WindowsInputBinding {
-                    backend: WindowsInputBackend::Console,
-                    read_mode: read_mode_from_console_mode(mode),
-                    next_sequence: 1,
-                    console_button_state: 0,
-                    original_mode: Some(mode),
-                })
-                .with_finalizer(WindowsInputFinalizer {
-                    handle: duplicated,
-                    restore_mode: Some(mode),
-                });
-            let resource_id = context.runtime().resources.insert(entry);
-            Ok(resource::InputDeviceHandle(resource_id))
-        }
-        WindowsInputOpenSpec::RawKeyboard => {
-            // ensure raw worker availability before creating handle
-            raw_input::ensure_service("destack.input.device.open")?;
-            acquire_raw_stream(
-                &WINDOWS_RAW_KEYBOARD_STREAMS,
-                "destack.input.device.open",
-                "keyboard",
-            )?;
-            let entry = ResourceEntry::new(ResourceKind::Input)
-                .with_label(INPUT_RESOURCE_LABEL)
-                .with_payload(WindowsInputBinding {
-                    backend: WindowsInputBackend::RawKeyboard,
-                    read_mode: InputReadMode::Raw,
-                    next_sequence: 1,
-                    console_button_state: 0,
-                    original_mode: None,
-                })
-                .with_finalizer(RawInputStreamFinalizer {
-                    counter: &WINDOWS_RAW_KEYBOARD_STREAMS,
-                });
-            let resource_id = context.runtime().resources.insert(entry);
-            Ok(resource::InputDeviceHandle(resource_id))
-        }
-        WindowsInputOpenSpec::RawMouse => {
-            // ensure raw worker availability before creating handle
-            raw_input::ensure_service("destack.input.device.open")?;
-            acquire_raw_stream(
-                &WINDOWS_RAW_MOUSE_STREAMS,
-                "destack.input.device.open",
-                "mouse",
-            )?;
-            let entry = ResourceEntry::new(ResourceKind::Input)
-                .with_label(INPUT_RESOURCE_LABEL)
-                .with_payload(WindowsInputBinding {
-                    backend: WindowsInputBackend::RawMouse,
-                    read_mode: InputReadMode::Raw,
-                    next_sequence: 1,
-                    console_button_state: 0,
-                    original_mode: None,
-                })
-                .with_finalizer(RawInputStreamFinalizer {
-                    counter: &WINDOWS_RAW_MOUSE_STREAMS,
-                });
-            let resource_id = context.runtime().resources.insert(entry);
-            Ok(resource::InputDeviceHandle(resource_id))
-        }
-    }
-}
-
 /// Resolve one windows input handle from the resource table.
-fn resolve_windows_input(
+pub(super) fn resolve_input(
     context: &RuntimeCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
@@ -531,6 +661,16 @@ fn resolve_windows_input(
             console_button_state: binding.console_button_state,
             host_handle: entry.handle().map(|handle| handle as HANDLE),
             original_mode: binding.original_mode,
+            raw_device: binding.raw_device.clone(),
+            xinput_user_index: binding.xinput_user_index,
+            xinput_packet_number: binding.xinput_packet_number,
+            xinput_player_index_override: binding.xinput_player_index_override,
+            last_pointer_x: binding.last_pointer_x,
+            last_pointer_y: binding.last_pointer_y,
+            relative_mode_enabled: binding.relative_mode_enabled,
+            text_active: binding.text_active,
+            text_input_type: binding.text_input_type,
+            text_area: binding.text_area,
         })
     });
 
@@ -540,26 +680,26 @@ fn resolve_windows_input(
     }
 }
 
-/// Close one windows input handle and run any finalizer.
-pub(super) fn close_windows_device(
+/// Resolve one raw-input descriptor for one opened windows input handle.
+pub(super) fn raw_device(
     context: &RuntimeCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
-) -> RuntimeResult<()> {
-    // validate handle before attempting removal
-    resolve_windows_input(context, handle, operation)?;
-
-    // remove from resource table and run finalizer
-    let removed = context.runtime().resources.remove_and_finalize(handle.0);
-    if !removed {
-        return Err(input_not_found(operation, handle));
+) -> RuntimeResult<raw_input::RawInputDeviceDescriptor> {
+    let resolved = resolve_input(context, handle, operation)?;
+    if resolved.backend != WindowsInputBackend::RawDevice {
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
-    Ok(())
+    let Some(raw_device) = resolved.raw_device else {
+        return Err(input_not_found(operation, handle));
+    };
+
+    Ok(raw_device)
 }
 
 /// Allocate the next sequence number for one windows input stream.
-fn next_windows_sequence(
+pub(super) fn next_sequence(
     context: &RuntimeCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
@@ -591,23 +731,6 @@ fn next_windows_sequence(
     }
 }
 
-/// Read console queue depth for nonblocking checks.
-fn read_queue_depth(handle: HANDLE, operation: &'static str) -> RuntimeResult<u32> {
-    let mut queued = 0u32;
-    let status = unsafe { GetNumberOfConsoleInputEvents(handle, &mut queued) };
-    if status == 0 {
-        let code = core_platform::last_error_code() as u32;
-        return Err(io_error_with_code(
-            operation,
-            "GetNumberOfConsoleInputEvents",
-            code,
-            "failed to query console event queue depth",
-        ));
-    }
-
-    Ok(queued)
-}
-
 /// Return the host performance-counter frequency.
 fn performance_counter_frequency() -> u64 {
     static PERFORMANCE_COUNTER_FREQUENCY: OnceLock<u64> = OnceLock::new();
@@ -623,7 +746,7 @@ fn performance_counter_frequency() -> u64 {
 }
 
 /// Read one monotonic timestamp from QueryPerformanceCounter.
-fn now_timestamp_ns() -> u64 {
+pub(super) fn now_timestamp_ns() -> u64 {
     let frequency = performance_counter_frequency();
     if frequency == 0 {
         return 0;
@@ -638,267 +761,212 @@ fn now_timestamp_ns() -> u64 {
     ((counter as u128).saturating_mul(1_000_000_000u128) / u128::from(frequency)) as u64
 }
 
-/// Decode wheel delta from high-word packed button state.
-fn mouse_wheel_delta(button_state: u32) -> i16 {
-    let high_word = ((button_state >> 16) & 0xffff) as u16;
-    high_word as i16
-}
-
-/// Decode one console button-state transition into one stable button event.
-fn decode_console_button_transition(
-    previous_state: u32,
-    current_state: u32,
-) -> Option<(u32, InputEventAction, i64)> {
-    // map console button-bit masks into stable pointer button codes
-    const BUTTON_CASES: &[(u32, u32)] = &[
-        (FROM_LEFT_1ST_BUTTON_PRESSED, 0),
-        (RIGHTMOST_BUTTON_PRESSED, 1),
-        (FROM_LEFT_2ND_BUTTON_PRESSED, 2),
-        (FROM_LEFT_3RD_BUTTON_PRESSED, 3),
-        (FROM_LEFT_4TH_BUTTON_PRESSED, 4),
-    ];
-
-    // find the first changed button bit in stable code order
-    let changed_bits = previous_state ^ current_state;
-    for (button_bit, code) in BUTTON_CASES {
-        if (changed_bits & *button_bit) == 0 {
-            continue;
-        }
-
-        let is_pressed = (current_state & *button_bit) != 0;
-        if is_pressed {
-            return Some((*code, InputEventAction::Press, 1));
-        }
-
-        return Some((*code, InputEventAction::Release, 0));
-    }
-
-    None
-}
-
-/// Map one INPUT_RECORD into one runtime input event.
-fn map_console_record(
-    context: &RuntimeCallContext,
-    record: INPUT_RECORD,
-    device_id: &str,
-    read_mode: InputReadMode,
-    previous_button_state: u32,
-) -> Option<(InputEvent, Option<u32>)> {
-    // stamp event with one monotonic timestamp
-    let timestamp_ns = now_timestamp_ns();
-
-    match record.EventType as u32 {
-        KEY_EVENT => {
-            // decode keyboard or cooked text semantics
-            let key = unsafe { record.Event.KeyEvent };
-            let unicode = unsafe { key.uChar.UnicodeChar };
-            let key_down = key.bKeyDown != 0;
-            let is_text = key_down && unicode != 0 && read_mode == InputReadMode::Cooked;
-            let kind = if is_text {
-                InputEventKind::Text
-            } else {
-                InputEventKind::Key
-            };
-            let value = if is_text {
-                unicode as i64
-            } else if key_down {
-                1
-            } else {
-                0
-            };
-
-            let action = if is_text {
-                InputEventAction::Text
-            } else if key_down && key.wRepeatCount > 1 {
-                InputEventAction::Repeat
-            } else if key_down {
-                InputEventAction::Press
-            } else {
-                InputEventAction::Release
-            };
-            let text = if is_text {
-                let code_unit = [unicode];
-                let value = String::from_utf16_lossy(&code_unit);
-                context.store_string(&value)
-            } else {
-                context.store_string(WINDOWS_INPUT_EMPTY_TEXT)
-            };
-
-            // build normalized key or text event
-            let event = InputEvent {
-                kind,
-                timestamp_ns,
-                sequence: 0,
-                device_id: context.store_string(device_id),
-                action,
-                code: key.wVirtualKeyCode as u32,
-                scan_code: key.wVirtualScanCode as u32,
-                value,
-                x: 0.0,
-                y: 0.0,
-                wheel_x: 0.0,
-                wheel_y: 0.0,
-                modifiers: key.dwControlKeyState,
-                repeat: key_down && key.wRepeatCount > 1,
-                text,
-            };
-
-            Some((event, None))
-        }
-        MOUSE_EVENT => {
-            // decode pointer, wheel, and button semantics
-            let mouse = unsafe { record.Event.MouseEvent };
-            let current_button_state = mouse.dwButtonState;
-
-            let kind =
-                if mouse.dwEventFlags == MOUSE_WHEELED || mouse.dwEventFlags == MOUSE_HWHEELED {
-                    InputEventKind::Scroll
-                } else if mouse.dwEventFlags == MOUSE_MOVED {
-                    InputEventKind::PointerMotion
-                } else {
-                    InputEventKind::PointerButton
-                };
-            let wheel_x = if mouse.dwEventFlags == MOUSE_HWHEELED {
-                f64::from(mouse_wheel_delta(mouse.dwButtonState))
-            } else {
-                0.0
-            };
-            let wheel_y = if mouse.dwEventFlags == MOUSE_WHEELED {
-                f64::from(mouse_wheel_delta(mouse.dwButtonState))
-            } else {
-                0.0
-            };
-
-            // derive pointer-button transition from the previous and current button bitmasks
-            let (code, action, value) = if kind == InputEventKind::PointerButton {
-                match decode_console_button_transition(previous_button_state, current_button_state)
-                {
-                    Some((code, action, value)) => (code, action, value),
-                    None => return None,
-                }
-            } else if kind == InputEventKind::Scroll {
-                (
-                    mouse.dwEventFlags,
-                    InputEventAction::Scroll,
-                    i64::from(mouse_wheel_delta(mouse.dwButtonState)),
-                )
-            } else {
-                (mouse.dwEventFlags, InputEventAction::Move, 0)
-            };
-
-            // build normalized pointer event
-            let event = InputEvent {
-                kind,
-                timestamp_ns,
-                sequence: 0,
-                device_id: context.store_string(device_id),
-                action,
-                code,
-                scan_code: code,
-                value,
-                x: mouse.dwMousePosition.X as f64,
-                y: mouse.dwMousePosition.Y as f64,
-                wheel_x,
-                wheel_y,
-                modifiers: mouse.dwControlKeyState,
-                repeat: false,
-                text: context.store_string(WINDOWS_INPUT_EMPTY_TEXT),
-            };
-
-            Some((event, Some(current_button_state)))
-        }
-        WINDOW_BUFFER_SIZE_EVENT => {
-            // emit monitor-style resize notification
-            let resize = unsafe { record.Event.WindowBufferSizeEvent };
-            let event = InputEvent {
-                kind: InputEventKind::Device,
-                timestamp_ns,
-                sequence: 0,
-                device_id: context.store_string(device_id),
-                action: InputEventAction::Move,
-                code: WINDOW_BUFFER_SIZE_EVENT,
-                scan_code: WINDOW_BUFFER_SIZE_EVENT,
-                value: 0,
-                x: resize.dwSize.X as f64,
-                y: resize.dwSize.Y as f64,
-                wheel_x: 0.0,
-                wheel_y: 0.0,
-                modifiers: 0,
-                repeat: false,
-                text: context.store_string(WINDOWS_INPUT_EMPTY_TEXT),
-            };
-
-            Some((event, None))
-        }
-        // map opaque system events as device notifications
-        MENU_EVENT => Some((
-            InputEvent {
-                kind: InputEventKind::Device,
-                timestamp_ns,
-                sequence: 0,
-                device_id: context.store_string(device_id),
-                action: InputEventAction::Move,
-                code: MENU_EVENT,
-                scan_code: MENU_EVENT,
-                value: 0,
-                x: 0.0,
-                y: 0.0,
-                wheel_x: 0.0,
-                wheel_y: 0.0,
-                modifiers: 0,
-                repeat: false,
-                text: context.store_string(WINDOWS_INPUT_EMPTY_TEXT),
-            },
-            None,
-        )),
-        FOCUS_EVENT => Some((
-            InputEvent {
-                kind: InputEventKind::Device,
-                timestamp_ns,
-                sequence: 0,
-                device_id: context.store_string(device_id),
-                action: InputEventAction::Move,
-                code: FOCUS_EVENT,
-                scan_code: FOCUS_EVENT,
-                value: 0,
-                x: 0.0,
-                y: 0.0,
-                wheel_x: 0.0,
-                wheel_y: 0.0,
-                modifiers: 0,
-                repeat: false,
-                text: context.store_string(WINDOWS_INPUT_EMPTY_TEXT),
-            },
-            None,
-        )),
-        event_type => Some((
-            InputEvent {
-                kind: InputEventKind::Device,
-                timestamp_ns,
-                sequence: 0,
-                device_id: context.store_string(device_id),
-                action: InputEventAction::Move,
-                code: event_type,
-                scan_code: event_type,
-                value: 0,
-                x: 0.0,
-                y: 0.0,
-                wheel_x: 0.0,
-                wheel_y: 0.0,
-                modifiers: 0,
-                repeat: false,
-                text: context.store_string(WINDOWS_INPUT_EMPTY_TEXT),
-            },
-            None,
-        )),
-    }
-}
-
-/// Persist one console button-state snapshot for one input handle.
-fn set_console_button_state(
+/// Persist one xinput player-index override for one input handle.
+pub(super) fn set_xinput_player_index_override(
     context: &RuntimeCallContext,
     handle: resource::InputDeviceHandle,
-    state: u32,
+    player_index: u8,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    // reject out-of-range player indices before mutating handle state
+    if !(XINPUT_PLAYER_INDEX_MIN..=XINPUT_PLAYER_INDEX_MAX).contains(&player_index) {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "playerindex",
+            "playerindex must be in range 1..=4",
+        ))
+        .boxed());
+    }
+
+    let updated = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::Input {
+                return None;
+            }
+
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
+            if binding.backend != WindowsInputBackend::XInput {
+                return Some(Err(RuntimeError::from(PlatformError::not_supported(
+                    operation,
+                ))
+                .boxed()));
+            }
+
+            binding.xinput_player_index_override = Some(player_index);
+            Some(Ok(()))
+        });
+
+    match updated.flatten() {
+        Some(result) => result,
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Return whether one target selects one explicit window resource.
+fn has_explicit_window_target(target: InputWindowTarget) -> bool {
+    target.window.0.0 != WINDOW_TARGET_DEFAULT_RESOURCE_ID
+}
+
+/// Build io-not-found for one missing explicit window target handle.
+fn window_target_not_found(
+    operation: &'static str,
+    target: InputWindowTarget,
+) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoNotFound),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        format!("window handle {} not found", target.window.0.0),
+    ))
+    .boxed()
+}
+
+/// Resolve one optional explicit window target into one host hwnd.
+pub(super) fn resolve_window_target_handle(
+    context: &RuntimeCallContext,
+    target: InputWindowTarget,
+    operation: &'static str,
+) -> RuntimeResult<Option<HWND>> {
+    // keep default process-scoped routing for zero-valued targets
+    if !has_explicit_window_target(target) {
+        return Ok(None);
+    }
+
+    // resolve explicit window resources from the shared resource table
+    let window_resource_id = target.window.0;
+    let hwnd = context
+        .runtime()
+        .resources
+        .with_entry(window_resource_id, |entry| {
+            if entry.kind != ResourceKind::Window {
+                return None;
+            }
+
+            entry.handle().map(|handle| handle as HWND)
+        });
+
+    match hwnd.flatten() {
+        Some(hwnd) if hwnd != 0 => Ok(Some(hwnd)),
+        _ => Err(window_target_not_found(operation, target)),
+    }
+}
+
+/// Convert one client-area point into one screen-space point for cursor APIs.
+pub(super) fn client_to_screen_point(
+    hwnd: HWND,
+    x: f64,
+    y: f64,
+    operation: &'static str,
+) -> RuntimeResult<POINT> {
+    // validate finite client-space coordinates before conversion
+    if !x.is_finite() || !y.is_finite() {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "x",
+            "x and y must be finite",
+        ))
+        .boxed());
+    }
+
+    // convert window-relative coordinates to desktop coordinates
+    let mut point = POINT {
+        x: x.round() as i32,
+        y: y.round() as i32,
+    };
+    let status = unsafe { ClientToScreen(hwnd, &mut point) };
+    if status == 0 {
+        let code = core_platform::last_error_code() as u32;
+        return Err(io_error_with_code(
+            operation,
+            "ClientToScreen",
+            code,
+            "failed to convert client coordinates into screen coordinates",
+        ));
+    }
+
+    Ok(point)
+}
+
+/// Confine cursor movement to one explicit window target.
+pub(super) fn confine_cursor_to_window(hwnd: HWND, operation: &'static str) -> RuntimeResult<()> {
+    // resolve the client rectangle for this window target
+    let mut rect = RECT {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+    };
+    let status = unsafe { GetClientRect(hwnd, &mut rect) };
+    if status == 0 {
+        let code = core_platform::last_error_code() as u32;
+        return Err(io_error_with_code(
+            operation,
+            "GetClientRect",
+            code,
+            "failed to resolve window client bounds",
+        ));
+    }
+
+    // convert client bounds into desktop clip bounds
+    let top_left =
+        client_to_screen_point(hwnd, f64::from(rect.left), f64::from(rect.top), operation)?;
+    let bottom_right = client_to_screen_point(
+        hwnd,
+        f64::from(rect.right),
+        f64::from(rect.bottom),
+        operation,
+    )?;
+    rect.left = top_left.x;
+    rect.top = top_left.y;
+    rect.right = bottom_right.x;
+    rect.bottom = bottom_right.y;
+
+    // apply system-level cursor clipping
+    let status = unsafe { ClipCursor(&rect) };
+    if status == 0 {
+        let code = core_platform::last_error_code() as u32;
+        return Err(io_error_with_code(
+            operation,
+            "ClipCursor",
+            code,
+            "failed to confine cursor to the target window",
+        ));
+    }
+
+    Ok(())
+}
+
+/// Release any active cursor confinement clip region.
+pub(super) fn release_cursor_confine(operation: &'static str) -> RuntimeResult<()> {
+    let status = unsafe { ClipCursor(std::ptr::null()) };
+    if status == 0 {
+        let code = core_platform::last_error_code() as u32;
+        return Err(io_error_with_code(
+            operation,
+            "ClipCursor",
+            code,
+            "failed to release cursor confinement",
+        ));
+    }
+
+    Ok(())
+}
+
+/// Persist one text active flag and type for one input handle.
+pub(super) fn set_text_state(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    active: bool,
+    input_type: InputTextInputType,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let updated = context
@@ -917,11 +985,8 @@ fn set_console_button_state(
                 .payload
                 .as_mut()
                 .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-            if binding.backend != WindowsInputBackend::Console {
-                return Some(());
-            }
-
-            binding.console_button_state = state;
+            binding.text_active = active;
+            binding.text_input_type = input_type;
             Some(())
         });
 
@@ -931,179 +996,14 @@ fn set_console_button_state(
     }
 }
 
-/// Read one input event from console or raw queues.
-pub(super) fn read_windows_event(
+/// Persist one text-area hint for one input handle.
+pub(super) fn set_text_area(
     context: &RuntimeCallContext,
     handle: resource::InputDeviceHandle,
-    nonblocking: bool,
-    operation: &'static str,
-) -> RuntimeResult<InputEvent> {
-    // resolve resource binding and selected backend
-    let resolved = resolve_windows_input(context, handle, operation)?;
-
-    let (mut event, next_button_state) = match resolved.backend {
-        WindowsInputBackend::Console => {
-            // require a host handle for console backends
-            let Some(host_handle) = resolved.host_handle else {
-                return Err(input_not_found(operation, handle));
-            };
-
-            // enforce nonblocking queue semantics when requested
-            if nonblocking {
-                let queued = read_queue_depth(host_handle, operation)?;
-                if queued == 0 {
-                    return Err(io_would_block(operation, "input queue is empty"));
-                }
-            }
-
-            // read records until one event payload is produced
-            let event = loop {
-                let mut record = MaybeUninit::<INPUT_RECORD>::uninit();
-                let mut read_count = 0u32;
-                let status = unsafe {
-                    ReadConsoleInputW(host_handle, record.as_mut_ptr(), 1, &mut read_count)
-                };
-                if status == 0 {
-                    let code = core_platform::last_error_code() as u32;
-                    return Err(io_error_with_code(
-                        operation,
-                        "ReadConsoleInputW",
-                        code,
-                        "failed to read from console input",
-                    ));
-                }
-
-                if read_count == 0 {
-                    if nonblocking {
-                        return Err(io_would_block(operation, "input queue is empty"));
-                    }
-
-                    continue;
-                }
-
-                // convert one console record into one runtime event
-                let record = unsafe { record.assume_init() };
-                let mapped = map_console_record(
-                    context,
-                    record,
-                    WINDOWS_INPUT_DEVICE_ID,
-                    resolved.read_mode,
-                    resolved.console_button_state,
-                );
-                if let Some(mapped) = mapped {
-                    break mapped;
-                }
-            };
-
-            event
-        }
-        // delegate raw streams to the dedicated worker queues
-        WindowsInputBackend::RawKeyboard => (
-            raw_input::read_keyboard_event(context, nonblocking, operation)?,
-            None,
-        ),
-        WindowsInputBackend::RawMouse => (
-            raw_input::read_mouse_event(context, nonblocking, operation)?,
-            None,
-        ),
-    };
-
-    // persist updated console button state when one mouse snapshot was observed
-    if let Some(next_button_state) = next_button_state {
-        set_console_button_state(context, handle, next_button_state, operation)?;
-    }
-
-    // stamp one per-handle sequence number
-    event.sequence = next_windows_sequence(context, handle, operation)?;
-
-    Ok(event)
-}
-
-/// Enable or disable exclusive grab mode for console input.
-pub(super) fn set_windows_grab(
-    context: &RuntimeCallContext,
-    handle: resource::InputDeviceHandle,
-    enable: bool,
+    area: InputTextInputArea,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    // resolve handle and enforce console-only grab semantics
-    let resolved = resolve_windows_input(context, handle, operation)?;
-
-    if resolved.backend != WindowsInputBackend::Console {
-        return Err(RuntimeError::from(PlatformError::not_supported(
-            "destack.input.event.setGrab",
-        ))
-        .boxed());
-    }
-
-    let Some(host_handle) = resolved.host_handle else {
-        return Err(input_not_found(operation, handle));
-    };
-    let original_mode = resolved.original_mode.unwrap_or(0);
-
-    // compute next console mode for grab enable or disable
-    let mut current_mode = 0u32;
-    let status = unsafe { GetConsoleMode(host_handle, &mut current_mode) };
-    if status == 0 {
-        let code = core_platform::last_error_code() as u32;
-        return Err(io_error_with_code(
-            operation,
-            "GetConsoleMode",
-            code,
-            "failed to read console input mode",
-        ));
-    }
-
-    let mode = if enable {
-        let mut grabbed_mode = current_mode | ENABLE_EXTENDED_FLAGS | ENABLE_MOUSE_INPUT;
-        grabbed_mode |= ENABLE_WINDOW_INPUT;
-        grabbed_mode &= !ENABLE_QUICK_EDIT_MODE;
-        grabbed_mode
-    } else {
-        let mut released_mode = current_mode | ENABLE_EXTENDED_FLAGS;
-        released_mode &= !ENABLE_MOUSE_INPUT;
-        released_mode &= !ENABLE_WINDOW_INPUT;
-        released_mode &= !ENABLE_QUICK_EDIT_MODE;
-
-        if (original_mode & ENABLE_MOUSE_INPUT) != 0 {
-            released_mode |= ENABLE_MOUSE_INPUT;
-        }
-
-        if (original_mode & ENABLE_WINDOW_INPUT) != 0 {
-            released_mode |= ENABLE_WINDOW_INPUT;
-        }
-
-        if (original_mode & ENABLE_QUICK_EDIT_MODE) != 0 {
-            released_mode |= ENABLE_QUICK_EDIT_MODE;
-        }
-
-        released_mode
-    };
-
-    // apply the selected console mode
-    let status = unsafe { SetConsoleMode(host_handle, mode) };
-    if status == 0 {
-        let code = core_platform::last_error_code() as u32;
-        return Err(io_error_with_code(
-            operation,
-            "SetConsoleMode",
-            code,
-            "failed to update console input mode",
-        ));
-    }
-
-    Ok(())
-}
-
-/// Set read mode for one windows input handle.
-pub(super) fn set_windows_read_mode(
-    context: &RuntimeCallContext,
-    handle: resource::InputDeviceHandle,
-    mode: InputReadMode,
-    operation: &'static str,
-) -> RuntimeResult<()> {
-    // mutate binding state and host mode in one resource-table transaction
-    let result = context
+    let updated = context
         .runtime()
         .resources
         .with_entry_mut(handle.0, |entry| {
@@ -1115,79 +1015,194 @@ pub(super) fn set_windows_read_mode(
                 return None;
             }
 
-            let host_handle = entry.handle().map(|handle| handle as HANDLE);
             let binding = entry
                 .payload
                 .as_mut()
                 .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-
-            let update = match binding.backend {
-                WindowsInputBackend::Console => {
-                    // update console cooked or raw processing flags
-                    let Some(host_handle) = host_handle else {
-                        return Some(Err(input_not_found(operation, handle)));
-                    };
-
-                    let mut current_mode = 0u32;
-                    let status = unsafe { GetConsoleMode(host_handle, &mut current_mode) };
-                    if status == 0 {
-                        let code = core_platform::last_error_code() as u32;
-                        return Some(Err(io_error_with_code(
-                            operation,
-                            "GetConsoleMode",
-                            code,
-                            "failed to read console input mode",
-                        )));
-                    }
-
-                    let mut next_mode = current_mode;
-                    if mode == InputReadMode::Cooked {
-                        next_mode |= ENABLE_PROCESSED_INPUT;
-                        next_mode |= ENABLE_LINE_INPUT;
-                        next_mode |= ENABLE_ECHO_INPUT;
-                    } else {
-                        next_mode &= !ENABLE_PROCESSED_INPUT;
-                        next_mode &= !ENABLE_LINE_INPUT;
-                        next_mode &= !ENABLE_ECHO_INPUT;
-                    }
-
-                    let status = unsafe { SetConsoleMode(host_handle, next_mode) };
-                    if status == 0 {
-                        let code = core_platform::last_error_code() as u32;
-                        return Some(Err(io_error_with_code(
-                            operation,
-                            "SetConsoleMode",
-                            code,
-                            "failed to update console input mode",
-                        )));
-                    }
-
-                    Ok(())
-                }
-                WindowsInputBackend::RawKeyboard | WindowsInputBackend::RawMouse => {
-                    // raw pseudo-devices only support raw mode
-                    if mode == InputReadMode::Cooked {
-                        Err(RuntimeError::from(PlatformError::not_supported(
-                            "destack.input.event.setReadMode",
-                        ))
-                        .boxed())
-                    } else {
-                        Ok(())
-                    }
-                }
-            };
-
-            // persist read mode only after host updates succeed
-            if update.is_ok() {
-                binding.read_mode = mode;
-            }
-
-            Some(update)
+            binding.text_area = area;
+            Some(())
         });
 
-    // map missing entries to io-not-found
-    match result.flatten() {
-        Some(result) => result,
+    match updated.flatten() {
+        Some(()) => Ok(()),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Persist one pointer-position snapshot for one input handle.
+pub(super) fn set_pointer_snapshot(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    x: f64,
+    y: f64,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let updated = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::Input {
+                return None;
+            }
+
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
+            binding.last_pointer_x = x;
+            binding.last_pointer_y = y;
+            Some(())
+        });
+
+    match updated.flatten() {
+        Some(()) => Ok(()),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Persist one relative-mode flag for one input handle.
+pub(super) fn set_relative_mode_flag(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    enabled: bool,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let updated = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::Input {
+                return None;
+            }
+
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
+            binding.relative_mode_enabled = enabled;
+            Some(())
+        });
+
+    match updated.flatten() {
+        Some(()) => Ok(()),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Persist one sensor-stream enabled flag for one input handle and sensor lane.
+pub(super) fn set_sensor_stream_enabled(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    sensor_kind: InputSensorKind,
+    enabled: bool,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let updated = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::Input {
+                return None;
+            }
+
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
+            if enabled {
+                binding.sensor_enabled_kinds.insert(sensor_kind);
+            } else {
+                binding.sensor_enabled_kinds.remove(&sensor_kind);
+            }
+
+            Some(())
+        });
+
+    match updated.flatten() {
+        Some(()) => Ok(()),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Persist one effective sensor-stream configuration for one input handle and sensor lane.
+pub(super) fn set_sensor_stream_config(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    sensor_kind: InputSensorKind,
+    config: InputSensorEffectiveConfig,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    // update stream-enabled state before storing effective configuration
+    set_sensor_stream_enabled(context, handle, sensor_kind, config.enabled, operation)?;
+
+    let updated = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::Input {
+                return None;
+            }
+
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
+            if config.enabled {
+                binding.sensor_effective_configs.insert(sensor_kind, config);
+            } else {
+                binding.sensor_effective_configs.remove(&sensor_kind);
+            }
+
+            Some(())
+        });
+
+    match updated.flatten() {
+        Some(()) => Ok(()),
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Return whether one sensor stream is currently enabled for one input handle.
+pub(super) fn is_sensor_stream_enabled(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    sensor_kind: InputSensorKind,
+    operation: &'static str,
+) -> RuntimeResult<bool> {
+    let enabled = context.runtime().resources.with_entry(handle.0, |entry| {
+        if entry.kind != ResourceKind::Input {
+            return None;
+        }
+
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<WindowsInputBinding>())?;
+        Some(binding.sensor_enabled_kinds.contains(&sensor_kind))
+    });
+
+    match enabled.flatten() {
+        Some(enabled) => Ok(enabled),
         None => Err(input_not_found(operation, handle)),
     }
 }
@@ -1195,30 +1210,6 @@ pub(super) fn set_windows_read_mode(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// Decode release transitions even when another button remains pressed.
-    #[test]
-    fn test_decode_console_button_transition_reports_release_with_other_pressed() {
-        let previous = FROM_LEFT_1ST_BUTTON_PRESSED | RIGHTMOST_BUTTON_PRESSED;
-        let current = RIGHTMOST_BUTTON_PRESSED;
-        let transition = decode_console_button_transition(previous, current);
-        let transition = transition.expect("transition should be detected");
-        assert_eq!(transition.0, 0);
-        assert_eq!(transition.1, InputEventAction::Release);
-        assert_eq!(transition.2, 0);
-    }
-
-    /// Decode press transitions into stable button codes.
-    #[test]
-    fn test_decode_console_button_transition_reports_press_code() {
-        let previous = RIGHTMOST_BUTTON_PRESSED;
-        let current = RIGHTMOST_BUTTON_PRESSED | FROM_LEFT_1ST_BUTTON_PRESSED;
-        let transition = decode_console_button_transition(previous, current);
-        let transition = transition.expect("transition should be detected");
-        assert_eq!(transition.0, 0);
-        assert_eq!(transition.1, InputEventAction::Press);
-        assert_eq!(transition.2, 1);
-    }
 
     /// Detect cooked mode from the corresponding console mode bits.
     #[test]
