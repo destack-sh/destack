@@ -8,9 +8,8 @@ use destack_source::File;
 use super::assignment::resolve_comment_assignment_rules;
 use super::context::build_comment_attachment_setup;
 use super::declaration::resolve_comment_declaration_rules;
+use super::default::resolve_formatter_comment_trivia_default;
 use super::expression::resolve_comment_expression_rules;
-use super::facts::CommentFallbackFacts;
-use super::fallback::resolve_formatter_comment_trivia_fallback;
 use super::index::FormatterTriviaOwnerIndex;
 use super::owner::{
     find_smallest_owner_enclosing_range, lowest_common_owner_ancestor,
@@ -98,6 +97,7 @@ pub(in super::super) fn resolve_formatter_comment_trivia_attachment(
         &context,
         &facts,
         &mut state,
+        left_owner,
         right_owner,
     ) {
         return decision;
@@ -131,11 +131,5 @@ pub(in super::super) fn resolve_formatter_comment_trivia_attachment(
         return decision;
     }
 
-    resolve_formatter_comment_trivia_fallback(
-        &context,
-        CommentFallbackFacts::from_seam_facts(facts),
-        &mut state,
-        left_owner,
-        right_owner,
-    )
+    resolve_formatter_comment_trivia_default(&context, &facts, &mut state, left_owner, right_owner)
 }

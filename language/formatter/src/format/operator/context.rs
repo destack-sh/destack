@@ -577,10 +577,49 @@ pub(crate) fn format_binary_operand_with_grouping_parentheses<'ast>(
     let needs_precedence_parentheses = !matches!(expression, Expression::Parenthesized { .. })
         && expression_precedence(expression) < parent_operator.precedence()
         && !suppress_precedence_parentheses_for_type_binary;
-    if needs_type_grouping_parentheses || needs_precedence_parentheses {
-        write!(f, [token("("), operand_id, token(")")])?;
+    let needs_grouping_parentheses =
+        needs_type_grouping_parentheses || needs_precedence_parentheses;
+    let operand_has_prefix_annotation = f.context().has_prefix_annotation(operand_id);
+
+    if needs_grouping_parentheses {
+        if operand_has_prefix_annotation {
+            write!(
+                f,
+                [f.context().any_prefix_annotations(operand_id), token("(")]
+            )?;
+            format_expression_without_prefix_annotations(f, operand_id)?;
+            write!(f, [token(")")])?;
+        } else {
+            write!(f, [token("("), operand_id, token(")")])?;
+        }
     } else {
         write!(f, [operand_id])?;
+    }
+
+    Ok(())
+}
+
+/// Format one expression while omitting prefix annotation emission.
+fn format_expression_without_prefix_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let directive = directive_for_node(f.context(), expression_id);
+    let expression = f.context().tree.get(expression_id);
+
+    format_expression(f, expression_id, expression, directive)?;
+
+    if !matches!(
+        directive,
+        Some(FormatterDirective {
+            kind: FormatterDirectiveKind::IgnoreFormat,
+            position: FormatterDirectivePosition::Postfix { .. },
+        })
+    ) {
+        write!(
+            f,
+            [f.context().any_infix_or_postfix_annotations(expression_id)]
+        )?;
     }
 
     Ok(())

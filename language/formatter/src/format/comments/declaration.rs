@@ -24,6 +24,7 @@ pub(super) fn resolve_comment_declaration_rules(
 
     let has_leading_newline = facts.has_leading_newline;
     let has_trailing_newline = facts.has_trailing_newline;
+    let comment_is_star = facts.comment_is_star;
     let token_after_is_at = facts.token_after_is(TokenType::At);
     let token_after_is_arrow = matches!(
         facts.token_after_type,
@@ -62,8 +63,9 @@ pub(super) fn resolve_comment_declaration_rules(
         }
     }
 
-    // comments between parameter list and arrow belong to the enclosing arrow expression
+    // comments between parameter list and arrow belong to the enclosing arrow declaration seam
     if token_after_is_arrow
+        && comment_is_star
         && let (Some(token_before_span), Some(token_after_span)) =
             (token_before_span, token_after_span)
         && let Some(owner) = find_smallest_owner_enclosing_range(
@@ -73,10 +75,7 @@ pub(super) fn resolve_comment_declaration_rules(
         )
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, owner);
-        if has_leading_newline {
-            return Some((Some(target_node), AnnotationPosition::BlockPrefix));
-        }
-        return Some((Some(target_node), AnnotationPosition::LinePrefix));
+        return Some((Some(target_node), AnnotationPosition::BlockInfix));
     }
 
     // export seam comments belong to the declaration head owner

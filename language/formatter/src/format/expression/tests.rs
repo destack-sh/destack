@@ -582,6 +582,17 @@ fn test_format_member_chain_breaks_before_long_boundary_comment_with_optional_ca
     );
 }
 
+/// Inline optional call seams keep short boundary star comments on the same line.
+#[test]
+fn test_format_optional_call_keeps_inline_boundary_star_comment() {
+    assert_format!(
+        "alert /* comment */?.(\"value\")",
+        "alert /* comment */?.(\"value\")",
+        |p| p.eat_expression(Default::default()),
+        DestackFormatOptions::default_with_line_width(80)
+    );
+}
+
 /// Chain planner keeps a short promoted head for call-like argument chains.
 #[test]
 fn test_format_chain_planner_promotes_head_in_call_like_argument() {
@@ -762,7 +773,7 @@ fn test_format_call_single_lambda_argument_with_prefix_comment_breaks() {
 #[test]
 fn test_format_call_nested_arrow_boundary_comments() {
     let source = "call(\n  () /**/ => //\n    () /**/ => /**/\n      () /**/ => /**/ {\n        //\n      }\n)";
-    let expected = "call(\n    /**/ () =>\n        //\n        /**/ () =>\n            /**/\n            /**/ () => /**/ {\n                //\n            },\n)";
+    let expected = "call(() /**/ =>\n    //\n    () /**/ =>\n        /**/\n        () /**/ => /**/ {\n            //\n        })";
     assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 

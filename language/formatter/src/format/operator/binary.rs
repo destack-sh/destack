@@ -1,6 +1,5 @@
 use super::common::expression_is_trivial_inline_without_annotations;
 use super::*;
-use crate::analysis::scan::previous_non_whitespace_before_annotation;
 use crate::analysis::timing::tags;
 use crate::call::argument_satisfies_static_seam_comment_source;
 use destack_fir::format::text;
@@ -80,6 +79,29 @@ fn expression_has_line_postfix_slash_comment(
             position,
             AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
         ) {
+            return false;
+        }
+
+        let comment = context.tree.get::<destack_ast::Comment>(node);
+        comment.style == destack_ast::CommentStyle::Slash
+    })
+}
+
+/// Return whether an expression starts with a `//` line-prefix annotation.
+fn expression_has_line_prefix_slash_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotations) = context.annotations(expression_id) else {
+        return false;
+    };
+
+    annotations.into_iter().any(|annotation_id| {
+        let annotation = context.annotation(annotation_id);
+        let Annotation::Comment { node, position } = annotation else {
+            return false;
+        };
+        if position != AnnotationPosition::LinePrefix {
             return false;
         }
 
@@ -211,176 +233,6 @@ fn expression_has_only_doc_like_prefix_annotations(
         })
 }
 
-/// Return whether expression has only one separator-adjacent line boundary comment annotation.
-fn expression_has_only_type_separator_line_boundary_comment(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let debug_trivia = std::env::var("DESTACK_DEBUG_TRIVIA").is_ok();
-    let Some(annotation_ids) = context.annotations(expression_id) else {
-        if debug_trivia {
-            eprintln!("type-separator: no annotations on {expression_id:?}");
-        }
-        return false;
-    };
-
-    if annotation_ids.len() != 1 {
-        if debug_trivia {
-            eprintln!(
-                "type-separator: annotation count {} on {expression_id:?}",
-                annotation_ids.len()
-            );
-        }
-        return false;
-    }
-
-    let annotation_id = annotation_ids[0];
-    let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
-        if debug_trivia {
-            eprintln!(
-                "type-separator: annotation is not comment: {:?}",
-                context.annotation(annotation_id)
-            );
-        }
-        return false;
-    };
-    if position != AnnotationPosition::LinePostfixBoundary {
-        if debug_trivia {
-            eprintln!("type-separator: position is {:?}", position);
-        }
-        return false;
-    }
-
-    let comment = context.tree.get::<destack_ast::Comment>(node);
-    if comment.style != destack_ast::CommentStyle::Slash {
-        if debug_trivia {
-            eprintln!("type-separator: style is {:?}", comment.style);
-        }
-        return false;
-    }
-
-    let result = matches!(
-        previous_non_whitespace_before_annotation(context, annotation_id),
-        Some('|' | '&')
-    );
-    if debug_trivia {
-        eprintln!(
-            "type-separator: previous char {:?}",
-            previous_non_whitespace_before_annotation(context, annotation_id)
-        );
-    }
-    result
-}
-
-/// Format one binary operand while skipping prefix and postfix annotation emission.
-fn format_binary_operand_without_annotations_with_grouping_parentheses<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    parent_operator: BinaryOperator,
-    operand_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let expression = f.context().tree.get(operand_id);
-    let needs_type_grouping_parentheses =
-        type_binary_operand_needs_grouping_parentheses(f.context(), parent_operator, operand_id);
-    let needs_precedence_parentheses = !matches!(expression, Expression::Parenthesized { .. })
-        && expression_precedence(expression) < parent_operator.precedence();
-
-    if needs_type_grouping_parentheses || needs_precedence_parentheses {
-        write!(f, [token("(")])?;
-        format_expression(
-            f,
-            operand_id,
-            expression,
-            directive_for_node(f.context(), operand_id),
-        )?;
-        write!(f, [token(")")])?;
-    } else {
-        format_expression(
-            f,
-            operand_id,
-            expression,
-            directive_for_node(f.context(), operand_id),
-        )?;
-    }
-
-    Ok(())
-}
-
-/// Try formatting type operators with `//` comments that follow a source separator.
-fn try_format_type_separator_line_comment<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    operator: BinaryOperator,
-    operands: &BinaryOperands,
-) -> FormatResult<bool> {
-    let debug_trivia = std::env::var("DESTACK_DEBUG_TRIVIA").is_ok();
-    if !matches!(
-        operator,
-        BinaryOperator::ElementwiseAnd | BinaryOperator::ElementwiseOr
-    ) {
-        return Ok(false);
-    }
-
-    if operands.len() < 2 {
-        return Ok(false);
-    }
-
-    let first_operand = operands[0].expression;
-    let second_operand = operands[1].expression;
-    let Some(line_comment) =
-        line_comment_between_expressions(f.context(), first_operand, second_operand)
-    else {
-        if debug_trivia {
-            eprintln!("type-separator: no between-comment");
-        }
-        return Ok(false);
-    };
-    if !expression_has_only_type_separator_line_boundary_comment(f.context(), first_operand) {
-        if debug_trivia {
-            eprintln!("type-separator: first operand annotations do not match");
-        }
-        return Ok(false);
-    }
-
-    if debug_trivia {
-        eprintln!("type-separator: applying {line_comment}");
-    }
-
-    write!(
-        f,
-        [group(&format_args![
-            format_with(|f| {
-                format_binary_operand_without_annotations_with_grouping_parentheses(
-                    f,
-                    operator,
-                    first_operand,
-                )
-            }),
-            space(),
-            operator,
-            space(),
-            text(line_comment.as_str()),
-            indent(&format_with(|f| {
-                write!(f, [hard_line_break()])?;
-
-                for (index, operand) in operands.iter().enumerate().skip(1) {
-                    format_binary_operand_with_grouping_parentheses(
-                        f,
-                        operator,
-                        operand.expression,
-                    )?;
-
-                    if index + 1 < operands.len() {
-                        write!(f, [space(), operator, hard_line_break()])?;
-                    }
-                }
-
-                Ok(())
-            }))
-        ])]
-    )?;
-
-    Ok(true)
-}
-
 /// Format type binary operands as a flat sequence with inline separators.
 fn format_flat_type_binary_operands<'ast>(
     operator: BinaryOperator,
@@ -498,8 +350,8 @@ fn try_format_trailing_coalesce<'ast>(
     Ok(true)
 }
 
-/// Try formatting logical operators with a trailing source line comment between operands.
-fn try_format_logical_line_comment<'ast>(
+/// Try formatting logical operators with a right-side line-prefix comment seam.
+fn try_format_logical_right_prefix_line_comment<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     left: LocalNodeId<Expression>,
     operator: BinaryOperator,
@@ -508,25 +360,9 @@ fn try_format_logical_line_comment<'ast>(
     if !is_logical_binary_operator(operator) {
         return Ok(false);
     }
-
-    let Some(line_comment) = line_comment_between_expressions(f.context(), left, right) else {
+    if !expression_has_line_prefix_slash_comment(f.context(), right) {
         return Ok(false);
-    };
-
-    let right_without_prefix = format_with(|f| {
-        let right_directive = directive_for_node(f.context(), right);
-        format_expression(f, right, f.context().tree.get(right), right_directive)?;
-        if !matches!(
-            right_directive,
-            Some(FormatterDirective {
-                kind: FormatterDirectiveKind::IgnoreFormat,
-                position: FormatterDirectivePosition::Postfix { .. },
-            })
-        ) {
-            write!(f, [f.context().any_infix_or_postfix_annotations(right)])?;
-        }
-        Ok(())
-    });
+    }
 
     write!(
         f,
@@ -535,8 +371,7 @@ fn try_format_logical_line_comment<'ast>(
             format_with(|f| write_space_after_binary_left_if_needed(f, left, operator)),
             operator,
             space(),
-            text(line_comment.as_str()),
-            indent(&format_args![hard_line_break(), right_without_prefix])
+            indent(&format_args![right])
         ])]
     )?;
 
@@ -858,7 +693,7 @@ pub(in crate::format::operator) fn format_binary_expression<'ast>(
 
     // specialized logical and coalesce layout paths
     if try_format_trailing_coalesce(f, node_id, left, *operator, right)?
-        || try_format_logical_line_comment(f, left, *operator, right)?
+        || try_format_logical_right_prefix_line_comment(f, left, *operator, right)?
         || try_format_mixed_logical_precedence(f, left, *operator, right)?
         || try_format_logical_parenthesized_cases(f, node_id, left, *operator, right)?
     {
@@ -881,18 +716,7 @@ pub(in crate::format::operator) fn format_binary_expression<'ast>(
             .all(|operand| !f.context().has_annotation(operand.expression))
         && operands
             .iter()
-            .all(|operand| !expression_has_leading_prefix_comment(f.context(), operand.expression))
-        && operands.windows(2).all(|window| {
-            let [left_operand, right_operand] = window else {
-                return true;
-            };
-            line_comment_between_expressions(
-                f.context(),
-                left_operand.expression,
-                right_operand.expression,
-            )
-            .is_none()
-        });
+            .all(|operand| !expression_has_leading_prefix_comment(f.context(), operand.expression));
     if can_use_clean_binary_fast_path {
         f.context()
             .increment_counter("profile.binary.clean.fast_path", 1);
@@ -938,11 +762,6 @@ pub(in crate::format::operator) fn format_binary_expression<'ast>(
     // leading pipe unions
     if is_type_union && should_use_leading_pipe_union_style(f.context(), node_id, &operands) {
         format_leading_pipe_union(f, node_id, &operands)?;
-        return Ok(());
-    }
-
-    // type operators with separator-adjacent line comments keep operator before the comment
-    if try_format_type_separator_line_comment(f, *operator, &operands)? {
         return Ok(());
     }
 
@@ -1164,6 +983,10 @@ pub(in crate::format::operator) fn format_binary_expression<'ast>(
                         prev_expression.is_some_and(|expression_id| {
                             expression_has_leading_prefix_comment(f.context(), expression_id)
                         });
+                    let previous_has_line_prefix_slash_comment =
+                        prev_expression.is_some_and(|expression_id| {
+                            expression_has_line_prefix_slash_comment(f.context(), expression_id)
+                        });
                     let previous_is_parenthesized_multiline =
                         prev_expression.is_some_and(|expression_id| {
                             matches!(
@@ -1211,6 +1034,35 @@ pub(in crate::format::operator) fn format_binary_expression<'ast>(
                         prev_expression = Some(operand.expression);
                         continue;
                     }
+                    let current_has_line_prefix_slash_comment =
+                        expression_has_line_prefix_slash_comment(f.context(), operand.expression);
+                    if (is_type_union || is_type_intersection)
+                        && current_has_line_prefix_slash_comment
+                    {
+                        if !has_postfix {
+                            write!(f, [space()])?;
+                        } else if previous_requires_type_grouping_break
+                            || previous_has_line_postfix_slash_comment
+                        {
+                            write!(f, [hard_line_break()])?;
+                        }
+                        write!(
+                            f,
+                            [
+                                op,
+                                space(),
+                                indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                    format_binary_operand_with_grouping_parentheses(
+                                        f,
+                                        *operator,
+                                        operand.expression,
+                                    )
+                                }))
+                            ]
+                        )?;
+                        prev_expression = Some(operand.expression);
+                        continue;
+                    }
                     let operand_prefers_trailing_operator =
                         operand_prefers_trailing_logical_operator(
                             f.context(),
@@ -1227,6 +1079,32 @@ pub(in crate::format::operator) fn format_binary_expression<'ast>(
                                 )
                             });
                         if !has_postfix || allow_space_after_line_comment {
+                            write!(f, [space()])?;
+                        } else if previous_requires_type_grouping_break
+                            || previous_has_line_postfix_slash_comment
+                        {
+                            write!(f, [hard_line_break()])?;
+                        }
+                        write!(
+                            f,
+                            [
+                                op,
+                                indent(&format_args![
+                                    hard_line_break(),
+                                    format_with(|f| {
+                                        format_binary_operand_with_grouping_parentheses(
+                                            f,
+                                            *operator,
+                                            operand.expression,
+                                        )
+                                    })
+                                ])
+                            ]
+                        )?;
+                    } else if (is_type_union || is_type_intersection)
+                        && previous_has_line_prefix_slash_comment
+                    {
+                        if !has_postfix {
                             write!(f, [space()])?;
                         } else if previous_requires_type_grouping_break
                             || previous_has_line_postfix_slash_comment

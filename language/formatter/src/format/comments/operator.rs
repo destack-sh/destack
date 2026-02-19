@@ -4,7 +4,8 @@ use ast::{
 use destack_ast as ast;
 
 use super::owner::{
-    normalize_formatter_trivia_target_owner, promote_owner_to_satisfies_expression_ancestor,
+    normalize_formatter_trivia_target_owner, promote_owner_by_shared_start,
+    promote_owner_to_satisfies_expression_ancestor,
 };
 use super::seam::{
     CommentSeamContext, CommentSeamFacts, CommentSeamKeyword, CommentSeamRuleState,
@@ -35,6 +36,10 @@ pub(super) fn resolve_comment_expression_operator_rules(
     let token_before_is_as = facts.token_before_is_keyword(CommentSeamKeyword::As);
     let token_before_is_satisfies = facts.token_before_is_keyword(CommentSeamKeyword::Satisfies);
     let token_before_is_less_than = facts.token_before_is(TokenType::LessThan);
+    let token_before_is_elementwise_operator = matches!(
+        facts.token_before_type,
+        Some(TokenType::ElementwiseAnd | TokenType::ElementwiseOr | TokenType::ElementwiseXor)
+    );
 
     // seam comments before `as` and `satisfies` stay with the asserted left expression
     if !has_leading_newline
@@ -59,6 +64,7 @@ pub(super) fn resolve_comment_expression_operator_rules(
     }
 
     // optional call block comments should stay on the left call segment
+    // and preserve tight `/* comment */?.` seams
     if !has_leading_newline
         && !has_trailing_newline
         && token_after_is_maybe
@@ -66,7 +72,7 @@ pub(super) fn resolve_comment_expression_operator_rules(
         && let Some(target_node) = left_owner
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        return Some((Some(target_node), AnnotationPosition::LinePostfix));
+        return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
     }
 
     // comments after `as` should resolve to the cast expression seam
@@ -127,6 +133,23 @@ pub(super) fn resolve_comment_expression_operator_rules(
             let right_target = normalize_formatter_trivia_target_owner(tree, right_target);
             return Some((Some(right_target), AnnotationPosition::LinePrefix));
         }
+    }
+
+    // line comments after type and bitwise operators should stay with the rhs operand
+    if token_before_is_elementwise_operator
+        && !has_leading_newline
+        && has_trailing_newline
+        && comment_is_line
+        && let Some(target_node) = right_owner
+    {
+        let target_node = context
+            .token_after_span
+            .map(|token| {
+                promote_owner_by_shared_start(tree, parents, target_node, token.span.start)
+            })
+            .unwrap_or(target_node);
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::LinePrefix));
     }
 
     // multiline comments between `as` and `const` stay after the assertion

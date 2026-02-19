@@ -34,8 +34,10 @@ pub(super) fn normalize_formatter_trivia_target_owner(tree: &NodeTree, owner_id:
             Expression::Statement(expression) => {
                 current_id = expression.id;
             }
-            // parenthesized wrappers are transparent for trivia ownership
-            Expression::Parenthesized { expression } => {
+            // parenthesized wrappers around declaration expressions are transparent
+            Expression::Parenthesized { expression }
+                if matches!(tree.get(*expression), Expression::Declaration(_)) =>
+            {
                 current_id = expression.id;
             }
             // declaration expression trivia belongs to the declaration node
@@ -269,6 +271,27 @@ pub(super) fn promote_owner_to_satisfies_expression_ancestor(
                     ..
                 }
             ) {
+                return Some(node_id);
+            }
+        }
+
+        current_id = parents.get_by_id(node_id);
+    }
+
+    None
+}
+
+/// Promote one owner to the nearest parenthesized expression ancestor.
+pub(super) fn promote_owner_to_parenthesized_expression_ancestor(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_id: u32,
+) -> Option<u32> {
+    let mut current_id = Some(owner_id);
+    while let Some(node_id) = current_id {
+        if tree.get_node_type(node_id) == NodeType::Expression {
+            let expression_id = LocalNodeId::<Expression>::new(node_id);
+            if matches!(tree.get(expression_id), Expression::Parenthesized { .. }) {
                 return Some(node_id);
             }
         }

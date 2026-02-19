@@ -9,6 +9,7 @@ use super::owner::{
     normalize_formatter_trivia_target_owner, promote_owner_to_node_type_ancestor,
     resolve_block_leading_comment_target,
 };
+use super::rule::normalize_owner_with_shared_end;
 use super::seam::{
     CommentSeamContext, CommentSeamFacts, CommentSeamRuleState, resolve_comment_seam_owner,
 };
@@ -20,32 +21,40 @@ pub(super) fn resolve_comment_statement_prefix_rules(
     context: &CommentSeamContext<'_>,
     facts: &CommentSeamFacts,
     state: &mut CommentSeamRuleState,
+    left_owner: Option<u32>,
     right_owner: Option<u32>,
 ) -> Option<(Option<u32>, AnnotationPosition)> {
     let has_leading_newline = facts.has_leading_newline;
     let token_after_is_case_or_default = facts.token_after_is_case_or_default();
     let token_after_is_semicolon = facts.token_after_is(TokenType::Semicolon);
     let token_after_span = context.token_after_span;
+    let token_before_span = context.token_before_span.map(|token| token.span);
 
-    // own-line comments between statements and semicolon guards belong to the next statement
-    if has_leading_newline
-        && token_after_is_semicolon
-        && let Some(mut target_node) = token_after_span
-            .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
-            .or(right_owner)
-    {
-        if tree.get_node_type(target_node) != NodeType::Expression
-            && let Some(expression_target) = promote_owner_to_node_type_ancestor(
-                tree,
-                parents,
-                target_node,
-                NodeType::Expression,
-            )
-        {
-            target_node = expression_target;
+    // own-line comments before semicolon guards stay with the previous statement seam
+    if has_leading_newline && token_after_is_semicolon {
+        if let Some(target_node) = left_owner {
+            let target_node =
+                normalize_owner_with_shared_end(tree, parents, target_node, token_before_span);
+            return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
         }
 
-        return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+        if let Some(mut target_node) = token_after_span
+            .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+            .or(right_owner)
+        {
+            if tree.get_node_type(target_node) != NodeType::Expression
+                && let Some(expression_target) = promote_owner_to_node_type_ancestor(
+                    tree,
+                    parents,
+                    target_node,
+                    NodeType::Expression,
+                )
+            {
+                target_node = expression_target;
+            }
+
+            return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+        }
     }
 
     // own-line comments before switch case labels should attach to the first case expression
