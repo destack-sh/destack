@@ -88,9 +88,10 @@ impl Parser {
         )
     }
 
-    pub(super) fn keyword_member_access_is(
+    /// Return whether the current keyword is followed by `.<member>` for any expected member name.
+    pub(super) fn keyword_member_access_is_any(
         &mut self,
-        member_name: &str,
+        member_names: &[&str],
         allow_newlines: bool,
     ) -> ParseResult<bool> {
         // require dot member access
@@ -121,7 +122,9 @@ impl Parser {
         }
 
         // compare directly against source text to avoid interning in hot lookahead
-        let matches_member_name = self.identifier_equals_at(identifier_index, member_name);
+        let matches_member_name = member_names
+            .iter()
+            .any(|member_name| self.identifier_equals_at(identifier_index, member_name));
         if matches_member_name {
             Ok(true)
         } else {
@@ -164,16 +167,19 @@ impl Parser {
         match keyword {
             Keyword::Function => {
                 if !Self::can_start_function_signature(next_token_type) {
-                    return Ok(None);
+                    return Err(ParseError::unexpected(self.peek()?.span));
                 }
 
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let function_id = self.eat_function(start, descriptor, false, false)?;
                 Ok(Some(self.insert_declaration_expression(start, function_id)))
             }
-            Keyword::Class if is_declaration_start || next_has_line_break => {
+            Keyword::Class => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let struct_id = self.eat_struct_or_class(start, descriptor, false)?;
+                let allow_anonymous_class = !self.options.is_in_statement_position()
+                    || descriptor.export == Some(DependencyMode::Default);
+                let struct_id =
+                    self.eat_struct_or_class(start, descriptor, allow_anonymous_class)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
             }
             Keyword::Struct
@@ -255,9 +261,9 @@ impl Parser {
                 Ok(Some(self.eat_import_call_expression(start)?))
             }
             Keyword::Import => {
-                // treat `import.meta` as a path and reject other member access
+                // treat `import.meta` and `import.source` as paths and reject other member access
                 if self.is_token_after_newlines(self.pos(), TokenType::Dot) {
-                    if self.keyword_member_access_is("meta", true)? {
+                    if self.keyword_member_access_is_any(&["meta", "source"], true)? {
                         return Ok(None);
                     }
                     return Err(ParseError::unexpected(self.peek()?.span));
@@ -481,8 +487,8 @@ impl Parser {
             // class declaration
             Keyword::Class if is_declaration_start || next_has_line_break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let allow_anonymous_class = !self.options.is_in_statement_position()
-                    || descriptor.export == Some(DependencyMode::Default);
+                let allow_anonymous_class = descriptor.export == Some(DependencyMode::Default)
+                    || !self.options.is_in_statement_position();
                 let struct_id =
                     self.eat_struct_or_class(start, descriptor, allow_anonymous_class)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
@@ -698,7 +704,7 @@ impl Parser {
                 }
                 // allow `new.target` to fall back to path parsing
                 else if next_token_type == TokenType::Dot {
-                    if self.keyword_member_access_is("target", false)? {
+                    if self.keyword_member_access_is_any(&["target"], false)? {
                         Ok(None)
                     } else {
                         Err(ParseError::unexpected(self.peek()?.span))
@@ -729,9 +735,9 @@ impl Parser {
             }
             // import declaration or import meta
             Keyword::Import => {
-                // treat `import.meta` as a path and reject other member access
+                // treat `import.meta` and `import.source` as paths and reject other member access
                 if self.is_token_after_newlines(self.pos(), TokenType::Dot) {
-                    if self.keyword_member_access_is("meta", true)? {
+                    if self.keyword_member_access_is_any(&["meta", "source"], true)? {
                         return Ok(None);
                     }
                     return Err(ParseError::unexpected(self.peek()?.span));

@@ -584,6 +584,7 @@ impl Parser {
         let start = self.mark_span();
 
         self.eat_keyword(Keyword::Export)?;
+        self.eat_newlines_maybe()?;
 
         // export default <expression>
         if self.is_keyword(Keyword::Default) {
@@ -967,6 +968,7 @@ impl Parser {
             let (alias, alias_span) =
                 if self.is_keyword(Keyword::As) || self.peek_is(TokenType::Colon) {
                     self.bump(); // eat `as` or `:`
+                    self.eat_newlines_maybe()?;
                     let (alias, alias_span) =
                         self.eat_dependency_item_alias_with_span(allow_literal_alias)?;
                     (Some(alias), Some(alias_span))
@@ -999,6 +1001,7 @@ impl Parser {
             let (alias, alias_span) =
                 if self.is_keyword(Keyword::As) || self.peek_is(TokenType::Colon) {
                     self.bump(); // eat `as` or `:`
+                    self.eat_newlines_maybe()?;
                     let (alias, alias_span) =
                         self.eat_dependency_item_alias_with_span(allow_literal_alias)?;
                     (Some(alias), Some(alias_span))
@@ -1526,6 +1529,59 @@ import {
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "type");
                 assert!(alias.is_none());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_export_clause_after_comment_newline_keyword_javascript() {
+        let mut test =
+            TestParser::new_with_options("export //comment\n{}", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+
+        assert_node!(parser.tree, export_id, Expression::Export { target, items, .. } => {
+            assert!(target.is_none());
+            assert!(items.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_parse_export_specifier_alias_after_comment_newline_javascript() {
+        let mut test = TestParser::new_with_options(
+            "export {\n  bar as // comment\n  baz,\n} from 'foo'",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+
+        assert_node!(parser.tree, export_id, Expression::Export { target: Some(target), items, .. } => {
+            assert_string!(parser, *target, "foo");
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind: None, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_string!(parser, name.string(), "bar");
+                assert_string!(parser, *alias, "baz");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_import_specifier_alias_after_comment_newline_javascript() {
+        let mut test = TestParser::new_with_options(
+            "import {\n  bar as // comment\n  baz,\n} from 'foo'",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, import_id, Expression::Import { target, items, .. } => {
+            assert_import_target_string(&parser, target, "foo");
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind: None, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_string!(parser, name.string(), "bar");
+                assert_string!(parser, *alias, "baz");
             });
         });
     }

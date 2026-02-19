@@ -117,7 +117,7 @@ impl Parser {
         let mut pending_decorators = PendingDecorators::new();
 
         while self.has_more_tokens() {
-            let cursor = self.sync_to_scanner_cursor();
+            let cursor = self.advance_to_scanner_cursor();
             let token_type = cursor.token_type;
 
             // stop on closing brace

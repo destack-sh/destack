@@ -433,7 +433,7 @@ impl Parser {
         // allow ts style multiline unions and intersections that start with separators
         // normalize to a leading separator when present
         if !self.language.is_destack() {
-            let leading_separator_cursor = self.peek_scanner_cursor();
+            let leading_separator_cursor = self.current_scanner_cursor();
             if matches!(
                 leading_separator_cursor.token_type,
                 TokenType::ElementwiseOr | TokenType::ElementwiseAnd

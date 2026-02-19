@@ -670,7 +670,7 @@ impl Parser {
             start = start.saturating_add(1);
         }
 
-        let cursor = self.non_newline_cursor_from(start);
+        let cursor = self.scanner_cursor_from(start);
         cursor.token_type == target_token
     }
 
@@ -690,7 +690,7 @@ impl Parser {
             start = start.saturating_add(1);
         }
 
-        let cursor = self.non_newline_cursor_from(start);
+        let cursor = self.scanner_cursor_from(start);
         if cursor.token_type == target_token {
             if cursor.index == 0 {
                 Ok(0)

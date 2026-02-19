@@ -47,15 +47,13 @@ impl Parser {
 
     /// Eat an expression in the current parser options.
     #[inline(always)]
-    pub(crate) fn eat_expression_in_current_options(
-        &mut self,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    pub(crate) fn eat_expression_in_scope(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         self.eat_expression_inner_with_stack_guard()
     }
 
     /// Eat an expression after statement keyword dispatch already ran in the caller.
     #[inline(always)]
-    pub(crate) fn eat_expression_without_statement_keyword_fast(
+    pub(crate) fn eat_expression_after_statement_keyword_dispatch(
         &mut self,
     ) -> ParseResult<LocalNodeId<Expression>> {
         self.eat_expression_inner_with_stack_guard()
@@ -63,7 +61,7 @@ impl Parser {
 
     /// Eat an expression with statement position temporarily disabled.
     #[inline]
-    pub(crate) fn eat_expression_without_statement_position_fast(
+    pub(crate) fn eat_expression_outside_statement_position(
         &mut self,
     ) -> ParseResult<LocalNodeId<Expression>> {
         if !self.options.is_in_statement_position() {
@@ -102,7 +100,7 @@ impl Parser {
         &mut self,
         recover: TokenType,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        match self.eat_expression_in_current_options() {
+        match self.eat_expression_in_scope() {
             Ok(expression_id) => Ok(expression_id),
             Err(err) => {
                 let err = err.for_node_type(NodeType::Expression);
@@ -118,7 +116,7 @@ impl Parser {
     }
 
     /// Try to parse a plain identifier expression and continuation in common value contexts.
-    pub(crate) fn try_eat_plain_identifier_expression_fast(
+    pub(crate) fn try_parse_plain_identifier_expression(
         &mut self,
         start: &ParserMark,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
@@ -167,7 +165,7 @@ impl Parser {
             let is_module_identifier = self.language.supports_module_declaration()
                 && self.is_module_identifier_at(pos_index);
             if is_global_identifier || is_module_identifier {
-                let next_cursor = self.non_newline_cursor_from(next_raw_index);
+                let next_cursor = self.scanner_cursor_from(next_raw_index);
                 let next_token_type = next_cursor.token_type;
                 let next_token_index = next_cursor.index;
                 let next_has_line_break = next_cursor.has_line_break_before;
@@ -201,11 +199,11 @@ impl Parser {
     }
 
     /// Try to parse a plain identifier path in type positions.
-    fn try_eat_plain_type_identifier_expression_fast(
+    fn try_parse_plain_type_identifier_expression(
         &mut self,
         start: &ParserMark,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
-        // only run this fast path in plain type positions
+        // only run this plain path in plain type positions
         if !self.options.is_in_type()
             || self.options.is_in_typeof_query()
             || self.options.is_in_decorator()
@@ -312,23 +310,23 @@ impl Parser {
     }
 
     /// Try to parse a plain parenthesized expression without lambda lookahead.
-    fn try_eat_parenthesized_expression_fast(
+    fn try_parse_plain_parenthesized_expression(
         &mut self,
         start: &ParserMark,
         group_shape: ParenthesizedGroupShape,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.parenthesized_expression_fast_calls += 1;
+            speculation_stats.parenthesized_expression_plain_calls += 1;
         }
 
-        // this fast path only applies to JS and TS value contexts
+        // this plain path only applies to JS and TS value contexts
         if self.language.is_destack()
             || self.options.is_in_type()
             || self.options.is_in_arrow_return_type()
             || self.has_active_split()
         {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.parenthesized_expression_fast_misses += 1;
+                speculation_stats.parenthesized_expression_plain_misses += 1;
             }
             return Ok(None);
         }
@@ -336,15 +334,15 @@ impl Parser {
         // lambda and typed-lambda forms still need full lookahead handling
         if group_shape.has_arrow_follow || group_shape.has_colon_follow {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.parenthesized_expression_fast_misses += 1;
+                speculation_stats.parenthesized_expression_plain_misses += 1;
             }
             return Ok(None);
         }
 
-        let expression_id = self.eat_parenthesized_expression_fast_unchecked(start)?;
+        let expression_id = self.parse_plain_parenthesized_expression_unchecked(start)?;
 
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.parenthesized_expression_fast_hits += 1;
+            speculation_stats.parenthesized_expression_plain_hits += 1;
         }
 
         Ok(Some(expression_id))
@@ -352,7 +350,7 @@ impl Parser {
 
     /// Parse a plain parenthesized expression in js and ts value contexts.
     #[inline]
-    fn eat_parenthesized_expression_fast_unchecked(
+    fn parse_plain_parenthesized_expression_unchecked(
         &mut self,
         start: &ParserMark,
     ) -> ParseResult<LocalNodeId<Expression>> {
@@ -411,9 +409,9 @@ impl Parser {
         start: &ParserMark,
         group_shape: ParenthesizedGroupShape,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        // fast path for non-lambda grouped expressions
+        // plain path for non-lambda grouped expressions
         if let Some(group_expression_id) =
-            self.try_eat_parenthesized_expression_fast(start, group_shape)?
+            self.try_parse_plain_parenthesized_expression(start, group_shape)?
         {
             return Ok(group_expression_id);
         }
@@ -649,7 +647,7 @@ impl Parser {
                     self.tree
                         .insert(Expression::Block(block_id), self.get_span_from(&body_start))
                 } else {
-                    self.eat_expression_in_current_options()?
+                    self.eat_expression_in_scope()?
                 };
                 // reject labelled declarations that are invalid labelled items in JS/TS
                 if !self.language.is_destack() && self.is_single_statement_declaration(body) {
@@ -668,11 +666,11 @@ impl Parser {
             }
         }
 
-        // fast path for plain identifier type expressions
+        // plain path for plain identifier type expressions
         if self.options.is_in_type()
             && self.peek_is(TokenType::Identifier)
             && let Some(identifier_expression_id) =
-                self.try_eat_plain_type_identifier_expression_fast(&start)?
+                self.try_parse_plain_type_identifier_expression(&start)?
         {
             self.attach_pending_decorators_to_expression(
                 &mut expression_decorators,
@@ -681,11 +679,11 @@ impl Parser {
             return Ok(identifier_expression_id);
         }
 
-        // fast path for plain identifier value expressions
+        // plain path for plain identifier value expressions
         // this also applies in statement position when it is not a labelled/declaration start
         if self.peek_is(TokenType::Identifier)
             && let Some(identifier_expression_id) =
-                self.try_eat_plain_identifier_expression_fast(&start)?
+                self.try_parse_plain_identifier_expression(&start)?
         {
             self.attach_pending_decorators_to_expression(
                 &mut expression_decorators,
@@ -840,7 +838,7 @@ impl Parser {
                     let is_type_unary_keyword =
                         matches!(keyword, Some(Keyword::Typeof | Keyword::Keyof));
 
-                    // fast path for plain identifiers
+                    // plain path for plain identifiers
                     if primary_expression_id.is_none()
                         && keyword.is_none()
                         && !has_active_split
@@ -877,6 +875,7 @@ impl Parser {
                             };
                             let operator_start = self.mark_span();
                             self.bump(); // eat unary operator (always because right associative)
+                            self.eat_newlines_maybe()?;
                             let operator_span = self.get_span_from(&operator_start);
                             let mut right_options = self
                                 .options
@@ -909,6 +908,7 @@ impl Parser {
                             };
                             let operator_start = self.mark_span();
                             self.bump(); // eat type unary operator (always because right associative)
+                            self.eat_newlines_maybe()?;
                             let operator_span = self.get_span_from(&operator_start);
                             let mut right_options = self
                                 .options
@@ -1019,7 +1019,7 @@ impl Parser {
                         };
 
                         // eat expression
-                        let expression_id = self.eat_expression_in_current_options()?;
+                        let expression_id = self.eat_expression_in_scope()?;
 
                         // allow leading elementwise operators in type expressions
                         let expression = self.tree.get(expression_id);
@@ -1061,13 +1061,13 @@ impl Parser {
                                     })
                             };
 
-                        // fast path: in JS/TS value contexts, branch on the token after ')'
-                        let can_use_follow_fast_path = !self.language.is_destack()
+                        // plain path: in JS/TS value contexts, branch on the token after ')'
+                        let can_use_plain_group_follow = !self.language.is_destack()
                             && !self.options.is_in_type()
                             && !self.options.is_in_arrow_return_type()
                             && !self.has_active_split()
                             && !has_parenthesized_tree_literal;
-                        if can_use_follow_fast_path
+                        if can_use_plain_group_follow
                             && let Some(parenthesized_follow) = self.parenthesized_follow_token()
                         {
                             let follow_token_type = parenthesized_follow.follow_token_type;
@@ -1090,7 +1090,7 @@ impl Parser {
                             }
                             // non-colon follow cannot be a typed lambda head
                             else if follow_token_type != TokenType::Colon {
-                                self.eat_parenthesized_expression_fast_unchecked(&start)?
+                                self.parse_plain_parenthesized_expression_unchecked(&start)?
                             }
                             // colon follow needs the full shape pipeline for ternary/lambda disambiguation
                             else {
@@ -1125,6 +1125,7 @@ impl Parser {
                     else if let Some(operator) = self.peek_unary_prefix_operator_maybe() {
                         let operator_start = self.mark_span();
                         self.bump(); // eat unary operator (always because right associative)
+                        self.eat_newlines_maybe()?;
                         let operator_span = self.get_span_from(&operator_start);
                         let mut right_options = self
                             .options
@@ -1144,6 +1145,7 @@ impl Parser {
                     else if let Some(operator) = self.peek_type_unary_prefix_operator_maybe() {
                         let operator_start = self.mark_span();
                         self.bump(); // eat type unary operator (always because right associative)
+                        self.eat_newlines_maybe()?;
                         let operator_span = self.get_span_from(&operator_start);
                         let mut right_options = self
                             .options

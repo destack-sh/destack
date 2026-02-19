@@ -522,7 +522,7 @@ impl Parser {
         let mut pending_property_decorators = PendingDecorators::new();
         while self.has_more_tokens() {
             // normalize cursor to the next non newline token
-            let cursor = self.sync_to_scanner_cursor();
+            let cursor = self.advance_to_scanner_cursor();
             let token_type = cursor.token_type;
 
             // stop on closing brace
@@ -1165,7 +1165,7 @@ impl Parser {
         let mut pending_member_decorators = PendingDecorators::new();
         while self.has_more_tokens() {
             // normalize cursor to the next non newline token
-            let cursor = self.sync_to_scanner_cursor();
+            let cursor = self.advance_to_scanner_cursor();
             let token_type = cursor.token_type;
 
             // stop on closing brace

@@ -1115,7 +1115,7 @@ impl Parser {
                         .not_in_left_precedence(),
                 )?;
 
-                self.sync_to_scanner_cursor();
+                self.advance_to_scanner_cursor();
 
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseBrace)?;
@@ -1138,7 +1138,7 @@ impl Parser {
                     .not_in_left_precedence(),
             )?;
 
-            self.sync_to_scanner_cursor();
+            self.advance_to_scanner_cursor();
 
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseBrace)?;
@@ -1363,8 +1363,8 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         while self.has_more_tokens() {
-            // normalize scanner cursor once for this argument lane
-            let cursor = self.sync_to_scanner_cursor();
+            // normalize scanner cursor once for this argument dispatch
+            let cursor = self.advance_to_scanner_cursor();
 
             // stop on closing `>`
             if cursor.token_type == TokenType::GreaterThan {
@@ -1385,7 +1385,7 @@ impl Parser {
             let argument_id = self.eat_positional_argument()?;
 
             // normalize scanner state before separator handling
-            self.sync_to_scanner_cursor();
+            self.advance_to_scanner_cursor();
 
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;
@@ -1506,7 +1506,7 @@ impl Parser {
         let mut arguments = smallvec::SmallVec::<[LocalNodeId<Argument>; 4]>::new();
         self.eat_newlines_maybe()?;
         while self.has_more_tokens() {
-            let cursor = self.sync_to_scanner_cursor();
+            let cursor = self.advance_to_scanner_cursor();
             if cursor.token_type == terminator {
                 break;
             }
@@ -1514,7 +1514,7 @@ impl Parser {
             let argument_id = self.eat_positional_argument()?;
 
             // normalize scanner state before separator handling
-            self.sync_to_scanner_cursor();
+            self.advance_to_scanner_cursor();
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;
             if self.is_item_stop() {
@@ -1543,7 +1543,7 @@ impl Parser {
         let mut arguments = smallvec::SmallVec::<[LocalNodeId<Argument>; 4]>::new();
         self.eat_newlines_maybe()?;
         while self.has_more_tokens() {
-            let cursor = self.sync_to_scanner_cursor();
+            let cursor = self.advance_to_scanner_cursor();
             if cursor.token_type == terminator {
                 break;
             }
@@ -1551,7 +1551,7 @@ impl Parser {
             let argument_id = self.eat_tree_argument()?;
 
             // normalize scanner state before separator handling
-            self.sync_to_scanner_cursor();
+            self.advance_to_scanner_cursor();
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;
             if self.is_item_stop() {

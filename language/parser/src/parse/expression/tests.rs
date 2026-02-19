@@ -28,6 +28,50 @@ fn test_parse_import_as_path() {
     assert_expression_path!(parser, parser.tree.get(expression_id), "import.meta.env");
 }
 
+/// Disambiguate import source phase access as a path.
+#[test]
+fn test_parse_import_source_as_path() {
+    let mut test = TestParser::new_with_options("import.source", LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    assert_expression_path!(parser, parser.tree.get(expression_id), "import.source");
+}
+
+/// Parse import source phase calls as member calls.
+#[test]
+fn test_parse_import_source_call_expression_javascript() {
+    let mut test = TestParser::new_with_options(
+        r#"import.source("data:text/javascript,console.log(1)")"#,
+        LanguageType::JavaScript,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+        assert_eq!(dynamic_arguments.len(), 1);
+        assert_expression_path!(parser, parser.tree.get(*left), "import.source");
+    });
+}
+
+/// Parse import source phase calls with expression arguments.
+#[test]
+fn test_parse_import_source_call_expression_with_template_argument_javascript() {
+    let mut test = TestParser::new_with_options(
+        "import.source(String.raw`data:text/javascript,console.log(1)`)",
+        LanguageType::JavaScript,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+        assert_eq!(dynamic_arguments.len(), 1);
+        assert_expression_path!(parser, parser.tree.get(*left), "import.source");
+        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::TaggedTemplateExpression { .. });
+        });
+    });
+}
+
 /// Parse a bare this expression.
 #[test]
 fn test_parse_this_expression() {
@@ -958,11 +1002,6 @@ fn test_parse_export_default_abstract_class_with_decorator_prefixes() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    assert!(
-        parser.errors.is_empty(),
-        "unexpected parser errors: {:?}",
-        parser.errors
-    );
     assert_eq!(expressions.len(), 1);
     let expression_id = match parser.tree.get(expressions[0]) {
         Expression::Statement(expression_id) => *expression_id,
@@ -1717,7 +1756,11 @@ fn test_parse_optional_chain_after_comment_newlines() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    assert!(parser.errors.is_empty());
+    assert!(
+        parser.errors.is_empty(),
+        "unexpected parser errors: {:?}",
+        parser.errors
+    );
     assert_eq!(expressions.len(), 1);
 
     let statement_id = match parser.tree.get(expressions[0]) {
@@ -1740,6 +1783,24 @@ fn test_parse_optional_chain_after_comment_newlines() {
     });
 }
 
+#[test]
+fn test_parse_optional_call_after_question_dot_line_comment_newline() {
+    let input = "call?.// comment\n()";
+    let mut test = TestParser::new_with_options(input, LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, position, .. } => {
+        assert_eq!(*position, PostfixPosition::Indirect);
+        assert!(dynamic_arguments.is_empty());
+
+        assert_node!(parser.tree, *left, Expression::Maybe { left: maybe_left, position } => {
+            assert_eq!(*position, PostfixPosition::Direct);
+            assert_expression_path!(parser, parser.tree.get(*maybe_left), "call");
+        });
+    });
+}
+
 /// Parse optional chaining when the member target starts on the next line after ?..
 #[test]
 fn test_parse_optional_chain_member_after_question_dot_newline() {
@@ -1748,7 +1809,11 @@ fn test_parse_optional_chain_member_after_question_dot_newline() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert!(parser.errors.is_empty());
+    assert!(
+        parser.errors.is_empty(),
+        "unexpected parser errors: {:?}",
+        parser.errors
+    );
 
     // assert: optional chain member and call structure
     assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
@@ -4483,6 +4548,30 @@ fn test_parse_unary_keyword_operators() {
     assert_node!(parser.tree, void_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Void);
         assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+    });
+}
+
+#[test]
+fn test_parse_unary_negate_allows_newline_before_operand_in_javascript() {
+    let mut test = TestParser::new_with_options("-\n1", LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Unary { operator, right } => {
+        assert_eq!(*operator, UnaryOperator::Negate);
+        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+    });
+}
+
+#[test]
+fn test_parse_unary_negate_allows_line_comment_before_operand_in_javascript() {
+    let mut test = TestParser::new_with_options("-// comment\n1", LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Unary { operator, right } => {
+        assert_eq!(*operator, UnaryOperator::Negate);
+        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
     });
 }
 

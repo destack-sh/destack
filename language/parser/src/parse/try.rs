@@ -34,6 +34,7 @@ impl Parser {
     pub fn eat_try(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark_span();
         self.eat_keyword(Keyword::Try)?;
+        self.eat_newlines_maybe()?;
 
         // try block
         if self.is_block_start() {
@@ -53,7 +54,7 @@ impl Parser {
                 // no pattern or catch match
                 if self.is_block_start() || self.is_keyword(Keyword::Match) {
                     let catch_expression =
-                        self.eat_statement_expression(self.options.not_in_position())?;
+                        self.eat_statement_expression_with_options(self.options.not_in_position())?;
                     (None, None, Some(catch_expression))
                 }
                 // catch pattern with expression content
@@ -110,7 +111,7 @@ impl Parser {
                     };
 
                     let catch_expression =
-                        self.eat_statement_expression(self.options.not_in_position())?;
+                        self.eat_statement_expression_with_options(self.options.not_in_position())?;
                     (Some(catch_pattern), catch_ty, Some(catch_expression))
                 }
             } else {
@@ -123,7 +124,7 @@ impl Parser {
                 self.bump(); // eat keyword
                 self.eat_newlines_maybe()?;
                 let finally_expression =
-                    self.eat_statement_expression(self.options.not_in_position())?;
+                    self.eat_statement_expression_with_options(self.options.not_in_position())?;
                 Some(finally_expression)
             } else {
                 None
@@ -425,6 +426,25 @@ try {
                     });
                 });
             });
+        });
+    }
+
+    /// Parse js try/catch/finally with comment and newline seams around keyword boundaries.
+    #[test]
+    fn test_parse_js_try_with_comment_newline_seams() {
+        let mut test = TestParser::new_with_options(
+            "try // Comment 1\n{\n}\ncatch(\n// Comment 2\ne\n) {\n}\nfinally // Comment 3\n{\n}\n",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+
+        let try_id = parser.eat_try().unwrap();
+        assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: Some(catch_pattern), catch_ty: None, catch_expression: Some(catch_expression), finally_expression: Some(finally_expression), .. } => {
+            assert_node!(parser.tree, *catch_pattern, Pattern::Binding { name, pattern: None, .. } => {
+                assert_string!(parser, *name, "e");
+            });
+            assert_node!(parser.tree, *catch_expression, Expression::Block(..));
+            assert_node!(parser.tree, *finally_expression, Expression::Block(..));
         });
     }
 }

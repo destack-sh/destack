@@ -130,7 +130,7 @@ impl Parser {
         }
 
         let tracks_tuple_commas = self.language.is_destack();
-        let follow_cursor = self.non_newline_cursor_from(close_index + 1);
+        let follow_cursor = self.scanner_cursor_from(close_index + 1);
         let follow_token_type = if follow_cursor.token_type == TokenType::End {
             None
         } else {
