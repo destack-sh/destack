@@ -373,6 +373,26 @@ impl VmValueCodec for GpuCommandListHandle {
     }
 }
 
+/// ABI newtype for GpuComputePassHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuComputePassHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuComputePassHandleVm = GpuComputePassHandle;
+
+impl VmValueCodec for GpuComputePassHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for GpuDeviceHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -524,6 +544,26 @@ pub struct GpuRenderBundleHandle(
 pub type GpuRenderBundleHandleVm = GpuRenderBundleHandle;
 
 impl VmValueCodec for GpuRenderBundleHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for GpuRenderPassHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuRenderPassHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuRenderPassHandleVm = GpuRenderPassHandle;
+
+impl VmValueCodec for GpuRenderPassHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }

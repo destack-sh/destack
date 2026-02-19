@@ -29,7 +29,7 @@ declare namespace process {
             replay: "nonrecordable",
             capabilities: ["process.cgroup"],
             platforms: ["linux"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -59,7 +59,7 @@ declare namespace process {
             replay: "nonrecordable",
             capabilities: ["process.cgroup"],
             platforms: ["linux"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -92,7 +92,7 @@ declare namespace process {
             replay: "nonrecordable",
             capabilities: ["process.cgroup"],
             platforms: ["linux"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -126,7 +126,7 @@ declare namespace process {
             replay: "nonrecordable",
             capabilities: ["process.cgroup"],
             platforms: ["windows"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -156,7 +156,7 @@ declare namespace process {
             replay: "nonrecordable",
             capabilities: ["process.cgroup"],
             platforms: ["windows"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

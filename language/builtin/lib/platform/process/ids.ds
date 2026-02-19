@@ -56,7 +56,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -86,7 +86,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -116,7 +116,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -146,7 +146,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -176,7 +176,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -206,7 +206,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -236,7 +236,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -266,7 +266,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -296,7 +296,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.write"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -326,7 +326,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.write"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -356,7 +356,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.write"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -386,7 +386,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.write"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -416,7 +416,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.write"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -446,7 +446,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.write"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -476,7 +476,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -506,7 +506,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.write"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )

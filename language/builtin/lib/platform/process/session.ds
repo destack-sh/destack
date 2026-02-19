@@ -27,7 +27,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.session"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -57,7 +57,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.session"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -90,7 +90,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.session"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "never",
         },
     )

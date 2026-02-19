@@ -182,7 +182,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function bufferCreate(
@@ -212,7 +212,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function bufferDestroy(handle: GpuBufferHandle): Result<void, PlatformError>;
@@ -239,7 +239,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function bufferWrite(
@@ -270,7 +270,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function bufferRead(
@@ -301,7 +301,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function bufferMap(
@@ -333,7 +333,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function bufferUnmap(handle: GpuBufferHandle): Result<void, PlatformError>;
@@ -360,7 +360,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function bufferInfo(handle: GpuBufferHandle): Result<GpuBufferInfo, PlatformError>;
@@ -387,7 +387,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function textureCreate(
@@ -417,7 +417,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function textureDestroy(handle: GpuTextureHandle): Result<void, PlatformError>;
@@ -444,7 +444,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function textureInfo(handle: GpuTextureHandle): Result<GpuTextureInfo, PlatformError>;
@@ -471,7 +471,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function textureViewCreate(
@@ -501,7 +501,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function textureViewDestroy(handle: GpuTextureViewHandle): Result<void, PlatformError>;
@@ -528,7 +528,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function samplerCreate(
@@ -558,7 +558,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function samplerDestroy(handle: GpuSamplerHandle): Result<void, PlatformError>;

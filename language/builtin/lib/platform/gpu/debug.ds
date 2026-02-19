@@ -25,7 +25,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.debug"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function setLabel(handle: ResourceId, label: string): Result<void, PlatformError>;

@@ -51,7 +51,7 @@ declare namespace timer {
             replay: "recordable",
             capabilities: ["time.timerfd"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -84,7 +84,7 @@ declare namespace timer {
             replay: "recordable",
             capabilities: ["time.timerfd"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -118,7 +118,7 @@ declare namespace timer {
             replay: "recordable",
             capabilities: ["time.timerfd"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -148,7 +148,7 @@ declare namespace timer {
             replay: "recordable",
             capabilities: ["time.timerfd"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -178,7 +178,7 @@ declare namespace timer {
             replay: "recordable",
             capabilities: ["time.timerfd"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

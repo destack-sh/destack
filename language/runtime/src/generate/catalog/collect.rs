@@ -650,9 +650,8 @@ fn parse_effect_spec(
 /// Parse a binding scope from a string.
 fn parse_binding_scope(value: Option<&str>) -> BindingScope {
     match value {
-        Some("os") => BindingScope::Os,
+        Some("host") => BindingScope::Host,
         Some("runtime") => BindingScope::Runtime,
-        Some("hybrid") => BindingScope::Hybrid,
         Some(value) => {
             panic!("unsupported @binding scope {value}");
         }

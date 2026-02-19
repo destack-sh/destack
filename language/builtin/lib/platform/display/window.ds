@@ -53,7 +53,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function windowOpen(
@@ -83,7 +83,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function windowClose(window: WindowHandle): Result<void, PlatformError>;
@@ -110,7 +110,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function windowTryEvent(window: WindowHandle): Result<WindowEvent, PlatformError>;
@@ -137,7 +137,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function windowEvent(window: WindowHandle): Result<WindowEvent, PlatformError>;
@@ -164,7 +164,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function windowSetTitle(window: WindowHandle, title: string): Result<void, PlatformError>;
@@ -191,7 +191,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.vsync"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function windowVsyncWait(window: WindowHandle, timeoutNs: uint64): Result<void, PlatformError>;

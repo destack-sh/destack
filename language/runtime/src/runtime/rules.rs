@@ -121,9 +121,8 @@ fn matches_engine(rule_engine: RuntimeFilterEngine, engine: PolicyEngine) -> boo
 fn matches_scope(rule_scope: RuntimeFilterScope, scope: BindingScope) -> bool {
     matches!(
         (rule_scope, scope),
-        (RuntimeFilterScope::Os, BindingScope::Os)
+        (RuntimeFilterScope::Host, BindingScope::Host)
             | (RuntimeFilterScope::Runtime, BindingScope::Runtime)
-            | (RuntimeFilterScope::Hybrid, BindingScope::Hybrid)
     )
 }
 

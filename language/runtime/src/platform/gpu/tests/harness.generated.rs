@@ -34,7 +34,7 @@ use crate::platform::gpu::{
     GpuRenderPassDepthStencilAttachment, GpuRenderPassDepthStencilAttachmentVm,
     GpuRenderPassOptions, GpuRenderPassOptionsVm, GpuRenderPipelineOptions,
     GpuRenderPipelineOptionsVm, GpuRenderState, GpuRenderStateVm, GpuSamplerBindingType,
-    GpuSamplerOptions, GpuSamplerOptionsVm, GpuShaderOptions, GpuShaderOptionsVm,
+    GpuSamplerOptions, GpuSamplerOptionsVm, GpuShaderFormat, GpuShaderOptions, GpuShaderOptionsVm,
     GpuShaderVisibilityMask, GpuStencilFaceState, GpuStencilFaceStateVm, GpuStencilOperation,
     GpuStorageTextureAccess, GpuStoreOp, GpuSubmitOptions, GpuSubmitOptionsVm,
     GpuSurfaceAcquireStatus, GpuSurfaceAlphaMode, GpuSurfaceCapabilities, GpuSurfaceCapabilitiesVm,
@@ -655,7 +655,7 @@ impl<'call> GpuHarnessContext<'call> {
 
     /// Bind one compute pipeline.
     ///
-    /// Bind one compute pipeline to one command encoder for subsequent dispatch operations.
+    /// Bind one compute pipeline to one active compute pass for subsequent dispatch operations.
     /// Binding state remains active until changed or encoder reset.
     ///
     /// # Platform
@@ -672,7 +672,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_bind_compute_pipeline(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuComputePassHandle,
         pipeline: resource::GpuPipelineHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
@@ -694,7 +694,7 @@ impl<'call> GpuHarnessContext<'call> {
 
     /// Bind one render pipeline.
     ///
-    /// Bind one render pipeline to one command encoder for subsequent draw operations.
+    /// Bind one render pipeline to one active render pass for subsequent draw operations.
     /// Binding state remains active until changed or encoder reset.
     ///
     /// # Platform
@@ -711,7 +711,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_bind_render_pipeline(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         pipeline: resource::GpuPipelineHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
@@ -779,6 +779,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// Begin one compute pass.
     ///
     /// Begin compute-pass encoding on one command encoder with optional timestamp writes.
+    /// Returns one compute-pass handle for pass-scoped commands.
     /// Nested pass semantics follow backend command recording rules.
     ///
     /// # Platform
@@ -797,33 +798,38 @@ impl<'call> GpuHarnessContext<'call> {
         &mut self,
         handle: resource::GpuCommandListHandle,
         options: HarnessValue<GpuComputePassOptions, GpuComputePassOptionsVm>,
-    ) -> RuntimeResult<()> {
+    ) -> RuntimeResult<resource::GpuComputePassHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                gpu_vm::destack_gpu_command_compute_pass_begin(
+                let out = gpu_vm::destack_gpu_command_compute_pass_begin(
                     self.call_context,
                     context,
                     handle,
                     options,
-                )
+                )?;
+                Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::GpuComputePassHandle>::uninit();
                 unsafe {
                     gpu_native::destack_gpu_command_compute_pass_begin(
                         self.call_context,
+                        out.as_mut_ptr(),
                         handle,
                         options,
-                    )
+                    )?;
                 }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
             }
         }
     }
 
     /// End one compute pass.
     ///
-    /// End compute-pass encoding on one command encoder.
+    /// End compute-pass encoding for one active compute-pass handle.
     /// Pass finalization follows backend validation behavior.
     ///
     /// # Platform
@@ -840,7 +846,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_compute_pass_end(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuComputePassHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -849,6 +855,132 @@ impl<'call> GpuHarnessContext<'call> {
             None => unsafe {
                 gpu_native::destack_gpu_command_compute_pass_end(self.call_context, handle)
             },
+        }
+    }
+
+    /// Insert one debug marker in one compute-pass scope.
+    ///
+    /// Insert one lightweight debug marker in one active compute-pass scope.
+    /// Marker visibility is backend-defined and intended for tooling.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style compute-pass debug-marker insertion commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.debug`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_compute_pass_insert_debug_marker(
+        &mut self,
+        handle: resource::GpuComputePassHandle,
+        marker: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let marker = marker.into_vm("marker")?;
+                gpu_vm::destack_gpu_command_compute_pass_insert_debug_marker(
+                    self.call_context,
+                    context,
+                    handle,
+                    marker,
+                )
+            }
+            None => {
+                let marker = marker.into_native("marker")?;
+                unsafe {
+                    gpu_native::destack_gpu_command_compute_pass_insert_debug_marker(
+                        self.call_context,
+                        handle,
+                        marker,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Pop one debug group in one compute-pass scope.
+    ///
+    /// Pop one previously pushed debug group in one active compute-pass scope.
+    /// Pop fails when no matching group exists.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style compute-pass debug-group pop commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.debug`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_compute_pass_pop_debug_group(
+        &mut self,
+        handle: resource::GpuComputePassHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_compute_pass_pop_debug_group(
+                self.call_context,
+                context,
+                handle,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_compute_pass_pop_debug_group(
+                    self.call_context,
+                    handle,
+                )
+            },
+        }
+    }
+
+    /// Push one debug group in one compute-pass scope.
+    ///
+    /// Push one nested debug group in one active compute-pass scope.
+    /// Groups must be balanced with matching pop operations.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style compute-pass debug-group push commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.debug`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_compute_pass_push_debug_group(
+        &mut self,
+        handle: resource::GpuComputePassHandle,
+        label: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let label = label.into_vm("label")?;
+                gpu_vm::destack_gpu_command_compute_pass_push_debug_group(
+                    self.call_context,
+                    context,
+                    handle,
+                    label,
+                )
+            }
+            None => {
+                let label = label.into_native("label")?;
+                unsafe {
+                    gpu_native::destack_gpu_command_compute_pass_push_debug_group(
+                        self.call_context,
+                        handle,
+                        label,
+                    )
+                }
+            }
         }
     }
 
@@ -1087,7 +1219,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_dispatch(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuComputePassHandle,
         groupx: u32,
         groupy: u32,
         groupz: u32,
@@ -1132,7 +1264,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_dispatch_indirect(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuComputePassHandle,
         buffer: resource::GpuBufferHandle,
         offset: u64,
     ) -> RuntimeResult<()> {
@@ -1174,7 +1306,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_draw(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         vertexcount: u32,
         instancecount: u32,
         firstvertex: u32,
@@ -1222,7 +1354,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_draw_indexed(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         indexcount: u32,
         instancecount: u32,
         firstindex: u32,
@@ -1273,7 +1405,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_draw_indexed_indirect(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         buffer: resource::GpuBufferHandle,
         offset: u64,
         drawcount: u32,
@@ -1321,7 +1453,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_draw_indirect(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         buffer: resource::GpuBufferHandle,
         offset: u64,
         drawcount: u32,
@@ -1481,7 +1613,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_execute_bundles(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         bundles: HarnessValue<
             NativeSlice<resource::GpuRenderBundleHandle>,
             VmSlice<resource::GpuRenderBundleHandle>,
@@ -1510,9 +1642,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Insert one debug marker in the active encoding scope.
+    /// Insert one debug marker in one command-encoder scope.
     ///
-    /// Insert one lightweight debug marker in one active command or pass scope.
+    /// Insert one lightweight debug marker in one active command-encoder scope.
     /// Marker visibility is backend-defined and intended for tooling.
     ///
     /// # Platform
@@ -1559,22 +1691,23 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// Encode multiple indexed draws loaded from one argument buffer.
     /// Draw-count and argument layout follow backend multi-draw contracts.
+    /// This operation is one optional feature lane and can return `notSupported`.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses WebGPU-style multi-draw-indexed-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    /// Uses backend-specific multi-draw-indexed-indirect commands where exposed.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.render`.
+    /// Requires `gpu.render.multiDraw`.
     ///
     /// # Replay
     /// External, recordable.
     pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         buffer: resource::GpuBufferHandle,
         offset: u64,
         drawcount: u32,
@@ -1610,19 +1743,19 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses WebGPU-style multi-draw-indexed-indirect-count commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    /// Uses backend-specific multi-draw-indexed-indirect-count commands where exposed.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.render`.
+    /// Requires `gpu.render.multiDrawCount`.
     ///
     /// # Replay
     /// External, recordable.
     pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect_count(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         buffer: resource::GpuBufferHandle,
         offset: u64,
         countbuffer: resource::GpuBufferHandle,
@@ -1661,22 +1794,23 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// Encode multiple non-indexed draws loaded from one argument buffer.
     /// Draw-count and argument layout follow backend multi-draw contracts.
+    /// This operation is one optional feature lane and can return `notSupported`.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses WebGPU-style multi-draw-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    /// Uses backend-specific multi-draw-indirect commands where exposed.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.render`.
+    /// Requires `gpu.render.multiDraw`.
     ///
     /// # Replay
     /// External, recordable.
     pub(crate) fn destack_gpu_command_multi_draw_indirect(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         buffer: resource::GpuBufferHandle,
         offset: u64,
         drawcount: u32,
@@ -1712,19 +1846,19 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses WebGPU-style multi-draw-indirect-count commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    /// Uses backend-specific multi-draw-indirect-count commands where exposed.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.render`.
+    /// Requires `gpu.render.multiDrawCount`.
     ///
     /// # Replay
     /// External, recordable.
     pub(crate) fn destack_gpu_command_multi_draw_indirect_count(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         buffer: resource::GpuBufferHandle,
         offset: u64,
         countbuffer: resource::GpuBufferHandle,
@@ -1759,9 +1893,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Pop one debug group in the active encoding scope.
+    /// Pop one debug group in one command-encoder scope.
     ///
-    /// Pop one previously pushed debug group in one active scope.
+    /// Pop one previously pushed debug group in one active command-encoder scope.
     /// Pop fails when no matching group exists.
     ///
     /// # Platform
@@ -1790,9 +1924,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Push one debug group in the active encoding scope.
+    /// Push one debug group in one command-encoder scope.
     ///
-    /// Push one nested debug group in one active command or pass scope.
+    /// Push one nested debug group in one active command-encoder scope.
     /// Groups must be balanced with matching pop operations.
     ///
     /// # Platform
@@ -2703,6 +2837,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// Begin render-pass encoding on one command encoder with explicit attachments and optional query wiring.
     /// Attachment load, clear, timestamp, and occlusion behavior follow backend render pass semantics.
+    /// Returns one render-pass handle for pass-scoped commands.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2720,33 +2855,38 @@ impl<'call> GpuHarnessContext<'call> {
         &mut self,
         handle: resource::GpuCommandListHandle,
         options: HarnessValue<GpuRenderPassOptions, GpuRenderPassOptionsVm>,
-    ) -> RuntimeResult<()> {
+    ) -> RuntimeResult<resource::GpuRenderPassHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                gpu_vm::destack_gpu_command_render_pass_begin(
+                let out = gpu_vm::destack_gpu_command_render_pass_begin(
                     self.call_context,
                     context,
                     handle,
                     options,
-                )
+                )?;
+                Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::GpuRenderPassHandle>::uninit();
                 unsafe {
                     gpu_native::destack_gpu_command_render_pass_begin(
                         self.call_context,
+                        out.as_mut_ptr(),
                         handle,
                         options,
-                    )
+                    )?;
                 }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
             }
         }
     }
 
     /// End one render pass.
     ///
-    /// End render-pass encoding on one command encoder.
+    /// End render-pass encoding for one active render-pass handle.
     /// Pass finalization follows backend validation behavior.
     ///
     /// # Platform
@@ -2763,7 +2903,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_render_pass_end(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -2775,51 +2915,126 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Bind one bind group for subsequent commands.
+    /// Insert one debug marker in one render-pass scope.
     ///
-    /// Bind one bind group at the requested index for the current pass state.
-    /// Dynamic offsets are interpreted in backend-defined order for dynamic bindings.
+    /// Insert one lightweight debug marker in one active render-pass scope.
+    /// Marker visibility is backend-defined and intended for tooling.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses WebGPU-style bind-group or descriptor-set bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    /// Uses WebGPU-style render-pass debug-marker insertion commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.bind`.
+    /// Requires `gpu.debug`.
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_gpu_command_set_bind_group(
+    pub(crate) fn destack_gpu_command_render_pass_insert_debug_marker(
         &mut self,
-        handle: resource::GpuCommandListHandle,
-        index: u32,
-        bindgroup: resource::GpuBindGroupHandle,
-        dynamicoffsets: HarnessValue<NativeSlice<u32>, VmSlice<u32>>,
+        handle: resource::GpuRenderPassHandle,
+        marker: HarnessValue<NativeStringRef, vm::StringHandle>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let dynamicoffsets = dynamicoffsets.into_vm("dynamicoffsets")?;
-                gpu_vm::destack_gpu_command_set_bind_group(
+                let marker = marker.into_vm("marker")?;
+                gpu_vm::destack_gpu_command_render_pass_insert_debug_marker(
                     self.call_context,
                     context,
                     handle,
-                    index,
-                    bindgroup,
-                    dynamicoffsets,
+                    marker,
                 )
             }
             None => {
-                let dynamicoffsets = dynamicoffsets.into_native("dynamicoffsets")?;
+                let marker = marker.into_native("marker")?;
                 unsafe {
-                    gpu_native::destack_gpu_command_set_bind_group(
+                    gpu_native::destack_gpu_command_render_pass_insert_debug_marker(
                         self.call_context,
                         handle,
-                        index,
-                        bindgroup,
-                        dynamicoffsets,
+                        marker,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Pop one debug group in one render-pass scope.
+    ///
+    /// Pop one previously pushed debug group in one active render-pass scope.
+    /// Pop fails when no matching group exists.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style render-pass debug-group pop commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.debug`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_render_pass_pop_debug_group(
+        &mut self,
+        handle: resource::GpuRenderPassHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_render_pass_pop_debug_group(
+                self.call_context,
+                context,
+                handle,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_render_pass_pop_debug_group(
+                    self.call_context,
+                    handle,
+                )
+            },
+        }
+    }
+
+    /// Push one debug group in one render-pass scope.
+    ///
+    /// Push one nested debug group in one active render-pass scope.
+    /// Groups must be balanced with matching pop operations.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style render-pass debug-group push commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.debug`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_render_pass_push_debug_group(
+        &mut self,
+        handle: resource::GpuRenderPassHandle,
+        label: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let label = label.into_vm("label")?;
+                gpu_vm::destack_gpu_command_render_pass_push_debug_group(
+                    self.call_context,
+                    context,
+                    handle,
+                    label,
+                )
+            }
+            None => {
+                let label = label.into_native("label")?;
+                unsafe {
+                    gpu_native::destack_gpu_command_render_pass_push_debug_group(
+                        self.call_context,
+                        handle,
+                        label,
                     )
                 }
             }
@@ -2845,7 +3060,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_set_blend_constant(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         r: f64,
         g: f64,
         b: f64,
@@ -2874,6 +3089,57 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
+    /// Bind one bind group for one compute pass.
+    ///
+    /// Bind one bind group at the requested index for one active compute pass.
+    /// Dynamic offsets are interpreted in backend-defined order for dynamic bindings.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific compute-pass bind-group commands.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_set_compute_bind_group(
+        &mut self,
+        handle: resource::GpuComputePassHandle,
+        index: u32,
+        bindgroup: resource::GpuBindGroupHandle,
+        dynamicoffsets: HarnessValue<NativeSlice<u32>, VmSlice<u32>>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let dynamicoffsets = dynamicoffsets.into_vm("dynamicoffsets")?;
+                gpu_vm::destack_gpu_command_set_compute_bind_group(
+                    self.call_context,
+                    context,
+                    handle,
+                    index,
+                    bindgroup,
+                    dynamicoffsets,
+                )
+            }
+            None => {
+                let dynamicoffsets = dynamicoffsets.into_native("dynamicoffsets")?;
+                unsafe {
+                    gpu_native::destack_gpu_command_set_compute_bind_group(
+                        self.call_context,
+                        handle,
+                        index,
+                        bindgroup,
+                        dynamicoffsets,
+                    )
+                }
+            }
+        }
+    }
+
     /// Bind one index buffer for subsequent indexed draw commands.
     ///
     /// Bind one index buffer with explicit format and byte range metadata.
@@ -2893,7 +3159,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_set_index_buffer(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         buffer: resource::GpuBufferHandle,
         format: GpuIndexFormat,
         offset: u64,
@@ -2922,6 +3188,57 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
+    /// Bind one bind group for one render pass.
+    ///
+    /// Bind one bind group at the requested index for one active render pass.
+    /// Dynamic offsets are interpreted in backend-defined order for dynamic bindings.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific render-pass bind-group commands.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_set_render_bind_group(
+        &mut self,
+        handle: resource::GpuRenderPassHandle,
+        index: u32,
+        bindgroup: resource::GpuBindGroupHandle,
+        dynamicoffsets: HarnessValue<NativeSlice<u32>, VmSlice<u32>>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let dynamicoffsets = dynamicoffsets.into_vm("dynamicoffsets")?;
+                gpu_vm::destack_gpu_command_set_render_bind_group(
+                    self.call_context,
+                    context,
+                    handle,
+                    index,
+                    bindgroup,
+                    dynamicoffsets,
+                )
+            }
+            None => {
+                let dynamicoffsets = dynamicoffsets.into_native("dynamicoffsets")?;
+                unsafe {
+                    gpu_native::destack_gpu_command_set_render_bind_group(
+                        self.call_context,
+                        handle,
+                        index,
+                        bindgroup,
+                        dynamicoffsets,
+                    )
+                }
+            }
+        }
+    }
+
     /// Set one scissor rectangle for the active render pass.
     ///
     /// Set one scissor rectangle that clips subsequent draw calls.
@@ -2941,7 +3258,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_set_scissor(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         x: u32,
         y: u32,
         width: u32,
@@ -2989,7 +3306,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_set_stencil_reference(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         reference: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
@@ -3028,7 +3345,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_set_vertex_buffer(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         slot: u32,
         buffer: resource::GpuBufferHandle,
         offset: u64,
@@ -3076,7 +3393,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_set_viewport(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuRenderPassHandle,
         x: f64,
         y: f64,
         width: f64,
@@ -4767,6 +5084,48 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
+    /// Begin one pipeline-statistics query in one compute pass.
+    ///
+    /// Begin one pipeline-statistics query in one active compute pass.
+    /// Pipeline-statistics queries cannot be nested and require one matching end call.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific pipeline-statistics query commands where exposed.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync.pipelineStatistics`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_begin_compute_pipeline_statistics_query(
+        &mut self,
+        computepass: resource::GpuComputePassHandle,
+        queryset: resource::GpuQuerySetHandle,
+        queryindex: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_begin_compute_pipeline_statistics_query(
+                self.call_context,
+                context,
+                computepass,
+                queryset,
+                queryindex,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_begin_compute_pipeline_statistics_query(
+                    self.call_context,
+                    computepass,
+                    queryset,
+                    queryindex,
+                )
+            },
+        }
+    }
+
     /// Begin one occlusion query.
     ///
     /// Begin one occlusion query in the active render pass.
@@ -4786,7 +5145,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_begin_occlusion_query(
         &mut self,
-        commandlist: resource::GpuCommandListHandle,
+        renderpass: resource::GpuRenderPassHandle,
         queryset: resource::GpuQuerySetHandle,
         queryindex: u32,
     ) -> RuntimeResult<()> {
@@ -4794,14 +5153,14 @@ impl<'call> GpuHarnessContext<'call> {
             Some(context) => gpu_vm::destack_gpu_command_begin_occlusion_query(
                 self.call_context,
                 context,
-                commandlist,
+                renderpass,
                 queryset,
                 queryindex,
             ),
             None => unsafe {
                 gpu_native::destack_gpu_command_begin_occlusion_query(
                     self.call_context,
-                    commandlist,
+                    renderpass,
                     queryset,
                     queryindex,
                 )
@@ -4809,43 +5168,79 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Begin one pipeline-statistics query.
+    /// Begin one pipeline-statistics query in one render pass.
     ///
-    /// Begin one pipeline-statistics query in the active render or compute pass.
+    /// Begin one pipeline-statistics query in one active render pass.
     /// Pipeline-statistics queries cannot be nested and require one matching end call.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses WebGPU-style begin-pipeline-statistics-query commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    /// Uses backend-specific pipeline-statistics query commands where exposed.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.sync`.
+    /// Requires `gpu.sync.pipelineStatistics`.
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_gpu_command_begin_pipeline_statistics_query(
+    pub(crate) fn destack_gpu_command_begin_render_pipeline_statistics_query(
         &mut self,
-        commandlist: resource::GpuCommandListHandle,
+        renderpass: resource::GpuRenderPassHandle,
         queryset: resource::GpuQuerySetHandle,
         queryindex: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_begin_pipeline_statistics_query(
+            Some(context) => gpu_vm::destack_gpu_command_begin_render_pipeline_statistics_query(
                 self.call_context,
                 context,
-                commandlist,
+                renderpass,
                 queryset,
                 queryindex,
             ),
             None => unsafe {
-                gpu_native::destack_gpu_command_begin_pipeline_statistics_query(
+                gpu_native::destack_gpu_command_begin_render_pipeline_statistics_query(
                     self.call_context,
-                    commandlist,
+                    renderpass,
                     queryset,
                     queryindex,
+                )
+            },
+        }
+    }
+
+    /// End one pipeline-statistics query in one compute pass.
+    ///
+    /// End one active pipeline-statistics query in one compute pass.
+    /// The active query must match the most recent begin call.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific pipeline-statistics query commands where exposed.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync.pipelineStatistics`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_end_compute_pipeline_statistics_query(
+        &mut self,
+        computepass: resource::GpuComputePassHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_end_compute_pipeline_statistics_query(
+                self.call_context,
+                context,
+                computepass,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_end_compute_pipeline_statistics_query(
+                    self.call_context,
+                    computepass,
                 )
             },
         }
@@ -4870,51 +5265,51 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_end_occlusion_query(
         &mut self,
-        commandlist: resource::GpuCommandListHandle,
+        renderpass: resource::GpuRenderPassHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => gpu_vm::destack_gpu_command_end_occlusion_query(
                 self.call_context,
                 context,
-                commandlist,
+                renderpass,
             ),
             None => unsafe {
-                gpu_native::destack_gpu_command_end_occlusion_query(self.call_context, commandlist)
+                gpu_native::destack_gpu_command_end_occlusion_query(self.call_context, renderpass)
             },
         }
     }
 
-    /// End one pipeline-statistics query.
+    /// End one pipeline-statistics query in one render pass.
     ///
-    /// End one active pipeline-statistics query in the current pass.
+    /// End one active pipeline-statistics query in one render pass.
     /// The active query must match the most recent begin call.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses WebGPU-style end-pipeline-statistics-query commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    /// Uses backend-specific pipeline-statistics query commands where exposed.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.sync`.
+    /// Requires `gpu.sync.pipelineStatistics`.
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_gpu_command_end_pipeline_statistics_query(
+    pub(crate) fn destack_gpu_command_end_render_pipeline_statistics_query(
         &mut self,
-        commandlist: resource::GpuCommandListHandle,
+        renderpass: resource::GpuRenderPassHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_end_pipeline_statistics_query(
+            Some(context) => gpu_vm::destack_gpu_command_end_render_pipeline_statistics_query(
                 self.call_context,
                 context,
-                commandlist,
+                renderpass,
             ),
             None => unsafe {
-                gpu_native::destack_gpu_command_end_pipeline_statistics_query(
+                gpu_native::destack_gpu_command_end_render_pipeline_statistics_query(
                     self.call_context,
-                    commandlist,
+                    renderpass,
                 )
             },
         }
@@ -5090,6 +5485,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// Create one query set for timestamp, occlusion, or pipeline-statistics queries.
     /// Query set size and type are fixed for the object lifetime.
+    /// Pipeline-statistics queries are one optional lane and require feature support.
     ///
     /// # Platform
     /// Unix and Windows.

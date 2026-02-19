@@ -826,7 +826,7 @@ pub const THREAD_LOCAL_CREATE: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.local"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -852,7 +852,7 @@ pub const THREAD_LOCAL_DELETE: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.local"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -878,7 +878,7 @@ pub const THREAD_LOCAL_GET: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.local"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -904,7 +904,7 @@ pub const THREAD_LOCAL_SET: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.local"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -930,7 +930,7 @@ pub const THREAD_PRIORITY_GET_AFFINITY: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.priority"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -956,7 +956,7 @@ pub const THREAD_PRIORITY_GET_PRIORITY: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.priority"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -981,7 +981,7 @@ pub const THREAD_PRIORITY_SET_AFFINITY: BindingDescriptor = BindingDescriptor::e
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.priority"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -993,7 +993,7 @@ pub const THREAD_PRIORITY_SET_PRIORITY: BindingDescriptor = BindingDescriptor::e
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.priority"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1006,7 +1006,7 @@ pub const THREAD_SPAWN_DETACH: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.spawn"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1032,7 +1032,7 @@ pub const THREAD_SPAWN_JOIN: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.spawn"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1057,7 +1057,7 @@ pub const THREAD_SPAWN_START: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.spawn"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1069,7 +1069,7 @@ pub const THREAD_SYNC_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.wait"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1082,7 +1082,7 @@ pub const THREAD_SYNC_ADDRESS_WAKE_ALL: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.wait"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1108,7 +1108,7 @@ pub const THREAD_SYNC_ADDRESS_WAKE_ONE: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.wait"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1133,7 +1133,7 @@ pub const THREAD_SYNC_BARRIER_CREATE: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1145,7 +1145,7 @@ pub const THREAD_SYNC_BARRIER_WAIT: BindingDescriptor = BindingDescriptor::exter
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1158,7 +1158,7 @@ pub const THREAD_SYNC_COND_VAR_CREATE: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.sync"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1184,7 +1184,7 @@ pub const THREAD_SYNC_COND_VAR_NOTIFY_ALL: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.sync"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1210,7 +1210,7 @@ pub const THREAD_SYNC_COND_VAR_NOTIFY_ONE: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.sync"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1235,7 +1235,7 @@ pub const THREAD_SYNC_COND_VAR_WAIT: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1248,7 +1248,7 @@ pub const THREAD_SYNC_MUTEX_CREATE: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.sync"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1273,7 +1273,7 @@ pub const THREAD_SYNC_MUTEX_LOCK: BindingDescriptor = BindingDescriptor::externa
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1286,7 +1286,7 @@ pub const THREAD_SYNC_MUTEX_UNLOCK: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.sync"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1312,7 +1312,7 @@ pub const THREAD_SYNC_RWLOCK_CREATE: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.sync"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1337,7 +1337,7 @@ pub const THREAD_SYNC_RWLOCK_READ_LOCK: BindingDescriptor = BindingDescriptor::e
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1350,7 +1350,7 @@ pub const THREAD_SYNC_RWLOCK_UNLOCK: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.sync"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1375,7 +1375,7 @@ pub const THREAD_SYNC_RWLOCK_WRITE_LOCK: BindingDescriptor = BindingDescriptor::
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1387,7 +1387,7 @@ pub const THREAD_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::e
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1399,7 +1399,7 @@ pub const THREAD_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1411,7 +1411,7 @@ pub const THREAD_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::ext
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);

@@ -808,7 +808,7 @@ pub const TLS_CONTEXT_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["tls.context"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -833,7 +833,7 @@ pub const TLS_CONTEXT_OPEN: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["tls.context"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -845,7 +845,7 @@ pub const TLS_CONTEXT_SET_CIPHER_SUITES: BindingDescriptor = BindingDescriptor::
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["tls.context", "tls.policy"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -857,7 +857,7 @@ pub const TLS_CONTEXT_SET_GROUPS: BindingDescriptor = BindingDescriptor::externa
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["tls.context", "tls.policy"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -869,7 +869,7 @@ pub const TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE: BindingDescriptor = Bindin
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["tls.context", "tls.hostname.verify"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -881,7 +881,7 @@ pub const TLS_CONTEXT_SET_IDENTITY_PEM: BindingDescriptor = BindingDescriptor::e
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["tls.context", "tls.identity.use", "tls.identity.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -893,7 +893,7 @@ pub const TLS_CONTEXT_SET_KEYLOG_ENABLED: BindingDescriptor = BindingDescriptor:
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["tls.context", "tls.keylog"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -905,7 +905,7 @@ pub const TLS_CONTEXT_SET_SESSION_RESUMPTION: BindingDescriptor = BindingDescrip
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["tls.context", "tls.resumption"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -917,7 +917,7 @@ pub const TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS: BindingDescriptor = BindingDescr
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["tls.context", "tls.policy"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -929,7 +929,7 @@ pub const TLS_CONTEXT_SET_TRUST_ANCHORS_PEM: BindingDescriptor = BindingDescript
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["tls.context", "tls.trust.write"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -942,7 +942,7 @@ pub const TLS_SESSION_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["tls.session"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -967,7 +967,7 @@ pub const TLS_SESSION_EXPORT_KEYING_MATERIAL: BindingDescriptor = BindingDescrip
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["tls.exporter", "tls.session"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -979,7 +979,7 @@ pub const TLS_SESSION_HANDSHAKE: BindingDescriptor = BindingDescriptor::external
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["tls.handshake"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -991,7 +991,7 @@ pub const TLS_SESSION_NEGOTIATED_ALPN: BindingDescriptor = BindingDescriptor::ex
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["tls.session"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1003,7 +1003,7 @@ pub const TLS_SESSION_OPEN: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["tls.session"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1015,7 +1015,7 @@ pub const TLS_SESSION_PEER_CERTIFICATES_PEM: BindingDescriptor = BindingDescript
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["tls.certificate.read"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1027,7 +1027,7 @@ pub const TLS_SESSION_READ: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["tls.session"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1039,7 +1039,7 @@ pub const TLS_SESSION_RESUMPTION_STATE: BindingDescriptor = BindingDescriptor::e
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["tls.resumption", "tls.session"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1052,7 +1052,7 @@ pub const TLS_SESSION_SHUTDOWN: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["tls.session"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1077,7 +1077,7 @@ pub const TLS_SESSION_WRITE: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["tls.session"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);

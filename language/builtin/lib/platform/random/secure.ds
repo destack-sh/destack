@@ -59,7 +59,7 @@ declare namespace random {
             replay: "recordable",
             capabilities: ["random.secure"],
             platforms: ["windows", "unix"],
-            scope: "hybrid",
+            scope: "runtime",
             blocking: "sometimes",
         },
     )
@@ -89,7 +89,7 @@ declare namespace random {
             replay: "recordable",
             capabilities: ["random.secure"],
             platforms: ["windows", "unix"],
-            scope: "hybrid",
+            scope: "runtime",
             blocking: "never",
         },
     )
@@ -119,7 +119,7 @@ declare namespace random {
             replay: "recordable",
             capabilities: ["random.secure"],
             platforms: ["windows", "unix"],
-            scope: "hybrid",
+            scope: "runtime",
             blocking: "never",
         },
     )

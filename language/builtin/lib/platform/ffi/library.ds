@@ -28,7 +28,7 @@ declare namespace ffi {
             replay: "nonrecordable",
             capabilities: ["ffi.load"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -58,7 +58,7 @@ declare namespace ffi {
             replay: "nonrecordable",
             capabilities: ["ffi.load"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

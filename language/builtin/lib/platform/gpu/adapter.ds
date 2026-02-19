@@ -205,7 +205,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.adapter"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function adapterList(request: GpuAdapterRequest): Result<Array<GpuAdapterInfo>, PlatformError>;
@@ -232,7 +232,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.adapter"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function adapterOpen(id: string): Result<GpuAdapterHandle, PlatformError>;
@@ -259,7 +259,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.adapter"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function adapterInfo(handle: GpuAdapterHandle): Result<GpuAdapterInfo, PlatformError>;
@@ -286,7 +286,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.adapter"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function adapterFeatures(handle: GpuAdapterHandle): Result<Slice<GpuFeatureId>, PlatformError>;
@@ -313,7 +313,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.adapter"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function adapterLimits(handle: GpuAdapterHandle): Result<GpuAdapterLimits, PlatformError>;
@@ -340,7 +340,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.adapter"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function adapterHasFeature(handle: GpuAdapterHandle, feature: GpuFeatureId): Result<boolean, PlatformError>;
@@ -367,7 +367,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.adapter"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function adapterFormatCapabilities(
@@ -397,7 +397,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.adapter"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function adapterClose(handle: GpuAdapterHandle): Result<void, PlatformError>;

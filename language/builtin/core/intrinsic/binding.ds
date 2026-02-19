@@ -191,7 +191,7 @@ export type BindingOptions = {
     /// Platform availability tags for this binding.
     platforms?: PlatformTag[],
     /// Platform scope for this binding.
-    scope?: "os" | "runtime" | "hybrid",
+    scope?: "host" | "runtime",
     /// Blocking behavior classification for this binding.
     blocking?: "always" | "never" | "sometimes",
 };

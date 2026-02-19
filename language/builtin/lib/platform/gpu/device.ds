@@ -111,7 +111,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.device"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function deviceOpen(
@@ -141,7 +141,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.device"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function deviceInfo(device: GpuDeviceHandle): Result<GpuDeviceInfo, PlatformError>;
@@ -168,7 +168,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.device"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function deviceFeatures(device: GpuDeviceHandle): Result<Slice<GpuFeatureId>, PlatformError>;
@@ -195,7 +195,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.device"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function deviceLimits(device: GpuDeviceHandle): Result<GpuAdapterLimits, PlatformError>;
@@ -222,7 +222,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.device"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function deviceHasFeature(device: GpuDeviceHandle, feature: GpuFeatureId): Result<boolean, PlatformError>;
@@ -249,7 +249,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.device"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function deviceStatus(device: GpuDeviceHandle): Result<GpuDeviceStatus, PlatformError>;
@@ -276,7 +276,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.queue"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function deviceQueue(device: GpuDeviceHandle): Result<GpuQueueHandle, PlatformError>;
@@ -303,7 +303,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.queue"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function devicePoll(
@@ -334,7 +334,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.device"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function devicePushErrorScope(
@@ -364,7 +364,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.device"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function devicePopErrorScope(
@@ -394,7 +394,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.device"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function deviceClose(handle: GpuDeviceHandle): Result<void, PlatformError>;

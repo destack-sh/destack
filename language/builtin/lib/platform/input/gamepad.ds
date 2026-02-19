@@ -120,7 +120,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "never",
     })
     export function gamepadState(handle: InputDeviceHandle): Result<InputGamepadState, PlatformError>;
@@ -146,7 +146,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.control"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function gamepadSetPlayerIndex(
@@ -175,7 +175,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.control"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function gamepadSetLight(

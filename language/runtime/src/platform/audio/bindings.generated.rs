@@ -382,7 +382,6 @@ fn decode_destack_audio_device_list_args(
             5u8 => AudioBackend::Wasapi,
             6u8 => AudioBackend::AAudio,
             7u8 => AudioBackend::OpenSLES,
-            8u8 => AudioBackend::WebAudio,
             255u8 => AudioBackend::Null,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -467,7 +466,6 @@ fn decode_destack_audio_device_open_args(
             5u8 => AudioBackend::Wasapi,
             6u8 => AudioBackend::AAudio,
             7u8 => AudioBackend::OpenSLES,
-            8u8 => AudioBackend::WebAudio,
             255u8 => AudioBackend::Null,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -807,7 +805,6 @@ fn decode_destack_audio_stream_open_args(
             decode_uint8(slots[6], "config_transfer_mode_raw", "transferMode")?;
         let config_transfer_mode = match config_transfer_mode_raw {
             1u8 => AudioStreamTransferMode::Push,
-            2u8 => AudioStreamTransferMode::Pull,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "config_transfer_mode",
@@ -1327,7 +1324,7 @@ pub const AUDIO_CLOCK_NOW: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -1352,7 +1349,7 @@ pub const AUDIO_CLOCK_STREAM: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1365,7 +1362,7 @@ pub const AUDIO_DEVICE_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.device"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1390,7 +1387,7 @@ pub const AUDIO_DEVICE_DEFAULT: BindingDescriptor = BindingDescriptor::external_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.device"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1402,7 +1399,7 @@ pub const AUDIO_DEVICE_INFO: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.device"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1414,7 +1411,7 @@ pub const AUDIO_DEVICE_LIST: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.device"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1426,7 +1423,7 @@ pub const AUDIO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.device"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1439,7 +1436,7 @@ pub const AUDIO_EVENT_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.device.monitor"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1465,7 +1462,7 @@ pub const AUDIO_EVENT_OPEN: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.device.monitor"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1490,7 +1487,7 @@ pub const AUDIO_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.device.monitor"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1502,7 +1499,7 @@ pub const AUDIO_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.device.monitor"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1514,7 +1511,7 @@ pub const AUDIO_STREAM_AVAILABILITY: BindingDescriptor = BindingDescriptor::exte
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1527,7 +1524,7 @@ pub const AUDIO_STREAM_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.stream"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1552,7 +1549,7 @@ pub const AUDIO_STREAM_DRAIN: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.playback"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1565,7 +1562,7 @@ pub const AUDIO_STREAM_FLUSH: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.control"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1590,7 +1587,7 @@ pub const AUDIO_STREAM_INFO: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1602,7 +1599,7 @@ pub const AUDIO_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.stream"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1614,7 +1611,7 @@ pub const AUDIO_STREAM_READ: BindingDescriptor = BindingDescriptor::external_wit
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.capture"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1626,7 +1623,7 @@ pub const AUDIO_STREAM_SET_MUTE: BindingDescriptor = BindingDescriptor::external
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1638,7 +1635,7 @@ pub const AUDIO_STREAM_SET_VOLUME: BindingDescriptor = BindingDescriptor::extern
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1651,7 +1648,7 @@ pub const AUDIO_STREAM_START: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.stream"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1676,7 +1673,7 @@ pub const AUDIO_STREAM_STATE: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1689,7 +1686,7 @@ pub const AUDIO_STREAM_STOP: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.stream"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -1714,7 +1711,7 @@ pub const AUDIO_STREAM_TIMING: BindingDescriptor = BindingDescriptor::external_w
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.control"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1726,7 +1723,7 @@ pub const AUDIO_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::external
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.capture"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1738,7 +1735,7 @@ pub const AUDIO_STREAM_TRY_WRITE: BindingDescriptor = BindingDescriptor::externa
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.playback"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1750,7 +1747,7 @@ pub const AUDIO_STREAM_WRITE: BindingDescriptor = BindingDescriptor::external_wi
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.playback"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -1761,8 +1758,8 @@ pub const AUDIO_STREAM_WRITE_AT: BindingDescriptor = BindingDescriptor::external
     "export function streamWriteAt(handle: AudioStreamHandle, data: Slice<uint8>, presentationTimeNs: uint64): Result<uint64, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["audio.playback"],
-    BindingScope::Os,
+    &["audio.playback.schedule"],
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4843,7 +4840,6 @@ fn destack_audio_device_list_vm_replay(
                                     5u8 => AudioBackend::Wasapi,
                                     6u8 => AudioBackend::AAudio,
                                     7u8 => AudioBackend::OpenSLES,
-                                    8u8 => AudioBackend::WebAudio,
                                     255u8 => AudioBackend::Null,
                                     _ => {
                                         return Err(RuntimeError::from(

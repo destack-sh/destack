@@ -29,7 +29,8 @@ fn resolve_touch_device(
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` where touch snapshots are unavailable.
-/// Uses backend-specific contact tables from evdev or libinput style paths on Unix and pointer-contact APIs on Windows.
+/// Uses backend-specific contact tables from evdev or libinput-style paths on Unix.
+/// Uses pointer-contact APIs on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

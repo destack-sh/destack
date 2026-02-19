@@ -880,7 +880,7 @@ pub const TIMER_FD_CLOSE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["time.timerfd"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -905,7 +905,7 @@ pub const TIMER_FD_GET: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["time.timerfd"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
 .with_host_platforms(&[
@@ -930,7 +930,7 @@ pub const TIMER_FD_OPEN: BindingDescriptor = BindingDescriptor::external_with_re
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["time.timerfd"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -943,7 +943,7 @@ pub const TIMER_FD_READ: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["time.timerfd"],
-        BindingScope::Os,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -968,7 +968,7 @@ pub const TIMER_FD_SET: BindingDescriptor = BindingDescriptor::external_with_req
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["time.timerfd"],
-    BindingScope::Os,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);

@@ -106,7 +106,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function fenceCreate(
@@ -136,7 +136,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function fenceDestroy(handle: GpuFenceHandle): Result<void, PlatformError>;
@@ -163,7 +163,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function queueSignal(
@@ -194,7 +194,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function queueWait(
@@ -226,7 +226,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function queueWorkDone(
@@ -256,7 +256,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function queueTimestampPeriod(queue: GpuQueueHandle): Result<float64, PlatformError>;
@@ -284,7 +284,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function querySetCreate(
@@ -314,7 +314,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function querySetDestroy(handle: GpuQuerySetHandle): Result<void, PlatformError>;
@@ -341,7 +341,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function querySetInfo(handle: GpuQuerySetHandle): Result<GpuQuerySetInfo, PlatformError>;
@@ -368,7 +368,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandWriteTimestamp(
@@ -399,7 +399,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandBeginOcclusionQuery(
@@ -430,7 +430,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandEndOcclusionQuery(renderPass: GpuRenderPassHandle): Result<void, PlatformError>;
@@ -457,7 +457,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync.pipelineStatistics"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandBeginRenderPipelineStatisticsQuery(
@@ -488,7 +488,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync.pipelineStatistics"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandEndRenderPipelineStatisticsQuery(
@@ -517,7 +517,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync.pipelineStatistics"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandBeginComputePipelineStatisticsQuery(
@@ -548,7 +548,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync.pipelineStatistics"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandEndComputePipelineStatisticsQuery(
@@ -577,7 +577,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function commandResolveQueries(

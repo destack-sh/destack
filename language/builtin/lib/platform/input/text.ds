@@ -77,7 +77,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.text"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function textStart(
@@ -108,7 +108,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.text"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function textStop(
@@ -137,7 +137,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.text"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function textIsActive(handle: InputDeviceHandle): Result<boolean, PlatformError>;
@@ -164,7 +164,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.text"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function textSetArea(
@@ -195,7 +195,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.text"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "never",
     })
     export function textGetArea(
@@ -225,7 +225,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.text"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "sometimes",
     })
     export function textReadComposition(
@@ -254,7 +254,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.text"],
         platforms: ["windows", "unix"],
-        scope: "hybrid",
+        scope: "host",
         blocking: "never",
     })
     export function textTryReadComposition(

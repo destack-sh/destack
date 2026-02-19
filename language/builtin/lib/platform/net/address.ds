@@ -40,7 +40,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.address.localAddress", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], scope: "os", blocking: "never" })
+    @binding("destack.net.address.localAddress", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], scope: "host", blocking: "never" })
     export function localAddress(handle: SocketHandle): Result<SocketAddress, PlatformError>;
 
     /// Read the remote socket address as raw bytes.
@@ -60,6 +60,6 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.address.peerAddress", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], scope: "os", blocking: "never" })
+    @binding("destack.net.address.peerAddress", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], scope: "host", blocking: "never" })
     export function peerAddress(handle: SocketHandle): Result<SocketAddress, PlatformError>;
 }

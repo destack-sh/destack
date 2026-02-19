@@ -28,7 +28,7 @@ declare namespace tty {
             replay: "recordable",
             capabilities: ["tty.read"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -58,7 +58,7 @@ declare namespace tty {
             replay: "recordable",
             capabilities: ["tty.write"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

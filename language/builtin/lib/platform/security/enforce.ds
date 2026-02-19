@@ -122,7 +122,7 @@ declare namespace security {
             replay: "nonrecordable",
             capabilities: ["security.filter"],
             platforms: ["windows", "unix"],
-            scope: "hybrid",
+            scope: "host",
             blocking: "sometimes",
         },
     )

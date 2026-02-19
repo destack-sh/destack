@@ -1114,6 +1114,7 @@ impl<'call> AudioHarnessContext<'call> {
     ///
     /// Submit one packet of interleaved audio frames for one target presentation timestamp.
     /// Scheduling precision depends on host backend timing guarantees.
+    /// This is one optional scheduling lane and can return `notSupported` when unavailable.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1123,7 +1124,7 @@ impl<'call> AudioHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `audio.playback`.
+    /// Requires `audio.playback.schedule`.
     ///
     /// # Replay
     /// External, recordable.

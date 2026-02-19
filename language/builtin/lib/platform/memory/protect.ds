@@ -34,7 +34,7 @@ declare namespace memory {
             replay: "recordable",
             capabilities: ["memory.protect"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -64,7 +64,7 @@ declare namespace memory {
             replay: "recordable",
             capabilities: ["memory.protect"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -94,7 +94,7 @@ declare namespace memory {
             replay: "recordable",
             capabilities: ["memory.execute"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -124,7 +124,7 @@ declare namespace memory {
             replay: "recordable",
             capabilities: ["memory.execute"],
             platforms: ["windows", "unix"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

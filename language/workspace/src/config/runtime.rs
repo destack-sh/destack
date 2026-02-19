@@ -228,12 +228,10 @@ pub enum RuntimeFilterEngine {
 /// Binding scope selector for runtime rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RuntimeFilterScope {
-    /// Match OS scope bindings.
-    Os,
+    /// Match host scope bindings.
+    Host,
     /// Match runtime scope bindings.
     Runtime,
-    /// Match hybrid scope bindings.
-    Hybrid,
 }
 
 /// Blocking behavior selector for runtime rules.
@@ -914,20 +912,17 @@ impl From<RuntimeFilterEngineJson> for RuntimeFilterEngine {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum RuntimeFilterScopeJson {
-    /// Match OS scope bindings.
-    Os,
+    /// Match host scope bindings.
+    Host,
     /// Match runtime scope bindings.
     Runtime,
-    /// Match hybrid scope bindings.
-    Hybrid,
 }
 
 impl From<RuntimeFilterScopeJson> for RuntimeFilterScope {
     fn from(value: RuntimeFilterScopeJson) -> Self {
         match value {
-            RuntimeFilterScopeJson::Os => RuntimeFilterScope::Os,
+            RuntimeFilterScopeJson::Host => RuntimeFilterScope::Host,
             RuntimeFilterScopeJson::Runtime => RuntimeFilterScope::Runtime,
-            RuntimeFilterScopeJson::Hybrid => RuntimeFilterScope::Hybrid,
         }
     }
 }

@@ -7,7 +7,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
-    NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
+    NativeBinding, NativeBindingSet, ReplayPolicy, native_call,
 };
 use crate::platform::random::{
     RandomStream, RandomStreamDomain, RandomStreamState, RandomStreamStateReplayRecord,
@@ -30,9 +30,6 @@ use serde::{Deserialize, Serialize};
 use crate::platform::random as platform_random;
 use crate::platform::random::runtime::{
     native as platform_runtime_native, vm as platform_runtime_vm,
-};
-use crate::platform::random::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
 };
 use crate::platform::random::{native as platform_native, vm as platform_vm};
 
@@ -510,7 +507,7 @@ pub const RANDOM_SECURE_BYTES: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Random(RandomEventKind::Bytes),
         &["random.secure"],
-        BindingScope::Hybrid,
+        BindingScope::Runtime,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -536,7 +533,7 @@ pub const RANDOM_SECURE_BYTES_TRY: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["random.secure"],
-        BindingScope::Hybrid,
+        BindingScope::Runtime,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -562,7 +559,7 @@ pub const RANDOM_SECURE_INFO: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["random.secure"],
-        BindingScope::Hybrid,
+        BindingScope::Runtime,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -877,7 +874,6 @@ pub const RANDOM_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 #[inline]
 fn destack_random_secure_bytes_try_replay(
     context: &RuntimeCallContext,
-    world: RuntimeWorld,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = &buffer;
@@ -885,14 +881,7 @@ fn destack_random_secure_bytes_try_replay(
     context.replay().run_binding_with_payload_policy(
         RANDOM_SECURE_BYTES_TRY,
         context.replay_payload_for(RANDOM_SECURE_BYTES_TRY)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_random_secure_bytes_try(context, buffer)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_random_secure_bytes_try(context, buffer)
-            },
-        },
+        || unsafe { platform_runtime_native::destack_random_secure_bytes_try(context, buffer) },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
@@ -925,20 +914,12 @@ fn destack_random_secure_bytes_try_replay(
 #[inline]
 fn destack_random_secure_info_replay(
     context: &RuntimeCallContext,
-    world: RuntimeWorld,
     out: *mut SecureRandomInfo,
 ) -> RuntimeResult<()> {
     context.replay().run_binding_with_payload_policy(
         RANDOM_SECURE_INFO,
         context.replay_payload_for(RANDOM_SECURE_INFO)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_random_secure_info(context, out)
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_random_secure_info(context, out)
-            },
-        },
+        || unsafe { platform_runtime_native::destack_random_secure_info(context, out) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -1333,15 +1314,7 @@ pub unsafe extern "C" fn destack_random_secure_bytes(buffer: NativeSlice<u8>) ->
             context.random_stream_id(),
             || {
                 context.check_policy(RANDOM_SECURE_BYTES)?;
-                let world = context.check_and_resolve_world(RANDOM_SECURE_BYTES)?;
-                match world {
-                    RuntimeWorld::Host => unsafe {
-                        platform_native::destack_random_secure_bytes(context, buffer)
-                    },
-                    RuntimeWorld::Simulated => unsafe {
-                        platform_simulated_native::destack_random_secure_bytes(context, buffer)
-                    },
-                }
+                unsafe { platform_runtime_native::destack_random_secure_bytes(context, buffer) }
             },
             || {
                 let slice = unsafe { buffer.as_slice()? };
@@ -1369,8 +1342,7 @@ pub unsafe extern "C" fn destack_random_secure_bytes_try(buffer: NativeSlice<u8>
         let _ = &buffer;
 
         context.check_policy(RANDOM_SECURE_BYTES_TRY)?;
-        let world = context.check_and_resolve_world(RANDOM_SECURE_BYTES_TRY)?;
-        destack_random_secure_bytes_try_replay(context, world, buffer)
+        destack_random_secure_bytes_try_replay(context, buffer)
     })
 }
 
@@ -1383,8 +1355,7 @@ pub unsafe extern "C" fn destack_random_secure_info(out: *mut SecureRandomInfo) 
         let _ = &out;
 
         context.check_policy(RANDOM_SECURE_INFO)?;
-        let world = context.check_and_resolve_world(RANDOM_SECURE_INFO)?;
-        destack_random_secure_info_replay(context, world, out)
+        destack_random_secure_info_replay(context, out)
     })
 }
 
@@ -1602,7 +1573,6 @@ pub unsafe extern "C" fn destack_random_stream_split(
 fn destack_random_secure_bytes_try_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -1611,13 +1581,8 @@ fn destack_random_secure_bytes_try_vm_replay(
             RANDOM_SECURE_BYTES_TRY,
             runtime.replay_payload_for(RANDOM_SECURE_BYTES_TRY)?,
             context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_random_secure_bytes_try(runtime, context, buffer)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_random_secure_bytes_try(runtime, context, buffer)
-                }
+            |context| {
+                platform_runtime_vm::destack_random_secure_bytes_try(runtime, context, buffer)
             },
             |context, result| {
                 let _ = &context;
@@ -1656,7 +1621,6 @@ fn destack_random_secure_bytes_try_vm_replay(
 fn destack_random_secure_info_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -1664,12 +1628,7 @@ fn destack_random_secure_info_vm_replay(
             RANDOM_SECURE_INFO,
             runtime.replay_payload_for(RANDOM_SECURE_INFO)?,
             context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_random_secure_info(runtime, context),
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_random_secure_info(runtime, context)
-                }
-            },
+            |context| platform_runtime_vm::destack_random_secure_info(runtime, context),
             |context, result| {
                 let _ = &context;
                 if let Ok(value) = result {
@@ -2071,21 +2030,11 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         || unsafe {
                             {
                                 runtime.check_policy(RANDOM_SECURE_BYTES)?;
-                                let world = runtime.check_and_resolve_world(RANDOM_SECURE_BYTES)?;
-                                match world {
-                                    RuntimeWorld::Host => platform_vm::destack_random_secure_bytes(
-                                        runtime,
-                                        &mut *context_ptr,
-                                        buffer,
-                                    ),
-                                    RuntimeWorld::Simulated => {
-                                        platform_simulated_vm::destack_random_secure_bytes(
-                                            runtime,
-                                            &mut *context_ptr,
-                                            buffer,
-                                        )
-                                    }
-                                }
+                                platform_runtime_vm::destack_random_secure_bytes(
+                                    runtime,
+                                    &mut *context_ptr,
+                                    buffer,
+                                )
                             }
                         },
                         || unsafe { buffer.read_bytes(&*context_ptr) },
@@ -2109,8 +2058,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     runtime.check_policy(RANDOM_SECURE_BYTES_TRY)?;
-                    let world = runtime.check_and_resolve_world(RANDOM_SECURE_BYTES_TRY)?;
-                    destack_random_secure_bytes_try_vm_replay(runtime, context, world, buffer)
+                    destack_random_secure_bytes_try_vm_replay(runtime, context, buffer)
                 })
                 .map_err(Into::into)
             }
@@ -2125,8 +2073,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                 with_runtime_call_context(|runtime| {
                     // execute binding
                     runtime.check_policy(RANDOM_SECURE_INFO)?;
-                    let world = runtime.check_and_resolve_world(RANDOM_SECURE_INFO)?;
-                    destack_random_secure_info_vm_replay(runtime, context, world)
+                    destack_random_secure_info_vm_replay(runtime, context)
                 })
                 .map_err(Into::into)
             }

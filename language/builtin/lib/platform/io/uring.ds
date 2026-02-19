@@ -52,7 +52,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.uring"],
             platforms: ["linux"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -82,7 +82,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.uring"],
             platforms: ["linux"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -112,7 +112,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.uring"],
             platforms: ["linux"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -142,7 +142,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.register"],
             platforms: ["linux"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -172,7 +172,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.register"],
             platforms: ["linux"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -202,7 +202,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.register"],
             platforms: ["linux"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )
@@ -236,7 +236,7 @@ declare namespace io {
             replay: "recordable",
             capabilities: ["io.register"],
             platforms: ["linux"],
-            scope: "os",
+            scope: "host",
             blocking: "sometimes",
         },
     )

@@ -129,7 +129,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.stream"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function streamOpen(
@@ -159,7 +159,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.stream"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function streamClose(handle: AudioStreamHandle): Result<void, PlatformError>;
@@ -186,7 +186,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.stream"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function streamStart(handle: AudioStreamHandle): Result<void, PlatformError>;
@@ -213,7 +213,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.stream"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function streamStop(handle: AudioStreamHandle): Result<void, PlatformError>;
@@ -240,7 +240,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function streamState(handle: AudioStreamHandle): Result<AudioStreamState, PlatformError>;
@@ -267,7 +267,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function streamInfo(handle: AudioStreamHandle): Result<AudioStreamInfo, PlatformError>;
@@ -294,7 +294,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function streamTiming(handle: AudioStreamHandle): Result<AudioStreamTiming, PlatformError>;
@@ -321,7 +321,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function streamAvailability(handle: AudioStreamHandle): Result<AudioStreamAvailability, PlatformError>;
@@ -348,7 +348,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function streamFlush(handle: AudioStreamHandle): Result<void, PlatformError>;
@@ -375,7 +375,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.playback"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function streamDrain(handle: AudioStreamHandle, timeoutNs: uint64): Result<void, PlatformError>;
@@ -402,7 +402,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function streamSetVolume(handle: AudioStreamHandle, linearGain: float64): Result<void, PlatformError>;
@@ -429,7 +429,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function streamSetMute(handle: AudioStreamHandle, muted: boolean): Result<void, PlatformError>;
@@ -456,7 +456,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.playback"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function streamWrite(handle: AudioStreamHandle, data: Slice<uint8>): Result<uint64, PlatformError>;
@@ -483,7 +483,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.playback"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function streamTryWrite(handle: AudioStreamHandle, data: Slice<uint8>): Result<uint64, PlatformError>;
@@ -511,7 +511,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.playback.schedule"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function streamWriteAt(
@@ -542,7 +542,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.capture"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function streamRead(handle: AudioStreamHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>;
@@ -569,7 +569,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.capture"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function streamTryRead(handle: AudioStreamHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>;

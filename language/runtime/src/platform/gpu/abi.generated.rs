@@ -1013,6 +1013,47 @@ impl VmValueCodec for GpuSamplerBindingType {
     }
 }
 
+/// ABI enum for GpuShaderFormat.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GpuShaderFormat {
+    /// Wgsl.
+    Wgsl = 1,
+    /// SpirV.
+    SpirV = 2,
+    /// Msl.
+    Msl = 3,
+    /// HlslOrDxil.
+    HlslOrDxil = 4,
+    /// Glsl.
+    Glsl = 5,
+}
+
+impl VmValueCodec for GpuShaderFormat {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Wgsl,
+            2u8 => Self::SpirV,
+            3u8 => Self::Msl,
+            4u8 => Self::HlslOrDxil,
+            5u8 => Self::Glsl,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuShaderFormat value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
 /// ABI enum for GpuStencilOperation.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1622,20 +1663,36 @@ impl VmAggregateCodec for GpuAdapterInfoAbi<VmAbi> {
 pub struct GpuAdapterLimits {
     /// The max_bind_groups field.
     pub max_bind_groups: u32,
+    /// The max_bindings_per_bind_group field.
+    pub max_bindings_per_bind_group: u32,
     /// The max_push_constant_bytes field.
     pub max_push_constant_bytes: u32,
+    /// The max_texture_dimension1_d field.
+    pub max_texture_dimension1_d: u32,
     /// The max_texture_dimension2_d field.
     pub max_texture_dimension2_d: u32,
+    /// The max_texture_dimension3_d field.
+    pub max_texture_dimension3_d: u32,
+    /// The max_texture_array_layers field.
+    pub max_texture_array_layers: u32,
     /// The max_color_attachments field.
     pub max_color_attachments: u32,
+    /// The max_color_attachment_bytes_per_sample field.
+    pub max_color_attachment_bytes_per_sample: u32,
     /// The max_sampled_textures_per_stage field.
     pub max_sampled_textures_per_stage: u32,
     /// The max_samplers_per_stage field.
     pub max_samplers_per_stage: u32,
     /// The max_storage_buffers_per_stage field.
     pub max_storage_buffers_per_stage: u32,
+    /// The max_storage_textures_per_stage field.
+    pub max_storage_textures_per_stage: u32,
     /// The max_uniform_buffers_per_stage field.
     pub max_uniform_buffers_per_stage: u32,
+    /// The max_dynamic_uniform_buffers_per_pipeline_layout field.
+    pub max_dynamic_uniform_buffers_per_pipeline_layout: u32,
+    /// The max_dynamic_storage_buffers_per_pipeline_layout field.
+    pub max_dynamic_storage_buffers_per_pipeline_layout: u32,
     /// The max_uniform_buffer_binding_size field.
     pub max_uniform_buffer_binding_size: u64,
     /// The max_storage_buffer_binding_size field.
@@ -1644,6 +1701,30 @@ pub struct GpuAdapterLimits {
     pub min_storage_buffer_offset_alignment: u32,
     /// The min_uniform_buffer_offset_alignment field.
     pub min_uniform_buffer_offset_alignment: u32,
+    /// The max_vertex_buffers field.
+    pub max_vertex_buffers: u32,
+    /// The max_vertex_attributes field.
+    pub max_vertex_attributes: u32,
+    /// The max_vertex_buffer_array_stride field.
+    pub max_vertex_buffer_array_stride: u32,
+    /// The max_buffer_size field.
+    pub max_buffer_size: u64,
+    /// The max_inter_stage_shader_components field.
+    pub max_inter_stage_shader_components: u32,
+    /// The max_inter_stage_shader_variables field.
+    pub max_inter_stage_shader_variables: u32,
+    /// The max_compute_workgroup_storage_size field.
+    pub max_compute_workgroup_storage_size: u32,
+    /// The max_compute_invocations_per_workgroup field.
+    pub max_compute_invocations_per_workgroup: u32,
+    /// The max_compute_workgroup_size_x field.
+    pub max_compute_workgroup_size_x: u32,
+    /// The max_compute_workgroup_size_y field.
+    pub max_compute_workgroup_size_y: u32,
+    /// The max_compute_workgroup_size_z field.
+    pub max_compute_workgroup_size_z: u32,
+    /// The max_compute_workgroups_per_dimension field.
+    pub max_compute_workgroups_per_dimension: u32,
 }
 
 pub type GpuAdapterLimitsVm = GpuAdapterLimits;
@@ -1663,50 +1744,112 @@ impl VmAggregateCodec for GpuAdapterLimits {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 12 {
+        if slots.len() != 32 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 12 fields",
+                "expected 32 fields",
             ))
             .boxed());
         }
         let field_max_bind_groups =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_max_push_constant_bytes =
+        let field_max_bindings_per_bind_group =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_max_texture_dimension2_d =
+        let field_max_push_constant_bytes =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_max_color_attachments =
+        let field_max_texture_dimension1_d =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_max_sampled_textures_per_stage =
+        let field_max_texture_dimension2_d =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_max_samplers_per_stage =
+        let field_max_texture_dimension3_d =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_max_storage_buffers_per_stage =
+        let field_max_texture_array_layers =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_max_uniform_buffers_per_stage =
+        let field_max_color_attachments =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_max_uniform_buffer_binding_size =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_max_storage_buffer_binding_size =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_min_storage_buffer_offset_alignment =
+        let field_max_color_attachment_bytes_per_sample =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_max_sampled_textures_per_stage =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_max_samplers_per_stage =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_min_uniform_buffer_offset_alignment =
+        let field_max_storage_buffers_per_stage =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_max_storage_textures_per_stage =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_max_uniform_buffers_per_stage =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+        let field_max_dynamic_uniform_buffers_per_pipeline_layout =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+        let field_max_dynamic_storage_buffers_per_pipeline_layout =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+        let field_max_uniform_buffer_binding_size =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+        let field_max_storage_buffer_binding_size =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+        let field_min_storage_buffer_offset_alignment =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[18])?;
+        let field_min_uniform_buffer_offset_alignment =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[19])?;
+        let field_max_vertex_buffers =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[20])?;
+        let field_max_vertex_attributes =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[21])?;
+        let field_max_vertex_buffer_array_stride =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[22])?;
+        let field_max_buffer_size =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[23])?;
+        let field_max_inter_stage_shader_components =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[24])?;
+        let field_max_inter_stage_shader_variables =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[25])?;
+        let field_max_compute_workgroup_storage_size =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[26])?;
+        let field_max_compute_invocations_per_workgroup =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[27])?;
+        let field_max_compute_workgroup_size_x =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[28])?;
+        let field_max_compute_workgroup_size_y =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[29])?;
+        let field_max_compute_workgroup_size_z =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[30])?;
+        let field_max_compute_workgroups_per_dimension =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[31])?;
         Ok(Self {
             max_bind_groups: field_max_bind_groups,
+            max_bindings_per_bind_group: field_max_bindings_per_bind_group,
             max_push_constant_bytes: field_max_push_constant_bytes,
+            max_texture_dimension1_d: field_max_texture_dimension1_d,
             max_texture_dimension2_d: field_max_texture_dimension2_d,
+            max_texture_dimension3_d: field_max_texture_dimension3_d,
+            max_texture_array_layers: field_max_texture_array_layers,
             max_color_attachments: field_max_color_attachments,
+            max_color_attachment_bytes_per_sample: field_max_color_attachment_bytes_per_sample,
             max_sampled_textures_per_stage: field_max_sampled_textures_per_stage,
             max_samplers_per_stage: field_max_samplers_per_stage,
             max_storage_buffers_per_stage: field_max_storage_buffers_per_stage,
+            max_storage_textures_per_stage: field_max_storage_textures_per_stage,
             max_uniform_buffers_per_stage: field_max_uniform_buffers_per_stage,
+            max_dynamic_uniform_buffers_per_pipeline_layout:
+                field_max_dynamic_uniform_buffers_per_pipeline_layout,
+            max_dynamic_storage_buffers_per_pipeline_layout:
+                field_max_dynamic_storage_buffers_per_pipeline_layout,
             max_uniform_buffer_binding_size: field_max_uniform_buffer_binding_size,
             max_storage_buffer_binding_size: field_max_storage_buffer_binding_size,
             min_storage_buffer_offset_alignment: field_min_storage_buffer_offset_alignment,
             min_uniform_buffer_offset_alignment: field_min_uniform_buffer_offset_alignment,
+            max_vertex_buffers: field_max_vertex_buffers,
+            max_vertex_attributes: field_max_vertex_attributes,
+            max_vertex_buffer_array_stride: field_max_vertex_buffer_array_stride,
+            max_buffer_size: field_max_buffer_size,
+            max_inter_stage_shader_components: field_max_inter_stage_shader_components,
+            max_inter_stage_shader_variables: field_max_inter_stage_shader_variables,
+            max_compute_workgroup_storage_size: field_max_compute_workgroup_storage_size,
+            max_compute_invocations_per_workgroup: field_max_compute_invocations_per_workgroup,
+            max_compute_workgroup_size_x: field_max_compute_workgroup_size_x,
+            max_compute_workgroup_size_y: field_max_compute_workgroup_size_y,
+            max_compute_workgroup_size_z: field_max_compute_workgroup_size_z,
+            max_compute_workgroups_per_dimension: field_max_compute_workgroups_per_dimension,
         })
     }
 
@@ -1716,9 +1859,20 @@ impl VmAggregateCodec for GpuAdapterLimits {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.max_bind_groups, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_bindings_per_bind_group,
+                context,
+            )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.max_push_constant_bytes, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_texture_dimension1_d, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.max_texture_dimension2_d, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_texture_dimension3_d, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_texture_array_layers, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.max_color_attachments, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_color_attachment_bytes_per_sample,
+                context,
+            )?,
             <u32 as VmAggregateCodec>::encode_with_context(
                 self.max_sampled_textures_per_stage,
                 context,
@@ -1729,7 +1883,19 @@ impl VmAggregateCodec for GpuAdapterLimits {
                 context,
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_storage_textures_per_stage,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
                 self.max_uniform_buffers_per_stage,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_dynamic_uniform_buffers_per_pipeline_layout,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_dynamic_storage_buffers_per_pipeline_layout,
                 context,
             )?,
             <u64 as VmAggregateCodec>::encode_with_context(
@@ -1746,6 +1912,45 @@ impl VmAggregateCodec for GpuAdapterLimits {
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(
                 self.min_uniform_buffer_offset_alignment,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_vertex_buffers, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_vertex_attributes, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_vertex_buffer_array_stride,
+                context,
+            )?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.max_buffer_size, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_inter_stage_shader_components,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_inter_stage_shader_variables,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_compute_workgroup_storage_size,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_compute_invocations_per_workgroup,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_compute_workgroup_size_x,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_compute_workgroup_size_y,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_compute_workgroup_size_z,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_compute_workgroups_per_dimension,
                 context,
             )?,
         ];
@@ -5152,7 +5357,7 @@ impl VmAggregateCodec for GpuSamplerOptions {
 #[repr(C)]
 pub struct GpuShaderOptionsAbi<A: BindingAbi> {
     /// The format field.
-    pub format: u32,
+    pub format: GpuShaderFormat,
     /// The flags field.
     pub flags: u32,
     /// The label field.
@@ -5205,7 +5410,8 @@ impl VmAggregateCodec for GpuShaderOptionsAbi<VmAbi> {
             ))
             .boxed());
         }
-        let field_format = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_format =
+            <GpuShaderFormat as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_label =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
@@ -5221,7 +5427,7 @@ impl VmAggregateCodec for GpuShaderOptionsAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.format, context)?,
+            <GpuShaderFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
         ];
@@ -6524,7 +6730,7 @@ pub struct GpuRenderPipelineOptionsReplayRecord {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuShaderOptionsReplayRecord {
     /// The format field.
-    pub format: u32,
+    pub format: GpuShaderFormat,
     /// The flags field.
     pub flags: u32,
     /// The label field.

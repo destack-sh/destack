@@ -195,7 +195,8 @@ fn read_composition_event(
 
 /// Get text input area.
 ///
-/// Return the currently configured text input area and cursor position hint for one opened input device and one optional window target.
+/// Return the currently configured text input area and cursor position hint.
+/// Resolve state for one opened input device and one optional window target.
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
@@ -339,8 +340,10 @@ pub(crate) unsafe fn destack_input_text_set_area(
 /// Text conversion behavior follows host IME and keyboard policy for the selected target scope.
 ///
 /// # Platform
-/// Unix and Windows, with operation-level `notSupported` where text input sessions or one window scope are unavailable.
-/// Uses backend-specific text input activation primitives and host IME activation for global or window-scoped paths.
+/// Unix and Windows.
+/// Returns operation-level `notSupported` where text input sessions or one window scope are unavailable.
+/// Uses backend-specific text input activation primitives.
+/// Uses host IME activation for global or window-scoped paths.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.

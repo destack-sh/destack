@@ -33,8 +33,6 @@ pub enum AudioBackend {
     AAudio = 6,
     /// OpenSLES.
     OpenSLES = 7,
-    /// WebAudio.
-    WebAudio = 8,
     /// Null.
     Null = 255,
 }
@@ -51,7 +49,6 @@ impl VmValueCodec for AudioBackend {
             5u8 => Self::Wasapi,
             6u8 => Self::AAudio,
             7u8 => Self::OpenSLES,
-            8u8 => Self::WebAudio,
             255u8 => Self::Null,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
@@ -356,8 +353,6 @@ impl VmValueCodec for AudioStreamStateKind {
 pub enum AudioStreamTransferMode {
     /// Push.
     Push = 1,
-    /// Pull.
-    Pull = 2,
 }
 
 impl VmValueCodec for AudioStreamTransferMode {
@@ -365,7 +360,6 @@ impl VmValueCodec for AudioStreamTransferMode {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1u8 => Self::Push,
-            2u8 => Self::Pull,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",

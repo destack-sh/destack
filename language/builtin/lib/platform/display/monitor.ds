@@ -52,7 +52,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.read"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function list(): Result<Slice<DisplayInfo>, PlatformError>;
@@ -79,7 +79,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.read"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function open(id: string): Result<DisplayHandle, PlatformError>;
@@ -106,7 +106,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.read"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "never",
     })
     export function close(handle: DisplayHandle): Result<void, PlatformError>;
@@ -133,7 +133,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.mode"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function modes(handle: DisplayHandle): Result<Slice<DisplayMode>, PlatformError>;
@@ -160,7 +160,7 @@ declare namespace display {
         replay: "nonrecordable",
         capabilities: ["display.mode"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "host",
         blocking: "sometimes",
     })
     export function setMode(handle: DisplayHandle, mode: DisplayMode): Result<void, PlatformError>;
