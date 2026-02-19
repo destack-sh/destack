@@ -42,6 +42,7 @@ This is the open source monorepo containing the language, library, and platform 
 | `language/`  | Language toolchain (parser, compiler, formatter, LSP, etc.)    | [language/README](language/README.md)  |
 | `library/`   | Standard library (entity, telemetry, math, physics, UI, etc.)  | [library/README](library/README.md)   |
 | `platform/`  | Platform features (CLI, IDE integrations, build plugins, etc.) | [platform/README](platform/README.md)  |
+| `docs/`      | Additional project documentation                                  | [docs/README](docs/README.md)          |
 | `examples/`  | Example projects                                               | [examples/README](examples/README.md)  |
 | `templates/` | Project templates for `destack new`                            | [templates/README](templates/README.md) |
 
@@ -78,3 +79,10 @@ just language/ci
 just library/ci
 just platform/ci
 ```
+
+## Release Credentials
+
+Publishing commands load credentials from `.env.local` via `just`.
+The canonical env vars are `NPM_TOKEN`, `CARGO_TOKEN`, `PYPI_TOKEN`, and `VSCE_PAT`.
+The release workflow expects the same names as GitHub environment secrets.
+Zed registry publishing additionally uses `ZED_GITHUB_TOKEN` and `ZED_REGISTRY_PUSH_TO`.

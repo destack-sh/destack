@@ -45,9 +45,12 @@ members = [
 	"language/unicode",
 	"language/workspace",
 	"language/service",
+	# client
+	"client/napi",
+	"client/wasm",
+	"client/rust",
+	"client/python/rust",
 	# platform
-	"platform/napi",
-	"platform/wasm",
 	"platform/cli",
 	"platform/daemon",
 	"platform/lsp",
@@ -94,9 +97,13 @@ destack_unicode = { path = "language/unicode" }
 destack_workspace = { path = "language/workspace" }
 destack_service = { path = "language/service" }
 
+# client
+destack_napi = { path = "client/napi" }
+destack_wasm = { path = "client/wasm" }
+destack = { path = "client/rust" }
+destack_python = { path = "client/python/rust" }
+
 # platform
-destack_napi = { path = "platform/napi" }
-destack_wasm = { path = "platform/wasm" }
 destack_cli = { path = "platform/cli" }
 destack_daemon = { path = "platform/daemon" }
 destack_lsp = { path = "platform/lsp" }
