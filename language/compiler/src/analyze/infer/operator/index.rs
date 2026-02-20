@@ -210,12 +210,13 @@ impl Compiler {
             infer,
         )?
         else {
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                receiver_ty: receiver_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                receiver_ty_id,
+                types,
+            );
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
@@ -236,12 +237,13 @@ impl Compiler {
                 infer,
                 types,
             )?;
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                receiver_ty: receiver_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                receiver_ty_id,
+                types,
+            );
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
@@ -252,12 +254,13 @@ impl Compiler {
         // resolve index parameter type
         let parameter_ty_id = resolved.signature.dynamic_parameters.first().copied();
         if resolved.signature.dynamic_parameters.len() != 1 {
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                receiver_ty: receiver_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                receiver_ty_id,
+                types,
+            );
         }
 
         // check index argument assignability
@@ -277,13 +280,16 @@ impl Compiler {
                 types,
                 &options,
             ) {
-                return Err(AnalyzeError::UnassignableType {
-                    node: expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(ctx.profile)),
-                    expected_ty: parameter_ty_id.into_global(module.id),
-                    actual_ty: index_ty_id.into_global(module.id),
-                });
+                if let Some(error) = self.unassignable_type_error_for_types(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    parameter_ty_id,
+                    index_ty_id,
+                    types,
+                ) {
+                    return Err(error);
+                }
             }
         }
 
@@ -473,13 +479,16 @@ impl Compiler {
                 types,
                 &options,
             ) {
-                return Err(AnalyzeError::UnassignableType {
-                    node: expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(ctx.profile)),
-                    expected_ty: builtin_value_ty_id.into_global(module.id),
-                    actual_ty: value_ty_id.into_global(module.id),
-                });
+                if let Some(error) = self.unassignable_type_error_for_types(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    builtin_value_ty_id,
+                    value_ty_id,
+                    types,
+                ) {
+                    return Err(error);
+                }
             }
 
             self.commit_builtin_resolution(
@@ -531,12 +540,13 @@ impl Compiler {
             infer,
         )?
         else {
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                receiver_ty: receiver_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                receiver_ty_id,
+                types,
+            );
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
             };
@@ -556,12 +566,13 @@ impl Compiler {
                 infer,
                 types,
             )?;
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                receiver_ty: receiver_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                receiver_ty_id,
+                types,
+            );
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
             };
@@ -572,12 +583,13 @@ impl Compiler {
         let key_param_ty_id = resolved.signature.dynamic_parameters.first().copied();
         let value_param_ty_id = resolved.signature.dynamic_parameters.get(1).copied();
         if resolved.signature.dynamic_parameters.len() != 2 {
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                receiver_ty: receiver_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                receiver_ty_id,
+                types,
+            );
         }
 
         // check key argument assignability
@@ -632,13 +644,16 @@ impl Compiler {
                 types,
                 &options,
             ) {
-                return Err(AnalyzeError::UnassignableType {
-                    node: expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(ctx.profile)),
-                    expected_ty: value_param_ty_id.into_global(module.id),
-                    actual_ty: value_ty_id.into_global(module.id),
-                });
+                if let Some(error) = self.unassignable_type_error_for_types(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    value_param_ty_id,
+                    value_ty_id,
+                    types,
+                ) {
+                    return Err(error);
+                }
             }
         }
 

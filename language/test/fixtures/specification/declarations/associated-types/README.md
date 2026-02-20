@@ -17,3 +17,4 @@ Associated types are static type members on class-shaped declarations.
 - `structs.md`: Struct associated type declarations and projections.
 - `classes.md`: Class associated type declarations and constraints.
 - `interfaces.md`: Interface associated types and implementor requirements.
+- `modules.md`: Cross module import and export projection coverage.

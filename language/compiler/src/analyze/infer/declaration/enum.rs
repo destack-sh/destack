@@ -231,7 +231,7 @@ impl Compiler {
             ));
         }
 
-        self.with_module_symbols_for_stage(
+        self.with_module_symbols_at_stage(
             module,
             profile,
             target_symbol.module_id,
@@ -310,7 +310,7 @@ impl Compiler {
             ));
         }
 
-        self.with_module_types_mut_for_stage(
+        self.with_module_types_mut_at_stage(
             module,
             profile,
             enum_symbol.module_id,
@@ -400,7 +400,7 @@ impl Compiler {
         // resolve backing types in remote modules when needed
         if enum_symbol.module_id != module.id {
             return self
-                .with_module_types_mut_for_stage(
+                .with_module_types_mut_at_stage(
                     module,
                     profile,
                     enum_symbol.module_id,
@@ -502,12 +502,13 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> Vec<GlobalSymbolId> {
-        self.with_module_tree_symbols_or_local(
+        self.with_module_tree_symbols_or_local_at_stage(
             module,
             profile,
             enum_symbol.module_id,
             tree,
             symbols,
+            AnalyzeDependencyStage::Declare,
             |owner_module, owner_tree, owner_symbols| {
                 let fields =
                     self.enum_fields_for_symbol_in_tree(enum_symbol, owner_tree, owner_symbols);
@@ -517,6 +518,7 @@ impl Compiler {
                     .collect()
             },
         )
+        .unwrap_or_default()
     }
 
     /// Resolve the integer backing type for an enum expression.
@@ -586,7 +588,7 @@ impl Compiler {
         // resolve fields in remote modules when needed
         if enum_symbol.module_id != module.id {
             return self
-                .with_module_tree_symbols_for_stage(
+                .with_module_tree_symbols_at_stage(
                     module,
                     profile,
                     enum_symbol.module_id,

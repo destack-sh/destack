@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use super::member::MemberLookupMode;
 
 use crate::analyze::common::CanonicalSymbolMode;
-use crate::{AnalyzeError, AnalyzeResult, Compiler, InferContext};
+use crate::{AnalyzeResult, Compiler, InferContext};
 use destack_dir::{
     Declaration, Expression, GlobalSymbolId, InferTable, LocalNodeId, LocalTypeId, NodeTree,
     NormalizationMode, Pattern, PatternField, ScalarLiteral, StaticKey, SymbolTable, SymbolType,
@@ -135,13 +135,14 @@ impl Compiler {
                         &ctx.options,
                     );
                     if !assignable.is_assignable() {
-                        self.error(AnalyzeError::UnassignableType {
-                            node: value
-                                .into_global_any(module.id)
-                                .into_anchored(Some(ctx.profile)),
-                            expected_ty: binding_ty_id.into_global(module.id),
-                            actual_ty: value_ty_id.into_global(module.id),
-                        });
+                        let _reported = self.report_unassignable_type_for_types(
+                            module,
+                            ctx.profile,
+                            value.into_any(),
+                            binding_ty_id,
+                            value_ty_id,
+                            types,
+                        );
                     }
                 }
             }
@@ -244,13 +245,14 @@ impl Compiler {
                         },
                         pattern_id.into_any(),
                     );
-                    self.error(AnalyzeError::UnassignableType {
-                        node: pattern_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(ctx.profile)),
-                        expected_ty: binding_ty_id.into_global(module.id),
-                        actual_ty: object_ty_id.into_global(module.id),
-                    });
+                    let _reported = self.report_unassignable_type_for_types(
+                        module,
+                        ctx.profile,
+                        pattern_id.into_any(),
+                        binding_ty_id,
+                        object_ty_id,
+                        types,
+                    );
                 }
 
                 for field_id in fields {
@@ -984,14 +986,14 @@ impl Compiler {
                 is_readonly: false,
             };
             let actual_ty_id = types.insert_type_from(actual_ty, first_field_id);
-            let error_node = first_field_id
-                .into_global_any(module.id)
-                .into_anchored(Some(ctx.profile));
-            self.error(AnalyzeError::UnassignableType {
-                node: error_node,
-                expected_ty: binding_ty_id.into_global(module.id),
-                actual_ty: actual_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_unassignable_type_for_types(
+                module,
+                ctx.profile,
+                first_field_id.into_any(),
+                binding_ty_id,
+                actual_ty_id,
+                types,
+            );
         }
 
         let spread_len = binding_ty_fields.len().saturating_sub(fields.len() - 1);

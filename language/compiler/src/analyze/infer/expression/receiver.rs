@@ -1,6 +1,6 @@
 use super::member::{MemberLookupMode, MemberReceiverContext};
 use crate::Compiler;
-use crate::analyze::common::CanonicalSymbolMode;
+use crate::analyze::common::{AnalyzeDependencyStage, CanonicalSymbolMode};
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree, SymbolSpace, SymbolTable,
     SymbolType, Type, TypeTable,
@@ -183,6 +183,7 @@ impl Compiler {
             tree,
             symbols,
         )?;
+        let symbol = self.resolve_type_reference_symbol(module, profile, symbol, tree, symbols);
 
         // keep only nominal symbols in value space
         if !matches!(
@@ -197,8 +198,9 @@ impl Compiler {
             return Some(symbol);
         }
 
-        let space = self.infer_symbol_space_for_global(module, profile, symbol, symbols);
-        if matches!(space, SymbolSpace::Value | SymbolSpace::TypeValue) {
+        let space =
+            self.query_symbol_space_for_global_non_blocking(module, profile, symbol, symbols);
+        if space.is_some_and(|space| matches!(space, SymbolSpace::Value | SymbolSpace::TypeValue)) {
             Some(symbol)
         } else {
             None
@@ -261,20 +263,22 @@ impl Compiler {
         })
     }
 
-    /// Resolve the symbol space for a global symbol.
-    fn infer_symbol_space_for_global(
+    /// Resolve symbol space for one global symbol without blocking on remote readiness.
+    fn query_symbol_space_for_global_non_blocking(
         &self,
         module: &Module,
         profile: ProfileId,
         symbol: GlobalSymbolId,
         symbols: &SymbolTable,
-    ) -> SymbolSpace {
-        self.with_module_symbols_or_local(
+    ) -> Option<SymbolSpace> {
+        self.with_module_symbols_or_local_at_stage(
             module,
             profile,
             symbol.module_id,
             symbols,
+            AnalyzeDependencyStage::Declare,
             |_, owner_symbols| owner_symbols.get_symbol(symbol.local_id).space,
         )
+        .ok()
     }
 }

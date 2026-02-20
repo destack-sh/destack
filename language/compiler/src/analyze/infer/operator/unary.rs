@@ -68,12 +68,13 @@ impl Compiler {
             symbols,
             types,
         ) {
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                receiver_ty: right_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                right_ty_id,
+                types,
+            );
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
@@ -97,12 +98,13 @@ impl Compiler {
             infer,
         )?
         else {
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                receiver_ty: right_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                right_ty_id,
+                types,
+            );
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
@@ -122,12 +124,13 @@ impl Compiler {
                 infer,
                 types,
             )?;
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                receiver_ty: right_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                right_ty_id,
+                types,
+            );
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
@@ -136,12 +139,13 @@ impl Compiler {
 
         // unary operators expect no dynamic parameters
         if !resolved.signature.dynamic_parameters.is_empty() {
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                receiver_ty: right_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                right_ty_id,
+                types,
+            );
         }
 
         // finalize resolution and instance registration

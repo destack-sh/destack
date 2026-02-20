@@ -215,8 +215,10 @@ impl Compiler {
             false
         };
 
-        // allow associated projection fallback for static-argument receivers
-        if receiver_context.has_static_arguments
+        // allow associated projection fallback for type-value receivers:
+        // this covers both explicit static-argument projections and non-generic
+        // owner projections like `Owner.AssociatedComptime`
+        if (receiver_context.has_static_arguments || nominal_receiver)
             && let Some(selection) = self.select_associated_projection_member_symbol(
                 module,
                 profile,
@@ -302,7 +304,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-    ) -> LocalTypeId {
+    ) -> AnalyzeResult<LocalTypeId> {
         // infer index signature fallback for missing concrete members
         let mut index_visited = Vec::new();
         let index_signature_ty_id = self.infer_index_signature_value_type_for_key(
@@ -340,17 +342,45 @@ impl Compiler {
                 types,
             );
 
-            return index_signature_ty_id;
+            return Ok(index_signature_ty_id);
         }
 
-        // report missing member with unknown fallback type
-        self.error(AnalyzeError::MissingMember {
-            node: expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile)),
-            receiver_ty: receiver_ty_id.into_global(module.id),
-            member_key: member_key.clone(),
-        });
+        // suppress missing-member follow-ons only when a primary semantic fault blocks lookup
+        let allow_associated_contract_blocker = self
+            .query_expression_is_projection_receiver_for_infer(
+                module,
+                profile,
+                receiver_id,
+                tree,
+                symbols,
+                types,
+            );
+        let reported = self.report_missing_member_diagnostic_for_receiver_type(
+            module,
+            profile,
+            expression_id,
+            receiver_ty_id,
+            member_key.clone(),
+            symbols,
+            types,
+            allow_associated_contract_blocker,
+        )?;
+        if !reported {
+            self.commit_member_resolution(
+                expression_id.into_global_any(module.id),
+                Some(receiver_ty_id),
+                member_resolution,
+                None,
+                None,
+                false,
+                types,
+            );
+
+            return Ok(types.insert_type_from(Type::Error, expression_id));
+        }
+
+        // keep unresolved member resolution for downstream consumers
+        // and preserve unknown fallback after a reported missing member
 
         // commit unresolved member resolution for downstream consumers
         self.commit_member_resolution(
@@ -366,7 +396,7 @@ impl Compiler {
         let ty = Type::TypeLiteral {
             value: TypeLiteral::Unknown,
         };
-        types.insert_type_from(ty, expression_id)
+        Ok(types.insert_type_from(ty, expression_id))
     }
 
     /// Resolve the member symbol for a type and member key.
@@ -556,7 +586,7 @@ impl Compiler {
         }
 
         let resolved = self
-            .with_module_tree_symbols_for_stage(
+            .with_module_tree_symbols_at_stage(
                 module,
                 profile,
                 symbol.module_id,
@@ -806,7 +836,7 @@ impl Compiler {
             ));
         }
 
-        self.with_module_tree_symbols_for_stage(
+        self.with_module_tree_symbols_at_stage(
             module,
             profile,
             extension_symbol.module_id,

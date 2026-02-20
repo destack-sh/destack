@@ -6,6 +6,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
+use super::AnalyzeDependencyStage;
 use super::r#type::TypeContainmentVisitor;
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 
@@ -112,8 +113,8 @@ impl Compiler {
         }
 
         // skip error types to avoid noisy diagnostics
-        if matches!(types.get_type(expected_ty_id), Type::Error)
-            || matches!(types.get_type(actual_ty_id), Type::Error)
+        if self.type_blocks_follow_on_diagnostic(expected_ty_id, types)
+            || self.type_blocks_follow_on_diagnostic(actual_ty_id, types)
         {
             return;
         }
@@ -158,7 +159,7 @@ impl Compiler {
         }
 
         // skip error types to avoid noisy diagnostics
-        if matches!(types.get_type(inferred_ty_id), Type::Error) {
+        if self.type_blocks_follow_on_diagnostic(inferred_ty_id, types) {
             return;
         }
 
@@ -273,17 +274,20 @@ impl Compiler {
         types: &TypeTable,
         handle: impl FnOnce(&Module, &TypeTable, LocalTypeId, &Type) -> R,
     ) -> Option<R> {
-        self.with_module_types_or_local(
+        self.with_module_types_or_local_at_stage(
             module,
             profile,
             symbol.module_id,
             types,
+            AnalyzeDependencyStage::Declare,
             |owner_module, owner_types| {
                 let target_id = owner_types.get_alias_target_type_id(symbol)?;
                 let target_ty = owner_types.get_type(target_id);
                 Some(handle(owner_module, owner_types, target_id, target_ty))
             },
         )
+        .ok()
+        .flatten()
     }
 
     /// Decide whether a type literal implies managed defaults.

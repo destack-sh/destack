@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::analyze::common::{StaticMemberSymbolKind, TypeRewriteCache};
+use crate::analyze::common::{NormalizationMode, StaticMemberSymbolKind, TypeRewriteCache};
 use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeResult, Assignability, Compiler, FlowContext, InferSession,
@@ -17,6 +17,7 @@ use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
     Module, ModuleContent, ModuleGraphKey, ModuleSource, ModuleType, ProfileId,
 };
+use std::collections::HashSet;
 
 use super::super::common::json_value_to_type;
 
@@ -113,8 +114,13 @@ impl Compiler {
         drop(symbols);
         drop(tree);
 
+        // require builtins before establishing infer dependency preconditions
+        self.require_resolve_builtins(profile)?;
+
         self.require_analyze_module_export(module_id, profile)?;
-        self.require_export_inference_dependencies(module_id, profile)?;
+        self.require_declare_dependencies_for_infer(module_id, profile)?;
+        self.require_export_dependencies_for_infer(module_id, profile)?;
+        self.require_declare_inference_for_builtin_modules(module_id, profile)?;
         self.require_export_inference_for_ambient_libs(profile)?;
 
         let dir = module.dir(profile);
@@ -124,11 +130,13 @@ impl Compiler {
         let mut collector = TaskResultCollector::new();
         let options = self.analyze_context_options_for_module(module.id);
 
-        // require builtins for inference
-        self.require_resolve_builtins(profile)?;
-
         // initialize infer session state
         let mut session = InferSession::new(profile, options);
+
+        // resolve declarator annotation types before runtime root inference
+        self.prepare_declarator_annotation_types_for_infer(
+            &module, profile, &tree, &symbols, &mut types,
+        )?;
 
         // build a module level flow graph and flow table when needed
         let flow_roots = {
@@ -162,6 +170,27 @@ impl Compiler {
                 graph: Arc::new(graph),
                 table: Arc::new(flow),
             });
+        }
+
+        // report expression form diagnostics once before type inference
+        {
+            let _timing = self.timing_scope(tags::ANALYZE_EXPRESSION_INFER);
+            for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
+                if !self.is_node_active(&tree, &symbols, expression_id.into_any()) {
+                    continue;
+                }
+
+                self.report_pre_infer_expression_form_diagnostics(
+                    &module,
+                    profile,
+                    &tree,
+                    &symbols,
+                    &types,
+                    expression_id,
+                    expression,
+                    options,
+                );
+            }
         }
 
         // infer each root expression
@@ -454,13 +483,14 @@ impl Compiler {
                 continue;
             }
 
-            self.error(AnalyzeError::UnsatisfiedType {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
-                expected_ty: resolved_target.into_global(module.id),
-                actual_ty: resolved_actual.into_global(module.id),
-            });
+            self.report_unsatisfied_type_for_types(
+                module,
+                profile,
+                expression_id.into_any(),
+                resolved_target,
+                resolved_actual,
+                types,
+            );
         }
     }
 
@@ -481,8 +511,96 @@ impl Compiler {
         runtime_roots
     }
 
-    /// Ensure export inference tasks are complete for direct module dependencies.
-    pub(crate) fn require_export_inference_dependencies(
+    /// Ensure declare analysis is complete for infer dependency modules.
+    pub(crate) fn require_declare_dependencies_for_infer(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> AnalyzeResult<()> {
+        // skip when the module graph is unavailable
+        let key = ModuleGraphKey::new(profile);
+        let Some(graph) = self.program.index.module_graphs.get(&key) else {
+            return Ok(());
+        };
+
+        // require declare analysis for the transitive dependency closure
+        // this prevents late declare-stage yields during remote alias or template evaluation
+        let mut pending = graph.dependencies_for(module_id);
+        let mut visited = HashSet::new();
+        while let Some(dependency) = pending.pop() {
+            if !visited.insert(dependency) || dependency == module_id {
+                continue;
+            }
+
+            if !self.options.load_libs {
+                let module = self.program.modules.get(dependency);
+                let module = module.read();
+                if matches!(module.source, ModuleSource::Builtin(BuiltinLibKind::Lib)) {
+                    continue;
+                }
+            }
+
+            if let Err(error) = self.require_analyze_module_declare(dependency, profile) {
+                return Err(AnalyzeError::from(error));
+            }
+
+            for nested in graph.dependencies_for(dependency) {
+                pending.push(nested);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Ensure declare analysis is complete for builtin modules used during infer.
+    fn require_declare_inference_for_builtin_modules(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> AnalyzeResult<()> {
+        // skip when builtins are not loaded
+        let Some(builtins) = self.builtins() else {
+            return Ok(());
+        };
+
+        // resolve the profile key for ambient lib lookup
+        let profile_entry = self
+            .program
+            .profiles
+            .get(profile)
+            .unwrap_or_else(|| panic!("missing profile data for {profile:?}"));
+
+        // require declare analysis for core builtin modules
+        for lib_module_id in builtins.core_module_by_path.values().copied() {
+            if lib_module_id == module_id {
+                continue;
+            }
+            if let Err(error) = self.require_analyze_module_declare(lib_module_id, profile) {
+                return Err(AnalyzeError::from(error));
+            }
+        }
+
+        // require declare analysis for ambient lib modules when libs are enabled
+        if !self.options.load_libs {
+            return Ok(());
+        }
+        let Some(lib_modules) = builtins.ambient_libs(&profile_entry.key) else {
+            return Ok(());
+        };
+        for lib_module_id in lib_modules {
+            if lib_module_id == module_id {
+                continue;
+            }
+            if let Err(error) = self.require_analyze_module_declare(lib_module_id, profile) {
+                return Err(AnalyzeError::from(error));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Ensure export analysis is complete for infer dependency modules.
+    pub(crate) fn require_export_dependencies_for_infer(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
@@ -536,6 +654,58 @@ impl Compiler {
             if let Err(error) = self.require_analyze_module_export(module_id, profile) {
                 return Err(AnalyzeError::from(error));
             }
+        }
+
+        Ok(())
+    }
+
+    /// Resolve and normalize concrete declarator annotations before expression inference.
+    fn prepare_declarator_annotation_types_for_infer(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        for (declarator_id, declarator) in tree.iter_nodes_of_type::<Declarator>() {
+            if !self.is_node_active(tree, symbols, declarator_id.into_any()) {
+                continue;
+            }
+            if declarator.ty.is_none() {
+                continue;
+            }
+            if declarator.value.is_some() {
+                continue;
+            }
+
+            let Some(annotation_ty_id) =
+                types.get_declared_type_id(declarator_id.into_global(module.id).into())
+            else {
+                continue;
+            };
+
+            self.resolve_declared_type(module, profile, annotation_ty_id, tree, symbols, types)?;
+
+            if self.type_contains_static_parameters(
+                module,
+                profile,
+                annotation_ty_id,
+                symbols,
+                types,
+                &mut HashSet::new(),
+            ) {
+                continue;
+            }
+
+            let _ = self.normalize_type(
+                module,
+                profile,
+                annotation_ty_id,
+                symbols,
+                types,
+                NormalizationMode::Assign,
+            );
         }
 
         Ok(())

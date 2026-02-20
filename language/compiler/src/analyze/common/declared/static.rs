@@ -190,10 +190,10 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-    ) -> Option<(GlobalSymbolId, StaticParameterKind)> {
+    ) -> AnalyzeResult<Option<(GlobalSymbolId, StaticParameterKind)>> {
         // only treat references as static parameters in Destack modules
         if !module.language_type.is_destack() {
-            return None;
+            return Ok(None);
         }
 
         // unwrap explicit comptime wrappers to reach the reference
@@ -204,15 +204,16 @@ impl Compiler {
         | Expression::ModuleReference { target_symbol, .. }
         | Expression::GlobalReference { target_symbol, .. }) = tree.get(expression_id)
         else {
-            return None;
+            return Ok(None);
         };
 
-        self.with_module_tree_symbols_or_local(
+        self.with_module_tree_symbols_or_local_at_stage(
             module,
             profile,
             target_symbol.module_id,
             tree,
             symbols,
+            AnalyzeDependencyStage::Declare,
             |owner_module, owner_tree, owner_symbols| {
                 self.static_parameter_reference_in_symbols(
                     owner_module,
@@ -224,6 +225,7 @@ impl Compiler {
                 )
             },
         )
+        .map_err(AnalyzeError::from)
     }
 
     /// Resolve the static parameter kind for a reference expression.
@@ -236,9 +238,10 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-    ) -> Option<StaticParameterKind> {
-        self.static_parameter_reference(module, profile, expression_id, tree, symbols, types)
-            .map(|(_, kind)| kind)
+    ) -> AnalyzeResult<Option<StaticParameterKind>> {
+        Ok(self
+            .static_parameter_reference(module, profile, expression_id, tree, symbols, types)?
+            .map(|(_, kind)| kind))
     }
 
     /// Resolve the static parameter symbol and kind for a symbol within a symbol table.
@@ -578,7 +581,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                ) {
+                )? {
                     if kind == StaticParameterKind::Value {
                         // use substitution values when available
                         if let Some(substitutions) = substitutions
@@ -826,7 +829,7 @@ impl Compiler {
                                 if let Some((parameter_symbol, _)) = self
                                     .static_parameter_reference(
                                         module, profile, side_id, tree, symbols, types,
-                                    )
+                                    )?
                                 {
                                     if let Some(substitutions) = substitutions
                                         && let Some(mapped) = self
@@ -959,7 +962,7 @@ impl Compiler {
                         // prefer caller substitutions for static parameters
                         if let Some((parameter_symbol, _)) = self.static_parameter_reference(
                             module, profile, side_id, tree, symbols, types,
-                        ) {
+                        )? {
                             if let Some(substitutions) = substitutions
                                 && let Some(mapped) = self
                                     .substitution_type_id_for_static_parameter_symbol(
@@ -1279,7 +1282,7 @@ impl Compiler {
         // evaluate using the owning module context
         if symbol.module_id != module.id {
             return self
-                .with_module_tree_symbols_for_stage(
+                .with_module_tree_symbols_at_stage(
                     module,
                     profile,
                     symbol.module_id,

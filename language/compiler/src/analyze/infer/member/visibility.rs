@@ -16,7 +16,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         ctx: &mut InferContext,
-    ) {
+    ) -> AnalyzeResult<()> {
         match member_resolution {
             MemberResolution::Dynamic { candidates } => {
                 for candidate in candidates {
@@ -30,7 +30,7 @@ impl Compiler {
                         symbols,
                         types,
                         ctx,
-                    );
+                    )?;
                 }
             }
             _ => {
@@ -45,14 +45,14 @@ impl Compiler {
                         symbols,
                         types,
                         ctx,
-                    );
-                    return;
+                    )?;
+                    return Ok(());
                 }
 
                 let Some(receiver_symbol) =
                     self.receiver_symbol_for_visibility(receiver_ty_id, types)
                 else {
-                    return;
+                    return Ok(());
                 };
                 let Some(context) = self.parameter_property_member_context_for_key(
                     module,
@@ -62,8 +62,9 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                ) else {
-                    return;
+                )?
+                else {
+                    return Ok(());
                 };
                 self.check_visibility_context(
                     module,
@@ -81,6 +82,8 @@ impl Compiler {
                 );
             }
         }
+
+        Ok(())
     }
 
     /// Resolve the visibility context for a member symbol.
@@ -91,13 +94,14 @@ impl Compiler {
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
-    ) -> Option<MemberVisibilityContext> {
-        self.with_module_tree_symbols_or_local(
+    ) -> AnalyzeResult<Option<MemberVisibilityContext>> {
+        self.with_module_tree_symbols_or_local_at_stage(
             module,
             profile,
             member_symbol.module_id,
             tree,
             symbols,
+            AnalyzeDependencyStage::Declare,
             |owner_module, owner_tree, owner_symbols| {
                 self.member_visibility_context_for_symbol_in_tree(
                     owner_module.id,
@@ -107,6 +111,7 @@ impl Compiler {
                 )
             },
         )
+        .map_err(AnalyzeError::from)
     }
 
     /// Resolve the visibility context for a member symbol inside a known tree.
@@ -169,15 +174,16 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &TypeTable,
         ctx: &InferContext,
-    ) {
+    ) -> AnalyzeResult<()> {
         let Some(context) = self.member_visibility_context_for_symbol(
             module,
             member_symbol,
             profile,
             tree,
             symbols,
-        ) else {
-            return;
+        )?
+        else {
+            return Ok(());
         };
 
         self.check_visibility_context(
@@ -191,6 +197,8 @@ impl Compiler {
             ctx,
             context,
         );
+
+        Ok(())
     }
 
     /// Enforce member visibility for a resolved visibility context.
@@ -292,99 +300,106 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
-    ) -> Option<ParameterPropertyMemberContext> {
+    ) -> AnalyzeResult<Option<ParameterPropertyMemberContext>> {
         let StaticKey::Name(member_name) = member_key else {
-            return None;
+            return Ok(None);
         };
 
         // walk the receiver lineage and find the first parameter property with this key
         let mut current_symbol = Some(receiver_symbol);
         while let Some(owner_symbol) = current_symbol {
-            let context = self.with_module_tree_symbols_or_local(
-                module,
-                profile,
-                owner_symbol.module_id,
-                tree,
-                symbols,
-                |_, owner_tree, owner_symbols| {
-                    let owner_entry = owner_symbols.get_symbol(owner_symbol.local_id);
-                    let declaration_id = owner_entry.primary_declaration?.local_id;
-                    if declaration_id.ty != NodeType::Declaration {
-                        return None;
-                    }
-
-                    let declaration = owner_tree.get(declaration_id.into_typed::<Declaration>());
-                    let members = declaration.member_ids()?;
-                    for member_id in members {
-                        let Member::Method {
-                            signature,
-                            modifiers,
-                            ..
-                        } = owner_tree.get(*member_id)
-                        else {
-                            continue;
-                        };
-                        if signature.mode != Some(destack_dir::FunctionMode::Constructor) {
-                            continue;
-                        }
-                        if modifiers
-                            .as_ref()
-                            .is_some_and(|modifier| modifier.anchor == Some(BindingAnchor::Static))
-                        {
-                            continue;
+            let context = self
+                .with_module_tree_symbols_or_local_at_stage(
+                    module,
+                    profile,
+                    owner_symbol.module_id,
+                    tree,
+                    symbols,
+                    AnalyzeDependencyStage::Declare,
+                    |_, owner_tree, owner_symbols| {
+                        let owner_entry = owner_symbols.get_symbol(owner_symbol.local_id);
+                        let declaration_id = owner_entry.primary_declaration?.local_id;
+                        if declaration_id.ty != NodeType::Declaration {
+                            return None;
                         }
 
-                        for parameter_id in &signature.dynamic_parameters {
-                            let parameter = owner_tree.get(*parameter_id);
-                            let Parameter::Named {
-                                name, modifiers, ..
-                            } = parameter
+                        let declaration =
+                            owner_tree.get(declaration_id.into_typed::<Declaration>());
+                        let members = declaration.member_ids()?;
+                        for member_id in members {
+                            let Member::Method {
+                                signature,
+                                modifiers,
+                                ..
+                            } = owner_tree.get(*member_id)
                             else {
                                 continue;
                             };
-                            if name != member_name {
+                            if signature.mode != Some(destack_dir::FunctionMode::Constructor) {
+                                continue;
+                            }
+                            if modifiers.as_ref().is_some_and(|modifier| {
+                                modifier.anchor == Some(BindingAnchor::Static)
+                            }) {
                                 continue;
                             }
 
-                            let Some(modifiers) = modifiers.as_ref() else {
-                                continue;
-                            };
-                            let is_parameter_property = modifiers.visibility.is_some()
-                                || modifiers.mutability == Some(Mutability::Immutable);
-                            if !is_parameter_property {
-                                continue;
-                            }
+                            for parameter_id in &signature.dynamic_parameters {
+                                let parameter = owner_tree.get(*parameter_id);
+                                let Parameter::Named {
+                                    name, modifiers, ..
+                                } = parameter
+                                else {
+                                    continue;
+                                };
+                                if name != member_name {
+                                    continue;
+                                }
 
-                            return Some(ParameterPropertyMemberContext {
-                                visibility: modifiers.visibility.unwrap_or(Visibility::Public),
-                                is_readonly: modifiers.mutability == Some(Mutability::Immutable),
-                                owner_symbol,
-                            });
+                                let Some(modifiers) = modifiers.as_ref() else {
+                                    continue;
+                                };
+                                let is_parameter_property = modifiers.visibility.is_some()
+                                    || modifiers.mutability == Some(Mutability::Immutable);
+                                if !is_parameter_property {
+                                    continue;
+                                }
+
+                                return Some(ParameterPropertyMemberContext {
+                                    visibility: modifiers.visibility.unwrap_or(Visibility::Public),
+                                    is_readonly: modifiers.mutability
+                                        == Some(Mutability::Immutable),
+                                    owner_symbol,
+                                });
+                            }
                         }
-                    }
 
-                    None
-                },
-            );
+                        None
+                    },
+                )
+                .map_err(AnalyzeError::from)?;
 
             if let Some(context) = context {
-                return Some(context);
+                return Ok(Some(context));
             }
 
-            current_symbol = self.with_module_types_or_local(
-                module,
-                profile,
-                owner_symbol.module_id,
-                types,
-                |_, owner_types| {
-                    owner_types
-                        .get_lineage_for_symbol(owner_symbol)
-                        .and_then(|lineage| lineage.extends)
-                },
-            );
+            current_symbol = self
+                .with_module_types_or_local_at_stage(
+                    module,
+                    profile,
+                    owner_symbol.module_id,
+                    types,
+                    AnalyzeDependencyStage::Declare,
+                    |_, owner_types| {
+                        owner_types
+                            .get_lineage_for_symbol(owner_symbol)
+                            .and_then(|lineage| lineage.extends)
+                    },
+                )
+                .map_err(AnalyzeError::from)?;
         }
 
-        None
+        Ok(None)
     }
 
     /// Resolve a nominal symbol for visibility checks from a receiver type.

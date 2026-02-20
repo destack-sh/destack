@@ -128,7 +128,7 @@ impl Compiler {
     ) -> AnalyzeResult<Option<ExtensionMemberContext>> {
         // locate the extension symbol that owns the member
         let extension_symbol =
-            self.extension_symbol_for_member(module, profile, member_symbol, symbols);
+            self.extension_symbol_for_member(module, profile, member_symbol, symbols)?;
         let Some(extension_symbol) = extension_symbol else {
             return Ok(None);
         };
@@ -276,13 +276,14 @@ impl Compiler {
         profile: ProfileId,
         member_symbol: GlobalSymbolId,
         symbols: &SymbolTable,
-    ) -> Option<GlobalSymbolId> {
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // locate the scope owner for the member symbol
-        self.with_module_symbols_or_local(
+        self.with_module_symbols_or_local_at_stage(
             module,
             profile,
             member_symbol.module_id,
             symbols,
+            AnalyzeDependencyStage::Declare,
             |owner_module, owner_symbols| {
                 let member_entry = owner_symbols.get_symbol(member_symbol.local_id);
                 let scope = owner_symbols.get_scope_by_id(member_entry.scope.0);
@@ -296,5 +297,6 @@ impl Compiler {
                 Some(extension_id.into_global(owner_module.id))
             },
         )
+        .map_err(AnalyzeError::from)
     }
 }

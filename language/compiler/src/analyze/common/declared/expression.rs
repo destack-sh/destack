@@ -1062,13 +1062,18 @@ impl Compiler {
                             validate_static_argument_bounds,
                             enforce_implicit_managed,
                         )?;
-                        self.error(AnalyzeError::MissingMember {
-                            node: expression_id
-                                .into_global_any(module.id)
-                                .into_anchored(Some(profile)),
-                            receiver_ty: receiver_ty_id.into_global(module.id),
+
+                        // report missing-member unless receiver has a primary blocker
+                        let _reported = self.report_missing_member_diagnostic_for_receiver_type(
+                            module,
+                            profile,
+                            expression_id,
+                            receiver_ty_id,
                             member_key,
-                        });
+                            symbols,
+                            types,
+                            true,
+                        )?;
                         return Ok(Some(Type::Error));
                     }
 
@@ -1239,7 +1244,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                    ) {
+                    )? {
                     parameter_symbol
                 } else {
                     self.resolve_type_reference_symbol(

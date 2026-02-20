@@ -248,20 +248,21 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
-    ) -> Option<GlobalSymbolId> {
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // resolve the referenced symbol first
         let (Expression::LocalReference { target_symbol, .. }
         | Expression::ModuleReference { target_symbol, .. }
         | Expression::GlobalReference { target_symbol, .. }) = tree.get(expression_id)
         else {
-            return None;
+            return Ok(None);
         };
 
-        self.with_module_symbols_or_local(
+        self.with_module_symbols_or_local_at_stage(
             module,
             profile,
             target_symbol.module_id,
             symbols,
+            AnalyzeDependencyStage::Declare,
             |owner_module, owner_symbols| {
                 self.static_parameter_symbol_for_reference_in_symbols(
                     owner_module,
@@ -272,6 +273,7 @@ impl Compiler {
                 )
             },
         )
+        .map_err(AnalyzeError::from)
     }
 
     /// Resolve a static parameter symbol within a symbol table.
@@ -1507,7 +1509,7 @@ impl Compiler {
             let _ = self.enum_backing_type_for_symbol(module, profile, enum_symbol, types)?;
             self.enum_literal_matches_symbol(enum_symbol, literal, tree, symbols, types)
         } else {
-            self.with_module_tree_symbols_for_stage(
+            self.with_module_tree_symbols_at_stage(
                 module,
                 profile,
                 enum_symbol.module_id,
@@ -1924,11 +1926,14 @@ impl Compiler {
                 }
 
                 // report failed bound validation
-                self.error(AnalyzeError::UnassignableType {
-                    node: error_node.into_anchored(Some(profile)),
-                    expected_ty: expected_ty_id.into_global(module.id),
-                    actual_ty: substitution_ty_id.into_global(module.id),
-                });
+                let _reported = self.report_unassignable_type_for_types(
+                    module,
+                    profile,
+                    error_node.local_id,
+                    expected_ty_id,
+                    substitution_ty_id,
+                    types,
+                );
                 return Ok(Some(
                     types.insert_type_from_any(Type::Error, error_node.local_id),
                 ));
@@ -2002,11 +2007,14 @@ impl Compiler {
             ) == Assignability::NotAssignable
         {
             // report unassignable value arguments
-            self.error(AnalyzeError::UnassignableType {
-                node: error_node.into_anchored(Some(profile)),
-                expected_ty: static_parameter.declared_type_id.into_global(module.id),
-                actual_ty: value_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_unassignable_type_for_types(
+                module,
+                profile,
+                error_node.local_id,
+                static_parameter.declared_type_id,
+                value_ty_id,
+                types,
+            );
             return Ok(Some(
                 types.insert_type_from_any(Type::Error, error_node.local_id),
             ));
@@ -2337,12 +2345,6 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
-        // ensure remote declarations are available before resolving arguments
-        if symbol.module_id != module.id {
-            self.require_analyze_module_declare(symbol.module_id, profile)
-                .map_err(AnalyzeError::from)?;
-        }
-
         // treat type arguments as types for type references
         let treat_type_arguments_as_types = true;
 
@@ -2857,17 +2859,21 @@ impl Compiler {
             substitutions.insert(static_parameter.symbol, ty_id);
         }
 
-        let (symbol_key, symbol_space) = self.with_module_symbols_or_local(
-            module,
-            profile,
-            symbol.module_id,
-            symbols,
-            |_, owner_symbols| {
-                let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
-                (symbol_entry.key, symbol_entry.space)
-            },
-        );
-        if let Some(symbol_key) = symbol_key
+        let symbol_info = self
+            .with_module_symbols_or_local_at_stage(
+                module,
+                profile,
+                symbol.module_id,
+                symbols,
+                AnalyzeDependencyStage::Declare,
+                |_, owner_symbols| {
+                    let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
+                    (symbol_entry.key, symbol_entry.space)
+                },
+            )
+            .ok();
+        if let Some((symbol_key, symbol_space)) = symbol_info
+            && let Some(symbol_key) = symbol_key
             && let Some(ambient_symbols) =
                 self.get_ambient_lib_symbol_sources_for_merge(profile, symbol_key, symbol_space)
         {
@@ -2940,7 +2946,7 @@ impl Compiler {
                     argument_tree,
                     argument_symbols,
                     types,
-                ) {
+                )? {
                     let reference_ty = Type::Reference {
                         symbol: parameter_symbol,
                         static_arguments: None,
@@ -5069,7 +5075,7 @@ impl Compiler {
                                     owner_tree,
                                     owner_symbols,
                                     types,
-                                )
+                                )?
                             {
                                 let reference_ty = Type::Reference {
                                     symbol: parameter_symbol,

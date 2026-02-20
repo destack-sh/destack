@@ -242,8 +242,151 @@ pub(crate) struct ProjectionEnvironment {
     pub(crate) substitutions: HashMap<GlobalSymbolId, LocalTypeId>,
 }
 
+/// Primary semantic faults that block follow-on missing-member diagnostics.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum MissingMemberDiagnosticBlocker {
+    /// Receiver type already failed earlier analysis.
+    ReceiverTypeError,
+    /// Receiver declaration is missing required associated implementations.
+    UnsatisfiedAssociatedContractRequirements,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Return true when one declaration symbol has unimplemented associated requirements.
+    pub(crate) fn symbol_has_unimplemented_associated_requirements(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> AnalyzeResult<bool> {
+        let Some(symbol) = self
+            .declaration_symbol_id_at_stage(
+                module,
+                symbols,
+                profile,
+                symbol,
+                AnalyzeDependencyStage::Declare,
+            )
+            .map_err(AnalyzeError::from)?
+        else {
+            return Ok(false);
+        };
+        if !matches!(
+            symbol.ty(),
+            SymbolType::Class | SymbolType::Interface | SymbolType::Struct
+        ) {
+            return Ok(false);
+        }
+
+        let has_missing_requirements = self
+            .with_module_types_or_local_at_stage(
+                module,
+                profile,
+                symbol.module_id,
+                types,
+                AnalyzeDependencyStage::Declare,
+                |_, owner_types| {
+                    owner_types.symbol_has_unimplemented_associated_requirements(symbol)
+                },
+            )
+            .map_err(AnalyzeError::from)?;
+
+        Ok(has_missing_requirements)
+    }
+
+    /// Return true when one receiver type resolves to a symbol with unsatisfied associated requirements.
+    pub(crate) fn receiver_type_has_unimplemented_associated_requirements(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        receiver_ty_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> AnalyzeResult<bool> {
+        let Some((receiver_symbol, _, _)) = self.unwrap_type_symbol(types, receiver_ty_id) else {
+            return Ok(false);
+        };
+
+        self.symbol_has_unimplemented_associated_requirements(
+            module,
+            profile,
+            receiver_symbol,
+            symbols,
+            types,
+        )
+    }
+
+    /// Return the primary semantic blocker for one missing-member diagnostic, when present.
+    pub(crate) fn missing_member_diagnostic_blocker_for_receiver_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        receiver_ty_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        allow_associated_contract_blocker: bool,
+    ) -> AnalyzeResult<Option<MissingMemberDiagnosticBlocker>> {
+        if self.type_blocks_follow_on_diagnostic(receiver_ty_id, types) {
+            return Ok(Some(MissingMemberDiagnosticBlocker::ReceiverTypeError));
+        }
+
+        if allow_associated_contract_blocker
+            && self.receiver_type_has_unimplemented_associated_requirements(
+                module,
+                profile,
+                receiver_ty_id,
+                symbols,
+                types,
+            )?
+        {
+            return Ok(Some(
+                MissingMemberDiagnosticBlocker::UnsatisfiedAssociatedContractRequirements,
+            ));
+        }
+
+        Ok(None)
+    }
+
+    /// Report one missing-member diagnostic unless a primary semantic blocker applies.
+    pub(crate) fn report_missing_member_diagnostic_for_receiver_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        receiver_ty_id: LocalTypeId,
+        member_key: StaticKey,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        allow_associated_contract_blocker: bool,
+    ) -> AnalyzeResult<bool> {
+        let blocker = self.missing_member_diagnostic_blocker_for_receiver_type(
+            module,
+            profile,
+            receiver_ty_id,
+            symbols,
+            types,
+            allow_associated_contract_blocker,
+        )?;
+        if blocker.is_some() {
+            return Ok(false);
+        }
+
+        let error = AnalyzeError::MissingMember {
+            node: expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile)),
+            receiver_ty: receiver_ty_id.into_global(module.id),
+            member_key,
+        };
+        debug_assert!(error.is_follow_on_semantic_diagnostic());
+        self.error(error);
+
+        Ok(true)
+    }
+
     /// Collect contract associated type requirements for one contract symbol.
     pub(crate) fn collect_contract_associated_type_requirements(
         &self,
@@ -254,8 +397,15 @@ impl Compiler {
         symbols: &SymbolTable,
     ) -> AnalyzeResult<Vec<AssociatedTypeRequirement>> {
         // normalize contract references to declaration owners
-        let Some(contract_symbol) =
-            self.declaration_symbol_id(module, symbols, profile, contract_symbol)
+        let Some(contract_symbol) = self
+            .declaration_symbol_id_at_stage(
+                module,
+                symbols,
+                profile,
+                contract_symbol,
+                AnalyzeDependencyStage::Declare,
+            )
+            .map_err(AnalyzeError::from)?
         else {
             return Ok(Vec::new());
         };
@@ -294,7 +444,7 @@ impl Compiler {
 
         // collect local requirements and direct parent contracts
         let (local_requirements, parent_contracts) = self
-            .with_module_tree_symbols_or_local_for_stage(
+            .with_module_tree_symbols_or_local_at_stage(
                 module,
                 profile,
                 contract_symbol.module_id,
@@ -436,8 +586,15 @@ impl Compiler {
         symbols: &SymbolTable,
     ) -> AnalyzeResult<Vec<AssociatedComptimeRequirement>> {
         // normalize contract references to declaration owners
-        let Some(contract_symbol) =
-            self.declaration_symbol_id(module, symbols, profile, contract_symbol)
+        let Some(contract_symbol) = self
+            .declaration_symbol_id_at_stage(
+                module,
+                symbols,
+                profile,
+                contract_symbol,
+                AnalyzeDependencyStage::Declare,
+            )
+            .map_err(AnalyzeError::from)?
         else {
             return Ok(Vec::new());
         };
@@ -476,7 +633,7 @@ impl Compiler {
 
         // collect local requirements and direct parent contracts
         let (local_requirements, parent_contracts) = self
-            .with_module_tree_symbols_or_local_for_stage(
+            .with_module_tree_symbols_or_local_at_stage(
                 module,
                 profile,
                 contract_symbol.module_id,
@@ -665,6 +822,13 @@ impl Compiler {
             receiver_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
+        projection_receiver_symbol = self.resolve_type_reference_symbol(
+            module,
+            profile,
+            projection_receiver_symbol,
+            tree,
+            symbols,
+        );
         projection_receiver_symbol = self
             .declaration_symbol_id(module, symbols, profile, projection_receiver_symbol)
             .unwrap_or(projection_receiver_symbol);
@@ -745,7 +909,7 @@ impl Compiler {
 
         // resolve the projected member symbol on the normalized receiver symbol
         let projected_symbol = self
-            .with_module_tree_symbols_or_local_for_stage(
+            .with_module_tree_symbols_or_local_at_stage(
                 module,
                 profile,
                 lookup_symbol.module_id,
@@ -837,6 +1001,8 @@ impl Compiler {
             target_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
+        target_symbol =
+            self.resolve_type_reference_symbol(module, profile, target_symbol, tree, symbols);
         target_symbol = self
             .declaration_symbol_id(module, symbols, profile, target_symbol)
             .unwrap_or(target_symbol);
@@ -863,7 +1029,7 @@ impl Compiler {
             .declaration_symbol_id(module, symbols, profile, owner_symbol)
             .unwrap_or(owner_symbol);
 
-        self.with_module_tree_symbols_or_local_for_stage(
+        self.with_module_tree_symbols_or_local_at_stage(
             module,
             profile,
             owner_symbol.module_id,
@@ -1226,7 +1392,7 @@ impl Compiler {
         for heritage_expression_id in heritage_expressions {
             // resolve the heritage target and applied arguments
             let resolved_heritage = self
-                .with_module_tree_symbols_or_local_for_stage(
+                .with_module_tree_symbols_or_local_at_stage(
                     module,
                     profile,
                     heritage_expression_id.module_id,
@@ -1416,7 +1582,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> AnalyzeResult<Vec<GlobalNodeId<Expression>>> {
-        self.with_module_tree_symbols_or_local_for_stage(
+        self.with_module_tree_symbols_or_local_at_stage(
             module,
             profile,
             symbol.module_id,
@@ -1522,7 +1688,7 @@ impl Compiler {
 
         // include directly declared extensions from the receiver module
         let declared_extension_symbols = self
-            .with_module_tree_symbols_or_local_for_stage(
+            .with_module_tree_symbols_or_local_at_stage(
                 module,
                 profile,
                 canonical_receiver_symbol.module_id,
@@ -1574,7 +1740,7 @@ impl Compiler {
         // find an extension that implements the owning interface
         for extension_symbol in extension_symbols {
             let substitutions = self
-                .with_module_tree_symbols_or_local_for_stage(
+                .with_module_tree_symbols_or_local_at_stage(
                     module,
                     profile,
                     extension_symbol.module_id,
@@ -1651,7 +1817,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, LocalTypeId>>> {
-        self.with_module_tree_symbols_or_local_for_stage(
+        self.with_module_tree_symbols_or_local_at_stage(
             module,
             profile,
             receiver_symbol.module_id,
@@ -2045,7 +2211,7 @@ impl Compiler {
 
         // collect owner associated comptime member symbols by name
         let owner_members = self
-            .with_module_tree_symbols_or_local_for_stage(
+            .with_module_tree_symbols_or_local_at_stage(
                 module,
                 profile,
                 owner_symbol.module_id,
@@ -2097,7 +2263,7 @@ impl Compiler {
         let mut substitutions = HashMap::new();
         for (member_key, owner_member_symbol, requires_implementation) in owner_members {
             let resolved_member_symbol = self
-                .with_module_tree_symbols_or_local_for_stage(
+                .with_module_tree_symbols_or_local_at_stage(
                     module,
                     profile,
                     canonical_receiver_symbol.module_id,
@@ -2135,6 +2301,9 @@ impl Compiler {
                 let should_report_missing =
                     requires_implementation && canonical_receiver_symbol != owner_symbol;
                 if should_report_missing {
+                    types.mark_symbol_with_unimplemented_associated_requirements(
+                        canonical_receiver_symbol,
+                    );
                     self.error(AnalyzeError::InvalidStaticArgument {
                         node: source_id
                             .into_global(module.id)
@@ -2160,6 +2329,9 @@ impl Compiler {
                 let should_report_missing =
                     requires_implementation && canonical_receiver_symbol != owner_symbol;
                 if should_report_missing {
+                    types.mark_symbol_with_unimplemented_associated_requirements(
+                        canonical_receiver_symbol,
+                    );
                     self.error(AnalyzeError::InvalidStaticArgument {
                         node: source_id
                             .into_global(module.id)
@@ -2222,7 +2394,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         let typed_symbol = self
-            .with_module_tree_symbols_or_local_for_stage(
+            .with_module_tree_symbols_or_local_at_stage(
                 module,
                 profile,
                 symbol.module_id,
@@ -2251,7 +2423,7 @@ impl Compiler {
                 .or_else(|| types.get_alias_target_type_id(symbol));
         }
 
-        self.with_module_tree_symbols_or_local_for_stage(
+        self.with_module_tree_symbols_or_local_at_stage(
             module,
             profile,
             typed_symbol.module_id,
@@ -2767,7 +2939,7 @@ impl Compiler {
         }
 
         let mapped_alias_target = self
-            .with_module_tree_symbols_or_local_for_stage(
+            .with_module_tree_symbols_or_local_at_stage(
                 module,
                 profile,
                 target_symbol.module_id,
@@ -2883,7 +3055,7 @@ impl Compiler {
             && !member_arguments.is_empty()
         {
             let parameter_count = self
-                .with_module_tree_symbols_or_local_for_stage(
+                .with_module_tree_symbols_or_local_at_stage(
                     module,
                     profile,
                     target_symbol.module_id,
@@ -2999,7 +3171,7 @@ impl Compiler {
         // refresh remote self-referential aliases in their owner module with remote tree ids
         else if is_self_alias_target {
             let reevaluated_remote_target = self
-                .with_module_tree_symbols_for_stage(
+                .with_module_tree_symbols_at_stage(
                     module,
                     profile,
                     target_symbol.module_id,
@@ -3128,7 +3300,7 @@ impl Compiler {
         symbols: &SymbolTable,
     ) -> AnalyzeResult<bool> {
         // only associated type aliases can require projection arguments
-        self.with_module_tree_symbols_or_local_for_stage(
+        self.with_module_tree_symbols_or_local_at_stage(
             module,
             profile,
             symbol.module_id,
@@ -3180,7 +3352,7 @@ impl Compiler {
         member_symbol: GlobalSymbolId,
         symbols: &SymbolTable,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
-        self.with_module_symbols_or_local_for_stage(
+        self.with_module_symbols_or_local_at_stage(
             module,
             profile,
             member_symbol.module_id,
@@ -3237,7 +3409,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> AnalyzeResult<Option<StaticMemberSymbolKind>> {
-        self.with_module_tree_symbols_or_local_for_stage(
+        self.with_module_tree_symbols_or_local_at_stage(
             module,
             profile,
             symbol.module_id,

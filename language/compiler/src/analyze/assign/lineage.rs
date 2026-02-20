@@ -191,17 +191,15 @@ impl Compiler {
             return None;
         }
 
-        // bail when the symbol is not declared in the remote module
-        if self
-            .require_analyze_module_declare(symbol.module_id, profile)
-            .is_err()
-        {
-            return None;
-        }
-
-        self.with_module_types(module, profile, symbol.module_id, |_, remote_types| {
-            remote_types.get_lineage_for_symbol(symbol).cloned()
-        })
+        self.with_module_types_at_stage(
+            module,
+            profile,
+            symbol.module_id,
+            AnalyzeDependencyStage::Declare,
+            |_, remote_types| remote_types.get_lineage_for_symbol(symbol).cloned(),
+        )
+        .ok()
+        .flatten()
     }
 
     /// Normalize a conditional type for assignability when it resolves in flow mode.

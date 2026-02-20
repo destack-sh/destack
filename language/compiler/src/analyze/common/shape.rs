@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::analyze::common::AnalyzeDependencyStage;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler};
 use destack_dir::{
     Asynchrony, Declaration, Expression, FunctionCardinality, GlobalSymbolId, LocalNodeId,
@@ -885,15 +886,11 @@ impl Compiler {
             }
 
             // TODO #Architecture: centralize local vs remote merge imports to keep symbol handling consistent
-            // ensure remote module declare is ready
-            if global_symbol.module_id != module.id {
-                self.require_analyze_module_declare(global_symbol.module_id, profile)?;
-            }
-
-            let shape = self.with_module_types(
+            let shape = self.with_module_types_at_stage(
                 module,
                 profile,
                 global_symbol.module_id,
+                AnalyzeDependencyStage::Declare,
                 |_, remote_types| {
                     // import the remote instance type into this module
                     let remote_instance_id = remote_types.get_instance_type_id(global_symbol)?;
@@ -915,7 +912,7 @@ impl Compiler {
 
                     Some(shape)
                 },
-            );
+            )?;
 
             let Some(shape) = shape else {
                 continue;
@@ -1001,15 +998,11 @@ impl Compiler {
                 continue;
             }
 
-            // ensure remote module declare is ready
-            if global_symbol.module_id != module.id {
-                self.require_analyze_module_declare(global_symbol.module_id, profile)?;
-            }
-
-            let remote_shape = self.with_module_types(
+            let remote_shape = self.with_module_types_at_stage(
                 module,
                 profile,
                 global_symbol.module_id,
+                AnalyzeDependencyStage::Declare,
                 |_, remote_types| {
                     // import the remote value type into this module
                     let remote_value_id = remote_types.get_value_type_id(global_symbol)?;
@@ -1039,7 +1032,7 @@ impl Compiler {
 
                     Some(remote_shape)
                 },
-            );
+            )?;
             let Some(remote_shape) = remote_shape else {
                 continue;
             };

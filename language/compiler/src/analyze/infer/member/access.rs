@@ -276,7 +276,7 @@ impl Compiler {
             symbols,
             types,
             ctx,
-        );
+        )?;
 
         // resolve enum field symbols for enum value receivers
         let member_symbol = self.resolve_enum_field_member_symbol(
@@ -302,8 +302,13 @@ impl Compiler {
                 types,
             );
         }
-        let enum_field_value_ty_id =
-            self.enum_field_value_type_for_symbol(module, symbols, member_symbol, types);
+        let enum_field_value_ty_id = self.enum_field_value_type_for_symbol(
+            module,
+            ctx.profile,
+            symbols,
+            member_symbol,
+            types,
+        )?;
 
         // resolve extension substitutions for member symbols
         let extension_context = if let Some(member_symbol) = member_symbol {
@@ -443,7 +448,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                )
+                )?
             };
 
         // substitute `this` in member result types with the resolved receiver type

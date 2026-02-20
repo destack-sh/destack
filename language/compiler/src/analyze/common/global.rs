@@ -6,8 +6,8 @@ use destack_dir::{
 };
 use destack_workspace::Module;
 
-use super::ObjectShape;
-use crate::{AnalyzeResult, Compiler, InferContext};
+use super::{AnalyzeDependencyStage, ObjectShape};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, InferContext};
 
 // allow wide signature for globalThis synthesis
 #[allow(clippy::too_many_arguments)]
@@ -94,17 +94,20 @@ impl Compiler {
                 };
 
                 // compute readonly status from the binding mutability
-                let binding_mutability = self.with_module_symbols_or_local(
-                    module,
-                    ctx.profile,
-                    symbol_id.module_id,
-                    symbols,
-                    |_, owner_symbols| {
-                        owner_symbols
-                            .get_symbol(symbol_id.local_id)
-                            .binding_mutability
-                    },
-                );
+                let binding_mutability = self
+                    .with_module_symbols_or_local_at_stage(
+                        module,
+                        ctx.profile,
+                        symbol_id.module_id,
+                        symbols,
+                        AnalyzeDependencyStage::Declare,
+                        |_, owner_symbols| {
+                            owner_symbols
+                                .get_symbol(symbol_id.local_id)
+                                .binding_mutability
+                        },
+                    )
+                    .map_err(AnalyzeError::from)?;
                 let is_readonly = matches!(binding_mutability, Some(Mutability::Immutable));
 
                 shape.fields.push(TypeField {

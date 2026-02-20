@@ -2,7 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use super::expression::has_implicit_return;
 use crate::analyze::common::{
-    AssociatedComptimeRequirement, AssociatedTypeRequirement, TypeRewriteCache,
+    AnalyzeDependencyStage, AssociatedComptimeRequirement, AssociatedTypeRequirement,
+    TypeRewriteCache,
 };
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_base::StringId;
@@ -12,9 +13,8 @@ use destack_dir::{
     DependencyKind, DynamicKey, EnumField, Expression, FunctionCardinality, FunctionKind,
     FunctionMode, FunctionSignature, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope,
     InferTable, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, Mutability, NodeTree,
-    NodeType, NormalizationMode, Parameter, Pattern, PrimitiveType, StaticArgument,
-    StaticExpression, StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeField,
-    TypeLiteral, TypeTable, WhereClause,
+    NodeType, Parameter, Pattern, PrimitiveType, StaticArgument, StaticExpression, StaticKey,
+    SymbolSpace, SymbolTable, SymbolType, Type, TypeField, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -715,24 +715,31 @@ impl Compiler {
         node_id: GlobalNodeIdAny,
         owner_symbol: GlobalSymbolId,
         types: &mut TypeTable,
-    ) -> Option<LocalTypeId> {
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
         // resolve local declared types directly
         if node_id.module_id == module.id {
-            return types.get_declared_type_id(node_id);
+            return Ok(types.get_declared_type_id(node_id));
         }
 
         // import declared types from remote modules
-        self.with_module_types(module, profile, node_id.module_id, |_, remote_types| {
-            let remote_ty_id = remote_types.get_declared_type_id(node_id)?;
-            let remote_ty = remote_types.get_type(remote_ty_id);
-            Some(self.import_type_from_remote_for_node(
-                node_id.local_id,
-                remote_ty,
-                remote_types,
-                owner_symbol,
-                types,
-            ))
-        })
+        self.with_module_types_at_stage(
+            module,
+            profile,
+            node_id.module_id,
+            AnalyzeDependencyStage::Declare,
+            |_, remote_types| {
+                let remote_ty_id = remote_types.get_declared_type_id(node_id)?;
+                let remote_ty = remote_types.get_type(remote_ty_id);
+                Some(self.import_type_from_remote_for_node(
+                    node_id.local_id,
+                    remote_ty,
+                    remote_types,
+                    owner_symbol,
+                    types,
+                ))
+            },
+        )
+        .map_err(AnalyzeError::from)
     }
 
     /// Infer associated type contracts for declarations implementing interfaces.
@@ -957,7 +964,8 @@ impl Compiler {
                 requirement_type_node,
                 requirement.symbol,
                 types,
-            ) else {
+            )?
+            else {
                 continue;
             };
             requirement_type_id = self.substitute_and_materialize_contract_type(
@@ -995,11 +1003,14 @@ impl Compiler {
                 &options,
             );
             if is_assignable == Assignability::NotAssignable {
-                self.error(AnalyzeError::UnassignableType {
-                    node: declaration_member.member_id.into_global(module.id).into(),
-                    expected_ty: requirement_type_id.into_global(module.id),
-                    actual_ty: declaration_type_id.into_global(module.id),
-                });
+                let _reported = self.report_unassignable_type_for_types(
+                    module,
+                    profile,
+                    declaration_member.member_id.into_any(),
+                    requirement_type_id,
+                    declaration_type_id,
+                    types,
+                );
             }
         }
 
@@ -1178,7 +1189,7 @@ impl Compiler {
                 &contract_context.substitutions,
                 symbols,
                 types,
-            );
+            )?;
         }
 
         Ok(())
@@ -1646,15 +1657,15 @@ impl Compiler {
         interface_substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-    ) {
+    ) -> AnalyzeResult<()> {
         let Some(bound_node) = requirement.bound_node else {
-            return;
+            return Ok(());
         };
 
         let Some(mut bound_ty_id) =
-            self.declared_type_for_node(module, profile, bound_node, requirement.symbol, types)
+            self.declared_type_for_node(module, profile, bound_node, requirement.symbol, types)?
         else {
-            return;
+            return Ok(());
         };
         if !interface_substitutions.is_empty() {
             let mut cache = HashMap::new();
@@ -1671,7 +1682,7 @@ impl Compiler {
             .and_then(|value_id| types.get_declared_type_id(value_id.into_global_any(module.id)))
             .or_else(|| types.get_alias_target_type_id(declaration_member.member_symbol))
         else {
-            return;
+            return Ok(());
         };
 
         let options = self.analyze_context_options_for_module(module.id);
@@ -1685,18 +1696,19 @@ impl Compiler {
             &options,
         );
         if assignability != Assignability::NotAssignable {
-            return;
+            return Ok(());
         }
 
-        let node = declaration_member
-            .member_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
-        self.error(AnalyzeError::UnassignableType {
-            node,
-            expected_ty: bound_ty_id.into_global(module.id),
-            actual_ty: actual_ty_id.into_global(module.id),
-        });
+        let _reported = self.report_unassignable_type_for_types(
+            module,
+            profile,
+            declaration_member.member_id.into_any(),
+            bound_ty_id,
+            actual_ty_id,
+            types,
+        );
+
+        Ok(())
     }
 
     /// Infer a function declaration.
@@ -1889,13 +1901,14 @@ impl Compiler {
                         &function_options,
                     ) == Assignability::NotAssignable
                 {
-                    self.error(AnalyzeError::UnassignableType {
-                        node: body
-                            .into_global_any(module.id)
-                            .into_anchored(Some(ctx.profile)),
-                        expected_ty: return_ty_id.into_global(module.id),
-                        actual_ty: body_ty_id.into_global(module.id),
-                    });
+                    let _reported = self.report_unassignable_type_for_types(
+                        module,
+                        ctx.profile,
+                        body.into_any(),
+                        return_ty_id,
+                        body_ty_id,
+                        types,
+                    );
                 }
             }
         }
@@ -2056,11 +2069,14 @@ impl Compiler {
                         &options,
                     );
                     if is_assignable == Assignability::NotAssignable {
-                        self.error(AnalyzeError::UnassignableType {
-                            node: member_id.into_global(module.id).into(),
-                            expected_ty: constraint_type.into_global(module.id),
-                            actual_ty: value_type.into_global(module.id),
-                        });
+                        let _reported = self.report_unassignable_type_for_types(
+                            module,
+                            ctx.profile,
+                            member_id.into_any(),
+                            constraint_type,
+                            value_type,
+                            types,
+                        );
                     }
                 }
 
@@ -2200,11 +2216,14 @@ impl Compiler {
                         &options,
                     );
                     if is_assignable == Assignability::NotAssignable {
-                        self.error(AnalyzeError::UnassignableType {
-                            node: member_id.into_global(module.id).into(),
-                            expected_ty: constraint_type.into_global(module.id),
-                            actual_ty: value_type.into_global(module.id),
-                        });
+                        let _reported = self.report_unassignable_type_for_types(
+                            module,
+                            ctx.profile,
+                            member_id.into_any(),
+                            constraint_type,
+                            value_type,
+                            types,
+                        );
                     }
                 }
 
@@ -2585,13 +2604,14 @@ impl Compiler {
                                 &method_options,
                             ) == Assignability::NotAssignable
                         {
-                            self.error(AnalyzeError::UnassignableType {
-                                node: body
-                                    .into_global_any(module.id)
-                                    .into_anchored(Some(ctx.profile)),
-                                expected_ty: return_ty_id.into_global(module.id),
-                                actual_ty: body_ty_id.into_global(module.id),
-                            });
+                            let _reported = self.report_unassignable_type_for_types(
+                                module,
+                                ctx.profile,
+                                body.into_any(),
+                                return_ty_id,
+                                body_ty_id,
+                                types,
+                            );
                         }
                     }
                 }
@@ -3553,32 +3573,40 @@ impl Compiler {
 
         // infer type from value or annotation
         // declared type is now on the declarator node, not the let expression
-        let declared_ty_id =
+        let declared_annotation_ty_id =
             types.get_declared_type_id(declarator_id.into_global(module.id).into());
+        let mut declared_relation_ty_id = declared_annotation_ty_id;
 
         // report implicit any when no annotation or initializer exists
         self.report_implicit_any_for_declarator(
             module,
             ctx.profile,
             declarator_id,
-            declared_ty_id,
+            declared_annotation_ty_id,
             value.is_some(),
         );
 
         // evaluate and prepare declared types before inference
-        if let Some(declared_ty_id) = declared_ty_id {
-            self.resolve_declared_type(module, ctx.profile, declared_ty_id, tree, symbols, types)?;
+        if let Some(initial_declared_ty_id) = declared_annotation_ty_id {
+            self.resolve_declared_type(
+                module,
+                ctx.profile,
+                initial_declared_ty_id,
+                tree,
+                symbols,
+                types,
+            )?;
             self.ensure_reference_instance_types_for_type(
                 module,
                 ctx.profile,
                 declarator_id.into_any(),
-                declared_ty_id,
+                initial_declared_ty_id,
                 types,
             )?;
 
             // register annotation-level instances on the reference type node
             if let Some((symbol, static_arguments, source_id)) =
-                self.unwrap_type_symbol(types, declared_ty_id)
+                self.unwrap_type_symbol(types, initial_declared_ty_id)
             {
                 let source_node_id = source_id.into_global(module.id);
                 let _ = self.commit_instance_for_reference_type_maybe(
@@ -3594,21 +3622,14 @@ impl Compiler {
                 )?;
             }
 
-            // normalize to surface recursive instantiations in declared types
-            let _ = self.normalize_type(
-                module,
-                ctx.profile,
-                declared_ty_id,
-                symbols,
-                types,
-                NormalizationMode::Assign,
-            );
+            // preserve declared relations as authored annotations
+            declared_relation_ty_id = Some(initial_declared_ty_id);
         }
 
         let inferred_ty_id = if let Some(value) = value {
             // apply declared type as the expected type when available
-            let mut value_ctx = if let Some(declared_ty_id) = declared_ty_id {
-                ctx.fork().with_expected_type(Some(declared_ty_id))
+            let mut value_ctx = if let Some(declared_relation_ty_id) = declared_relation_ty_id {
+                ctx.fork().with_expected_type(Some(declared_relation_ty_id))
             } else {
                 ctx.fork()
             };
@@ -3626,8 +3647,8 @@ impl Compiler {
         };
 
         // commit binding types for inferred values without annotations
-        let binding_ty_id = declared_ty_id.or(inferred_ty_id);
-        let committed_binding_ty_id = if declared_ty_id.is_none() {
+        let binding_ty_id = declared_annotation_ty_id.or(inferred_ty_id);
+        let committed_binding_ty_id = if declared_annotation_ty_id.is_none() {
             // preserve literal types when the initializer uses satisfies
             let preserve_literals =
                 value.is_some_and(|value_id| self.expression_is_satisfies(tree, value_id));
@@ -3662,12 +3683,12 @@ impl Compiler {
 
         // enforce explicit ownership when implicit managed values are disabled
         if let (Some(inferred_ty_id), Some(value_id)) = (inferred_ty_id, value) {
-            if let Some(declared_ty_id) = declared_ty_id {
+            if let Some(declared_relation_ty_id) = declared_relation_ty_id {
                 self.check_no_implicit_managed_value(
                     module,
                     ctx.profile,
                     *value_id,
-                    declared_ty_id,
+                    declared_relation_ty_id,
                     inferred_ty_id,
                     tree,
                     types,
@@ -3687,7 +3708,7 @@ impl Compiler {
         }
 
         // type check: if both declared and inferred, check assignability
-        if let (Some(declared), Some(inferred)) = (declared_ty_id, inferred_ty_id) {
+        if let (Some(declared), Some(inferred)) = (declared_relation_ty_id, inferred_ty_id) {
             let mut visited = HashSet::new();
             let skip_assignability = self.type_contains_error(declared, types, &mut visited)
                 || self.type_contains_error(inferred, types, &mut visited);
@@ -3743,19 +3764,29 @@ impl Compiler {
                     &options,
                 ) == Assignability::NotAssignable
             {
-                let error = match constraint {
-                    DeclaratorConstraint::Assignable => AnalyzeError::UnassignableType {
-                        node: declarator_id.into_global(module.id).into(),
-                        expected_ty: resolved_declared.into_global(module.id),
-                        actual_ty: resolved_inferred.into_global(module.id),
-                    },
-                    DeclaratorConstraint::Satisfies => AnalyzeError::UnsatisfiedType {
-                        node: declarator_id.into_global(module.id).into(),
-                        expected_ty: resolved_declared.into_global(module.id),
-                        actual_ty: resolved_inferred.into_global(module.id),
-                    },
-                };
-                return Err(error);
+                if matches!(constraint, DeclaratorConstraint::Assignable) {
+                    if let Some(error) = self.unassignable_type_error_for_types(
+                        module,
+                        ctx.profile,
+                        declarator_id.into_any(),
+                        resolved_declared,
+                        resolved_inferred,
+                        types,
+                    ) {
+                        return Err(error);
+                    }
+                } else {
+                    if let Some(error) = self.unsatisfied_type_error_for_types(
+                        module,
+                        ctx.profile,
+                        declarator_id.into_any(),
+                        resolved_declared,
+                        resolved_inferred,
+                        types,
+                    ) {
+                        return Err(error);
+                    }
+                }
             }
         }
 

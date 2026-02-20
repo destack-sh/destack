@@ -7,7 +7,8 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
-use crate::Compiler;
+use crate::analyze::common::AnalyzeDependencyStage;
+use crate::{Compiler, TaskDependencyError};
 
 /// Control how canonical symbol resolution treats aliases.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -20,6 +21,134 @@ pub(crate) enum CanonicalSymbolMode {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Resolve the canonical symbol for a reference with an explicit stage contract.
+    pub(crate) fn canonical_symbol_id_at_stage(
+        &self,
+        module: &Module,
+        symbols: &SymbolTable,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        mode: CanonicalSymbolMode,
+        stage: AnalyzeDependencyStage,
+    ) -> Result<GlobalSymbolId, TaskDependencyError> {
+        let mut current_symbol = symbol;
+        let mut visited = Vec::new();
+
+        // walk target and canonical chains until we stabilize
+        loop {
+            if visited.contains(&current_symbol) {
+                break Ok(current_symbol);
+            }
+            visited.push(current_symbol);
+
+            let (symbol_ty, canonical_symbol, target_symbol) = self
+                .with_module_symbols_or_local_at_stage(
+                    module,
+                    profile,
+                    current_symbol.module_id,
+                    symbols,
+                    stage,
+                    |_, owner_symbols| {
+                        let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
+                        (
+                            symbol_entry.ty,
+                            symbol_entry.canonical_symbol,
+                            symbol_entry.target_symbol,
+                        )
+                    },
+                )?;
+
+            // preserve alias identity
+            if matches!(mode, CanonicalSymbolMode::PreserveAliases)
+                && matches!(symbol_ty, SymbolType::TypeAlias | SymbolType::Newtype)
+            {
+                break Ok(current_symbol);
+            }
+
+            // otherwise, follow canonical links
+            if let Some(canonical_symbol) = canonical_symbol
+                && matches!(mode, CanonicalSymbolMode::FollowAliases)
+            {
+                break Ok(canonical_symbol);
+            }
+
+            if let Some(target_symbol) = target_symbol {
+                current_symbol = target_symbol;
+            } else {
+                break Ok(current_symbol);
+            }
+        }
+    }
+
+    /// Resolve a symbol to the declaration owner symbol with an explicit stage contract.
+    pub(crate) fn declaration_symbol_id_at_stage(
+        &self,
+        module: &Module,
+        symbols: &SymbolTable,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        stage: AnalyzeDependencyStage,
+    ) -> Result<Option<GlobalSymbolId>, TaskDependencyError> {
+        let mut current_symbol = self.canonical_symbol_id_at_stage(
+            module,
+            symbols,
+            profile,
+            symbol,
+            CanonicalSymbolMode::FollowAliases,
+            stage,
+        )?;
+        let mut visited_symbols = HashSet::new();
+
+        loop {
+            if !visited_symbols.insert(current_symbol) {
+                return Ok(None);
+            }
+
+            let (normalized_symbol, is_declaration, target_symbol, canonical_symbol) = self
+                .with_module_symbols_or_local_at_stage(
+                    module,
+                    profile,
+                    current_symbol.module_id,
+                    symbols,
+                    stage,
+                    |owner_module, owner_symbols| {
+                        let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
+                        let normalized_symbol = GlobalSymbolId::new(
+                            owner_module.id,
+                            current_symbol.local_id.with_type(symbol_entry.ty),
+                        );
+                        let is_declaration =
+                            symbol_entry.primary_declaration.is_some_and(|declaration| {
+                                declaration.local_id.ty == NodeType::Declaration
+                                    && symbol_entry.ty != SymbolType::Void
+                            });
+                        (
+                            normalized_symbol,
+                            is_declaration,
+                            symbol_entry.target_symbol,
+                            symbol_entry.canonical_symbol,
+                        )
+                    },
+                )?;
+
+            if is_declaration {
+                return Ok(Some(normalized_symbol));
+            }
+
+            let Some(next_symbol) = target_symbol.or(canonical_symbol) else {
+                return Ok(None);
+            };
+            current_symbol = self.canonical_symbol_id_at_stage(
+                module,
+                symbols,
+                profile,
+                next_symbol,
+                CanonicalSymbolMode::FollowAliases,
+                stage,
+            )?;
+        }
+    }
+
     /// Resolve the canonical symbol for a reference with explicit alias handling.
     pub(crate) fn canonical_symbol_id(
         &self,
@@ -39,20 +168,26 @@ impl Compiler {
             }
             visited.push(current_symbol);
 
-            let (symbol_ty, canonical_symbol, target_symbol) = self.with_module_symbols_or_local(
-                module,
-                profile,
-                current_symbol.module_id,
-                symbols,
-                |_, owner_symbols| {
-                    let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
-                    (
-                        symbol_entry.ty,
-                        symbol_entry.canonical_symbol,
-                        symbol_entry.target_symbol,
-                    )
-                },
-            );
+            let Some((symbol_ty, canonical_symbol, target_symbol)) = self
+                .with_module_symbols_or_local_at_stage(
+                    module,
+                    profile,
+                    current_symbol.module_id,
+                    symbols,
+                    AnalyzeDependencyStage::Declare,
+                    |_, owner_symbols| {
+                        let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
+                        (
+                            symbol_entry.ty,
+                            symbol_entry.canonical_symbol,
+                            symbol_entry.target_symbol,
+                        )
+                    },
+                )
+                .ok()
+            else {
+                break current_symbol;
+            };
 
             // preserve alias identity
             if matches!(mode, CanonicalSymbolMode::PreserveAliases)
@@ -98,12 +233,13 @@ impl Compiler {
                 return None;
             }
 
-            let (normalized_symbol, is_declaration, target_symbol, canonical_symbol) = self
-                .with_module_symbols_or_local(
+            let Some((normalized_symbol, is_declaration, target_symbol, canonical_symbol)) = self
+                .with_module_symbols_or_local_at_stage(
                     module,
                     profile,
                     current_symbol.module_id,
                     symbols,
+                    AnalyzeDependencyStage::Declare,
                     |owner_module, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         let normalized_symbol = GlobalSymbolId::new(
@@ -122,7 +258,11 @@ impl Compiler {
                             symbol_entry.canonical_symbol,
                         )
                     },
-                );
+                )
+                .ok()
+            else {
+                return None;
+            };
 
             if is_declaration {
                 return Some(normalized_symbol);
@@ -195,10 +335,11 @@ impl Compiler {
                 .unwrap_or(symbol);
         }
 
-        self.with_module_symbols(
+        self.with_module_symbols_at_stage(
             module,
             profile,
             symbol.module_id,
+            AnalyzeDependencyStage::Declare,
             |owner_module, owner_symbols| {
                 let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
                 // stop when the symbol is not a namespace
@@ -230,6 +371,7 @@ impl Compiler {
                     .unwrap_or(symbol)
             },
         )
+        .unwrap_or(symbol)
     }
 
     /// Normalize well-known type references into structural types when possible.

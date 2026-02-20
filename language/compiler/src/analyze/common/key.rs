@@ -8,6 +8,7 @@ use destack_dir::{
 };
 use destack_workspace::{ProfileId, WellKnownSymbols};
 
+use super::AnalyzeDependencyStage;
 use super::mapped::MappedIndexKind;
 use crate::Compiler;
 
@@ -138,9 +139,15 @@ impl Compiler {
 
         // helpers for well-known symbol resolution across ambient libs
         let symbol_key_for_global = |symbol: GlobalSymbolId| {
-            self.with_module_symbols_by_id(profile, symbol.module_id, symbols, |owner_symbols| {
-                owner_symbols.get_symbol(symbol.local_id).key
-            })
+            self.with_module_symbols_by_id_at_stage(
+                profile,
+                symbol.module_id,
+                symbols,
+                AnalyzeDependencyStage::Declare,
+                |owner_symbols| owner_symbols.get_symbol(symbol.local_id).key,
+            )
+            .ok()
+            .flatten()
         };
         let normalize_well_known_symbol =
             |symbol: GlobalSymbolId, well_known: &WellKnownSymbols| -> Option<GlobalSymbolId> {
@@ -292,23 +299,19 @@ impl Compiler {
             };
 
             // check declared types in the owning module
-            if symbol.module_id != symbols.module_id
-                && self
-                    .require_analyze_module_declare(symbol.module_id, profile)
-                    .is_err()
-            {
-                return None;
-            }
-            let is_unique = self.with_module_tree_symbols_types_by_id(
-                profile,
-                symbol.module_id,
-                tree,
-                symbols,
-                types,
-                |owner_tree, owner_symbols, owner_types| {
-                    is_unique_symbol(owner_symbols, owner_types, owner_tree)
-                },
-            );
+            let is_unique = self
+                .with_module_tree_symbols_types_by_id_at_stage(
+                    profile,
+                    symbol.module_id,
+                    tree,
+                    symbols,
+                    types,
+                    AnalyzeDependencyStage::Declare,
+                    |owner_tree, owner_symbols, owner_types| {
+                        is_unique_symbol(owner_symbols, owner_types, owner_tree)
+                    },
+                )
+                .ok()?;
             if is_unique {
                 return Some(StaticKey::Symbol(SymbolKey::Unique(symbol)));
             }

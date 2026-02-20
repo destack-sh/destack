@@ -82,12 +82,13 @@ impl Compiler {
             )?;
 
             if !branch.resolved.has_member {
-                self.error(AnalyzeError::NoOverload {
-                    node: expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(ctx.profile)),
-                    receiver_ty: non_nullish_ty_id.into_global(module.id),
-                });
+                let _reported = self.report_no_overload_for_receiver_type(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    non_nullish_ty_id,
+                    types,
+                );
             } else {
                 let payloads = self.resolve_try_payloads(
                     module,
@@ -188,12 +189,13 @@ impl Compiler {
                     types,
                 );
                 if !implements_try {
-                    self.error(AnalyzeError::NoOverload {
-                        node: expression_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(ctx.profile)),
-                        receiver_ty: left_ty_id.into_global(module.id),
-                    });
+                    let _reported = self.report_no_overload_for_receiver_type(
+                        module,
+                        ctx.profile,
+                        expression_id.into_any(),
+                        left_ty_id,
+                        types,
+                    );
                     let ty = Type::Error;
                     return Ok(types.insert_type_from(ty, expression_id));
                 }
@@ -213,12 +215,13 @@ impl Compiler {
                     infer,
                 )?;
                 if !branch.resolved.has_member {
-                    self.error(AnalyzeError::NoOverload {
-                        node: expression_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(ctx.profile)),
-                        receiver_ty: element_id.into_global(module.id),
-                    });
+                    let _reported = self.report_no_overload_for_receiver_type(
+                        module,
+                        ctx.profile,
+                        expression_id.into_any(),
+                        *element_id,
+                        types,
+                    );
                     let ty = Type::Error;
                     return Ok(types.insert_type_from(ty, expression_id));
                 }
@@ -297,12 +300,13 @@ impl Compiler {
             symbols,
             types,
         ) {
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                receiver_ty: left_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                left_ty_id,
+                types,
+            );
             let ty = Type::Error;
             return Ok(types.insert_type_from(ty, expression_id));
         }
@@ -324,12 +328,13 @@ impl Compiler {
 
         // reject missing branch members
         if !branch.resolved.has_member {
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                receiver_ty: left_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                left_ty_id,
+                types,
+            );
             let ty = Type::Error;
             return Ok(types.insert_type_from(ty, expression_id));
         }
@@ -849,12 +854,13 @@ impl Compiler {
 
         // branch expects no dynamic parameters
         if !resolved.signature.dynamic_parameters.is_empty() {
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
-                receiver_ty: receiver_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                profile,
+                expression_id.into_any(),
+                receiver_ty_id,
+                types,
+            );
         }
 
         // register instance if needed
@@ -1055,13 +1061,16 @@ impl Compiler {
 
         // report missing fromError implementations
         if missing_from_error {
-            self.error(AnalyzeError::MissingMember {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
-                receiver_ty: receiver_ty_id.into_global(module.id),
-                member_key: from_error_key,
-            });
+            let _reported = self.report_missing_member_diagnostic_for_receiver_type(
+                module,
+                profile,
+                expression_id,
+                receiver_ty_id,
+                from_error_key,
+                symbols,
+                types,
+                false,
+            )?;
         }
 
         Ok(())
@@ -1212,13 +1221,14 @@ impl Compiler {
             types,
             &ctx.options,
         ) {
-            self.error(AnalyzeError::UnassignableType {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                expected_ty: return_error_ty_id.into_global(module.id),
-                actual_ty: error_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_unassignable_type_for_types(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                return_error_ty_id,
+                error_ty_id,
+                types,
+            );
         }
     }
 
@@ -1369,12 +1379,13 @@ impl Compiler {
 
             // reject missing branches for Try elements
             if !branch.resolved.has_member {
-                self.error(AnalyzeError::NoOverload {
-                    node: expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile)),
-                    receiver_ty: element_id.into_global(module.id),
-                });
+                let _reported = self.report_no_overload_for_receiver_type(
+                    module,
+                    profile,
+                    expression_id.into_any(),
+                    *element_id,
+                    types,
+                );
                 continue;
             }
 

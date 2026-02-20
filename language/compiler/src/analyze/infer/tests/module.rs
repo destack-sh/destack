@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyze::common::AnalyzeDependencyStage;
 
 /// Merge global interface members across imported modules.
 #[test]
@@ -54,18 +55,21 @@ const thing: GlobalThing = { value: 1, label: "ok" };
 
     for global_symbol in &global_group {
         let remote_profile = test.default_profile_id(global_symbol.module_id);
-        test.compiler.with_module_types(
-            &module,
-            remote_profile,
-            global_symbol.module_id,
-            |_, remote_types| {
-                assert!(
-                    remote_types.get_instance_type_id(*global_symbol).is_some(),
-                    "expected instance type for GlobalThing in module {:?}",
-                    global_symbol.module_id,
-                );
-            },
-        );
+        test.compiler
+            .with_module_types_at_stage(
+                &module,
+                remote_profile,
+                global_symbol.module_id,
+                AnalyzeDependencyStage::Declare,
+                |_, remote_types| {
+                    assert!(
+                        remote_types.get_instance_type_id(*global_symbol).is_some(),
+                        "expected instance type for GlobalThing in module {:?}",
+                        global_symbol.module_id,
+                    );
+                },
+            )
+            .expect("declare stage should be ready for merged global module test");
     }
 
     // locate the bound symbol for thing in the module scope
@@ -264,7 +268,7 @@ fn test_analyze_cross_module_member_access_declared_shape() {
     test.add_file(
         "lib.ds",
         r#"
-export struct Box {
+export interface Box {
     value: number
 }
 
@@ -293,6 +297,136 @@ let value = boxed.value;
     assert_type!(
         view.types(),
         value_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number)
+        }
+    );
+}
+
+/// Analyze cross module extension associated comptime value projection.
+#[test]
+fn test_analyze_cross_module_extension_associated_comptime_value_projection() {
+    // arrange contract and owner modules
+    let test = TestProgram::memory_sequential();
+    test.add_file(
+        "contract.ds",
+        r#"
+export interface RetryPolicy {
+    comptime const MaxRetries: number;
+    type Budget = uint8[this.MaxRetries];
+}
+"#,
+    );
+    test.add_file(
+        "owner.ds",
+        r#"
+import { RetryPolicy } from "./contract";
+
+export struct HttpRetryPolicy {}
+
+extension for HttpRetryPolicy implements RetryPolicy {
+    comptime const MaxRetries: number = 5;
+}
+"#,
+    );
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+import { HttpRetryPolicy } from "./owner";
+
+declare const budget: HttpRetryPolicy.Budget;
+let retries = HttpRetryPolicy.MaxRetries;
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load typed module data
+    let view = test.view(module_id);
+
+    // retries should resolve to number
+    let retries_symbol = test.resolve_to_symbol("main.ds", "retries").unwrap();
+    let retries_ty_id = view.types().get_value_type_id(retries_symbol).unwrap();
+
+    assert_type!(
+        view.types(),
+        retries_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))
+        }
+    );
+}
+
+/// Analyze cross module extension associated comptime value projection through re-exports.
+#[test]
+#[ignore = "TODO #Broken: extension associated comptime projections through re-export and namespace imports"]
+fn test_analyze_cross_module_extension_associated_comptime_value_projection_through_reexport() {
+    // arrange contract, owner, and barrel modules
+    let test = TestProgram::memory_sequential();
+    test.add_file(
+        "contract.ds",
+        r#"
+export interface RetryPolicy {
+    comptime const MaxRetries: number;
+}
+"#,
+    );
+    test.add_file(
+        "owner.ds",
+        r#"
+import { RetryPolicy } from "./contract";
+
+export struct HttpRetryPolicy {}
+
+extension for HttpRetryPolicy implements RetryPolicy {
+    comptime const MaxRetries: number = 5;
+}
+"#,
+    );
+    test.add_file(
+        "barrel.ds",
+        r#"
+export { HttpRetryPolicy } from "./owner";
+"#,
+    );
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+import { HttpRetryPolicy } from "./barrel";
+import * as ownerNs from "./owner";
+
+let retries = HttpRetryPolicy.MaxRetries;
+let ownerRetries = ownerNs.HttpRetryPolicy.MaxRetries;
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load typed module data
+    let view = test.view(module_id);
+
+    // retries should resolve to number from the re-export path
+    let retries_symbol = test.resolve_to_symbol("main.ds", "retries").unwrap();
+    let retries_ty_id = view.types().get_value_type_id(retries_symbol).unwrap();
+    assert_type!(
+        view.types(),
+        retries_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number)
+        }
+    );
+
+    // ownerRetries should resolve to number from the namespace import path
+    let owner_retries_symbol = test.resolve_to_symbol("main.ds", "ownerRetries").unwrap();
+    let owner_retries_ty_id = view
+        .types()
+        .get_value_type_id(owner_retries_symbol)
+        .unwrap();
+    assert_type!(
+        view.types(),
+        owner_retries_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         }
@@ -440,4 +574,29 @@ let value = text;
             value: TypeLiteral::Primitive(PrimitiveType::String)
         }
     );
+}
+
+/// Reject incompatible assignment from typeof static method calls.
+#[test]
+fn test_analyze_reports_unassignable_type_for_typeof_static_method_result() {
+    // arrange a class constructor alias and incompatible assignment
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+class Counter {
+    static next(value: int32): int32 { return value + 1 }
+}
+
+type CounterCtor = typeof Counter;
+
+let ctor: CounterCtor = Counter;
+let badNext: string = ctor.next(1);
+"#,
+    );
+
+    // run analyze and require unassignable diagnostic
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_has_diagnostic("EA101");
 }

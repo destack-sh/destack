@@ -293,18 +293,19 @@ impl Compiler {
         if let Some(body_ty_id) =
             types.get_declared_or_inferred_type_id(body_id.into_global_any(module.id))
         {
-            if matches!(types.get_type(body_ty_id), Type::Error) {
+            if self.type_blocks_follow_on_diagnostic(body_ty_id, types) {
                 return;
             }
 
             // report fallthrough type mismatch
-            self.error(AnalyzeError::UnassignableType {
-                node: body_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
-                expected_ty: return_ty_id.into_global(module.id),
-                actual_ty: body_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_unassignable_type_for_types(
+                module,
+                profile,
+                body_id.into_any(),
+                return_ty_id,
+                body_ty_id,
+                types,
+            );
         }
 
         // report missing return

@@ -1064,6 +1064,68 @@ let value = derived.map<string>();
     );
 }
 
+/// Verify re-exported inherited class member calls still commit base-member instances.
+#[test]
+fn test_instance_records_reexported_cross_module_inherited_class_method_instantiation() {
+    let test = TestProgram::memory_sequential();
+    let lib_id = test.add_module(
+        "lib.ds",
+        r#"
+export declare class Base<T> {
+    map<U>(value: U): [T, U];
+}
+"#,
+    );
+    test.add_module(
+        "relay.ds",
+        r#"
+import { Base } from "./lib.ds";
+
+export class Derived<T> extends Base<T> {}
+"#,
+    );
+    let main_id = test.add_module(
+        "main.ds",
+        r#"
+import { Derived } from "./relay.ds";
+
+declare let derived: Derived<number>;
+declare let text: string;
+
+let value = derived.map(text);
+"#,
+    );
+
+    // analyze
+    test.analyze_module_and_check_clean(main_id);
+    let main_view = test.view(main_id);
+    let lib_view = test.view(lib_id);
+
+    // read
+    let value_name = test.program.strings.intern("value");
+    let declarator_id = main_view.expect_let_declarator(value_name);
+    let declarator = main_view.tree().get(declarator_id);
+    let value_id = declarator.value.expect("expected initializer");
+
+    let base_symbol = test
+        .resolve_to_symbol("lib.ds", "Base")
+        .expect("expected Base symbol");
+    let map_name = test.program.strings.intern("map");
+    let base_map_symbol = lib_view.expect_member_symbol_for_owner(base_symbol, map_name);
+
+    // derived.map(text)
+    let (instance_symbol, static_arguments) = main_view.expect_instance_for_expression(value_id);
+
+    // Base.map
+    assert_eq!(instance_symbol, base_map_symbol);
+
+    // <number, string>
+    main_view.assert_static_argument_primitive_sequence(
+        &static_arguments,
+        &[PrimitiveType::Number, PrimitiveType::String],
+    );
+}
+
 /// Verify imported generic function calls commit instances in the consumer module.
 #[test]
 fn test_instance_records_cross_module_function_call_instantiation_with_inferred_arguments() {

@@ -41,7 +41,7 @@ impl Compiler {
             return Ok(types.insert_type_from_any(ty, node_id));
         }
 
-        self.with_module_tree_symbols_for_stage(
+        self.with_module_tree_symbols_at_stage(
             module,
             profile,
             remote_module_id,

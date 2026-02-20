@@ -8,7 +8,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
-use super::{CanonicalSymbolMode, RelationMode};
+use super::{AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode};
 use crate::timing::tags;
 use crate::{AnalyzeError, Assignability, Compiler};
 
@@ -21,17 +21,24 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> GlobalSymbolId {
-        self.with_module_symbols_base(module, symbol.module_id, |owner_module, symbols| {
-            let symbol_entry = symbols.get_symbol(symbol.local_id).clone();
-            self.normalize_reference_symbol_id_with_symbols(
-                module,
-                profile,
-                owner_module,
-                symbol,
-                symbols,
-                symbol_entry,
-            )
-        })
+        self.with_module_symbols_base_at_stage(
+            module,
+            profile,
+            symbol.module_id,
+            AnalyzeDependencyStage::Declare,
+            |owner_module, symbols| {
+                let symbol_entry = symbols.get_symbol(symbol.local_id).clone();
+                self.normalize_reference_symbol_id_with_symbols(
+                    module,
+                    profile,
+                    owner_module,
+                    symbol,
+                    symbols,
+                    symbol_entry,
+                )
+            },
+        )
+        .unwrap_or(symbol)
     }
 
     /// Normalize a reference symbol id using a symbol table snapshot.
@@ -1542,10 +1549,11 @@ impl Compiler {
                 &mut materialize_cache,
             )
         } else {
-            self.with_module_tree_symbols(
+            self.with_module_tree_symbols_at_stage(
                 module,
                 profile,
                 symbol.module_id,
+                AnalyzeDependencyStage::Declare,
                 |owner_module, tree, symbols| {
                     // skip materialization when the alias instance is already stable
                     if !self.alias_instance_needs_materialization(
@@ -1571,6 +1579,7 @@ impl Compiler {
                     )
                 },
             )
+            .unwrap_or(instance_type_id)
         }
     }
 

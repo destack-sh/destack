@@ -1,3 +1,4 @@
+use crate::analyze::common::AnalyzeDependencyStage;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, NodeTree,
@@ -26,16 +27,19 @@ impl Compiler {
         }
 
         // resolve from the owning module when needed
-        let kind = self.with_module_tree_symbols_or_local(
-            module,
-            profile,
-            symbol.module_id,
-            tree,
-            symbols,
-            |_, tree, symbols| {
-                self.static_parameter_kind_for_symbol_in_module(symbol, tree, symbols)
-            },
-        );
+        let kind = self
+            .with_module_tree_symbols_or_local_at_stage(
+                module,
+                profile,
+                symbol.module_id,
+                tree,
+                symbols,
+                AnalyzeDependencyStage::Declare,
+                |_, tree, symbols| {
+                    self.static_parameter_kind_for_symbol_in_module(symbol, tree, symbols)
+                },
+            )
+            .unwrap_or(StaticParameterKind::Type);
 
         // cache resolved kinds
         types.set_static_parameter_kind(symbol, kind);
@@ -94,16 +98,20 @@ impl Compiler {
         }
 
         // resolve from the owning module when needed
-        let variance = self.with_module_tree_symbols_or_local(
-            module,
-            profile,
-            symbol.module_id,
-            tree,
-            symbols,
-            |_, tree, symbols| {
-                self.static_parameter_variance_for_symbol_in_module(symbol, tree, symbols)
-            },
-        );
+        let variance = self
+            .with_module_tree_symbols_or_local_at_stage(
+                module,
+                profile,
+                symbol.module_id,
+                tree,
+                symbols,
+                AnalyzeDependencyStage::Declare,
+                |_, tree, symbols| {
+                    self.static_parameter_variance_for_symbol_in_module(symbol, tree, symbols)
+                },
+            )
+            .ok()
+            .flatten();
 
         // cache resolved variance
         types.set_static_parameter_variance(symbol, variance);
@@ -132,18 +140,21 @@ impl Compiler {
         }
 
         // fall back to owner type metadata when tree is unavailable
-        let (kind, variance) = self.with_module_types_or_local(
-            module,
-            profile,
-            symbol.module_id,
-            types,
-            |_, owner_types| {
-                (
-                    owner_types.get_static_parameter_kind(symbol),
-                    owner_types.get_static_parameter_variance(symbol).flatten(),
-                )
-            },
-        );
+        let (kind, variance) = self
+            .with_module_types_or_local_at_stage(
+                module,
+                profile,
+                symbol.module_id,
+                types,
+                AnalyzeDependencyStage::Declare,
+                |_, owner_types| {
+                    (
+                        owner_types.get_static_parameter_kind(symbol),
+                        owner_types.get_static_parameter_variance(symbol).flatten(),
+                    )
+                },
+            )
+            .unwrap_or((None, None));
 
         (kind, variance)
     }
@@ -236,13 +247,18 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &TypeTable,
     ) -> Option<Vec<GlobalSymbolId>> {
-        if let Some(cached) = self.with_module_types_or_local(
-            module,
-            profile,
-            symbol.module_id,
-            types,
-            |_, owner_types| owner_types.get_static_parameter_symbols(symbol),
-        ) {
+        if let Some(cached) = self
+            .with_module_types_or_local_at_stage(
+                module,
+                profile,
+                symbol.module_id,
+                types,
+                AnalyzeDependencyStage::Declare,
+                |_, owner_types| owner_types.get_static_parameter_symbols(symbol),
+            )
+            .ok()
+            .flatten()
+        {
             return Some(cached);
         }
 
@@ -275,32 +291,38 @@ impl Compiler {
                 continue;
             }
 
-            let (parameters, next) = self.with_module_tree_symbols(
-                module,
-                profile,
-                current.module_id,
-                |owner_module, owner_tree, owner_symbols| {
-                    let owner_types = owner_module.dir(profile).types.read();
-                    if let Some(cached) = owner_types.get_static_parameter_symbols(current) {
-                        return (Some(cached), None);
-                    }
+            let Some((parameters, next)) = self
+                .with_module_tree_symbols_at_stage(
+                    module,
+                    profile,
+                    current.module_id,
+                    AnalyzeDependencyStage::Declare,
+                    |owner_module, owner_tree, owner_symbols| {
+                        let owner_types = owner_module.dir(profile).types.read();
+                        if let Some(cached) = owner_types.get_static_parameter_symbols(current) {
+                            return (Some(cached), None);
+                        }
 
-                    if let Some(parameters) = self.collect_static_parameter_symbols_in_module(
-                        owner_module.id,
-                        current,
-                        owner_tree,
-                        owner_symbols,
-                    ) {
-                        return (Some(parameters), None);
-                    }
+                        if let Some(parameters) = self.collect_static_parameter_symbols_in_module(
+                            owner_module.id,
+                            current,
+                            owner_tree,
+                            owner_symbols,
+                        ) {
+                            return (Some(parameters), None);
+                        }
 
-                    let symbol_entry = owner_symbols.get_symbol(current.local_id);
-                    (
-                        None,
-                        symbol_entry.target_symbol.or(symbol_entry.canonical_symbol),
-                    )
-                },
-            );
+                        let symbol_entry = owner_symbols.get_symbol(current.local_id);
+                        (
+                            None,
+                            symbol_entry.target_symbol.or(symbol_entry.canonical_symbol),
+                        )
+                    },
+                )
+                .ok()
+            else {
+                break None;
+            };
             if let Some(parameters) = parameters {
                 break Some(parameters);
             }
@@ -391,24 +413,28 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> StaticParameter {
         // prefer parameter metadata from the owning module
-        let parameter = self.with_module_tree_symbols_or_local(
-            module,
-            profile,
-            symbol_id.module_id,
-            tree,
-            symbols,
-            |owner_module, owner_tree, owner_symbols| {
-                self.resolve_static_parameter_in_module(
-                    owner_module,
-                    profile,
-                    symbol_id,
-                    source_id,
-                    owner_tree,
-                    owner_symbols,
-                    types,
-                )
-            },
-        );
+        let parameter = self
+            .with_module_tree_symbols_or_local_at_stage(
+                module,
+                profile,
+                symbol_id.module_id,
+                tree,
+                symbols,
+                AnalyzeDependencyStage::Declare,
+                |owner_module, owner_tree, owner_symbols| {
+                    self.resolve_static_parameter_in_module(
+                        owner_module,
+                        profile,
+                        symbol_id,
+                        source_id,
+                        owner_tree,
+                        owner_symbols,
+                        types,
+                    )
+                },
+            )
+            .ok()
+            .flatten();
 
         // synthesize unknown metadata when parameter details are unavailable
         parameter.unwrap_or_else(|| {
@@ -583,10 +609,11 @@ impl Compiler {
             }
         } else {
             // resolve remote static parameter constraints by importing the declared type
-            self.with_module_tree_symbols(
+            self.with_module_tree_symbols_at_stage(
                 module,
                 profile,
                 symbol.module_id,
+                AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     // read the remote symbol
                     let owner_symbol = owner_symbols.get_symbol(symbol.local_id);
@@ -639,6 +666,9 @@ impl Compiler {
                     }
                 },
             )
+            .ok()
+            .flatten()
+            .or_else(|| Some(self.synthesize_unknown_type_for_source(source_id, types)))
         };
 
         // clear the in progress marker
