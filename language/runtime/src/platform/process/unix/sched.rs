@@ -7,7 +7,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
@@ -38,7 +38,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_affinity(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessCpuSet,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -110,7 +110,7 @@ pub(crate) unsafe fn destack_process_get_affinity(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_priority(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut i32,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -160,7 +160,7 @@ pub(crate) unsafe fn destack_process_get_priority(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_scheduler(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut ProcessSchedulerConfig,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -228,7 +228,7 @@ pub(crate) unsafe fn destack_process_get_scheduler(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_affinity(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     pid: ProcessId,
     cpus: ProcessCpuSet,
 ) -> RuntimeResult<()> {
@@ -298,7 +298,7 @@ pub(crate) unsafe fn destack_process_set_affinity(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_scheduler(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     pid: ProcessId,
     config: ProcessSchedulerConfig,
 ) -> RuntimeResult<()> {
@@ -356,7 +356,7 @@ pub(crate) unsafe fn destack_process_set_scheduler(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_priority(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     pid: ProcessId,
     priority: i32,
 ) -> RuntimeResult<()> {
@@ -389,7 +389,7 @@ pub(crate) unsafe fn destack_process_set_priority(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_process_yield_now(_context: &RuntimeCallContext) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_process_yield_now(_context: &BindingCallContext) -> RuntimeResult<()> {
     let result = unsafe { libc::sched_yield() };
     if result != 0 {
         return Err(core_process::process_last_error(

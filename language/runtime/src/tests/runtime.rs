@@ -2,6 +2,7 @@ use destack_base::LocalStringPool;
 use destack_mir::NodeTree;
 use destack_vm as vm;
 use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions};
+use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeErrorId, RuntimeResult, RuntimeStatus};
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -10,7 +11,7 @@ use crate::platform::random::{
 };
 use crate::platform::resource::{ListenerHandle, ResourceKind};
 use crate::platform::{PlatformContext, PlatformError};
-use crate::runtime::{Runtime, RuntimeCallContext, RuntimeContext, enter_runtime_call_context};
+use crate::runtime::{BindingCallContext, Runtime, RuntimeState, enter_binding_call_context};
 
 /// Runtime harness for runtime tests.
 #[cfg_attr(windows, allow(dead_code))]
@@ -37,9 +38,11 @@ impl TestRuntime {
         };
 
         // runtime with deterministic random state
-        let context =
-            RuntimeContext::from_runtime_options(PlatformContext::new(Vec::new()), &options);
-        let runtime = Runtime::new(context);
+        let state = Arc::new(RuntimeState::from_runtime_options(
+            PlatformContext::new(Vec::new()),
+            &options,
+        ));
+        let runtime = Runtime::new(state);
 
         let tree = NodeTree::new();
         let strings = LocalStringPool::new().into_immutable();
@@ -54,15 +57,15 @@ impl TestRuntime {
     /// Execute a native binding within a runtime call context.
     pub(crate) fn with_native_call_context<T>(
         &self,
-        run: impl FnOnce(&RuntimeCallContext) -> T,
+        run: impl FnOnce(&BindingCallContext) -> T,
     ) -> T {
         // enter a native call context for the binding
-        let call_context = RuntimeCallContext::new(
-            &self.runtime.context,
-            self.runtime.scheduler.as_ref(),
-            self.runtime.bindings.policy(),
+        let call_context = BindingCallContext::new(
+            &self.runtime.state,
+            self.runtime.event_loop.as_ref(),
+            self.runtime.bindings.policy_snapshot(),
         );
-        let _guard = enter_runtime_call_context(&call_context);
+        let _guard = enter_binding_call_context(&call_context);
 
         // run the native call
         run(&call_context)
@@ -71,17 +74,17 @@ impl TestRuntime {
     /// Execute a VM binding within a runtime call context.
     pub(crate) fn with_vm_call_context<T>(
         &self,
-        run: impl for<'ctx> FnOnce(&RuntimeCallContext, &mut vm::ExternalCallContext<'ctx>) -> T,
+        run: impl for<'ctx> FnOnce(&BindingCallContext, &mut vm::ExternalCallContext<'ctx>) -> T,
     ) -> T {
         // run the VM call with a fresh runtime call context
         let mut isolate = self.vm_isolate.borrow_mut();
         isolate.with_runtime_context(|context| {
-            let call_context = RuntimeCallContext::new(
-                &self.runtime.context,
-                self.runtime.scheduler.as_ref(),
-                self.runtime.bindings.policy(),
+            let call_context = BindingCallContext::new(
+                &self.runtime.state,
+                self.runtime.event_loop.as_ref(),
+                self.runtime.bindings.policy_snapshot(),
             );
-            let _guard = enter_runtime_call_context(&call_context);
+            let _guard = enter_binding_call_context(&call_context);
             run(&call_context, context)
         })
     }
@@ -127,17 +130,12 @@ impl TestRuntime {
 
         // take the stored runtime error
         let error_id = RuntimeErrorId::from_raw(status.error_id);
-        let error = self
-            .runtime
-            .context
-            .errors()
-            .take(error_id)
-            .unwrap_or_else(|| {
-                RuntimeError::from(PlatformError::io(format!(
-                    "{label} failed with missing runtime error",
-                )))
-                .boxed()
-            });
+        let error = self.runtime.state.errors.take(error_id).unwrap_or_else(|| {
+            RuntimeError::from(PlatformError::io(format!(
+                "{label} failed with missing runtime error",
+            )))
+            .boxed()
+        });
 
         Err(error)
     }
@@ -147,8 +145,8 @@ impl TestRuntime {
     pub(crate) fn listener_port(&self, handle: ListenerHandle) -> u16 {
         let fd = self
             .runtime
-            .context
-            .resources()
+            .state
+            .resources
             .with_entry(handle.0, |entry| {
                 if entry.kind != ResourceKind::Listener {
                     return None;
@@ -186,8 +184,8 @@ impl TestRuntime {
 
         let socket = self
             .runtime
-            .context
-            .resources()
+            .state
+            .resources
             .with_entry(handle.0, |entry| {
                 if entry.kind != ResourceKind::Listener {
                     return None;

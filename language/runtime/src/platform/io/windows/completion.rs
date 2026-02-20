@@ -2,7 +2,7 @@ use super::core::require_out;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::io::{CompletionEvent, CompletionOperation, core as io_core};
 use crate::platform::{NativeArray, NativeSlice, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Cancel queued operations for one target.
 ///
@@ -22,7 +22,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_cancel(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     handle: resource::CompletionHandle,
     target: resource::ResourceId,
@@ -55,7 +55,7 @@ pub(crate) unsafe fn destack_io_completion_cancel(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<()> {
     io_core::completion_close(context, handle)
@@ -79,7 +79,7 @@ pub(crate) unsafe fn destack_io_completion_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_enter(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     handle: resource::CompletionHandle,
     mincomplete: u32,
@@ -114,7 +114,7 @@ pub(crate) unsafe fn destack_io_completion_enter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::CompletionHandle,
     entries: u32,
 ) -> RuntimeResult<()> {
@@ -146,7 +146,7 @@ pub(crate) unsafe fn destack_io_completion_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_submit(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::CompletionHandle,
     operation: CompletionOperation,
 ) -> RuntimeResult<()> {
@@ -171,7 +171,7 @@ pub(crate) unsafe fn destack_io_completion_submit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_submit_batch(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     handle: resource::CompletionHandle,
     operationwords: NativeSlice<u64>,
@@ -212,7 +212,7 @@ pub(crate) unsafe fn destack_io_completion_submit_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<CompletionEvent>,
     handle: resource::CompletionHandle,
     timeoutns: u64,

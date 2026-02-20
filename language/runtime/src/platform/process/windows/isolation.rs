@@ -7,7 +7,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::fs::core as core_fs;
@@ -38,7 +38,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_chroot(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     let _path = core_fs::os_path_to_utf8_string(path, "path")?;
@@ -66,7 +66,7 @@ pub(crate) unsafe fn destack_process_chroot(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_install_syscall_filter(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     program: NativeArray<u8>,
     flags: SyscallFilterFlags,
 ) -> RuntimeResult<()> {
@@ -96,7 +96,7 @@ pub(crate) unsafe fn destack_process_install_syscall_filter(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_set_host_name(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _name = unsafe { name.as_str()? };
@@ -124,7 +124,7 @@ pub(crate) unsafe fn destack_process_set_host_name(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_set_network_namespace(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     let _path = core_fs::os_path_to_utf8_string(path, "path")?;
@@ -152,7 +152,7 @@ pub(crate) unsafe fn destack_process_set_network_namespace(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_setns(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     pid: ProcessId,
     namespace: ProcessNamespaceKind,
 ) -> RuntimeResult<()> {
@@ -181,7 +181,7 @@ pub(crate) unsafe fn destack_process_setns(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_unshare(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _flags: ProcessUnshareFlags,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(

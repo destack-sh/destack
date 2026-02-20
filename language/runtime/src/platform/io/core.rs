@@ -22,7 +22,7 @@ use crate::platform::proactor::{
 };
 use crate::platform::resource::{self, ResourceEntry, ResourceKind};
 use crate::platform::{NativeSlice, PlatformError, PlatformErrorCode, PlatformEvent, ResourceId};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 #[cfg(target_os = "linux")]
 use io_uring::IoUring;
@@ -170,7 +170,7 @@ type EventAttachmentTargets = HashMap<ResourceId, u64>;
 type EventAttachmentRegistry = HashMap<EventAttachmentKey, EventAttachmentTargets>;
 
 /// Return a stable identity key for the current runtime instance.
-pub(super) fn runtime_instance_key(context: &RuntimeCallContext) -> usize {
+pub(super) fn runtime_instance_key(context: &BindingCallContext) -> usize {
     context.runtime() as *const _ as usize
 }
 
@@ -189,7 +189,7 @@ fn poll_not_found(op: &'static str, handle: resource::PollHandle) -> Box<Runtime
 
 /// Resolve one poll resource payload from one poll handle.
 fn resolve_poll_resource(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::PollHandle,
 ) -> RuntimeResult<Arc<PollResource>> {
     // resolve the poll entry payload
@@ -273,7 +273,7 @@ fn map_poll_event(event: PlatformEvent) -> Option<PollEvent> {
 
 /// Queue one synthetic poll event for one attached event token signal.
 fn queue_attached_poll_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     target: ResourceId,
     key: u64,
     value: u64,
@@ -321,7 +321,7 @@ fn drain_queued_poll_events(
 
 /// Open one io.poll instance.
 pub(super) fn poll_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     backend: PollBackend,
 ) -> RuntimeResult<resource::PollHandle> {
     // create the selected backend using shared platform policy
@@ -338,7 +338,7 @@ pub(super) fn poll_open(
 
 /// Close one io.poll instance.
 pub(super) fn poll_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::PollHandle,
 ) -> RuntimeResult<()> {
     // verify this handle points to one poll resource
@@ -369,7 +369,7 @@ pub(super) fn poll_close(
 
 /// Register one target with one io.poll instance.
 pub(super) fn poll_register(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::PollHandle,
     target: ResourceId,
     key: u64,
@@ -389,7 +389,7 @@ pub(super) fn poll_register(
 
 /// Update one registered target in one io.poll instance.
 pub(super) fn poll_update(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::PollHandle,
     target: ResourceId,
     key: u64,
@@ -406,7 +406,7 @@ pub(super) fn poll_update(
 
 /// Remove one registered target from one io.poll instance.
 pub(super) fn poll_deregister(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::PollHandle,
     target: ResourceId,
 ) -> RuntimeResult<()> {
@@ -420,7 +420,7 @@ pub(super) fn poll_deregister(
 
 /// Wait for one batch of poll events from one io.poll instance.
 pub(super) fn poll_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::PollHandle,
     timeout_nanos: u64,
     max_events: u32,
@@ -574,7 +574,7 @@ pub(super) fn io_error_from_errno(operation: &'static str) -> Box<RuntimeError> 
 
 /// Resolve one completion resource payload from one completion handle.
 fn resolve_completion_resource(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<Arc<CompletionResource>> {
     // resolve one completion resource payload
@@ -605,7 +605,7 @@ fn resolve_completion_resource(
 }
 
 /// Return whether one event token exists and carries the event label.
-fn event_exists(context: &RuntimeCallContext, token: EventToken) -> bool {
+fn event_exists(context: &BindingCallContext, token: EventToken) -> bool {
     context
         .runtime()
         .resources
@@ -626,14 +626,14 @@ fn event_attachment_map() -> &'static Mutex<EventAttachmentRegistry> {
 }
 
 /// Return the attachment key for one event token in one runtime instance.
-fn event_attachment_key(context: &RuntimeCallContext, token: EventToken) -> (usize, ResourceId) {
+fn event_attachment_key(context: &BindingCallContext, token: EventToken) -> (usize, ResourceId) {
     (runtime_instance_key(context), ResourceId(token.0))
 }
 
 /// Resolve one io_uring payload from one uring handle.
 #[cfg(target_os = "linux")]
 fn resolve_uring_resource(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<Arc<UringResource>> {
     // resolve one io_uring resource payload
@@ -688,7 +688,7 @@ fn remaining_timeout(timeoutns: u64, started_at: Instant) -> Option<u64> {
 
 /// Map one completion operation into one proactor request.
 fn completion_request(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     operation: CompletionOperation,
 ) -> RuntimeResult<ProactorRequest> {
     // reject reserved runtime tokens
@@ -938,7 +938,7 @@ fn enqueue_proactor_completions(
 
 /// Map one backend completion into one io completion event.
 fn completion_event_from_backend(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     completion: ProactorCompletion,
 ) -> RuntimeResult<CompletionEvent> {
     // encode one base flag mask from the completion kind
@@ -978,7 +978,7 @@ fn completion_event_from_backend(
 
 /// Open one completion queue instance.
 pub(super) fn completion_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     entries: u32,
 ) -> RuntimeResult<resource::CompletionHandle> {
     // reject empty queue capacities
@@ -1005,7 +1005,7 @@ pub(super) fn completion_open(
 
 /// Close one completion queue instance.
 pub(super) fn completion_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<()> {
     // verify this handle points to one completion resource
@@ -1022,7 +1022,7 @@ pub(super) fn completion_close(
 
 /// Submit one completion operation.
 pub(super) fn completion_submit(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::CompletionHandle,
     operation: CompletionOperation,
 ) -> RuntimeResult<()> {
@@ -1050,7 +1050,7 @@ pub(super) fn completion_submit(
 
 /// Submit a batch of completion operations.
 pub(super) fn completion_submit_batch(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::CompletionHandle,
     operationwords: NativeSlice<u64>,
     operationcount: u32,
@@ -1127,7 +1127,7 @@ pub(super) fn completion_submit_batch(
 
 /// Enter the completion backend and stage completions for later waits.
 pub(super) fn completion_enter(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::CompletionHandle,
     mincomplete: u32,
     timeoutns: u64,
@@ -1178,7 +1178,7 @@ pub(super) fn completion_enter(
 
 /// Cancel queued operations for one completion target.
 pub(super) fn completion_cancel(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::CompletionHandle,
     target: ResourceId,
 ) -> RuntimeResult<u32> {
@@ -1206,7 +1206,7 @@ pub(super) fn completion_cancel(
 
 /// Wait for completion events from one completion queue.
 pub(super) fn completion_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::CompletionHandle,
     timeoutns: u64,
     maxevents: u32,
@@ -1243,7 +1243,7 @@ pub(super) fn completion_wait(
 }
 
 /// Open one user-event token.
-pub(super) fn event_open(context: &RuntimeCallContext, initial: u64) -> RuntimeResult<EventToken> {
+pub(super) fn event_open(context: &BindingCallContext, initial: u64) -> RuntimeResult<EventToken> {
     // reject one reserved eventfd increment value
     if initial == u64::MAX {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -1257,7 +1257,7 @@ pub(super) fn event_open(context: &RuntimeCallContext, initial: u64) -> RuntimeR
 }
 
 /// Close one user-event token.
-pub(super) fn event_close(context: &RuntimeCallContext, token: EventToken) -> RuntimeResult<()> {
+pub(super) fn event_close(context: &BindingCallContext, token: EventToken) -> RuntimeResult<()> {
     // verify this token points to one event resource
     if !event_exists(context, token) {
         return Err(event_not_found("destack.io.event.close", token));
@@ -1272,7 +1272,7 @@ pub(super) fn event_close(context: &RuntimeCallContext, token: EventToken) -> Ru
 
 /// Signal one user-event token.
 pub(super) fn event_signal(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     token: EventToken,
     value: u64,
 ) -> RuntimeResult<()> {
@@ -1341,7 +1341,7 @@ pub(super) fn event_signal(
 
 /// Attach one event token to one runtime target.
 pub(super) fn event_attach(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     token: EventToken,
     target: ResourceId,
     key: u64,
@@ -1378,7 +1378,7 @@ pub(super) fn event_attach(
 
 /// Open one io_uring ring resource.
 pub(super) fn uring_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     parameters: UringParameters,
 ) -> RuntimeResult<resource::UringHandle> {
     #[cfg(target_os = "linux")]
@@ -1463,7 +1463,7 @@ pub(super) fn uring_open(
 
 /// Close one io_uring ring resource.
 pub(super) fn uring_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
@@ -1489,7 +1489,7 @@ pub(super) fn uring_close(
 
 /// Query normalized io_uring feature support for one ring.
 pub(super) fn uring_features(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<UringFeatures> {
     #[cfg(target_os = "linux")]
@@ -1517,7 +1517,7 @@ pub(super) fn uring_features(
 
 /// Register fixed files for one io_uring ring.
 pub(super) fn uring_register_files(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::UringHandle,
     files: NativeSlice<resource::ResourceId>,
 ) -> RuntimeResult<()> {
@@ -1561,7 +1561,7 @@ pub(super) fn uring_register_files(
 
 /// Unregister fixed files for one io_uring ring.
 pub(super) fn uring_unregister_files(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
@@ -1596,7 +1596,7 @@ pub(super) fn uring_unregister_files(
 
 /// Register fixed buffers for one io_uring ring.
 pub(super) fn uring_register_buffers(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::UringHandle,
     addresses: NativeSlice<u64>,
     lengths: NativeSlice<u32>,
@@ -1654,7 +1654,7 @@ pub(super) fn uring_register_buffers(
 
 /// Unregister fixed buffers for one io_uring ring.
 pub(super) fn uring_unregister_buffers(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]

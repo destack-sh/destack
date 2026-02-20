@@ -25,7 +25,7 @@ use crate::platform::resource::{ResourceEntry, ResourceKind};
 #[cfg(target_os = "linux")]
 use crate::platform::resource::{ResourceFinalizer, ResourceId};
 use crate::platform::{NativeArray, PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Resource-table label for opened input-monitor entries.
 const INPUT_MONITOR_RESOURCE_LABEL: &str = "input.monitor";
@@ -110,7 +110,7 @@ fn monitor_not_found(
 
 /// Validate that one monitor handle points to an input-monitor resource.
 fn validate_monitor_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputMonitorHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -144,7 +144,7 @@ struct MonitorDeviceSnapshot {
 }
 
 /// List monitor-visible devices as stable sorted identifiers with kinds.
-fn list_monitor_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<MonitorDeviceSnapshot>> {
+fn list_monitor_devices(context: &BindingCallContext) -> RuntimeResult<Vec<MonitorDeviceSnapshot>> {
     #[cfg(target_os = "linux")]
     {
         let _ = context;
@@ -508,7 +508,7 @@ fn monitor_kind_from_action(action: InputEventAction) -> InputMonitorEventKind {
 
 /// Build one monitor event payload from one topology delta.
 fn build_unix_monitor_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     timestamp_ns: u64,
     sequence: u64,
     device_id: &str,
@@ -529,7 +529,7 @@ fn build_unix_monitor_event(
 
 /// Convert one monitor packet into one runtime monitor event.
 fn monitor_event_to_output(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     event: MonitorDeltaEvent,
     sequence: u64,
 ) -> InputMonitorEvent {
@@ -548,7 +548,7 @@ fn monitor_event_to_output(
 
 /// Poll monitor state until one event is available or would-block.
 fn poll_monitor_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputMonitorHandle,
     nonblocking: bool,
     operation: &'static str,
@@ -716,7 +716,7 @@ fn poll_monitor_event(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -757,7 +757,7 @@ pub(crate) unsafe fn destack_input_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     // validate monitor handle shape
@@ -796,7 +796,7 @@ pub(crate) unsafe fn destack_input_monitor_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     // validate output pointer
@@ -887,7 +887,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
@@ -930,7 +930,7 @@ pub(crate) unsafe fn destack_input_monitor_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_try_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
@@ -973,7 +973,7 @@ pub(crate) unsafe fn destack_input_monitor_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_set_exclusive_grab(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enable: bool,
 ) -> RuntimeResult<()> {
@@ -1006,7 +1006,7 @@ pub(crate) unsafe fn destack_input_set_exclusive_grab(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_read_batch(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<InputEvent>,
     handle: resource::InputDeviceHandle,
     maxevents: u32,
@@ -1080,7 +1080,7 @@ pub(crate) unsafe fn destack_input_read_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_set_read_mode(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     mode: InputReadMode,
 ) -> RuntimeResult<()> {
@@ -1111,7 +1111,7 @@ pub(crate) unsafe fn destack_input_set_read_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_try_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {

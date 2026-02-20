@@ -1,7 +1,8 @@
 use std::collections::BTreeSet;
 
 use crate::model::{
-    BindingEntry, BindingReplayKind, BindingType, EffectClass, ReplayPayload, ReplayPolicy,
+    BindingEntry, BindingType, CatalogBindingReplayKind, CatalogEffectClass, CatalogReplayPayload,
+    CatalogReplayPolicy,
 };
 
 use super::*;
@@ -16,20 +17,23 @@ impl<'a> DomainWriter<'a> {
         let mut wrote = false;
         for binding in consts {
             let entry = binding.entry;
-            let EffectClass::External {
-                replay: ReplayPolicy::Recordable,
+            let CatalogEffectClass::External {
+                replay: CatalogReplayPolicy::Recordable,
             } = entry.effect_class
             else {
                 continue;
             };
-            if entry.replay_kind != BindingReplayKind::Regular {
+            if entry.replay_kind != CatalogBindingReplayKind::Regular {
                 continue;
             }
 
             let struct_name = replay_struct_name(&binding.const_name);
             let args_struct_name = format!("{struct_name}Args");
             let result_type = replay_result_type(domain, entry);
-            let supports_args = matches!(entry.replay_payload, ReplayPayload::ArgumentsAndResults);
+            let supports_args = matches!(
+                entry.replay_payload,
+                CatalogReplayPayload::ArgumentsAndResults
+            );
             if supports_args {
                 output.push_str(&format!(
                     "/// Replay argument payload for {}.\n",
@@ -75,10 +79,10 @@ impl<'a> DomainWriter<'a> {
         let bindings = consts.iter().filter(|binding| {
             matches!(
                 binding.entry.effect_class,
-                EffectClass::External {
-                    replay: ReplayPolicy::Recordable
+                CatalogEffectClass::External {
+                    replay: CatalogReplayPolicy::Recordable
                 }
-            ) && binding.entry.replay_kind == BindingReplayKind::Regular
+            ) && binding.entry.replay_kind == CatalogBindingReplayKind::Regular
         });
 
         let mut emitted_header = false;
@@ -93,7 +97,10 @@ impl<'a> DomainWriter<'a> {
             let entry = binding.entry;
             let fn_name = native_replay_fn_name(domain, binding.extern_name);
             let implementation_fn_name = &binding.implementation_fn_name;
-            let supports_args = matches!(entry.replay_payload, ReplayPayload::ArgumentsAndResults);
+            let supports_args = matches!(
+                entry.replay_payload,
+                CatalogReplayPayload::ArgumentsAndResults
+            );
             let replay_struct = replay_struct_name(&binding.const_name);
             let replay_args_struct = format!("{replay_struct}Args");
 
@@ -113,8 +120,8 @@ impl<'a> DomainWriter<'a> {
 
             output.push_str("#[inline]\n");
             output.push_str(&format!("fn {fn_name}(\n"));
-            output.push_str("    context: &RuntimeCallContext,\n");
-            if entry.scope != crate::model::BindingScope::Runtime {
+            output.push_str("    context: &BindingCallContext,\n");
+            if entry.scope != crate::model::CatalogBindingScope::Runtime {
                 output.push_str("    world: RuntimeWorld,\n");
             }
             for param in &params {
@@ -144,7 +151,7 @@ impl<'a> DomainWriter<'a> {
                 }
             }
 
-            output.push_str("    context.replay().run_binding_with_payload_policy(\n");
+            output.push_str("    context.replay().run_binding_with_policy(\n");
             output.push_str(&format!("        {},\n", binding.const_name));
             output.push_str(&format!(
                 "        context.replay_payload_for({})?,\n",
@@ -174,7 +181,7 @@ impl<'a> DomainWriter<'a> {
                     args.join(", ")
                 )
             };
-            if entry.scope == crate::model::BindingScope::Runtime {
+            if entry.scope == crate::model::CatalogBindingScope::Runtime {
                 output.push_str(&format!("        || {runtime_call},\n"));
             } else {
                 let simulation_call = if args.is_empty() {
@@ -192,7 +199,7 @@ impl<'a> DomainWriter<'a> {
                 output.push_str("        || match world {\n");
                 output.push_str(&format!("            RuntimeWorld::Host => {host_call},\n"));
                 output.push_str(&format!(
-                    "            RuntimeWorld::Simulated => {simulation_call},\n"
+                    "            RuntimeWorld::Simulation => {simulation_call},\n"
                 ));
                 output.push_str("        },\n");
             }
@@ -204,7 +211,7 @@ impl<'a> DomainWriter<'a> {
                     "                context.replay_payload_for({})?,\n",
                     binding.const_name
                 ));
-                output.push_str("                ReplayPayload::ArgumentsAndResults,\n");
+                output.push_str("                BindingReplayPayload::ArgumentsAndResults,\n");
                 output.push_str("            );\n");
                 output.push_str("            let args = if record_args {\n");
                 output.push_str("                // replay args\n");
@@ -420,10 +427,10 @@ impl<'a> DomainWriter<'a> {
         let bindings = consts.iter().filter(|binding| {
             matches!(
                 binding.entry.effect_class,
-                EffectClass::External {
-                    replay: ReplayPolicy::Recordable
+                CatalogEffectClass::External {
+                    replay: CatalogReplayPolicy::Recordable
                 }
-            ) && binding.entry.replay_kind == BindingReplayKind::Regular
+            ) && binding.entry.replay_kind == CatalogBindingReplayKind::Regular
         });
 
         let mut emitted_header = false;
@@ -440,7 +447,10 @@ impl<'a> DomainWriter<'a> {
             let helper_base = vm_fn_name(domain, binding.extern_name);
             let implementation_fn_name = &binding.implementation_fn_name;
             let encode_helper = encode_helper_name(&helper_base);
-            let supports_args = matches!(entry.replay_payload, ReplayPayload::ArgumentsAndResults);
+            let supports_args = matches!(
+                entry.replay_payload,
+                CatalogReplayPayload::ArgumentsAndResults
+            );
             let replay_struct = replay_struct_name(&binding.const_name);
             let replay_args_struct = format!("{replay_struct}Args");
             let invoke_args = render_invoke_args_with_prefix(entry);
@@ -454,9 +464,9 @@ impl<'a> DomainWriter<'a> {
 
             output.push_str("#[inline]\n");
             output.push_str(&format!("fn {fn_name}(\n"));
-            output.push_str("    runtime: &RuntimeCallContext,\n");
+            output.push_str("    runtime: &BindingCallContext,\n");
             output.push_str("    context: &mut vm::ExternalCallContext<'_>,\n");
-            if entry.scope != crate::model::BindingScope::Runtime {
+            if entry.scope != crate::model::CatalogBindingScope::Runtime {
                 output.push_str("    world: RuntimeWorld,\n");
             }
             for param in &params {
@@ -464,16 +474,14 @@ impl<'a> DomainWriter<'a> {
             }
             output.push_str(") -> RuntimeResult<vm::Value> {\n");
 
-            output.push_str(
-                "    let result = runtime.replay().run_binding_with_context_and_payload_policy(\n",
-            );
+            output.push_str("    let result = runtime.replay().run_binding_with_context_policy(\n");
             output.push_str(&format!("        {},\n", binding.const_name));
             output.push_str(&format!(
                 "        runtime.replay_payload_for({})?,\n",
                 binding.const_name
             ));
             output.push_str("        context,\n");
-            if entry.scope == crate::model::BindingScope::Runtime {
+            if entry.scope == crate::model::CatalogBindingScope::Runtime {
                 output.push_str(&format!(
                     "        |context| platform_runtime_vm::{}(runtime, context{invoke_args}),\n",
                     implementation_fn_name
@@ -490,7 +498,7 @@ impl<'a> DomainWriter<'a> {
                     implementation_fn_name
                 ));
                 output.push_str(&format!(
-                    "                RuntimeWorld::Simulated => {simulation_call},\n"
+                    "                RuntimeWorld::Simulation => {simulation_call},\n"
                 ));
                 output.push_str("            }\n");
                 output.push_str("        },\n");
@@ -503,7 +511,7 @@ impl<'a> DomainWriter<'a> {
                     "                runtime.replay_payload_for({})?,\n",
                     binding.const_name
                 ));
-                output.push_str("                ReplayPayload::ArgumentsAndResults,\n");
+                output.push_str("                BindingReplayPayload::ArgumentsAndResults,\n");
                 output.push_str("            );\n");
                 output.push_str("            let args = if record_args {\n");
                 output.push_str("                // replay args\n");
@@ -684,17 +692,20 @@ pub(super) fn collect_replay_named_types(
 ) -> BTreeSet<String> {
     let mut names = BTreeSet::new();
     for entry in bindings.values() {
-        let EffectClass::External {
-            replay: ReplayPolicy::Recordable,
+        let CatalogEffectClass::External {
+            replay: CatalogReplayPolicy::Recordable,
         } = entry.effect_class
         else {
             continue;
         };
-        if entry.replay_kind != BindingReplayKind::Regular {
+        if entry.replay_kind != CatalogBindingReplayKind::Regular {
             continue;
         }
 
-        if matches!(entry.replay_payload, ReplayPayload::ArgumentsAndResults) {
+        if matches!(
+            entry.replay_payload,
+            CatalogReplayPayload::ArgumentsAndResults
+        ) {
             for param in &entry.parameters {
                 collect_replay_type_names(domain, &param.binding_type, &mut names);
             }
@@ -712,17 +723,20 @@ pub(super) fn collect_replay_vm_named_types(
 ) -> BTreeSet<String> {
     let mut names = BTreeSet::new();
     for entry in bindings.values() {
-        let EffectClass::External {
-            replay: ReplayPolicy::Recordable,
+        let CatalogEffectClass::External {
+            replay: CatalogReplayPolicy::Recordable,
         } = entry.effect_class
         else {
             continue;
         };
-        if entry.replay_kind != BindingReplayKind::Regular {
+        if entry.replay_kind != CatalogBindingReplayKind::Regular {
             continue;
         }
 
-        if matches!(entry.replay_payload, ReplayPayload::ArgumentsAndResults) {
+        if matches!(
+            entry.replay_payload,
+            CatalogReplayPayload::ArgumentsAndResults
+        ) {
             for param in &entry.parameters {
                 collect_collection_vm_names(domain, &param.binding_type, &mut names);
             }

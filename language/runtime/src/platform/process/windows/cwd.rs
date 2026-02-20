@@ -8,7 +8,7 @@ use crate::platform::{
     core as core_platform,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::fs::core as core_fs;
@@ -40,7 +40,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_chdir(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     use windows_sys::Win32::System::Environment::SetCurrentDirectoryW;
@@ -87,7 +87,7 @@ pub(crate) unsafe fn destack_process_chdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_cwd(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut fs::OsPath,
 ) -> RuntimeResult<()> {
     use windows_sys::Win32::System::Environment::GetCurrentDirectoryW;

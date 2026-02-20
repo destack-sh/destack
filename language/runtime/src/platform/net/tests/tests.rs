@@ -22,7 +22,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice, VmValueCodec,
     net as platform_net,
 };
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 use platform_net::{
     KeepAliveConfig, KeepAliveConfigVm, Linger, LingerVm, ResolveFlags, ResolveQuery,
@@ -37,7 +37,7 @@ pub(crate) struct NetHarnessContext<'call> {
     /// Runtime backing this harness.
     pub(super) runtime: &'call TestRuntime,
     /// Runtime call context active for this operation.
-    pub(super) call_context: &'call RuntimeCallContext,
+    pub(super) call_context: &'call BindingCallContext,
     /// VM context when running VM bindings.
     pub(super) vm_context: Option<*mut ()>,
 }
@@ -593,7 +593,7 @@ fn socket_address_from_raw(
 
 #[cfg(unix)]
 fn socket_address_native_from_host_port(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     host: &str,
     port: u16,
     family: SocketFamily,
@@ -726,7 +726,7 @@ fn socket_address_native_from_host_port(
 
 #[cfg(windows)]
 fn socket_address_native_from_host_port(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     host: &str,
     port: u16,
     family: SocketFamily,
@@ -839,7 +839,7 @@ fn socket_address_native_from_host_port(
 }
 
 fn socket_address_vm_from_host_port(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     host: &str,
     port: u16,

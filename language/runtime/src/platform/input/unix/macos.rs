@@ -17,7 +17,7 @@ use crate::platform::input::{
 };
 use crate::platform::resource::ResourceKind;
 use crate::platform::{PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Stable runtime identifier for macOS global session input.
 pub(super) const MACOS_INPUT_SESSION_ID: &str = "macos:session";
@@ -521,7 +521,7 @@ fn wait_pop_subscription_event(subscription_id: u64) -> RuntimeResult<Option<Mac
 }
 
 /// Convert one queued packet into one runtime input event payload.
-fn packet_to_input_event(context: &RuntimeCallContext, packet: MacosTapPacket) -> InputEvent {
+fn packet_to_input_event(context: &BindingCallContext, packet: MacosTapPacket) -> InputEvent {
     let mut payload = input_core::empty_unix_event_payload(context);
     match packet.kind {
         InputEventKind::Key => {
@@ -602,7 +602,7 @@ fn flags_changed_action_and_value(
 
 /// Return one capability payload for the macOS global-session backend.
 pub(super) fn query_macos_session_capabilities(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
 ) -> InputDeviceCapabilities {
     // expose keyboard and pointer lanes from the global event-tap stream
     let kinds = vec![
@@ -762,7 +762,7 @@ fn current_pointer_position(operation: &'static str) -> RuntimeResult<(f64, f64)
 
 /// Read one host keyboard snapshot from macOS global event-source state.
 pub(super) fn keyboard_state_snapshot(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     sequence: u64,
     device_id: &str,
 ) -> RuntimeResult<InputKeyboardState> {
@@ -844,7 +844,7 @@ pub(super) fn warp_pointer_position(x: f64, y: f64, operation: &'static str) -> 
 
 /// Resolve or allocate one subscription id for one opened handle.
 fn resolve_subscription_id(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
@@ -891,7 +891,7 @@ fn resolve_subscription_id(
 
 /// Poll one event-tap-backed macOS input event.
 pub(super) fn read_macos_session_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
     _read_mode: InputReadMode,
@@ -924,7 +924,7 @@ pub(super) fn read_macos_session_event(
 
 /// Release one macOS session subscription for one input handle.
 pub(super) fn release_macos_session_subscription(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) {
     let subscription = context

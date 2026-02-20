@@ -9,7 +9,7 @@ use crate::platform::{
     core as core_platform,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
@@ -148,7 +148,7 @@ fn open_stdio_handle(
 
 /// Register one duplicated stdio handle as a file handle resource.
 fn register_stdio_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::FileHandle,
     std_handle: u32,
     handle_name: &str,
@@ -233,7 +233,7 @@ fn open_process_fd_handle(pid: ProcessId) -> RuntimeResult<windows_sys::Win32::F
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_stdio_stdin(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::FileHandle,
 ) -> RuntimeResult<()> {
     register_stdio_handle(
@@ -263,7 +263,7 @@ pub(crate) unsafe fn destack_process_stdio_stdin(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_stdio_stdout(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::FileHandle,
 ) -> RuntimeResult<()> {
     register_stdio_handle(
@@ -293,7 +293,7 @@ pub(crate) unsafe fn destack_process_stdio_stdout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_stdio_stderr(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::FileHandle,
 ) -> RuntimeResult<()> {
     register_stdio_handle(
@@ -307,7 +307,7 @@ pub(crate) unsafe fn destack_process_stdio_stderr(
 
 /// Resolve a process-fd handle into process id and raw process handle payload.
 fn resolve_process_fd(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<(ProcessId, windows_sys::Win32::Foundation::HANDLE)> {
     let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
@@ -511,7 +511,7 @@ fn send_signal_process_handle(
 
 /// Resolve a signal-fd handle into its signal mask payload.
 fn resolve_signal_fd(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<Vec<Signal>> {
     let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
@@ -533,7 +533,7 @@ fn resolve_signal_fd(
 
 /// Replace the signal mask payload for one signal-fd handle.
 fn update_signal_fd(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::SignalFdHandle,
     signals: Vec<Signal>,
 ) -> RuntimeResult<()> {
@@ -563,7 +563,7 @@ fn update_signal_fd(
 
 /// Ensure one process-fd handle resolves to a process-fd payload.
 fn ensure_process_fd_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
     let is_process_fd = context.runtime().resources.with_entry(handle.0, |entry| {
@@ -587,7 +587,7 @@ fn ensure_process_fd_handle(
 
 /// Ensure one signal-fd handle resolves to a signal-fd payload.
 fn ensure_signal_fd_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
     let is_signal_fd = context.runtime().resources.with_entry(handle.0, |entry| {
@@ -626,7 +626,7 @@ fn ensure_signal_fd_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
     ensure_process_fd_handle(context, handle)?;
@@ -661,7 +661,7 @@ pub(crate) unsafe fn destack_process_process_fd_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::ProcessFdHandle,
     pid: ProcessId,
     flags: ProcessFdFlags,
@@ -710,7 +710,7 @@ pub(crate) unsafe fn destack_process_process_fd_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_send_signal(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::ProcessFdHandle,
     signal: Signal,
     flags: ProcessFdSignalFlags,
@@ -745,7 +745,7 @@ pub(crate) unsafe fn destack_process_process_fd_send_signal(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_try_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
@@ -783,7 +783,7 @@ pub(crate) unsafe fn destack_process_process_fd_try_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessFdHandle,
     timeoutns: u64,
@@ -818,7 +818,7 @@ pub(crate) unsafe fn destack_process_process_fd_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
     ensure_signal_fd_handle(context, handle)?;
@@ -853,7 +853,7 @@ pub(crate) unsafe fn destack_process_signal_fd_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::SignalFdHandle,
     signals: NativeSlice<Signal>,
     flags: SignalFdFlags,
@@ -900,7 +900,7 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
@@ -934,7 +934,7 @@ pub(crate) unsafe fn destack_process_signal_fd_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_set_mask(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::SignalFdHandle,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
@@ -960,7 +960,7 @@ pub(crate) unsafe fn destack_process_signal_fd_set_mask(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_try_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {

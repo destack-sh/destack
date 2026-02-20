@@ -12,13 +12,13 @@ use crate::platform::tls::{TlsContextOptions, TlsContextOptionsVm, TlsRole, TlsV
 use crate::platform::{
     NativeSlice, NativeStringRef, NativeStringSlice, ResourceId, VmSlice, resource,
 };
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 
 /// TLS harness context used by tests.
 pub(crate) struct TlsHarnessContext<'call> {
     /// Runtime call context active for this operation.
-    pub(super) call_context: &'call RuntimeCallContext,
+    pub(super) call_context: &'call BindingCallContext,
     /// VM context when running VM bindings.
     pub(super) vm_context: Option<*mut ()>,
 }

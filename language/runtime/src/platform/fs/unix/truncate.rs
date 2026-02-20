@@ -8,7 +8,7 @@ use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{core as core_fs, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, net as platform_net, *};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStrExt;
@@ -33,7 +33,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathBytes,
     size: FileOffset,
 ) -> RuntimeResult<()> {
@@ -66,7 +66,7 @@ pub(crate) unsafe fn destack_fs_truncate_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathUtf16,
     size: FileOffset,
 ) -> RuntimeResult<()> {
@@ -93,7 +93,7 @@ pub(crate) unsafe fn destack_fs_truncate_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: OsPath,
     size: FileOffset,
 ) -> RuntimeResult<()> {

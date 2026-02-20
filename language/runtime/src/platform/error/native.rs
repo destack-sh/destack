@@ -1,7 +1,7 @@
 use crate::diagnostic::{RuntimeErrorId, RuntimeResult};
 use crate::platform::error::PlatformError;
 use crate::platform::error::core::{NativeStringStore, platform_error_native, take_platform_error};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Take a runtime platform error by id.
 ///
@@ -21,7 +21,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// Deterministic.
 pub unsafe fn destack_error_take_platform_error(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut PlatformError,
     error_id: u64,
 ) -> RuntimeResult<()> {

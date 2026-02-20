@@ -1,46 +1,46 @@
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
-/// Simulation state for runtime-backed and OS-backed simulated worlds.
+/// Simulation state for runtime-backed and OS-backed simulation worlds.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SimulationState {
     /// Simulation schema version.
     pub version: u32,
-    /// Simulated clock subsystem state.
+    /// Simulation clock subsystem state.
     pub clock: SimulationClockState,
-    /// Simulated random subsystem state.
+    /// Simulation random subsystem state.
     pub random: SimulationRandomState,
-    /// Simulated scheduler subsystem state.
-    pub scheduler: SimulationSchedulerState,
-    /// Simulated filesystem subsystem state.
+    /// Simulation event loop subsystem state.
+    pub event_loop: SimulationEventLoopState,
+    /// Simulation filesystem subsystem state.
     pub fs: SimulationFsState,
-    /// Simulated network subsystem state.
+    /// Simulation network subsystem state.
     pub net: SimulationNetState,
-    /// Simulated process subsystem state.
+    /// Simulation process subsystem state.
     pub process: SimulationProcessState,
 }
 
-/// Simulated clock subsystem state.
+/// Simulation clock subsystem state.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SimulationClockState {}
 
-/// Simulated random subsystem state.
+/// Simulation random subsystem state.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SimulationRandomState {}
 
-/// Simulated scheduler subsystem state.
+/// Simulation event loop subsystem state.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct SimulationSchedulerState {}
+pub struct SimulationEventLoopState {}
 
-/// Simulated filesystem subsystem state.
+/// Simulation filesystem subsystem state.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SimulationFsState {}
 
-/// Simulated network subsystem state.
+/// Simulation network subsystem state.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SimulationNetState {}
 
-/// Simulated process subsystem state.
+/// Simulation process subsystem state.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SimulationProcessState {}
 

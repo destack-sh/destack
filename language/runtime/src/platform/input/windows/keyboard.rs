@@ -3,7 +3,7 @@ use super::core as input_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{InputDeviceKind, InputKeyboardState};
 use crate::platform::{PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Return whether one resolved binding supports keyboard state queries.
 fn is_keyboard_capable_backend(resolved: &input_core::WindowsInputResolved) -> bool {
@@ -45,7 +45,7 @@ fn resolved_device_id(
 
 /// Read one keyboard state snapshot for one opened Windows input handle.
 pub(super) fn keyboard_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<InputKeyboardState> {
@@ -98,7 +98,7 @@ pub(super) fn keyboard_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_keyboard_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputKeyboardState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {

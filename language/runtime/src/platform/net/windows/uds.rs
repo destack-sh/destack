@@ -14,7 +14,7 @@ use crate::platform::PlatformError;
 use crate::platform::fs::{OsPath, PathEncoding};
 use crate::platform::net::{AcceptFlags, ListenerHandle, SocketHandle, SocketPair, SocketType};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Monotonic suffix for temporary UDS socket-pair paths.
 static NEXT_UDS_SOCKET_PAIR_ID: AtomicU64 = AtomicU64::new(1);
@@ -129,7 +129,7 @@ fn delete_socket_path(path: &str) {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_connect(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketHandle,
     path: OsPath,
 ) -> RuntimeResult<()> {
@@ -187,7 +187,7 @@ pub(crate) unsafe fn destack_net_uds_connect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_listen(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ListenerHandle,
     path: OsPath,
     backlog: u32,
@@ -258,7 +258,7 @@ pub(crate) unsafe fn destack_net_uds_listen(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_accept(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketHandle,
     listener: ListenerHandle,
 ) -> RuntimeResult<()> {
@@ -283,7 +283,7 @@ pub(crate) unsafe fn destack_net_uds_accept(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_close_listener(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
     unsafe { super::destack_net_close_listener(context, handle) }
@@ -308,7 +308,7 @@ pub(crate) unsafe fn destack_net_uds_close_listener(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_uds_socket_pair(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketPair,
     socket_type: SocketType,
 ) -> RuntimeResult<()> {

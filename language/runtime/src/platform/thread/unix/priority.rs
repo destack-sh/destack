@@ -7,7 +7,7 @@ use crate::platform::PlatformError;
 use crate::platform::resource::ThreadHandle;
 use crate::platform::thread::{core as core_thread, resource as resource_thread};
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Build one pthread scheduling error from a return code.
 fn pthread_error(syscall: &str, code: libc::c_int) -> Box<RuntimeError> {
@@ -40,7 +40,7 @@ fn pthread_error(syscall: &str, code: libc::c_int) -> Box<RuntimeError> {
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_affinity(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: ThreadHandle,
 ) -> RuntimeResult<()> {
@@ -115,7 +115,7 @@ pub(crate) unsafe fn destack_thread_get_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_priority(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut i32,
     handle: ThreadHandle,
 ) -> RuntimeResult<()> {
@@ -167,7 +167,7 @@ pub(crate) unsafe fn destack_thread_get_priority(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_affinity(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ThreadHandle,
     mask: u64,
 ) -> RuntimeResult<()> {
@@ -243,7 +243,7 @@ pub(crate) unsafe fn destack_thread_set_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_priority(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ThreadHandle,
     priority: i32,
 ) -> RuntimeResult<()> {

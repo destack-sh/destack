@@ -5,7 +5,7 @@ use destack_vm as vm;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 
 #[path = "harness.rs"]
@@ -17,7 +17,7 @@ pub(crate) use harness::{InputDeviceRecord, InputEventRecord, InputMonitorEventR
 /// Test harness context used by tests.
 pub(crate) struct InputHarnessContext<'call> {
     /// Runtime call context active for this operation.
-    pub(crate) call_context: &'call RuntimeCallContext,
+    pub(crate) call_context: &'call BindingCallContext,
     /// VM context when running VM bindings.
     pub(crate) vm_context: Option<*mut ()>,
 }

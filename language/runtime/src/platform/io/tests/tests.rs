@@ -17,7 +17,7 @@ use crate::platform::resource::{
     CompletionHandle, PollHandle, ResourceEntry, ResourceId, ResourceKind, UringHandle,
 };
 use crate::platform::{NativeSlice, PlatformError, VmArray, VmSlice};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 
 #[path = "harness.generated.rs"]
@@ -26,7 +26,7 @@ mod harness;
 /// Test harness context used by tests.
 pub(crate) struct IoHarnessContext<'call> {
     /// Runtime call context active for this operation.
-    pub(crate) call_context: &'call RuntimeCallContext,
+    pub(crate) call_context: &'call BindingCallContext,
     /// VM context when running VM bindings.
     pub(crate) vm_context: Option<*mut ()>,
 }
@@ -503,7 +503,7 @@ pub(crate) fn assert_platform_error_code<T>(
 }
 
 /// Insert one runtime resource that resolves to one host completion handle.
-fn insert_completion_target_with_host_handle(context: &RuntimeCallContext) -> ResourceId {
+fn insert_completion_target_with_host_handle(context: &BindingCallContext) -> ResourceId {
     #[cfg(unix)]
     {
         context

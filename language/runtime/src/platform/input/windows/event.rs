@@ -25,7 +25,7 @@ use crate::platform::input::{
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, core as core_platform, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Resource-table label for opened monitor stream entries.
 const INPUT_MONITOR_RESOURCE_LABEL: &str = "input.monitor";
@@ -73,7 +73,7 @@ fn monitor_not_found(
 
 /// Validate that one monitor handle points to an input-monitor resource.
 fn validate_monitor_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputMonitorHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -124,7 +124,7 @@ fn acquire_monitor_stream(operation: &'static str) -> RuntimeResult<()> {
 
 /// Allocate one sequence number for one monitor handle.
 fn next_monitor_sequence(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputMonitorHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
@@ -268,7 +268,7 @@ fn stable_pointer_buttons_from_console_state(state: u32) -> u32 {
 
 /// Map one INPUT_RECORD into one runtime input event.
 fn map_console_record(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     record: INPUT_RECORD,
     device_id: &str,
     read_mode: InputReadMode,
@@ -520,7 +520,7 @@ fn map_console_record(
 
 /// Pop one deferred console pointer-button transition for this handle.
 fn pop_pending_console_button_transition(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<input_core::PendingConsoleButtonTransition>> {
@@ -556,7 +556,7 @@ fn pop_pending_console_button_transition(
 
 /// Queue deferred console pointer-button transitions for this handle.
 fn push_pending_console_button_transitions(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     transitions: Vec<input_core::PendingConsoleButtonTransition>,
     operation: &'static str,
@@ -599,7 +599,7 @@ fn push_pending_console_button_transitions(
 
 /// Persist one console button-state snapshot for one input handle.
 fn set_console_button_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     state: u32,
     operation: &'static str,
@@ -636,7 +636,7 @@ fn set_console_button_state(
 
 /// Persist one xinput packet number snapshot for one input handle.
 fn set_xinput_packet_number(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     packet_number: u32,
     operation: &'static str,
@@ -766,7 +766,7 @@ pub(super) fn read_console_record_from_host(
 
 /// Queue one console record into input and composition demux lanes.
 pub(super) fn queue_console_record_for_demux(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     pending_record: input_core::PendingConsoleRecord,
     operation: &'static str,
@@ -817,7 +817,7 @@ pub(super) fn queue_console_record_for_demux(
 
 /// Pop one queued console record for input-event decoding.
 fn pop_pending_console_record(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<input_core::PendingConsoleRecord>> {
@@ -853,7 +853,7 @@ fn pop_pending_console_record(
 
 /// Pop one queued composition event for one console handle.
 pub(super) fn pop_pending_console_composition_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<input_core::PendingConsoleCompositionEvent>> {
@@ -889,7 +889,7 @@ pub(super) fn pop_pending_console_composition_event(
 
 /// Build one composition payload from one queued UTF-16 code unit.
 pub(super) fn build_composition_event_from_pending(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     pending: input_core::PendingConsoleCompositionEvent,
 ) -> InputCompositionEvent {
     let text = String::from_utf16_lossy(&[pending.code_unit]);
@@ -907,7 +907,7 @@ pub(super) fn build_composition_event_from_pending(
 
 /// Read one input event from console or raw queues.
 pub(super) fn read_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
     operation: &'static str,
@@ -1063,7 +1063,7 @@ pub(super) fn read_event(
 
 /// Enable or disable exclusive grab mode for console input.
 pub(super) fn set_grab(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enable: bool,
     operation: &'static str,
@@ -1139,7 +1139,7 @@ pub(super) fn set_grab(
 
 /// Set read mode for one windows input handle.
 pub(super) fn set_read_mode(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     mode: InputReadMode,
     operation: &'static str,
@@ -1268,7 +1268,7 @@ pub(super) fn set_read_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -1306,7 +1306,7 @@ pub(crate) unsafe fn destack_input_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     // validate monitor handle shape
@@ -1345,7 +1345,7 @@ pub(crate) unsafe fn destack_input_monitor_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     // validate output pointer
@@ -1393,7 +1393,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
@@ -1437,7 +1437,7 @@ pub(crate) unsafe fn destack_input_monitor_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_try_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
@@ -1481,7 +1481,7 @@ pub(crate) unsafe fn destack_input_monitor_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_set_exclusive_grab(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enable: bool,
 ) -> RuntimeResult<()> {
@@ -1514,7 +1514,7 @@ pub(crate) unsafe fn destack_input_set_exclusive_grab(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_read_batch(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<InputEvent>,
     handle: resource::InputDeviceHandle,
     maxevents: u32,
@@ -1574,7 +1574,7 @@ pub(crate) unsafe fn destack_input_read_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_set_read_mode(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     mode: InputReadMode,
 ) -> RuntimeResult<()> {
@@ -1605,7 +1605,7 @@ pub(crate) unsafe fn destack_input_set_read_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_try_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {

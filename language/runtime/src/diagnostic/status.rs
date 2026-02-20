@@ -1,5 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Status code returned by native runtime bindings.
 #[repr(C)]
@@ -19,7 +19,7 @@ impl RuntimeStatus {
     };
 
     /// Build an error status from a runtime error.
-    pub fn from_error(error: Box<RuntimeError>, context: Option<&RuntimeCallContext>) -> Self {
+    pub fn from_error(error: Box<RuntimeError>, context: Option<&BindingCallContext>) -> Self {
         let code = error.sub_code().saturating_add(1);
         let error_id = context
             .map(|runtime| runtime.runtime().errors.record(error).get())
@@ -28,7 +28,7 @@ impl RuntimeStatus {
     }
 
     /// Convert a platform result into a status.
-    pub fn from_result<T>(result: RuntimeResult<T>, context: Option<&RuntimeCallContext>) -> Self {
+    pub fn from_result<T>(result: RuntimeResult<T>, context: Option<&BindingCallContext>) -> Self {
         match result {
             Ok(_) => Self::OK,
             Err(error) => Self::from_error(error, context),

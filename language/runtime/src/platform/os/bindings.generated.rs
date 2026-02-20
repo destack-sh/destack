@@ -5,10 +5,6 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
-    NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
-};
 use crate::platform::os::{
     HostIdentity, HostIdentityReplayRecord, HostIdentityVm, LoadAverage, LoadAverageVm, MountEntry,
     MountEntryReplayRecord, MountEntryVm, PowerState, SystemSnapshot, SystemSnapshotVm,
@@ -16,12 +12,16 @@ use crate::platform::os::{
 use crate::platform::{
     NativeArray, NativeStringRef, PlatformError, RuntimeStatus, VmArray, abi as platform_abi,
 };
+use crate::runtime::bindings::{
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
+    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
+use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
 
@@ -473,7 +473,7 @@ pub const OS_HOST_IDENTITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.host.identity",
         "export function hostIdentity(): Result<HostIdentity, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.hostname", "os.sysinfo"],
         BindingScope::Host,
@@ -499,7 +499,7 @@ pub const OS_INFO_BOOT_TIME_UNIX_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.info.bootTimeUnixNs",
         "export function bootTimeUnixNs(): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.sysinfo"],
         BindingScope::Host,
@@ -525,7 +525,7 @@ pub const OS_INFO_LOAD_AVERAGE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.info.loadAverage",
         "export function loadAverage(): Result<LoadAverage, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.sysinfo"],
         BindingScope::Host,
@@ -550,7 +550,7 @@ pub const OS_INFO_SYSTEM_SNAPSHOT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.info.systemSnapshot",
         "export function systemSnapshot(): Result<SystemSnapshot, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.sysinfo"],
         BindingScope::Host,
@@ -576,7 +576,7 @@ pub const OS_INFO_UPTIME_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.info.uptimeNs",
         "export function uptimeNs(): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.sysinfo"],
         BindingScope::Host,
@@ -601,7 +601,7 @@ pub const OS_INFO_UPTIME_NS: BindingDescriptor =
 pub const OS_MOUNT_ADD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.mount.add",
     "export function add(source: OsPath, target: OsPath, fileSystem: string, flags: uint64, data: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["os.mount"],
     BindingScope::Host,
@@ -614,7 +614,7 @@ pub const OS_MOUNT_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.mount.list",
         "export function list(): Result<MountEntry[], PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.mount"],
         BindingScope::Host,
@@ -640,7 +640,7 @@ pub const OS_MOUNT_REMOVE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.mount.remove",
         "export function remove(target: OsPath, flags: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.mount"],
         BindingScope::Host,
@@ -666,7 +666,7 @@ pub const OS_POWER_STATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.power.state",
         "export function powerState(): Result<PowerState, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.power"],
         BindingScope::Host,
@@ -692,7 +692,7 @@ pub const OS_POWER_SUSPEND: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.power.suspend",
         "export function suspend(): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["os.power"],
         BindingScope::Host,
@@ -787,18 +787,18 @@ pub const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for os bindings.
 #[inline]
 fn destack_os_host_identity_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut HostIdentity,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         OS_HOST_IDENTITY,
         context.replay_payload_for(OS_HOST_IDENTITY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_os_host_identity(context, out)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_os_host_identity(context, out)
             },
         },
@@ -865,18 +865,18 @@ fn destack_os_host_identity_replay(
 
 #[inline]
 fn destack_os_info_boot_time_unix_ns_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         OS_INFO_BOOT_TIME_UNIX_NS,
         context.replay_payload_for(OS_INFO_BOOT_TIME_UNIX_NS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_os_boot_time_unix_ns(context, out)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_os_boot_time_unix_ns(context, out)
             },
         },
@@ -923,16 +923,16 @@ fn destack_os_info_boot_time_unix_ns_replay(
 
 #[inline]
 fn destack_os_info_load_average_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut LoadAverage,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         OS_INFO_LOAD_AVERAGE,
         context.replay_payload_for(OS_INFO_LOAD_AVERAGE)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_os_load_average(context, out) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_os_load_average(context, out)
             },
         },
@@ -993,18 +993,18 @@ fn destack_os_info_load_average_replay(
 
 #[inline]
 fn destack_os_info_system_snapshot_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SystemSnapshot,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         OS_INFO_SYSTEM_SNAPSHOT,
         context.replay_payload_for(OS_INFO_SYSTEM_SNAPSHOT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_os_system_snapshot(context, out)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_os_system_snapshot(context, out)
             },
         },
@@ -1069,16 +1069,16 @@ fn destack_os_info_system_snapshot_replay(
 
 #[inline]
 fn destack_os_info_uptime_ns_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         OS_INFO_UPTIME_NS,
         context.replay_payload_for(OS_INFO_UPTIME_NS)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_os_uptime_ns(context, out) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_os_uptime_ns(context, out)
             },
         },
@@ -1125,7 +1125,7 @@ fn destack_os_info_uptime_ns_replay(
 
 #[inline]
 fn destack_os_mount_add_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     source: fs::OsPath,
     target: fs::OsPath,
@@ -1135,14 +1135,14 @@ fn destack_os_mount_add_replay(
 ) -> RuntimeResult<()> {
     let _ = (&source, &target, &filesystem, &flags, &data);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         OS_MOUNT_ADD,
         context.replay_payload_for(OS_MOUNT_ADD)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_os_add(context, source, target, filesystem, flags, data)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_os_add(
                     context, source, target, filesystem, flags, data,
                 )
@@ -1179,16 +1179,16 @@ fn destack_os_mount_add_replay(
 
 #[inline]
 fn destack_os_mount_list_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<MountEntry>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         OS_MOUNT_LIST,
         context.replay_payload_for(OS_MOUNT_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_os_list(context, out) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_os_list(context, out)
             },
         },
@@ -1340,21 +1340,21 @@ fn destack_os_mount_list_replay(
 
 #[inline]
 fn destack_os_mount_remove_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     target: fs::OsPath,
     flags: u32,
 ) -> RuntimeResult<()> {
     let _ = (&target, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         OS_MOUNT_REMOVE,
         context.replay_payload_for(OS_MOUNT_REMOVE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_os_remove(context, target, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_os_remove(context, target, flags)
             },
         },
@@ -1389,16 +1389,16 @@ fn destack_os_mount_remove_replay(
 
 #[inline]
 fn destack_os_power_state_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut PowerState,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         OS_POWER_STATE,
         context.replay_payload_for(OS_POWER_STATE)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_os_power_state(context, out) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_os_power_state(context, out)
             },
         },
@@ -1579,7 +1579,7 @@ pub unsafe extern "C" fn destack_os_power_suspend() -> RuntimeStatus {
         let world = context.check_and_resolve_world(OS_POWER_SUSPEND)?;
         match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_os_suspend(context) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_os_suspend(context)
             },
         }
@@ -1589,359 +1589,348 @@ pub unsafe extern "C" fn destack_os_power_suspend() -> RuntimeStatus {
 /// VM replay implementations for os bindings.
 #[inline]
 fn destack_os_host_identity_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            OS_HOST_IDENTITY,
-            runtime.replay_payload_for(OS_HOST_IDENTITY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_os_host_identity(runtime, context),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_os_host_identity(runtime, context)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: HostIdentityVm = value.clone();
-                    let result_recorded_hostname = {
-                        let result_recorded_hostname_ref = context
-                            .string_ref(result_value.hostname)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_hostname_ref.as_str().to_string()
-                    };
-                    let result_recorded_kernel = {
-                        let result_recorded_kernel_ref = context
-                            .string_ref(result_value.kernel)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_kernel_ref.as_str().to_string()
-                    };
-                    let result_recorded_release = {
-                        let result_recorded_release_ref = context
-                            .string_ref(result_value.release)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_release_ref.as_str().to_string()
-                    };
-                    let result_recorded_architecture = {
-                        let result_recorded_architecture_ref = context
-                            .string_ref(result_value.architecture)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_architecture_ref.as_str().to_string()
-                    };
-                    let result_recorded = HostIdentityReplayRecord {
-                        hostname: result_recorded_hostname,
-                        kernel: result_recorded_kernel,
-                        release: result_recorded_release,
-                        architecture: result_recorded_architecture,
-                    };
-                    let payload = OsHostIdentityReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_HOST_IDENTITY,
+        runtime.replay_payload_for(OS_HOST_IDENTITY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_host_identity(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_host_identity(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: HostIdentityVm = value.clone();
+                let result_recorded_hostname = {
+                    let result_recorded_hostname_ref = context
+                        .string_ref(result_value.hostname)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_hostname_ref.as_str().to_string()
+                };
+                let result_recorded_kernel = {
+                    let result_recorded_kernel_ref = context
+                        .string_ref(result_value.kernel)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_kernel_ref.as_str().to_string()
+                };
+                let result_recorded_release = {
+                    let result_recorded_release_ref = context
+                        .string_ref(result_value.release)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_release_ref.as_str().to_string()
+                };
+                let result_recorded_architecture = {
+                    let result_recorded_architecture_ref = context
+                        .string_ref(result_value.architecture)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_architecture_ref.as_str().to_string()
+                };
+                let result_recorded = HostIdentityReplayRecord {
+                    hostname: result_recorded_hostname,
+                    kernel: result_recorded_kernel,
+                    release: result_recorded_release,
+                    architecture: result_recorded_architecture,
+                };
+                let payload = OsHostIdentityReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        OsHostIdentityReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsHostIdentityReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_hostname_value =
-                            context.intern_string(value.hostname.as_str());
-                        let vm_result_hostname = vm::StringHandle::new(vm_result_hostname_value);
-                        let vm_result_kernel_value = context.intern_string(value.kernel.as_str());
-                        let vm_result_kernel = vm::StringHandle::new(vm_result_kernel_value);
-                        let vm_result_release_value = context.intern_string(value.release.as_str());
-                        let vm_result_release = vm::StringHandle::new(vm_result_release_value);
-                        let vm_result_architecture_value =
-                            context.intern_string(value.architecture.as_str());
-                        let vm_result_architecture =
-                            vm::StringHandle::new(vm_result_architecture_value);
-                        let vm_result = HostIdentityVm {
-                            hostname: vm_result_hostname,
-                            kernel: vm_result_kernel,
-                            release: vm_result_release,
-                            architecture: vm_result_architecture,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_hostname_value = context.intern_string(value.hostname.as_str());
+                    let vm_result_hostname = vm::StringHandle::new(vm_result_hostname_value);
+                    let vm_result_kernel_value = context.intern_string(value.kernel.as_str());
+                    let vm_result_kernel = vm::StringHandle::new(vm_result_kernel_value);
+                    let vm_result_release_value = context.intern_string(value.release.as_str());
+                    let vm_result_release = vm::StringHandle::new(vm_result_release_value);
+                    let vm_result_architecture_value =
+                        context.intern_string(value.architecture.as_str());
+                    let vm_result_architecture =
+                        vm::StringHandle::new(vm_result_architecture_value);
+                    let vm_result = HostIdentityVm {
+                        hostname: vm_result_hostname,
+                        kernel: vm_result_kernel,
+                        release: vm_result_release,
+                        architecture: vm_result_architecture,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_os_host_identity_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_os_info_boot_time_unix_ns_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            OS_INFO_BOOT_TIME_UNIX_NS,
-            runtime.replay_payload_for(OS_INFO_BOOT_TIME_UNIX_NS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_os_boot_time_unix_ns(runtime, context),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_os_boot_time_unix_ns(runtime, context)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = OsInfoBootTimeUnixNsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_INFO_BOOT_TIME_UNIX_NS,
+        runtime.replay_payload_for(OS_INFO_BOOT_TIME_UNIX_NS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_boot_time_unix_ns(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_boot_time_unix_ns(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = OsInfoBootTimeUnixNsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        OsInfoBootTimeUnixNsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsInfoBootTimeUnixNsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_os_info_boot_time_unix_ns_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_os_info_load_average_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            OS_INFO_LOAD_AVERAGE,
-            runtime.replay_payload_for(OS_INFO_LOAD_AVERAGE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_os_load_average(runtime, context),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_os_load_average(runtime, context)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: LoadAverageVm = value.clone();
-                    let result_recorded_one = result_value.one;
-                    let result_recorded_five = result_value.five;
-                    let result_recorded_fifteen = result_value.fifteen;
-                    let result_recorded = LoadAverage {
-                        one: result_recorded_one,
-                        five: result_recorded_five,
-                        fifteen: result_recorded_fifteen,
-                    };
-                    let payload = OsInfoLoadAverageReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_INFO_LOAD_AVERAGE,
+        runtime.replay_payload_for(OS_INFO_LOAD_AVERAGE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_load_average(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_load_average(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: LoadAverageVm = value.clone();
+                let result_recorded_one = result_value.one;
+                let result_recorded_five = result_value.five;
+                let result_recorded_fifteen = result_value.fifteen;
+                let result_recorded = LoadAverage {
+                    one: result_recorded_one,
+                    five: result_recorded_five,
+                    fifteen: result_recorded_fifteen,
+                };
+                let payload = OsInfoLoadAverageReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        OsInfoLoadAverageReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsInfoLoadAverageReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_one = value.one;
-                        let vm_result_five = value.five;
-                        let vm_result_fifteen = value.fifteen;
-                        let vm_result = LoadAverageVm {
-                            one: vm_result_one,
-                            five: vm_result_five,
-                            fifteen: vm_result_fifteen,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_one = value.one;
+                    let vm_result_five = value.five;
+                    let vm_result_fifteen = value.fifteen;
+                    let vm_result = LoadAverageVm {
+                        one: vm_result_one,
+                        five: vm_result_five,
+                        fifteen: vm_result_fifteen,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_os_info_load_average_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_os_info_system_snapshot_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            OS_INFO_SYSTEM_SNAPSHOT,
-            runtime.replay_payload_for(OS_INFO_SYSTEM_SNAPSHOT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_os_system_snapshot(runtime, context),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_os_system_snapshot(runtime, context)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: SystemSnapshotVm = value.clone();
-                    let result_recorded_cpu_count = result_value.cpu_count;
-                    let result_recorded_memory_total = result_value.memory_total;
-                    let result_recorded_memory_available = result_value.memory_available;
-                    let result_recorded_page_size = result_value.page_size;
-                    let result_recorded = SystemSnapshot {
-                        cpu_count: result_recorded_cpu_count,
-                        memory_total: result_recorded_memory_total,
-                        memory_available: result_recorded_memory_available,
-                        page_size: result_recorded_page_size,
-                    };
-                    let payload = OsInfoSystemSnapshotReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_INFO_SYSTEM_SNAPSHOT,
+        runtime.replay_payload_for(OS_INFO_SYSTEM_SNAPSHOT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_system_snapshot(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_system_snapshot(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: SystemSnapshotVm = value.clone();
+                let result_recorded_cpu_count = result_value.cpu_count;
+                let result_recorded_memory_total = result_value.memory_total;
+                let result_recorded_memory_available = result_value.memory_available;
+                let result_recorded_page_size = result_value.page_size;
+                let result_recorded = SystemSnapshot {
+                    cpu_count: result_recorded_cpu_count,
+                    memory_total: result_recorded_memory_total,
+                    memory_available: result_recorded_memory_available,
+                    page_size: result_recorded_page_size,
+                };
+                let payload = OsInfoSystemSnapshotReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        OsInfoSystemSnapshotReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsInfoSystemSnapshotReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_cpu_count = value.cpu_count;
-                        let vm_result_memory_total = value.memory_total;
-                        let vm_result_memory_available = value.memory_available;
-                        let vm_result_page_size = value.page_size;
-                        let vm_result = SystemSnapshotVm {
-                            cpu_count: vm_result_cpu_count,
-                            memory_total: vm_result_memory_total,
-                            memory_available: vm_result_memory_available,
-                            page_size: vm_result_page_size,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_cpu_count = value.cpu_count;
+                    let vm_result_memory_total = value.memory_total;
+                    let vm_result_memory_available = value.memory_available;
+                    let vm_result_page_size = value.page_size;
+                    let vm_result = SystemSnapshotVm {
+                        cpu_count: vm_result_cpu_count,
+                        memory_total: vm_result_memory_total,
+                        memory_available: vm_result_memory_available,
+                        page_size: vm_result_page_size,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_os_info_system_snapshot_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_os_info_uptime_ns_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            OS_INFO_UPTIME_NS,
-            runtime.replay_payload_for(OS_INFO_UPTIME_NS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_os_uptime_ns(runtime, context),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_os_uptime_ns(runtime, context)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = OsInfoUptimeNsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_INFO_UPTIME_NS,
+        runtime.replay_payload_for(OS_INFO_UPTIME_NS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_uptime_ns(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_uptime_ns(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = OsInfoUptimeNsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        OsInfoUptimeNsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsInfoUptimeNsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_os_info_uptime_ns_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_os_mount_add_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     source: fs::OsPathVm,
@@ -1950,458 +1939,434 @@ fn destack_os_mount_add_vm_replay(
     flags: u64,
     data: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            OS_MOUNT_ADD,
-            runtime.replay_payload_for(OS_MOUNT_ADD)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_os_add(
-                    runtime, context, source, target, filesystem, flags, data,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_os_add(
-                    runtime, context, source, target, filesystem, flags, data,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = OsMountAddReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_MOUNT_ADD,
+        runtime.replay_payload_for(OS_MOUNT_ADD)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_add(
+                runtime, context, source, target, filesystem, flags, data,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_os_add(
+                runtime, context, source, target, filesystem, flags, data,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = OsMountAddReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        OsMountAddReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsMountAddReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_os_mount_add_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_os_mount_list_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            OS_MOUNT_LIST,
-            runtime.replay_payload_for(OS_MOUNT_LIST)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_os_list(runtime, context),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_os_list(runtime, context)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<MountEntryVm> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item = {
-                            if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_MOUNT_LIST,
+        runtime.replay_payload_for(OS_MOUNT_LIST)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_list(runtime, context),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_os_list(runtime, context),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<MountEntryVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_item",
+                                "item",
+                            ))
+                            .boxed());
+                        }
+                        let slots = context
+                            .aggregate_slots(result_recorded_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 4 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "expected 4 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_item_source =
+                            decode_string(slots[0], "result_recorded_item_source", "source")?;
+                        let result_recorded_item_target = {
+                            if slots[1].tag() != vm::ValueTag::Aggregate {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_type(
-                                        "result_recorded_item",
-                                        "item",
+                                        "result_recorded_item_target",
+                                        "target",
                                     ),
                                 )
                                 .boxed());
                             }
                             let slots = context
-                                .aggregate_slots(result_recorded_item_value)
+                                .aggregate_slots(slots[1])
                                 .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 4 {
+                            if slots.len() != 3 {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_recorded_item",
-                                        "expected 4 fields",
+                                        "result_recorded_item_target",
+                                        "expected 3 fields",
                                     ),
                                 )
                                 .boxed());
                             }
-                            let result_recorded_item_source =
-                                decode_string(slots[0], "result_recorded_item_source", "source")?;
-                            let result_recorded_item_target = {
-                                if slots[1].tag() != vm::ValueTag::Aggregate {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_type(
-                                            "result_recorded_item_target",
-                                            "target",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                                let slots = context
-                                    .aggregate_slots(slots[1])
-                                    .map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 3 {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_value(
-                                            "result_recorded_item_target",
-                                            "expected 3 fields",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                                let result_recorded_item_target_encoding_raw = decode_uint8(
-                                    slots[0],
-                                    "result_recorded_item_target_encoding_raw",
-                                    "encoding",
-                                )?;
-                                let result_recorded_item_target_encoding =
-                                    match result_recorded_item_target_encoding_raw {
-                                        1u8 => fs::PathEncoding::Bytes,
-                                        2u8 => fs::PathEncoding::Utf16,
-                                        _ => {
-                                            return Err(RuntimeError::from(
-                                                PlatformError::invalid_argument_value(
-                                                    "result_recorded_item_target_encoding",
-                                                    "unknown fs::PathEncoding value",
-                                                ),
-                                            )
-                                            .boxed());
-                                        }
-                                    };
-                                let result_recorded_item_target_bytes_inner = decode_array::<u8>(
-                                    context,
-                                    slots[1],
-                                    "result_recorded_item_target_bytes_inner",
-                                    "bytes",
-                                )?;
-                                let result_recorded_item_target_bytes =
-                                    platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
-                                        result_recorded_item_target_bytes_inner,
-                                    );
-                                let result_recorded_item_target_utf16_inner = decode_array::<u16>(
-                                    context,
-                                    slots[2],
-                                    "result_recorded_item_target_utf16_inner",
-                                    "utf16",
-                                )?;
-                                let result_recorded_item_target_utf16 =
-                                    platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
-                                        result_recorded_item_target_utf16_inner,
-                                    );
-                                fs::OsPathVm {
-                                    encoding: result_recorded_item_target_encoding,
-                                    bytes: result_recorded_item_target_bytes,
-                                    utf16: result_recorded_item_target_utf16,
-                                }
-                            };
-                            let result_recorded_item_file_system = decode_string(
-                                slots[2],
-                                "result_recorded_item_file_system",
-                                "fileSystem",
+                            let result_recorded_item_target_encoding_raw = decode_uint8(
+                                slots[0],
+                                "result_recorded_item_target_encoding_raw",
+                                "encoding",
                             )?;
-                            let result_recorded_item_flags =
-                                decode_uint64(slots[3], "result_recorded_item_flags", "flags")?;
-                            MountEntryVm {
-                                source: result_recorded_item_source,
-                                target: result_recorded_item_target,
-                                file_system: result_recorded_item_file_system,
-                                flags: result_recorded_item_flags,
-                            }
-                        };
-                        let result_recorded_item_recorded_source = {
-                            let result_recorded_item_recorded_source_ref = context
-                                .string_ref(result_recorded_item.source)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_item_recorded_source_ref
-                                .as_str()
-                                .to_string()
-                        };
-                        let result_recorded_item_recorded_target_encoding =
-                            result_recorded_item.target.encoding;
-                        let result_recorded_item_recorded_target_bytes_inner =
-                            result_recorded_item.target.bytes.0.read_bytes(context)?;
-                        let result_recorded_item_recorded_target_bytes =
-                            result_recorded_item_recorded_target_bytes_inner;
-                        let result_recorded_item_recorded_target_utf16_inner_raw =
-                            result_recorded_item.target.utf16.0.raw_values(context)?;
-                        let mut result_recorded_item_recorded_target_utf16_inner =
-                            Vec::with_capacity(
-                                result_recorded_item_recorded_target_utf16_inner_raw.len(),
-                            );
-                        for result_recorded_item_recorded_target_utf16_inner_item_value in
-                            result_recorded_item_recorded_target_utf16_inner_raw
-                        {
-                            let result_recorded_item_recorded_target_utf16_inner_item =
-                                decode_uint16(
-                                    result_recorded_item_recorded_target_utf16_inner_item_value,
-                                    "result_recorded_item_recorded_target_utf16_inner_item",
-                                    "item",
-                                )?;
-                            let result_recorded_item_recorded_target_utf16_inner_item_recorded =
-                                result_recorded_item_recorded_target_utf16_inner_item;
-                            result_recorded_item_recorded_target_utf16_inner.push(
-                                result_recorded_item_recorded_target_utf16_inner_item_recorded,
-                            );
-                        }
-                        let result_recorded_item_recorded_target_utf16 =
-                            result_recorded_item_recorded_target_utf16_inner;
-                        let result_recorded_item_recorded_target = fs::OsPathReplayRecord {
-                            encoding: result_recorded_item_recorded_target_encoding,
-                            bytes: result_recorded_item_recorded_target_bytes,
-                            utf16: result_recorded_item_recorded_target_utf16,
-                        };
-                        let result_recorded_item_recorded_file_system = {
-                            let result_recorded_item_recorded_file_system_ref = context
-                                .string_ref(result_recorded_item.file_system)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_item_recorded_file_system_ref
-                                .as_str()
-                                .to_string()
-                        };
-                        let result_recorded_item_recorded_flags = result_recorded_item.flags;
-                        let result_recorded_item_recorded = MountEntryReplayRecord {
-                            source: result_recorded_item_recorded_source,
-                            target: result_recorded_item_recorded_target,
-                            file_system: result_recorded_item_recorded_file_system,
-                            flags: result_recorded_item_recorded_flags,
-                        };
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = OsMountListReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        OsMountListReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item = vm_result_item.clone();
-                            let vm_result_item_value_source_value =
-                                context.intern_string(vm_result_item.source.as_str());
-                            let vm_result_item_value_source =
-                                vm::StringHandle::new(vm_result_item_value_source_value);
-                            let vm_result_item_value_target_encoding =
-                                vm_result_item.target.encoding;
-                            let vm_result_item_value_target_bytes_inner = VmArray::from_bytes(
-                                context,
-                                vm_result_item.target.bytes.as_slice(),
-                            );
-                            let vm_result_item_value_target_bytes =
-                                platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
-                                    vm_result_item_value_target_bytes_inner,
-                                );
-                            let mut vm_result_item_value_target_utf16_inner_values =
-                                Vec::with_capacity(vm_result_item.target.utf16.len());
-                            for vm_result_item_value_target_utf16_inner_item in
-                                vm_result_item.target.utf16.iter()
-                            {
-                                let vm_result_item_value_target_utf16_inner_item =
-                                    *vm_result_item_value_target_utf16_inner_item;
-                                let vm_result_item_value_target_utf16_inner_item_value =
-                                    vm_result_item_value_target_utf16_inner_item;
-                                vm_result_item_value_target_utf16_inner_values
-                                    .push(vm_result_item_value_target_utf16_inner_item_value);
-                            }
-                            let vm_result_item_value_target_utf16_inner = VmArray::from_values(
-                                context,
-                                &vm_result_item_value_target_utf16_inner_values,
-                            )?;
-                            let vm_result_item_value_target_utf16 =
-                                platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
-                                    vm_result_item_value_target_utf16_inner,
-                                );
-                            let vm_result_item_value_target = fs::OsPathVm {
-                                encoding: vm_result_item_value_target_encoding,
-                                bytes: vm_result_item_value_target_bytes,
-                                utf16: vm_result_item_value_target_utf16,
-                            };
-                            let vm_result_item_value_file_system_value =
-                                context.intern_string(vm_result_item.file_system.as_str());
-                            let vm_result_item_value_file_system =
-                                vm::StringHandle::new(vm_result_item_value_file_system_value);
-                            let vm_result_item_value_flags = vm_result_item.flags;
-                            let vm_result_item_value = MountEntryVm {
-                                source: vm_result_item_value_source,
-                                target: vm_result_item_value_target,
-                                file_system: vm_result_item_value_file_system,
-                                flags: vm_result_item_value_flags,
-                            };
-                            let vm_result_item_value_encoded = {
-                                let field_0 = vm_result_item_value.source.value();
-                                let field_1 = {
-                                    let field_0 = vm::Value::uint(
-                                        vm_result_item_value.target.encoding as u8 as u64,
-                                        8,
-                                    );
-                                    let field_1 =
-                                        vm_result_item_value.target.bytes.0.to_value(context);
-                                    let field_2 =
-                                        vm_result_item_value.target.utf16.0.to_value(context);
-                                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                            let result_recorded_item_target_encoding =
+                                match result_recorded_item_target_encoding_raw {
+                                    1u8 => fs::PathEncoding::Bytes,
+                                    2u8 => fs::PathEncoding::Utf16,
+                                    _ => {
+                                        return Err(RuntimeError::from(
+                                            PlatformError::invalid_argument_value(
+                                                "result_recorded_item_target_encoding",
+                                                "unknown fs::PathEncoding value",
+                                            ),
+                                        )
+                                        .boxed());
+                                    }
                                 };
-                                let field_2 = vm_result_item_value.file_system.value();
-                                let field_3 = vm::Value::uint(vm_result_item_value.flags, 64);
-                                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
-                            };
-                            vm_result_values.push(vm_result_item_value_encoded);
-                        }
-                        let vm_result_data = context.allocate_raw_values(vm_result_values);
-                        let vm_result: VmArray<MountEntryVm> = VmArray {
-                            data: vm_result_data,
-                            len: value.len() as u32,
-                            capacity: value.len() as u32,
-                            _marker: std::marker::PhantomData,
+                            let result_recorded_item_target_bytes_inner = decode_array::<u8>(
+                                context,
+                                slots[1],
+                                "result_recorded_item_target_bytes_inner",
+                                "bytes",
+                            )?;
+                            let result_recorded_item_target_bytes =
+                                platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
+                                    result_recorded_item_target_bytes_inner,
+                                );
+                            let result_recorded_item_target_utf16_inner = decode_array::<u16>(
+                                context,
+                                slots[2],
+                                "result_recorded_item_target_utf16_inner",
+                                "utf16",
+                            )?;
+                            let result_recorded_item_target_utf16 =
+                                platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
+                                    result_recorded_item_target_utf16_inner,
+                                );
+                            fs::OsPathVm {
+                                encoding: result_recorded_item_target_encoding,
+                                bytes: result_recorded_item_target_bytes,
+                                utf16: result_recorded_item_target_utf16,
+                            }
                         };
-                        Ok(vm_result)
+                        let result_recorded_item_file_system = decode_string(
+                            slots[2],
+                            "result_recorded_item_file_system",
+                            "fileSystem",
+                        )?;
+                        let result_recorded_item_flags =
+                            decode_uint64(slots[3], "result_recorded_item_flags", "flags")?;
+                        MountEntryVm {
+                            source: result_recorded_item_source,
+                            target: result_recorded_item_target,
+                            file_system: result_recorded_item_file_system,
+                            flags: result_recorded_item_flags,
+                        }
+                    };
+                    let result_recorded_item_recorded_source = {
+                        let result_recorded_item_recorded_source_ref = context
+                            .string_ref(result_recorded_item.source)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_source_ref
+                            .as_str()
+                            .to_string()
+                    };
+                    let result_recorded_item_recorded_target_encoding =
+                        result_recorded_item.target.encoding;
+                    let result_recorded_item_recorded_target_bytes_inner =
+                        result_recorded_item.target.bytes.0.read_bytes(context)?;
+                    let result_recorded_item_recorded_target_bytes =
+                        result_recorded_item_recorded_target_bytes_inner;
+                    let result_recorded_item_recorded_target_utf16_inner_raw =
+                        result_recorded_item.target.utf16.0.raw_values(context)?;
+                    let mut result_recorded_item_recorded_target_utf16_inner = Vec::with_capacity(
+                        result_recorded_item_recorded_target_utf16_inner_raw.len(),
+                    );
+                    for result_recorded_item_recorded_target_utf16_inner_item_value in
+                        result_recorded_item_recorded_target_utf16_inner_raw
+                    {
+                        let result_recorded_item_recorded_target_utf16_inner_item = decode_uint16(
+                            result_recorded_item_recorded_target_utf16_inner_item_value,
+                            "result_recorded_item_recorded_target_utf16_inner_item",
+                            "item",
+                        )?;
+                        let result_recorded_item_recorded_target_utf16_inner_item_recorded =
+                            result_recorded_item_recorded_target_utf16_inner_item;
+                        result_recorded_item_recorded_target_utf16_inner
+                            .push(result_recorded_item_recorded_target_utf16_inner_item_recorded);
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    let result_recorded_item_recorded_target_utf16 =
+                        result_recorded_item_recorded_target_utf16_inner;
+                    let result_recorded_item_recorded_target = fs::OsPathReplayRecord {
+                        encoding: result_recorded_item_recorded_target_encoding,
+                        bytes: result_recorded_item_recorded_target_bytes,
+                        utf16: result_recorded_item_recorded_target_utf16,
+                    };
+                    let result_recorded_item_recorded_file_system = {
+                        let result_recorded_item_recorded_file_system_ref = context
+                            .string_ref(result_recorded_item.file_system)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_file_system_ref
+                            .as_str()
+                            .to_string()
+                    };
+                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
+                    let result_recorded_item_recorded = MountEntryReplayRecord {
+                        source: result_recorded_item_recorded_source,
+                        target: result_recorded_item_recorded_target,
+                        file_system: result_recorded_item_recorded_file_system,
+                        flags: result_recorded_item_recorded_flags,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
                 }
-            },
-        );
+                let payload = OsMountListReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsMountListReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value_source_value =
+                            context.intern_string(vm_result_item.source.as_str());
+                        let vm_result_item_value_source =
+                            vm::StringHandle::new(vm_result_item_value_source_value);
+                        let vm_result_item_value_target_encoding = vm_result_item.target.encoding;
+                        let vm_result_item_value_target_bytes_inner =
+                            VmArray::from_bytes(context, vm_result_item.target.bytes.as_slice());
+                        let vm_result_item_value_target_bytes =
+                            platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
+                                vm_result_item_value_target_bytes_inner,
+                            );
+                        let mut vm_result_item_value_target_utf16_inner_values =
+                            Vec::with_capacity(vm_result_item.target.utf16.len());
+                        for vm_result_item_value_target_utf16_inner_item in
+                            vm_result_item.target.utf16.iter()
+                        {
+                            let vm_result_item_value_target_utf16_inner_item =
+                                *vm_result_item_value_target_utf16_inner_item;
+                            let vm_result_item_value_target_utf16_inner_item_value =
+                                vm_result_item_value_target_utf16_inner_item;
+                            vm_result_item_value_target_utf16_inner_values
+                                .push(vm_result_item_value_target_utf16_inner_item_value);
+                        }
+                        let vm_result_item_value_target_utf16_inner = VmArray::from_values(
+                            context,
+                            &vm_result_item_value_target_utf16_inner_values,
+                        )?;
+                        let vm_result_item_value_target_utf16 =
+                            platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
+                                vm_result_item_value_target_utf16_inner,
+                            );
+                        let vm_result_item_value_target = fs::OsPathVm {
+                            encoding: vm_result_item_value_target_encoding,
+                            bytes: vm_result_item_value_target_bytes,
+                            utf16: vm_result_item_value_target_utf16,
+                        };
+                        let vm_result_item_value_file_system_value =
+                            context.intern_string(vm_result_item.file_system.as_str());
+                        let vm_result_item_value_file_system =
+                            vm::StringHandle::new(vm_result_item_value_file_system_value);
+                        let vm_result_item_value_flags = vm_result_item.flags;
+                        let vm_result_item_value = MountEntryVm {
+                            source: vm_result_item_value_source,
+                            target: vm_result_item_value_target,
+                            file_system: vm_result_item_value_file_system,
+                            flags: vm_result_item_value_flags,
+                        };
+                        let vm_result_item_value_encoded = {
+                            let field_0 = vm_result_item_value.source.value();
+                            let field_1 = {
+                                let field_0 = vm::Value::uint(
+                                    vm_result_item_value.target.encoding as u8 as u64,
+                                    8,
+                                );
+                                let field_1 = vm_result_item_value.target.bytes.0.to_value(context);
+                                let field_2 = vm_result_item_value.target.utf16.0.to_value(context);
+                                context.allocate_aggregate(vec![field_0, field_1, field_2])
+                            };
+                            let field_2 = vm_result_item_value.file_system.value();
+                            let field_3 = vm::Value::uint(vm_result_item_value.flags, 64);
+                            context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+                        };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<MountEntryVm> = VmArray {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        capacity: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_os_mount_list_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_os_mount_remove_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     target: fs::OsPathVm,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            OS_MOUNT_REMOVE,
-            runtime.replay_payload_for(OS_MOUNT_REMOVE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_os_remove(runtime, context, target, flags)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_os_remove(runtime, context, target, flags)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = OsMountRemoveReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_MOUNT_REMOVE,
+        runtime.replay_payload_for(OS_MOUNT_REMOVE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_remove(runtime, context, target, flags),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_remove(runtime, context, target, flags)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = OsMountRemoveReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        OsMountRemoveReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsMountRemoveReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_os_mount_remove_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_os_power_state_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            OS_POWER_STATE,
-            runtime.replay_payload_for(OS_POWER_STATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_os_power_state(runtime, context),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_os_power_state(runtime, context)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: PowerState = value.clone();
-                    let result_recorded = result_value;
-                    let payload = OsPowerStateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_POWER_STATE,
+        runtime.replay_payload_for(OS_POWER_STATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_power_state(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_power_state(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: PowerState = value.clone();
+                let result_recorded = result_value;
+                let payload = OsPowerStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        OsPowerStateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsPowerStateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_os_power_state_result(context, result)?;
     Ok(result)
 }
@@ -2414,7 +2379,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_HOST_IDENTITY,
             move |context, _args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // execute binding
                     runtime.check_policy(OS_HOST_IDENTITY)?;
                     let world = runtime.check_and_resolve_world(OS_HOST_IDENTITY)?;
@@ -2430,7 +2395,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_INFO_BOOT_TIME_UNIX_NS,
             move |context, _args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // execute binding
                     runtime.check_policy(OS_INFO_BOOT_TIME_UNIX_NS)?;
                     let world = runtime.check_and_resolve_world(OS_INFO_BOOT_TIME_UNIX_NS)?;
@@ -2446,7 +2411,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_INFO_LOAD_AVERAGE,
             move |context, _args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // execute binding
                     runtime.check_policy(OS_INFO_LOAD_AVERAGE)?;
                     let world = runtime.check_and_resolve_world(OS_INFO_LOAD_AVERAGE)?;
@@ -2462,7 +2427,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_INFO_SYSTEM_SNAPSHOT,
             move |context, _args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // execute binding
                     runtime.check_policy(OS_INFO_SYSTEM_SNAPSHOT)?;
                     let world = runtime.check_and_resolve_world(OS_INFO_SYSTEM_SNAPSHOT)?;
@@ -2478,7 +2443,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_INFO_UPTIME_NS,
             move |context, _args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // execute binding
                     runtime.check_policy(OS_INFO_UPTIME_NS)?;
                     let world = runtime.check_and_resolve_world(OS_INFO_UPTIME_NS)?;
@@ -2490,7 +2455,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_MOUNT_ADD, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (source, target, filesystem, flags, data) =
                     decode_destack_os_mount_add_args(context, args)?;
@@ -2507,7 +2472,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_MOUNT_LIST, move |context, _args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // execute binding
                 runtime.check_policy(OS_MOUNT_LIST)?;
                 let world = runtime.check_and_resolve_world(OS_MOUNT_LIST)?;
@@ -2518,7 +2483,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_MOUNT_REMOVE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (target, flags) = decode_destack_os_mount_remove_args(context, args)?;
 
@@ -2532,7 +2497,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_POWER_STATE, move |context, _args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // execute binding
                 runtime.check_policy(OS_POWER_STATE)?;
                 let world = runtime.check_and_resolve_world(OS_POWER_STATE)?;
@@ -2547,14 +2512,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_POWER_SUSPEND,
             move |context, _args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // execute binding
                     let result = {
                         runtime.check_policy(OS_POWER_SUSPEND)?;
                         let world = runtime.check_and_resolve_world(OS_POWER_SUSPEND)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_suspend(runtime, context),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_suspend(runtime, context)
                             }
                         }

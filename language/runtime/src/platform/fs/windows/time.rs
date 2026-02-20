@@ -7,7 +7,7 @@ use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{
     AtFlags, DirectoryHandle, OsPath, PathBytes, PathBytesAbi, PathUtf16, core as core_fs,
 };
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Update access and modification times.
 ///
@@ -27,7 +27,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathBytes,
     atime_ns: u64,
     mtime_ns: u64,
@@ -63,7 +63,7 @@ pub(crate) unsafe fn destack_fs_utimes_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathUtf16,
     atime_ns: u64,
     mtime_ns: u64,
@@ -99,7 +99,7 @@ pub(crate) unsafe fn destack_fs_utimes_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathBytes,
     atime_ns: u64,
     mtime_ns: u64,
@@ -135,7 +135,7 @@ pub(crate) unsafe fn destack_fs_lutimes_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathUtf16,
     atime_ns: u64,
     mtime_ns: u64,
@@ -171,7 +171,7 @@ pub(crate) unsafe fn destack_fs_lutimes_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimensat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     atime_ns: u64,
@@ -217,7 +217,7 @@ pub(crate) unsafe fn destack_fs_utimensat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimensat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     atime_ns: u64,
@@ -262,7 +262,7 @@ pub(crate) unsafe fn destack_fs_utimensat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: OsPath,
     atime_ns: u64,
     mtime_ns: u64,
@@ -293,7 +293,7 @@ pub(crate) unsafe fn destack_fs_utimes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: OsPath,
     atime_ns: u64,
     mtime_ns: u64,
@@ -324,7 +324,7 @@ pub(crate) unsafe fn destack_fs_lutimes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimensat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     atime_ns: u64,

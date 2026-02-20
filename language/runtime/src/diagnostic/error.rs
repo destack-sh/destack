@@ -36,8 +36,8 @@ pub enum RuntimeError {
         /// Optional resource type or table name.
         resource_kind: Option<String>,
     } = 103,
-    /// Scheduler became idle before completing a task.
-    SchedulerIdle { task_id: u64 } = 104,
+    /// Event loop became idle before completing a task.
+    EventLoopIdle { task_id: u64 } = 104,
     /// Replay log ended before the requested event.
     ReplayLogExhausted {
         /// Sequence number of the missing event.
@@ -53,8 +53,8 @@ pub enum RuntimeError {
         /// Binding name for the mismatch.
         name: String,
     } = 109,
-    /// Runtime call context was not available.
-    RuntimeContextMissing = 110,
+    /// Binding call context was not available.
+    BindingCallContextMissing = 110,
     /// Replay payload failed to encode.
     ReplayEncodeFailed {
         /// Binding name for the failed payload.
@@ -92,8 +92,8 @@ impl RuntimeError {
                     format!("resource not found: {resource_id}")
                 }
             }
-            RuntimeError::SchedulerIdle { task_id } => {
-                format!("scheduler idle before completing task {task_id}")
+            RuntimeError::EventLoopIdle { task_id } => {
+                format!("event loop idle before completing task {task_id}")
             }
             RuntimeError::ReplayLogExhausted { sequence } => {
                 format!("replay log exhausted at {sequence}")
@@ -104,7 +104,7 @@ impl RuntimeError {
             RuntimeError::ReplayPayloadUnsupported { name } => {
                 format!("replay payload unsupported for {name}")
             }
-            RuntimeError::RuntimeContextMissing => "runtime call context missing".to_string(),
+            RuntimeError::BindingCallContextMissing => "binding call context missing".to_string(),
             RuntimeError::ReplayEncodeFailed { name } => {
                 format!("failed to encode replay payload for {name}")
             }

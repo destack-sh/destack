@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::platform::bindings::{ExecutionMode, ReplayPayload};
+use crate::runtime::bindings::BindingReplayPayload;
 use crate::runtime::replay::{BranchId, CheckpointId, LogSequence};
+use destack_workspace::ExecutionMode;
 
 /// Replay log header describing the execution environment.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,7 +20,7 @@ pub struct ReplayHeader {
     /// Execution mode used while running.
     pub execution_mode: ExecutionMode,
     /// Replay payload selection for the log.
-    pub replay_payload: ReplayPayload,
+    pub replay_payload: BindingReplayPayload,
     /// Hash of the binding registry.
     pub binding_registry_hash: u128,
     /// Hash of the effect registry.
@@ -42,7 +43,7 @@ impl ReplayHeader {
             profile_key: None,
             profile_hash: 0,
             execution_mode: ExecutionMode::Fast,
-            replay_payload: ReplayPayload::Results,
+            replay_payload: BindingReplayPayload::Results,
             binding_registry_hash: 0,
             effect_registry_hash: 0,
             max_events_per_chunk: 1024,

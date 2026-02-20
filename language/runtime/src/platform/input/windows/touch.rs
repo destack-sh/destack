@@ -3,11 +3,11 @@ use super::{core as input_core, raw as raw_input};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{InputDeviceKind, InputTouchState};
 use crate::platform::{PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Resolve one opened touch-capable device descriptor.
 fn resolve_touch_device(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<raw_input::RawInputDeviceDescriptor> {
@@ -41,7 +41,7 @@ fn resolve_touch_device(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_touch_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputTouchState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {

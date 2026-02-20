@@ -202,8 +202,8 @@ pub enum RuntimeWorld {
     /// Use host-backed platform bindings.
     #[default]
     Host,
-    /// Use simulated platform bindings.
-    Simulated,
+    /// Use simulation-backed platform bindings.
+    Simulation,
 }
 
 /// Runtime access policy for binding execution.
@@ -218,7 +218,7 @@ pub enum RuntimeAccess {
 
 /// Engine selector for runtime rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum RuntimeFilterEngine {
+pub enum BindingEngine {
     /// Match VM engine execution.
     Vm,
     /// Match native engine execution.
@@ -227,7 +227,7 @@ pub enum RuntimeFilterEngine {
 
 /// Binding scope selector for runtime rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum RuntimeFilterScope {
+pub enum BindingScope {
     /// Match host scope bindings.
     Host,
     /// Match runtime scope bindings.
@@ -236,7 +236,7 @@ pub enum RuntimeFilterScope {
 
 /// Blocking behavior selector for runtime rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum RuntimeFilterBlocking {
+pub enum BindingBlocking {
     /// Match always-blocking bindings.
     Always,
     /// Match never-blocking bindings.
@@ -247,7 +247,7 @@ pub enum RuntimeFilterBlocking {
 
 /// Binding effect class selector for runtime rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum RuntimeFilterEffect {
+pub enum BindingEffect {
     /// Match pure bindings.
     Pure,
     /// Match deterministic bindings.
@@ -270,17 +270,17 @@ pub struct RuntimeFilter {
     /// Glob selector for module names.
     pub module: Option<String>,
     /// Engine selector.
-    pub engine: Option<RuntimeFilterEngine>,
+    pub engine: Option<BindingEngine>,
     /// Execution modes selector.
     pub execution_modes: Option<Vec<ExecutionMode>>,
     /// Platform selector.
     pub platforms: Option<Vec<String>>,
     /// Binding scope selector.
-    pub scope: Option<RuntimeFilterScope>,
+    pub scope: Option<BindingScope>,
     /// Binding blocking selector.
-    pub blocking: Option<RuntimeFilterBlocking>,
+    pub blocking: Option<BindingBlocking>,
     /// Binding effect selector.
-    pub effect: Option<RuntimeFilterEffect>,
+    pub effect: Option<BindingEffect>,
 }
 
 impl RuntimeFilter {
@@ -344,10 +344,10 @@ pub enum RuntimeRuleLifetime {
     },
 }
 
-/// Policy effect payload for runtime rules.
+/// Dispatch action payload for runtime rules.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "policy", rename_all = "camelCase")]
-pub enum RuntimePolicyEffect {
+#[serde(tag = "dispatch", rename_all = "camelCase")]
+pub enum RuntimeDispatchAction {
     /// Set the matching binding world.
     SetWorld {
         /// The selected world for matching bindings.
@@ -363,6 +363,32 @@ pub enum RuntimePolicyEffect {
         /// The selected replay payload mode for matching bindings.
         payload: ReplayPayloadMode,
     },
+}
+
+/// Hook for runtime effect rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RuntimeHook {
+    /// Trigger before invoking one binding implementation.
+    BindingBefore,
+    /// Trigger after invoking one binding implementation.
+    BindingAfter,
+    /// Trigger when one task is enqueued.
+    SchedulerEnqueue,
+    /// Trigger when one task is dequeued.
+    SchedulerDequeue,
+    /// Trigger when one timer fires.
+    SchedulerTimerFire,
+    /// Trigger when one external event wakes the scheduler.
+    SchedulerEventWake,
+    /// Trigger when time is read.
+    TimeRead,
+    /// Trigger when random data is read.
+    RandomRead,
+    /// Trigger when one resource is attached.
+    ResourceAttach,
+    /// Trigger when one resource is detached.
+    ResourceDetach,
 }
 
 /// Control effect payload for runtime rules.
@@ -396,15 +422,10 @@ pub enum RuntimeMockEffect {
     },
 }
 
-/// Runtime rule effect payload.
+/// Effect action payload for runtime rules.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum RuntimeEffect {
-    /// Apply one routing or access policy effect.
-    Policy {
-        /// Policy effect payload.
-        policy: RuntimePolicyEffect,
-    },
+#[serde(tag = "effect", rename_all = "camelCase")]
+pub enum RuntimeEffectAction {
     /// Inject one typed runtime fault.
     Fault {
         /// Fault payload to inject for matching bindings.
@@ -422,9 +443,27 @@ pub enum RuntimeEffect {
     },
 }
 
-/// Runtime rule trigger controls.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct RuntimeRuleTrigger {
+/// Runtime rule action payload.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum RuntimeAction {
+    /// Apply one routing or access dispatch action.
+    Dispatch {
+        /// Dispatch action payload.
+        dispatch: RuntimeDispatchAction,
+    },
+    /// Apply one runtime effect action.
+    Effect {
+        /// Effect action payload.
+        effect: RuntimeEffectAction,
+    },
+}
+
+/// Runtime trigger controls.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct RuntimeTrigger {
+    /// Hook for this trigger.
+    pub on: RuntimeHook,
     /// Trigger probability in parts-per-million.
     pub probability_ppm: Option<i64>,
     /// Maximum number of effect firings.
@@ -433,6 +472,10 @@ pub struct RuntimeRuleTrigger {
     pub cooldown_ns: Option<u64>,
     /// Number of firings per trigger hit.
     pub burst: Option<u32>,
+    /// Activation window for this trigger.
+    pub activation: Option<RuntimeRuleActivation>,
+    /// Lifetime window for this trigger.
+    pub lifetime: Option<RuntimeRuleLifetime>,
 }
 
 /// Fault injection payload for one runtime effect.
@@ -647,14 +690,11 @@ pub struct RuntimeRule {
     pub id: Option<String>,
     /// Rule filter clause.
     pub when: RuntimeFilter,
-    /// Effect payload for this rule.
-    pub effect: RuntimeEffect,
-    /// Trigger controls for this rule.
-    pub trigger: RuntimeRuleTrigger,
-    /// Activation window for this rule.
-    pub activation: Option<RuntimeRuleActivation>,
-    /// Lifetime window for this rule.
-    pub lifetime: Option<RuntimeRuleLifetime>,
+    /// Action payload for this rule.
+    pub action: RuntimeAction,
+    /// Trigger controls for effect rules.
+    /// Dispatch rules should leave this empty.
+    pub trigger: Option<RuntimeTrigger>,
 }
 
 /// Runtime execution options for scheduler, time, randomness, and GC.
@@ -806,16 +846,15 @@ impl DsConfigRuntimeOptionsJson {
 pub enum RuntimeWorldJson {
     /// Use host-backed platform bindings.
     Host,
-    /// Use simulated platform bindings.
-    #[serde(alias = "sim")]
-    Simulated,
+    /// Use simulation-backed platform bindings.
+    Simulation,
 }
 
 impl From<RuntimeWorldJson> for RuntimeWorld {
     fn from(value: RuntimeWorldJson) -> Self {
         match value {
             RuntimeWorldJson::Host => RuntimeWorld::Host,
-            RuntimeWorldJson::Simulated => RuntimeWorld::Simulated,
+            RuntimeWorldJson::Simulation => RuntimeWorld::Simulation,
         }
     }
 }
@@ -854,17 +893,17 @@ pub struct RuntimeFilterJson {
     /// Glob selector for module names.
     pub module: Option<String>,
     /// Engine selector.
-    pub engine: Option<RuntimeFilterEngineJson>,
+    pub engine: Option<BindingEngineJson>,
     /// Execution mode selector.
     pub execution: Option<Vec<ExecutionModeJson>>,
     /// Platform selector.
     pub platforms: Option<Vec<String>>,
     /// Binding scope selector.
-    pub scope: Option<RuntimeFilterScopeJson>,
+    pub scope: Option<BindingScopeJson>,
     /// Binding blocking selector.
-    pub blocking: Option<RuntimeFilterBlockingJson>,
+    pub blocking: Option<BindingBlockingJson>,
     /// Binding effect selector.
-    pub effect: Option<RuntimeFilterEffectJson>,
+    pub effect: Option<BindingEffectJson>,
 }
 
 impl From<&RuntimeFilterJson> for RuntimeFilter {
@@ -874,15 +913,15 @@ impl From<&RuntimeFilterJson> for RuntimeFilter {
             capability: value.capability.clone(),
             component: value.component.clone(),
             module: value.module.clone(),
-            engine: value.engine.map(RuntimeFilterEngine::from),
+            engine: value.engine.map(BindingEngine::from),
             execution_modes: value
                 .execution
                 .as_ref()
                 .map(|modes| modes.iter().copied().map(ExecutionMode::from).collect()),
             platforms: value.platforms.clone(),
-            scope: value.scope.map(RuntimeFilterScope::from),
-            blocking: value.blocking.map(RuntimeFilterBlocking::from),
-            effect: value.effect.map(RuntimeFilterEffect::from),
+            scope: value.scope.map(BindingScope::from),
+            blocking: value.blocking.map(BindingBlocking::from),
+            effect: value.effect.map(BindingEffect::from),
         }
     }
 }
@@ -891,18 +930,18 @@ impl From<&RuntimeFilterJson> for RuntimeFilter {
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum RuntimeFilterEngineJson {
+pub enum BindingEngineJson {
     /// Match VM engine execution.
     Vm,
     /// Match native engine execution.
     Native,
 }
 
-impl From<RuntimeFilterEngineJson> for RuntimeFilterEngine {
-    fn from(value: RuntimeFilterEngineJson) -> Self {
+impl From<BindingEngineJson> for BindingEngine {
+    fn from(value: BindingEngineJson) -> Self {
         match value {
-            RuntimeFilterEngineJson::Vm => RuntimeFilterEngine::Vm,
-            RuntimeFilterEngineJson::Native => RuntimeFilterEngine::Native,
+            BindingEngineJson::Vm => BindingEngine::Vm,
+            BindingEngineJson::Native => BindingEngine::Native,
         }
     }
 }
@@ -911,18 +950,18 @@ impl From<RuntimeFilterEngineJson> for RuntimeFilterEngine {
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum RuntimeFilterScopeJson {
+pub enum BindingScopeJson {
     /// Match host scope bindings.
     Host,
     /// Match runtime scope bindings.
     Runtime,
 }
 
-impl From<RuntimeFilterScopeJson> for RuntimeFilterScope {
-    fn from(value: RuntimeFilterScopeJson) -> Self {
+impl From<BindingScopeJson> for BindingScope {
+    fn from(value: BindingScopeJson) -> Self {
         match value {
-            RuntimeFilterScopeJson::Host => RuntimeFilterScope::Host,
-            RuntimeFilterScopeJson::Runtime => RuntimeFilterScope::Runtime,
+            BindingScopeJson::Host => BindingScope::Host,
+            BindingScopeJson::Runtime => BindingScope::Runtime,
         }
     }
 }
@@ -931,7 +970,7 @@ impl From<RuntimeFilterScopeJson> for RuntimeFilterScope {
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum RuntimeFilterBlockingJson {
+pub enum BindingBlockingJson {
     /// Match always-blocking bindings.
     Always,
     /// Match never-blocking bindings.
@@ -940,12 +979,12 @@ pub enum RuntimeFilterBlockingJson {
     Sometimes,
 }
 
-impl From<RuntimeFilterBlockingJson> for RuntimeFilterBlocking {
-    fn from(value: RuntimeFilterBlockingJson) -> Self {
+impl From<BindingBlockingJson> for BindingBlocking {
+    fn from(value: BindingBlockingJson) -> Self {
         match value {
-            RuntimeFilterBlockingJson::Always => RuntimeFilterBlocking::Always,
-            RuntimeFilterBlockingJson::Never => RuntimeFilterBlocking::Never,
-            RuntimeFilterBlockingJson::Sometimes => RuntimeFilterBlocking::Sometimes,
+            BindingBlockingJson::Always => BindingBlocking::Always,
+            BindingBlockingJson::Never => BindingBlocking::Never,
+            BindingBlockingJson::Sometimes => BindingBlocking::Sometimes,
         }
     }
 }
@@ -954,7 +993,7 @@ impl From<RuntimeFilterBlockingJson> for RuntimeFilterBlocking {
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum RuntimeFilterEffectJson {
+pub enum BindingEffectJson {
     /// Match pure bindings.
     Pure,
     /// Match deterministic bindings.
@@ -965,15 +1004,13 @@ pub enum RuntimeFilterEffectJson {
     ExternalNonRecordable,
 }
 
-impl From<RuntimeFilterEffectJson> for RuntimeFilterEffect {
-    fn from(value: RuntimeFilterEffectJson) -> Self {
+impl From<BindingEffectJson> for BindingEffect {
+    fn from(value: BindingEffectJson) -> Self {
         match value {
-            RuntimeFilterEffectJson::Pure => RuntimeFilterEffect::Pure,
-            RuntimeFilterEffectJson::Deterministic => RuntimeFilterEffect::Deterministic,
-            RuntimeFilterEffectJson::ExternalRecordable => RuntimeFilterEffect::ExternalRecordable,
-            RuntimeFilterEffectJson::ExternalNonRecordable => {
-                RuntimeFilterEffect::ExternalNonRecordable
-            }
+            BindingEffectJson::Pure => BindingEffect::Pure,
+            BindingEffectJson::Deterministic => BindingEffect::Deterministic,
+            BindingEffectJson::ExternalRecordable => BindingEffect::ExternalRecordable,
+            BindingEffectJson::ExternalNonRecordable => BindingEffect::ExternalNonRecordable,
         }
     }
 }
@@ -1090,11 +1127,11 @@ impl From<RuntimeNetRouteDirectionJson> for RuntimeNetRouteDirection {
     }
 }
 
-/// Runtime policy effect payload for JSON deserialization.
+/// Runtime dispatch action payload for JSON deserialization.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(tag = "policy", rename_all = "camelCase")]
-pub enum RuntimePolicyEffectJson {
+#[serde(tag = "dispatch", rename_all = "camelCase")]
+pub enum RuntimeDispatchActionJson {
     /// Set the matching binding world.
     SetWorld {
         /// The selected world for matching bindings.
@@ -1112,18 +1149,62 @@ pub enum RuntimePolicyEffectJson {
     },
 }
 
-impl From<&RuntimePolicyEffectJson> for RuntimePolicyEffect {
-    fn from(value: &RuntimePolicyEffectJson) -> Self {
+impl From<&RuntimeDispatchActionJson> for RuntimeDispatchAction {
+    fn from(value: &RuntimeDispatchActionJson) -> Self {
         match value {
-            RuntimePolicyEffectJson::SetWorld { world } => RuntimePolicyEffect::SetWorld {
+            RuntimeDispatchActionJson::SetWorld { world } => RuntimeDispatchAction::SetWorld {
                 world: RuntimeWorld::from(*world),
             },
-            RuntimePolicyEffectJson::SetAccess { access } => RuntimePolicyEffect::SetAccess {
+            RuntimeDispatchActionJson::SetAccess { access } => RuntimeDispatchAction::SetAccess {
                 access: RuntimeAccess::from(*access),
             },
-            RuntimePolicyEffectJson::SetReplay { payload } => RuntimePolicyEffect::SetReplay {
+            RuntimeDispatchActionJson::SetReplay { payload } => RuntimeDispatchAction::SetReplay {
                 payload: ReplayPayloadMode::from(*payload),
             },
+        }
+    }
+}
+
+/// Runtime hook for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum RuntimeHookJson {
+    /// Trigger before invoking one binding implementation.
+    BindingBefore,
+    /// Trigger after invoking one binding implementation.
+    BindingAfter,
+    /// Trigger when one task is enqueued.
+    SchedulerEnqueue,
+    /// Trigger when one task is dequeued.
+    SchedulerDequeue,
+    /// Trigger when one timer fires.
+    SchedulerTimerFire,
+    /// Trigger when one external event wakes the scheduler.
+    SchedulerEventWake,
+    /// Trigger when time is read.
+    TimeRead,
+    /// Trigger when random data is read.
+    RandomRead,
+    /// Trigger when one resource is attached.
+    ResourceAttach,
+    /// Trigger when one resource is detached.
+    ResourceDetach,
+}
+
+impl From<RuntimeHookJson> for RuntimeHook {
+    fn from(value: RuntimeHookJson) -> Self {
+        match value {
+            RuntimeHookJson::BindingBefore => RuntimeHook::BindingBefore,
+            RuntimeHookJson::BindingAfter => RuntimeHook::BindingAfter,
+            RuntimeHookJson::SchedulerEnqueue => RuntimeHook::SchedulerEnqueue,
+            RuntimeHookJson::SchedulerDequeue => RuntimeHook::SchedulerDequeue,
+            RuntimeHookJson::SchedulerTimerFire => RuntimeHook::SchedulerTimerFire,
+            RuntimeHookJson::SchedulerEventWake => RuntimeHook::SchedulerEventWake,
+            RuntimeHookJson::TimeRead => RuntimeHook::TimeRead,
+            RuntimeHookJson::RandomRead => RuntimeHook::RandomRead,
+            RuntimeHookJson::ResourceAttach => RuntimeHook::ResourceAttach,
+            RuntimeHookJson::ResourceDetach => RuntimeHook::ResourceDetach,
         }
     }
 }
@@ -1190,16 +1271,11 @@ impl From<&RuntimeMockEffectJson> for RuntimeMockEffect {
     }
 }
 
-/// Runtime rule effect payload for JSON deserialization.
+/// Runtime effect action payload for JSON deserialization.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum RuntimeEffectJson {
-    /// Apply one routing or access policy effect.
-    Policy {
-        /// Policy effect payload.
-        policy: RuntimePolicyEffectJson,
-    },
+#[serde(tag = "effect", rename_all = "camelCase")]
+pub enum RuntimeEffectActionJson {
     /// Inject one typed runtime fault.
     Fault {
         /// Fault payload to inject for matching bindings.
@@ -1217,30 +1293,59 @@ pub enum RuntimeEffectJson {
     },
 }
 
-impl From<&RuntimeEffectJson> for RuntimeEffect {
-    fn from(value: &RuntimeEffectJson) -> Self {
+impl From<&RuntimeEffectActionJson> for RuntimeEffectAction {
+    fn from(value: &RuntimeEffectActionJson) -> Self {
         match value {
-            RuntimeEffectJson::Policy { policy } => RuntimeEffect::Policy {
-                policy: RuntimePolicyEffect::from(policy),
-            },
-            RuntimeEffectJson::Fault { fault } => RuntimeEffect::Fault {
+            RuntimeEffectActionJson::Fault { fault } => RuntimeEffectAction::Fault {
                 fault: RuntimeFaultEffect::from(fault),
             },
-            RuntimeEffectJson::Control { control } => RuntimeEffect::Control {
+            RuntimeEffectActionJson::Control { control } => RuntimeEffectAction::Control {
                 control: RuntimeControlEffect::from(control),
             },
-            RuntimeEffectJson::Mock { mock } => RuntimeEffect::Mock {
+            RuntimeEffectActionJson::Mock { mock } => RuntimeEffectAction::Mock {
                 mock: RuntimeMockEffect::from(mock),
             },
         }
     }
 }
 
-/// Runtime rule trigger controls for JSON deserialization.
+/// Runtime rule action payload for JSON deserialization.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum RuntimeActionJson {
+    /// Apply one routing or access dispatch action.
+    Dispatch {
+        /// Dispatch action payload.
+        dispatch: RuntimeDispatchActionJson,
+    },
+    /// Apply one runtime effect action.
+    Effect {
+        /// Effect action payload.
+        effect: RuntimeEffectActionJson,
+    },
+}
+
+impl From<&RuntimeActionJson> for RuntimeAction {
+    fn from(value: &RuntimeActionJson) -> Self {
+        match value {
+            RuntimeActionJson::Dispatch { dispatch } => RuntimeAction::Dispatch {
+                dispatch: RuntimeDispatchAction::from(dispatch),
+            },
+            RuntimeActionJson::Effect { effect } => RuntimeAction::Effect {
+                effect: RuntimeEffectAction::from(effect),
+            },
+        }
+    }
+}
+
+/// Runtime trigger controls for JSON deserialization.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct RuntimeRuleTriggerJson {
+pub struct RuntimeTriggerJson {
+    /// Hook for this trigger.
+    pub on: RuntimeHookJson,
     /// Trigger probability in the range 0.0 to 1.0.
     pub probability: Option<f64>,
     /// Maximum number of effect firings.
@@ -1249,15 +1354,22 @@ pub struct RuntimeRuleTriggerJson {
     pub cooldown_ns: Option<u64>,
     /// Number of firings per trigger hit.
     pub burst: Option<u32>,
+    /// Activation window for this trigger.
+    pub activation: Option<RuntimeRuleActivationJson>,
+    /// Lifetime window for this trigger.
+    pub lifetime: Option<RuntimeRuleLifetimeJson>,
 }
 
-impl From<&RuntimeRuleTriggerJson> for RuntimeRuleTrigger {
-    fn from(value: &RuntimeRuleTriggerJson) -> Self {
+impl From<&RuntimeTriggerJson> for RuntimeTrigger {
+    fn from(value: &RuntimeTriggerJson) -> Self {
         Self {
+            on: RuntimeHook::from(value.on),
             probability_ppm: probability_to_ppm(value.probability),
             max_occurrences: value.max_occurrences,
             cooldown_ns: value.cooldown_ns,
             burst: value.burst,
+            activation: value.activation.map(RuntimeRuleActivation::from),
+            lifetime: value.lifetime.map(RuntimeRuleLifetime::from),
         }
     }
 }
@@ -1543,14 +1655,10 @@ pub struct RuntimeRuleJson {
     pub id: Option<String>,
     /// Rule filter clause.
     pub when: RuntimeFilterJson,
-    /// Rule effect payload.
-    pub effect: RuntimeEffectJson,
-    /// Rule trigger controls.
-    pub trigger: Option<RuntimeRuleTriggerJson>,
-    /// Activation window for this rule.
-    pub activation: Option<RuntimeRuleActivationJson>,
-    /// Lifetime window for this rule.
-    pub lifetime: Option<RuntimeRuleLifetimeJson>,
+    /// Rule action payload.
+    pub action: RuntimeActionJson,
+    /// Trigger controls for effect rules.
+    pub trigger: Option<RuntimeTriggerJson>,
 }
 
 impl From<&RuntimeRuleJson> for RuntimeRule {
@@ -1558,14 +1666,8 @@ impl From<&RuntimeRuleJson> for RuntimeRule {
         Self {
             id: value.id.clone(),
             when: RuntimeFilter::from(&value.when),
-            effect: RuntimeEffect::from(&value.effect),
-            trigger: value
-                .trigger
-                .as_ref()
-                .map(RuntimeRuleTrigger::from)
-                .unwrap_or_default(),
-            activation: value.activation.map(RuntimeRuleActivation::from),
-            lifetime: value.lifetime.map(RuntimeRuleLifetime::from),
+            action: RuntimeAction::from(&value.action),
+            trigger: value.trigger.as_ref().map(RuntimeTrigger::from),
         }
     }
 }

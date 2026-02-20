@@ -33,7 +33,7 @@ use crate::platform::input::{
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Resource-table label for opened input-device entries.
 pub(super) const INPUT_RESOURCE_LABEL: &str = "input.device";
@@ -85,7 +85,7 @@ const XINPUT_PLAYER_INDEX_MAX: u8 = 4;
 pub(super) static WINDOWS_CONSOLE_STREAMS: AtomicUsize = AtomicUsize::new(0);
 
 /// Build one zeroed payload shell for event-kind projection.
-pub(super) fn empty_event_payload(context: &RuntimeCallContext) -> InputEventPayload {
+pub(super) fn empty_event_payload(context: &BindingCallContext) -> InputEventPayload {
     let empty_text = context.store_string("");
     InputEventPayload {
         key: InputKeyEventPayload {
@@ -154,7 +154,7 @@ pub(super) fn empty_event_payload(context: &RuntimeCallContext) -> InputEventPay
 
 /// Build one typed input event from one prepared payload.
 pub(super) fn build_input_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     kind: InputEventKind,
     timestamp_ns: u64,
     sequence: u64,
@@ -636,7 +636,7 @@ pub(super) fn read_mode_from_console_mode(mode: u32) -> InputReadMode {
 
 /// Resolve one windows input handle from the resource table.
 pub(super) fn resolve_input(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<WindowsInputResolved> {
@@ -682,7 +682,7 @@ pub(super) fn resolve_input(
 
 /// Resolve one raw-input descriptor for one opened windows input handle.
 pub(super) fn raw_device(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<raw_input::RawInputDeviceDescriptor> {
@@ -700,7 +700,7 @@ pub(super) fn raw_device(
 
 /// Allocate the next sequence number for one windows input stream.
 pub(super) fn next_sequence(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
@@ -763,7 +763,7 @@ pub(super) fn now_timestamp_ns() -> u64 {
 
 /// Persist one xinput player-index override for one input handle.
 pub(super) fn set_xinput_player_index_override(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     player_index: u8,
     operation: &'static str,
@@ -833,7 +833,7 @@ fn window_target_not_found(
 
 /// Resolve one optional explicit window target into one host hwnd.
 pub(super) fn resolve_window_target_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     target: InputWindowTarget,
     operation: &'static str,
 ) -> RuntimeResult<Option<HWND>> {
@@ -963,7 +963,7 @@ pub(super) fn release_cursor_confine(operation: &'static str) -> RuntimeResult<(
 
 /// Persist one text active flag and type for one input handle.
 pub(super) fn set_text_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     active: bool,
     input_type: InputTextInputType,
@@ -998,7 +998,7 @@ pub(super) fn set_text_state(
 
 /// Persist one text-area hint for one input handle.
 pub(super) fn set_text_area(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     area: InputTextInputArea,
     operation: &'static str,
@@ -1031,7 +1031,7 @@ pub(super) fn set_text_area(
 
 /// Persist one pointer-position snapshot for one input handle.
 pub(super) fn set_pointer_snapshot(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     x: f64,
     y: f64,
@@ -1066,7 +1066,7 @@ pub(super) fn set_pointer_snapshot(
 
 /// Persist one relative-mode flag for one input handle.
 pub(super) fn set_relative_mode_flag(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enabled: bool,
     operation: &'static str,
@@ -1099,7 +1099,7 @@ pub(super) fn set_relative_mode_flag(
 
 /// Persist one sensor-stream enabled flag for one input handle and sensor lane.
 pub(super) fn set_sensor_stream_enabled(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     sensor_kind: InputSensorKind,
     enabled: bool,
@@ -1138,7 +1138,7 @@ pub(super) fn set_sensor_stream_enabled(
 
 /// Persist one effective sensor-stream configuration for one input handle and sensor lane.
 pub(super) fn set_sensor_stream_config(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     sensor_kind: InputSensorKind,
     config: InputSensorEffectiveConfig,
@@ -1180,7 +1180,7 @@ pub(super) fn set_sensor_stream_config(
 
 /// Return whether one sensor stream is currently enabled for one input handle.
 pub(super) fn is_sensor_stream_enabled(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     sensor_kind: InputSensorKind,
     operation: &'static str,

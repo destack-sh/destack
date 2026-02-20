@@ -7,7 +7,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
@@ -38,7 +38,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_args(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeStringSlice,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -67,7 +67,7 @@ pub(crate) unsafe fn destack_process_args(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_chdir(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     let _ = path;
@@ -93,7 +93,7 @@ pub(crate) unsafe fn destack_process_chdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_cwd(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut fs::OsPath,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -122,7 +122,7 @@ pub(crate) unsafe fn destack_process_cwd(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_delete(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = name;
@@ -148,7 +148,7 @@ pub(crate) unsafe fn destack_process_env_delete(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_delete_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = name;
@@ -177,7 +177,7 @@ pub(crate) unsafe fn destack_process_env_delete_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_get(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeStringRef,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -207,7 +207,7 @@ pub(crate) unsafe fn destack_process_env_get(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_get_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<u8>,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -237,7 +237,7 @@ pub(crate) unsafe fn destack_process_env_get_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_set(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     name: NativeStringRef,
     argument_value: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -264,7 +264,7 @@ pub(crate) unsafe fn destack_process_env_set(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_set_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     name: NativeSlice<u8>,
     argument_value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -291,7 +291,7 @@ pub(crate) unsafe fn destack_process_env_set_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_exec(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     command: fs::OsPath,
     arguments: NativeStringSlice,
     environment: NativeStringSlice,
@@ -319,7 +319,7 @@ pub(crate) unsafe fn destack_process_exec(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_execat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     directory: resource::DirectoryHandle,
     path: fs::OsPath,
     arguments: NativeStringSlice,
@@ -349,7 +349,7 @@ pub(crate) unsafe fn destack_process_execat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_fexec(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     executable: resource::FileHandle,
     arguments: NativeStringSlice,
     environment: NativeStringSlice,
@@ -377,7 +377,7 @@ pub(crate) unsafe fn destack_process_fexec(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_exit(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     code: u32,
 ) -> RuntimeResult<()> {
     let _ = code;
@@ -406,7 +406,7 @@ pub(crate) unsafe fn destack_process_exit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -435,7 +435,7 @@ pub(crate) unsafe fn destack_process_process_fd_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::ProcessFdHandle,
     pid: ProcessId,
     flags: ProcessFdFlags,
@@ -469,7 +469,7 @@ pub(crate) unsafe fn destack_process_process_fd_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_send_signal(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::ProcessFdHandle,
     signal: Signal,
     flags: ProcessFdSignalFlags,
@@ -500,7 +500,7 @@ pub(crate) unsafe fn destack_process_process_fd_send_signal(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_try_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
@@ -533,7 +533,7 @@ pub(crate) unsafe fn destack_process_process_fd_try_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessFdHandle,
     timeoutns: u64,
@@ -567,7 +567,7 @@ pub(crate) unsafe fn destack_process_process_fd_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -596,7 +596,7 @@ pub(crate) unsafe fn destack_process_signal_fd_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::SignalFdHandle,
     signals: NativeSlice<Signal>,
     flags: SignalFdFlags,
@@ -630,7 +630,7 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
@@ -663,7 +663,7 @@ pub(crate) unsafe fn destack_process_signal_fd_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_set_mask(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::SignalFdHandle,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
@@ -693,7 +693,7 @@ pub(crate) unsafe fn destack_process_signal_fd_set_mask(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_try_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
@@ -726,7 +726,7 @@ pub(crate) unsafe fn destack_process_signal_fd_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_stdio_stderr(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::FileHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -758,7 +758,7 @@ pub(crate) unsafe fn destack_process_stdio_stderr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_stdio_stdin(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::FileHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -790,7 +790,7 @@ pub(crate) unsafe fn destack_process_stdio_stdin(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_stdio_stdout(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::FileHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -822,7 +822,7 @@ pub(crate) unsafe fn destack_process_stdio_stdout(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_get_limit(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessLimit,
     path: NativeStringRef,
     resource: ProcessLimitResource,
@@ -856,7 +856,7 @@ pub(crate) unsafe fn destack_process_cgroup_get_limit(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_join(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = path;
@@ -885,7 +885,7 @@ pub(crate) unsafe fn destack_process_cgroup_join(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_set_limit(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: NativeStringRef,
     resource: ProcessLimitResource,
     limit: ProcessLimit,
@@ -916,7 +916,7 @@ pub(crate) unsafe fn destack_process_cgroup_set_limit(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_job_assign(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     name: NativeStringRef,
     pids: NativeSlice<ProcessId>,
 ) -> RuntimeResult<()> {
@@ -946,7 +946,7 @@ pub(crate) unsafe fn destack_process_job_assign(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_job_set_limit(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     name: NativeStringRef,
     resource: ProcessLimitResource,
     limit: ProcessLimit,
@@ -977,7 +977,7 @@ pub(crate) unsafe fn destack_process_job_set_limit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_egid(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut GroupId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1006,7 +1006,7 @@ pub(crate) unsafe fn destack_process_egid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_euid(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut UserId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1035,7 +1035,7 @@ pub(crate) unsafe fn destack_process_euid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_gid(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut GroupId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1064,7 +1064,7 @@ pub(crate) unsafe fn destack_process_gid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_group_ids(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessGroupIds,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1093,7 +1093,7 @@ pub(crate) unsafe fn destack_process_group_ids(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_groups(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<GroupId>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1122,7 +1122,7 @@ pub(crate) unsafe fn destack_process_groups(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_pid(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1151,7 +1151,7 @@ pub(crate) unsafe fn destack_process_pid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_ppid(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1180,7 +1180,7 @@ pub(crate) unsafe fn destack_process_ppid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_egid(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     groupid: GroupId,
 ) -> RuntimeResult<()> {
     let _ = groupid;
@@ -1206,7 +1206,7 @@ pub(crate) unsafe fn destack_process_set_egid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_euid(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     userid: UserId,
 ) -> RuntimeResult<()> {
     let _ = userid;
@@ -1232,7 +1232,7 @@ pub(crate) unsafe fn destack_process_set_euid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_gid(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     groupid: GroupId,
 ) -> RuntimeResult<()> {
     let _ = groupid;
@@ -1258,7 +1258,7 @@ pub(crate) unsafe fn destack_process_set_gid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_group_ids(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     ids: ProcessGroupIds,
 ) -> RuntimeResult<()> {
     let _ = ids;
@@ -1287,7 +1287,7 @@ pub(crate) unsafe fn destack_process_set_group_ids(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_groups(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     groups: NativeSlice<GroupId>,
 ) -> RuntimeResult<()> {
     let _ = groups;
@@ -1316,7 +1316,7 @@ pub(crate) unsafe fn destack_process_set_groups(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_uid(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     userid: UserId,
 ) -> RuntimeResult<()> {
     let _ = userid;
@@ -1342,7 +1342,7 @@ pub(crate) unsafe fn destack_process_set_uid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_user_ids(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     ids: ProcessUserIds,
 ) -> RuntimeResult<()> {
     let _ = ids;
@@ -1371,7 +1371,7 @@ pub(crate) unsafe fn destack_process_set_user_ids(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_uid(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut UserId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1400,7 +1400,7 @@ pub(crate) unsafe fn destack_process_uid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_user_ids(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessUserIds,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1429,7 +1429,7 @@ pub(crate) unsafe fn destack_process_user_ids(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_chroot(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     let _ = path;
@@ -1458,7 +1458,7 @@ pub(crate) unsafe fn destack_process_chroot(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_install_syscall_filter(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     program: NativeArray<u8>,
     flags: SyscallFilterFlags,
 ) -> RuntimeResult<()> {
@@ -1488,7 +1488,7 @@ pub(crate) unsafe fn destack_process_install_syscall_filter(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_set_host_name(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = name;
@@ -1517,7 +1517,7 @@ pub(crate) unsafe fn destack_process_set_host_name(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_set_network_namespace(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     let _ = path;
@@ -1546,7 +1546,7 @@ pub(crate) unsafe fn destack_process_set_network_namespace(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_setns(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     pid: ProcessId,
     namespace: ProcessNamespaceKind,
 ) -> RuntimeResult<()> {
@@ -1576,7 +1576,7 @@ pub(crate) unsafe fn destack_process_setns(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_unshare(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     flags: ProcessUnshareFlags,
 ) -> RuntimeResult<()> {
     let _ = flags;
@@ -1605,7 +1605,7 @@ pub(crate) unsafe fn destack_process_unshare(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_limit(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessLimit,
     resource: ProcessLimitResource,
 ) -> RuntimeResult<()> {
@@ -1638,7 +1638,7 @@ pub(crate) unsafe fn destack_process_get_limit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_limit(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     resource: ProcessLimitResource,
     limit: ProcessLimit,
 ) -> RuntimeResult<()> {
@@ -1668,7 +1668,7 @@ pub(crate) unsafe fn destack_process_set_limit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_affinity(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessCpuSet,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -1701,7 +1701,7 @@ pub(crate) unsafe fn destack_process_get_affinity(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_priority(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut i32,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -1734,7 +1734,7 @@ pub(crate) unsafe fn destack_process_get_priority(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_scheduler(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessSchedulerConfig,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -1767,7 +1767,7 @@ pub(crate) unsafe fn destack_process_get_scheduler(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_affinity(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     pid: ProcessId,
     cpus: ProcessCpuSet,
 ) -> RuntimeResult<()> {
@@ -1797,7 +1797,7 @@ pub(crate) unsafe fn destack_process_set_affinity(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_priority(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     pid: ProcessId,
     priority: i32,
 ) -> RuntimeResult<()> {
@@ -1827,7 +1827,7 @@ pub(crate) unsafe fn destack_process_set_priority(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_scheduler(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     pid: ProcessId,
     config: ProcessSchedulerConfig,
 ) -> RuntimeResult<()> {
@@ -1856,7 +1856,7 @@ pub(crate) unsafe fn destack_process_set_scheduler(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_process_yield_now(context: &RuntimeCallContext) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_process_yield_now(context: &BindingCallContext) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.sched.yieldNow",
     ))
@@ -1881,7 +1881,7 @@ pub(crate) unsafe fn destack_process_yield_now(context: &RuntimeCallContext) -> 
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_getpgid(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessId,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -1914,7 +1914,7 @@ pub(crate) unsafe fn destack_process_getpgid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_setpgid(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     pid: ProcessId,
     pgid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -1944,7 +1944,7 @@ pub(crate) unsafe fn destack_process_setpgid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_setsid(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1976,7 +1976,7 @@ pub(crate) unsafe fn destack_process_setsid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_kill(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     pid: ProcessId,
     signal: Signal,
 ) -> RuntimeResult<()> {
@@ -2003,7 +2003,7 @@ pub(crate) unsafe fn destack_process_kill(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_mask_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<Signal>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -2035,7 +2035,7 @@ pub(crate) unsafe fn destack_process_signal_mask_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_mask_update(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     how: SignalMaskHow,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
@@ -2065,7 +2065,7 @@ pub(crate) unsafe fn destack_process_signal_mask_update(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_receive(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SignalEvent,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
@@ -2098,7 +2098,7 @@ pub(crate) unsafe fn destack_process_signal_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_subscribe(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::SignalHandle,
     signal: Signal,
 ) -> RuntimeResult<()> {
@@ -2131,7 +2131,7 @@ pub(crate) unsafe fn destack_process_signal_subscribe(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_try_receive(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SignalEvent,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
@@ -2164,7 +2164,7 @@ pub(crate) unsafe fn destack_process_signal_try_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_try_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SignalEvent,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
@@ -2197,7 +2197,7 @@ pub(crate) unsafe fn destack_process_signal_try_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_unsubscribe(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -2226,7 +2226,7 @@ pub(crate) unsafe fn destack_process_signal_unsubscribe(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SignalEvent,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
@@ -2259,7 +2259,7 @@ pub(crate) unsafe fn destack_process_signal_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_spawn(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::ProcessHandle,
     command: fs::OsPath,
     arguments: NativeStringSlice,
@@ -2292,7 +2292,7 @@ pub(crate) unsafe fn destack_process_spawn(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_spawn_with_actions(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::ProcessHandle,
     command: fs::OsPath,
     arguments: NativeStringSlice,
@@ -2338,7 +2338,7 @@ pub(crate) unsafe fn destack_process_spawn_with_actions(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_umask(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     mask: u32,
 ) -> RuntimeResult<()> {
@@ -2368,7 +2368,7 @@ pub(crate) unsafe fn destack_process_umask(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_wait_pid(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     pid: ProcessId,
     flags: ProcessWaitFlags,
@@ -2399,7 +2399,7 @@ pub(crate) unsafe fn destack_process_wait_pid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_try_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<()> {
@@ -2429,7 +2429,7 @@ pub(crate) unsafe fn destack_process_try_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessHandle,
     flags: ProcessWaitFlags,

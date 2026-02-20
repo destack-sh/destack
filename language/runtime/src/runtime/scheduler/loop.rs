@@ -1,35 +1,43 @@
 use std::collections::VecDeque;
 
+use destack_workspace::SchedulerOptions;
 use parking_lot::Mutex;
 
+use super::{Microtask, MicrotaskId, Runnable, Task, TaskId, Timer, TimerQueue};
 use crate::diagnostic::RuntimeResult;
 use crate::platform::poller::{PlatformEventPayload, ProcessStatus};
-use crate::platform::{PlatformEvent, PlatformEventSource, ResourceId};
-use crate::runtime::scheduler::{Microtask, MicrotaskId, Task, TaskId, Timer, TimerQueue};
+use crate::platform::{PlatformEvent, PlatformEventSource, PlatformPoller, ResourceId};
 
-/// Event loop state for tasks, microtasks, and timers.
+/// Event loop for task queues, microtasks, timers, and platform events.
 #[derive(Debug, Default)]
 pub struct EventLoop {
-    // TODO #Incomplete: enforce EventLoop queue priorities, budgets, and deterministic ordering
+    // NOTE #Incomplete: use queue priorities, budgets, and deterministic ordering rules
     /// Pending macrotasks.
-    pub tasks: VecDeque<Task>,
-    /// Pending microtasks (drained between tasks).
-    pub microtasks: VecDeque<Microtask>,
-    /// Pending external events.
-    pub events: VecDeque<PlatformEvent>,
+    tasks: VecDeque<Task>,
+    /// Pending microtasks that drain before macrotasks.
+    microtasks: VecDeque<Microtask>,
+    /// Pending platform events.
+    events: VecDeque<PlatformEvent>,
     /// Ready timers waiting for dispatch.
-    pub ready_timers: VecDeque<Timer>,
+    ready_timers: VecDeque<Timer>,
     /// Timer queue for scheduled callbacks.
-    pub timers: Mutex<TimerQueue>,
+    timers: Mutex<TimerQueue>,
     /// Next task identifier to issue.
-    pub next_task_id: u64,
+    next_task_id: u64,
     /// Next microtask identifier to issue.
-    pub next_microtask_id: u64,
-    /// Next scheduler sequence identifier to issue.
-    pub next_sequence: u64,
+    next_microtask_id: u64,
+    /// Next task queue sequence identifier to issue.
+    next_sequence: u64,
+    /// Configured event loop options.
+    pub options: SchedulerOptions,
 }
 
 impl EventLoop {
+    /// Configure event loop options.
+    pub fn configure(&mut self, options: SchedulerOptions) {
+        self.options = options;
+    }
+
     /// Borrow the timer queue.
     pub fn timers(&self) -> &Mutex<TimerQueue> {
         &self.timers
@@ -52,9 +60,25 @@ impl EventLoop {
         self.events.extend(events);
     }
 
-    /// Drain queued external events.
-    pub fn drain_events(&mut self) -> VecDeque<PlatformEvent> {
-        std::mem::take(&mut self.events)
+    /// Pop the next runnable item from the event loop.
+    pub fn next_runnable(&mut self, now_nanos: u64) -> RuntimeResult<Option<Runnable>> {
+        // always drain microtasks first
+        if let Some(microtask) = self.microtasks.pop_front() {
+            return Ok(Some(Runnable::Microtask(microtask)));
+        }
+
+        // move ready timers into the dispatch queue
+        self.enqueue_ready_timers(now_nanos)?;
+        if let Some(timer) = self.ready_timers.pop_front() {
+            return Ok(Some(Runnable::Timer(timer)));
+        }
+
+        // dispatch external events before regular tasks
+        if let Some(event) = self.events.pop_front() {
+            return Ok(Some(Runnable::Event(event)));
+        }
+
+        Ok(self.tasks.pop_front().map(Runnable::Task))
     }
 
     /// Allocate the next task identifier.
@@ -71,7 +95,7 @@ impl EventLoop {
         id
     }
 
-    /// Allocate the next scheduler sequence identifier.
+    /// Allocate the next task queue sequence identifier.
     pub fn next_sequence(&mut self) -> u64 {
         let sequence = self.next_sequence;
         self.next_sequence = self.next_sequence.wrapping_add(1);
@@ -81,6 +105,11 @@ impl EventLoop {
     /// Pop the next microtask if available.
     pub fn pop_microtask(&mut self) -> Option<Microtask> {
         self.microtasks.pop_front()
+    }
+
+    /// Report whether any microtasks are pending.
+    pub fn has_microtasks(&self) -> bool {
+        !self.microtasks.is_empty()
     }
 
     /// Report whether any work remains in the event loop.
@@ -123,6 +152,21 @@ impl EventLoop {
         let ready = self.poll_timers(now_nanos)?;
         self.ready_timers.extend(ready);
         Ok(())
+    }
+
+    /// Poll the platform poller and enqueue events.
+    pub fn poll_poller(
+        &mut self,
+        poller: &mut dyn PlatformPoller,
+        timeout_nanos: Option<u64>,
+    ) -> RuntimeResult<usize> {
+        let events = poller.poll(timeout_nanos)?;
+        let count = events.len();
+        if count > 0 {
+            self.enqueue_events(events);
+        }
+
+        Ok(count)
     }
 }
 
@@ -169,5 +213,46 @@ fn payload_sort_key(payload: PlatformEventPayload) -> u64 {
             ((pid as u64) << 32) | (status_key.0 << 16) | status_key.1
         }
         PlatformEventPayload::Timer { deadline_nanos } => deadline_nanos,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_vm as vm;
+
+    use super::{EventLoop, Runnable};
+    use crate::runtime::engine::{EngineContinuation, NativeContinuation};
+    use crate::runtime::scheduler::{Microtask, MicrotaskId, Task, TaskId, TaskState};
+
+    /// Ensures microtasks run before macrotasks in the event loop.
+    #[test]
+    fn test_microtasks_run_first() {
+        // set up an event loop with one task and one microtask
+        let mut event_loop = EventLoop::default();
+
+        let task = Task {
+            id: TaskId::new(1),
+            runnable: EngineContinuation::Native(NativeContinuation::new(11)),
+            resume_value: vm::Value::VOID,
+            state: TaskState::Ready,
+            priority: 0,
+        };
+        let microtask = Microtask {
+            id: MicrotaskId::new(1),
+            runnable: EngineContinuation::Native(NativeContinuation::new(22)),
+            resume_value: vm::Value::VOID,
+            state: TaskState::Ready,
+        };
+
+        event_loop.enqueue_task(task);
+        event_loop.enqueue_microtask(microtask);
+
+        // microtasks should be dequeued first
+        let first = event_loop.next_runnable(0).expect("event loop should run");
+        assert!(matches!(first, Some(Runnable::Microtask(_))));
+
+        // remaining item should be the task
+        let second = event_loop.next_runnable(0).expect("event loop should run");
+        assert!(matches!(second, Some(Runnable::Task(_))));
     }
 }

@@ -5,20 +5,20 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
-    NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
-};
 use crate::platform::memory::{
     MemoryRange, MemoryRangeVm, ProtectedMemoryRange, ProtectedMemoryRangeVm,
 };
 use crate::platform::{PlatformError, RuntimeStatus, abi as platform_abi};
+use crate::runtime::bindings::{
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
+    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
+use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
 
@@ -531,7 +531,7 @@ struct MemoryProtectRemapReplay {
 pub const MEMORY_ADVISE_ADVISE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.advise.adviseRange",
     "export function advise(address: uint64, length: uint64, advice: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["memory.advise"],
     BindingScope::Host,
@@ -544,7 +544,7 @@ pub const MEMORY_ADVISE_DISCARD: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.memory.advise.discard",
         "export function discard(address: uint64, length: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["memory.advise"],
         BindingScope::Host,
@@ -569,7 +569,7 @@ pub const MEMORY_ADVISE_DISCARD: BindingDescriptor =
 pub const MEMORY_ADVISE_HUGE_PAGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.advise.hugePage",
     "export function hugePage(address: uint64, length: uint64, enabled: boolean): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["memory.hugePage"],
     BindingScope::Host,
@@ -582,7 +582,7 @@ pub const MEMORY_LOCK_LOCK_RANGE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.memory.lock.lockRange",
         "export function lock(address: uint64, length: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["memory.lock"],
         BindingScope::Host,
@@ -608,7 +608,7 @@ pub const MEMORY_LOCK_UNLOCK: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.memory.lock.unlock",
         "export function unlock(address: uint64, length: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["memory.lock"],
         BindingScope::Host,
@@ -633,7 +633,7 @@ pub const MEMORY_LOCK_UNLOCK: BindingDescriptor =
 pub const MEMORY_MAP_COMMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.map.commit",
     "export function commit(address: uint64, length: uint64, flags: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["memory.map"],
     BindingScope::Host,
@@ -646,7 +646,7 @@ pub const MEMORY_MAP_DECOMMIT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.memory.map.decommit",
         "export function decommit(address: uint64, length: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["memory.map"],
         BindingScope::Host,
@@ -671,7 +671,7 @@ pub const MEMORY_MAP_DECOMMIT: BindingDescriptor =
 pub const MEMORY_MAP_NUMA_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.map.numaBind",
     "export function numaBind(address: uint64, length: uint64, policy: uint32, nodeMask: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["memory.numa"],
     BindingScope::Host,
@@ -684,7 +684,7 @@ pub const MEMORY_MAP_RELEASE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.memory.map.release",
         "export function release(address: uint64, length: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["memory.map"],
         BindingScope::Host,
@@ -709,7 +709,7 @@ pub const MEMORY_MAP_RELEASE: BindingDescriptor =
 pub const MEMORY_MAP_RESERVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.map.reserve",
     "export function reserve(length: uint64, flags: uint32): Result<MemoryRange, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["memory.map"],
     BindingScope::Host,
@@ -721,7 +721,7 @@ pub const MEMORY_MAP_RESERVE: BindingDescriptor = BindingDescriptor::external_wi
 pub const MEMORY_PROTECT_EXECUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.protect.execute",
     "export function protectExecute(address: uint64, length: uint64, enabled: boolean): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["memory.execute"],
     BindingScope::Host,
@@ -733,7 +733,7 @@ pub const MEMORY_PROTECT_EXECUTE: BindingDescriptor = BindingDescriptor::externa
 pub const MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.protect.flushInstructionCache",
     "export function flushInstructionCache(address: uint64, length: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["memory.execute"],
     BindingScope::Host,
@@ -745,7 +745,7 @@ pub const MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE: BindingDescriptor = BindingDes
 pub const MEMORY_PROTECT_PROTECT_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.protect.protectRange",
     "export function protect(address: uint64, length: uint64, protection: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["memory.protect"],
     BindingScope::Host,
@@ -757,7 +757,7 @@ pub const MEMORY_PROTECT_PROTECT_RANGE: BindingDescriptor = BindingDescriptor::e
 pub const MEMORY_PROTECT_REMAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.protect.remap",
     "export function remap(address: uint64, oldLength: uint64, newLength: uint64, flags: uint32): Result<ProtectedMemoryRange, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["memory.protect"],
     BindingScope::Host,
@@ -863,7 +863,7 @@ pub const MEMORY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for memory bindings.
 #[inline]
 fn destack_memory_advise_advise_range_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -871,14 +871,14 @@ fn destack_memory_advise_advise_range_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length, &advice);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         MEMORY_ADVISE_ADVISE_RANGE,
         context.replay_payload_for(MEMORY_ADVISE_ADVISE_RANGE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_memory_advise(context, address, length, advice)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_memory_advise(context, address, length, advice)
             },
         },
@@ -913,21 +913,21 @@ fn destack_memory_advise_advise_range_replay(
 
 #[inline]
 fn destack_memory_advise_discard_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
     let _ = (&address, &length);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         MEMORY_ADVISE_DISCARD,
         context.replay_payload_for(MEMORY_ADVISE_DISCARD)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_memory_discard(context, address, length)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_memory_discard(context, address, length)
             },
         },
@@ -962,7 +962,7 @@ fn destack_memory_advise_discard_replay(
 
 #[inline]
 fn destack_memory_advise_huge_page_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -970,14 +970,14 @@ fn destack_memory_advise_huge_page_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length, &enabled);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         MEMORY_ADVISE_HUGE_PAGE,
         context.replay_payload_for(MEMORY_ADVISE_HUGE_PAGE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_memory_huge_page(context, address, length, enabled)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_memory_huge_page(
                     context, address, length, enabled,
                 )
@@ -1014,21 +1014,21 @@ fn destack_memory_advise_huge_page_replay(
 
 #[inline]
 fn destack_memory_lock_lock_range_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
     let _ = (&address, &length);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         MEMORY_LOCK_LOCK_RANGE,
         context.replay_payload_for(MEMORY_LOCK_LOCK_RANGE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_memory_lock(context, address, length)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_memory_lock(context, address, length)
             },
         },
@@ -1063,21 +1063,21 @@ fn destack_memory_lock_lock_range_replay(
 
 #[inline]
 fn destack_memory_lock_unlock_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
     let _ = (&address, &length);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         MEMORY_LOCK_UNLOCK,
         context.replay_payload_for(MEMORY_LOCK_UNLOCK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_memory_unlock(context, address, length)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_memory_unlock(context, address, length)
             },
         },
@@ -1112,7 +1112,7 @@ fn destack_memory_lock_unlock_replay(
 
 #[inline]
 fn destack_memory_map_commit_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -1120,14 +1120,14 @@ fn destack_memory_map_commit_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         MEMORY_MAP_COMMIT,
         context.replay_payload_for(MEMORY_MAP_COMMIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_memory_commit(context, address, length, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_memory_commit(context, address, length, flags)
             },
         },
@@ -1162,21 +1162,21 @@ fn destack_memory_map_commit_replay(
 
 #[inline]
 fn destack_memory_map_decommit_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
     let _ = (&address, &length);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         MEMORY_MAP_DECOMMIT,
         context.replay_payload_for(MEMORY_MAP_DECOMMIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_memory_decommit(context, address, length)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_memory_decommit(context, address, length)
             },
         },
@@ -1211,7 +1211,7 @@ fn destack_memory_map_decommit_replay(
 
 #[inline]
 fn destack_memory_map_numa_bind_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -1220,7 +1220,7 @@ fn destack_memory_map_numa_bind_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length, &policy, &nodemask);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         MEMORY_MAP_NUMA_BIND,
         context.replay_payload_for(MEMORY_MAP_NUMA_BIND)?,
         || match world {
@@ -1229,7 +1229,7 @@ fn destack_memory_map_numa_bind_replay(
                     context, address, length, policy, nodemask,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_memory_numa_bind(
                     context, address, length, policy, nodemask,
                 )
@@ -1266,21 +1266,21 @@ fn destack_memory_map_numa_bind_replay(
 
 #[inline]
 fn destack_memory_map_release_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
     let _ = (&address, &length);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         MEMORY_MAP_RELEASE,
         context.replay_payload_for(MEMORY_MAP_RELEASE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_memory_release(context, address, length)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_memory_release(context, address, length)
             },
         },
@@ -1315,7 +1315,7 @@ fn destack_memory_map_release_replay(
 
 #[inline]
 fn destack_memory_map_reserve_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut MemoryRange,
     length: u64,
@@ -1323,14 +1323,14 @@ fn destack_memory_map_reserve_replay(
 ) -> RuntimeResult<()> {
     let _ = (&length, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         MEMORY_MAP_RESERVE,
         context.replay_payload_for(MEMORY_MAP_RESERVE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_memory_reserve(context, out, length, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_memory_reserve(context, out, length, flags)
             },
         },
@@ -1387,7 +1387,7 @@ fn destack_memory_map_reserve_replay(
 
 #[inline]
 fn destack_memory_protect_execute_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -1395,14 +1395,14 @@ fn destack_memory_protect_execute_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length, &enabled);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         MEMORY_PROTECT_EXECUTE,
         context.replay_payload_for(MEMORY_PROTECT_EXECUTE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_memory_protect_execute(context, address, length, enabled)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_memory_protect_execute(
                     context, address, length, enabled,
                 )
@@ -1439,21 +1439,21 @@ fn destack_memory_protect_execute_replay(
 
 #[inline]
 fn destack_memory_protect_flush_instruction_cache_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
     let _ = (&address, &length);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE,
         context.replay_payload_for(MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_memory_flush_instruction_cache(context, address, length)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_memory_flush_instruction_cache(
                     context, address, length,
                 )
@@ -1490,7 +1490,7 @@ fn destack_memory_protect_flush_instruction_cache_replay(
 
 #[inline]
 fn destack_memory_protect_protect_range_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     address: u64,
     length: u64,
@@ -1498,14 +1498,14 @@ fn destack_memory_protect_protect_range_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length, &protection);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         MEMORY_PROTECT_PROTECT_RANGE,
         context.replay_payload_for(MEMORY_PROTECT_PROTECT_RANGE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_memory_protect(context, address, length, protection)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_memory_protect(
                     context, address, length, protection,
                 )
@@ -1542,7 +1542,7 @@ fn destack_memory_protect_protect_range_replay(
 
 #[inline]
 fn destack_memory_protect_remap_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut ProtectedMemoryRange,
     address: u64,
@@ -1552,7 +1552,7 @@ fn destack_memory_protect_remap_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &oldlength, &newlength, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         MEMORY_PROTECT_REMAP,
         context.replay_payload_for(MEMORY_PROTECT_REMAP)?,
         || match world {
@@ -1561,7 +1561,7 @@ fn destack_memory_protect_remap_replay(
                     context, out, address, oldlength, newlength, flags,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_memory_remap(
                     context, out, address, oldlength, newlength, flags,
                 )
@@ -1825,395 +1825,381 @@ pub unsafe extern "C" fn destack_memory_protect_remap(
 /// VM replay implementations for memory bindings.
 #[inline]
 fn destack_memory_advise_advise_range_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
     advice: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            MEMORY_ADVISE_ADVISE_RANGE,
-            runtime.replay_payload_for(MEMORY_ADVISE_ADVISE_RANGE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_memory_advise(runtime, context, address, length, advice)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_advise(
-                    runtime, context, address, length, advice,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = MemoryAdviseAdviseRangeReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        MEMORY_ADVISE_ADVISE_RANGE,
+        runtime.replay_payload_for(MEMORY_ADVISE_ADVISE_RANGE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_memory_advise(runtime, context, address, length, advice)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_memory_advise(
+                runtime, context, address, length, advice,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = MemoryAdviseAdviseRangeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryAdviseAdviseRangeReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MemoryAdviseAdviseRangeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_memory_advise_advise_range_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_memory_advise_discard_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            MEMORY_ADVISE_DISCARD,
-            runtime.replay_payload_for(MEMORY_ADVISE_DISCARD)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_memory_discard(runtime, context, address, length)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_discard(
-                    runtime, context, address, length,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = MemoryAdviseDiscardReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        MEMORY_ADVISE_DISCARD,
+        runtime.replay_payload_for(MEMORY_ADVISE_DISCARD)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_memory_discard(runtime, context, address, length)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_memory_discard(runtime, context, address, length)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = MemoryAdviseDiscardReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryAdviseDiscardReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MemoryAdviseDiscardReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_memory_advise_discard_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_memory_advise_huge_page_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            MEMORY_ADVISE_HUGE_PAGE,
-            runtime.replay_payload_for(MEMORY_ADVISE_HUGE_PAGE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_memory_huge_page(
-                    runtime, context, address, length, enabled,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_huge_page(
-                    runtime, context, address, length, enabled,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = MemoryAdviseHugePageReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        MEMORY_ADVISE_HUGE_PAGE,
+        runtime.replay_payload_for(MEMORY_ADVISE_HUGE_PAGE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_memory_huge_page(runtime, context, address, length, enabled)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_memory_huge_page(
+                runtime, context, address, length, enabled,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = MemoryAdviseHugePageReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryAdviseHugePageReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MemoryAdviseHugePageReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_memory_advise_huge_page_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_memory_lock_lock_range_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            MEMORY_LOCK_LOCK_RANGE,
-            runtime.replay_payload_for(MEMORY_LOCK_LOCK_RANGE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_memory_lock(runtime, context, address, length)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_memory_lock(runtime, context, address, length)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = MemoryLockLockRangeReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        MEMORY_LOCK_LOCK_RANGE,
+        runtime.replay_payload_for(MEMORY_LOCK_LOCK_RANGE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_memory_lock(runtime, context, address, length)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_memory_lock(runtime, context, address, length)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = MemoryLockLockRangeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryLockLockRangeReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MemoryLockLockRangeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_memory_lock_lock_range_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_memory_lock_unlock_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            MEMORY_LOCK_UNLOCK,
-            runtime.replay_payload_for(MEMORY_LOCK_UNLOCK)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_memory_unlock(runtime, context, address, length)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_memory_unlock(runtime, context, address, length)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = MemoryLockUnlockReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        MEMORY_LOCK_UNLOCK,
+        runtime.replay_payload_for(MEMORY_LOCK_UNLOCK)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_memory_unlock(runtime, context, address, length)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_memory_unlock(runtime, context, address, length)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = MemoryLockUnlockReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryLockUnlockReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MemoryLockUnlockReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_memory_lock_unlock_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_memory_map_commit_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            MEMORY_MAP_COMMIT,
-            runtime.replay_payload_for(MEMORY_MAP_COMMIT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_memory_commit(runtime, context, address, length, flags)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_commit(
-                    runtime, context, address, length, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = MemoryMapCommitReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        MEMORY_MAP_COMMIT,
+        runtime.replay_payload_for(MEMORY_MAP_COMMIT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_memory_commit(runtime, context, address, length, flags)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_memory_commit(
+                runtime, context, address, length, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = MemoryMapCommitReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryMapCommitReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MemoryMapCommitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_memory_map_commit_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_memory_map_decommit_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            MEMORY_MAP_DECOMMIT,
-            runtime.replay_payload_for(MEMORY_MAP_DECOMMIT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_memory_decommit(runtime, context, address, length)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_decommit(
-                    runtime, context, address, length,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = MemoryMapDecommitReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        MEMORY_MAP_DECOMMIT,
+        runtime.replay_payload_for(MEMORY_MAP_DECOMMIT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_memory_decommit(runtime, context, address, length)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_memory_decommit(runtime, context, address, length)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = MemoryMapDecommitReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryMapDecommitReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MemoryMapDecommitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_memory_map_decommit_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_memory_map_numa_bind_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: u64,
@@ -2221,349 +2207,337 @@ fn destack_memory_map_numa_bind_vm_replay(
     policy: u32,
     nodemask: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            MEMORY_MAP_NUMA_BIND,
-            runtime.replay_payload_for(MEMORY_MAP_NUMA_BIND)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_memory_numa_bind(
-                    runtime, context, address, length, policy, nodemask,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_numa_bind(
-                    runtime, context, address, length, policy, nodemask,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = MemoryMapNumaBindReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        MEMORY_MAP_NUMA_BIND,
+        runtime.replay_payload_for(MEMORY_MAP_NUMA_BIND)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_memory_numa_bind(
+                runtime, context, address, length, policy, nodemask,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_memory_numa_bind(
+                runtime, context, address, length, policy, nodemask,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = MemoryMapNumaBindReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryMapNumaBindReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MemoryMapNumaBindReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_memory_map_numa_bind_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_memory_map_release_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            MEMORY_MAP_RELEASE,
-            runtime.replay_payload_for(MEMORY_MAP_RELEASE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_memory_release(runtime, context, address, length)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_release(
-                    runtime, context, address, length,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = MemoryMapReleaseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        MEMORY_MAP_RELEASE,
+        runtime.replay_payload_for(MEMORY_MAP_RELEASE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_memory_release(runtime, context, address, length)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_memory_release(runtime, context, address, length)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = MemoryMapReleaseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryMapReleaseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MemoryMapReleaseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_memory_map_release_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_memory_map_reserve_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     length: u64,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            MEMORY_MAP_RESERVE,
-            runtime.replay_payload_for(MEMORY_MAP_RESERVE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_memory_reserve(runtime, context, length, flags)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_memory_reserve(runtime, context, length, flags)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: MemoryRangeVm = value.clone();
-                    let result_recorded_address = result_value.address;
-                    let result_recorded_length = result_value.length;
-                    let result_recorded = MemoryRange {
-                        address: result_recorded_address,
-                        length: result_recorded_length,
-                    };
-                    let payload = MemoryMapReserveReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        MEMORY_MAP_RESERVE,
+        runtime.replay_payload_for(MEMORY_MAP_RESERVE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_memory_reserve(runtime, context, length, flags)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_memory_reserve(runtime, context, length, flags)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: MemoryRangeVm = value.clone();
+                let result_recorded_address = result_value.address;
+                let result_recorded_length = result_value.length;
+                let result_recorded = MemoryRange {
+                    address: result_recorded_address,
+                    length: result_recorded_length,
+                };
+                let payload = MemoryMapReserveReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryMapReserveReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MemoryMapReserveReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_address = value.address;
-                        let vm_result_length = value.length;
-                        let vm_result = MemoryRangeVm {
-                            address: vm_result_address,
-                            length: vm_result_length,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_address = value.address;
+                    let vm_result_length = value.length;
+                    let vm_result = MemoryRangeVm {
+                        address: vm_result_address,
+                        length: vm_result_length,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_memory_map_reserve_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_memory_protect_execute_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            MEMORY_PROTECT_EXECUTE,
-            runtime.replay_payload_for(MEMORY_PROTECT_EXECUTE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_memory_protect_execute(
-                    runtime, context, address, length, enabled,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_protect_execute(
-                    runtime, context, address, length, enabled,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = MemoryProtectExecuteReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        MEMORY_PROTECT_EXECUTE,
+        runtime.replay_payload_for(MEMORY_PROTECT_EXECUTE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_memory_protect_execute(
+                runtime, context, address, length, enabled,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_memory_protect_execute(
+                runtime, context, address, length, enabled,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = MemoryProtectExecuteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryProtectExecuteReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MemoryProtectExecuteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_memory_protect_execute_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_memory_protect_flush_instruction_cache_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE,
-            runtime.replay_payload_for(MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_memory_flush_instruction_cache(
+    let result = runtime.replay().run_binding_with_context_policy(
+        MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE,
+        runtime.replay_payload_for(MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_memory_flush_instruction_cache(
+                runtime, context, address, length,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_memory_flush_instruction_cache(
                     runtime, context, address, length,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_memory_flush_instruction_cache(
-                        runtime, context, address, length,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = MemoryProtectFlushInstructionCacheReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = MemoryProtectFlushInstructionCacheReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryProtectFlushInstructionCacheReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MemoryProtectFlushInstructionCacheReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_memory_protect_flush_instruction_cache_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_memory_protect_protect_range_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
     protection: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            MEMORY_PROTECT_PROTECT_RANGE,
-            runtime.replay_payload_for(MEMORY_PROTECT_PROTECT_RANGE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_memory_protect(
-                    runtime, context, address, length, protection,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_protect(
-                    runtime, context, address, length, protection,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = MemoryProtectProtectRangeReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        MEMORY_PROTECT_PROTECT_RANGE,
+        runtime.replay_payload_for(MEMORY_PROTECT_PROTECT_RANGE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_memory_protect(runtime, context, address, length, protection)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_memory_protect(
+                runtime, context, address, length, protection,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = MemoryProtectProtectRangeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryProtectProtectRangeReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MemoryProtectProtectRangeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_memory_protect_protect_range_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_memory_protect_remap_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: u64,
@@ -2571,63 +2545,61 @@ fn destack_memory_protect_remap_vm_replay(
     newlength: u64,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            MEMORY_PROTECT_REMAP,
-            runtime.replay_payload_for(MEMORY_PROTECT_REMAP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_memory_remap(
-                    runtime, context, address, oldlength, newlength, flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_remap(
-                    runtime, context, address, oldlength, newlength, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: ProtectedMemoryRangeVm = value.clone();
-                    let result_recorded_address = result_value.address;
-                    let result_recorded_length = result_value.length;
-                    let result_recorded = ProtectedMemoryRange {
-                        address: result_recorded_address,
-                        length: result_recorded_length,
-                    };
-                    let payload = MemoryProtectRemapReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        MEMORY_PROTECT_REMAP,
+        runtime.replay_payload_for(MEMORY_PROTECT_REMAP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_memory_remap(
+                runtime, context, address, oldlength, newlength, flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_memory_remap(
+                runtime, context, address, oldlength, newlength, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: ProtectedMemoryRangeVm = value.clone();
+                let result_recorded_address = result_value.address;
+                let result_recorded_length = result_value.length;
+                let result_recorded = ProtectedMemoryRange {
+                    address: result_recorded_address,
+                    length: result_recorded_length,
+                };
+                let payload = MemoryProtectRemapReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        MemoryProtectRemapReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MemoryProtectRemapReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_address = value.address;
-                        let vm_result_length = value.length;
-                        let vm_result = ProtectedMemoryRangeVm {
-                            address: vm_result_address,
-                            length: vm_result_length,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_address = value.address;
+                    let vm_result_length = value.length;
+                    let vm_result = ProtectedMemoryRangeVm {
+                        address: vm_result_address,
+                        length: vm_result_length,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_memory_protect_remap_result(context, result)?;
     Ok(result)
 }
@@ -2640,7 +2612,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             MEMORY_ADVISE_ADVISE_RANGE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address, length, advice) =
                         decode_destack_memory_advise_advise_range_args(context, args)?;
@@ -2662,7 +2634,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             MEMORY_ADVISE_DISCARD,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address, length) =
                         decode_destack_memory_advise_discard_args(context, args)?;
@@ -2684,7 +2656,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             MEMORY_ADVISE_HUGE_PAGE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address, length, enabled) =
                         decode_destack_memory_advise_huge_page_args(context, args)?;
@@ -2706,7 +2678,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             MEMORY_LOCK_LOCK_RANGE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address, length) =
                         decode_destack_memory_lock_lock_range_args(context, args)?;
@@ -2728,7 +2700,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             MEMORY_LOCK_UNLOCK,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address, length) = decode_destack_memory_lock_unlock_args(context, args)?;
 
@@ -2747,7 +2719,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             MEMORY_MAP_COMMIT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address, length, flags) =
                         decode_destack_memory_map_commit_args(context, args)?;
@@ -2769,7 +2741,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             MEMORY_MAP_DECOMMIT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address, length) = decode_destack_memory_map_decommit_args(context, args)?;
 
@@ -2788,7 +2760,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             MEMORY_MAP_NUMA_BIND,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address, length, policy, nodemask) =
                         decode_destack_memory_map_numa_bind_args(context, args)?;
@@ -2810,7 +2782,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             MEMORY_MAP_RELEASE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address, length) = decode_destack_memory_map_release_args(context, args)?;
 
@@ -2829,7 +2801,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             MEMORY_MAP_RESERVE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (length, flags) = decode_destack_memory_map_reserve_args(context, args)?;
 
@@ -2848,7 +2820,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             MEMORY_PROTECT_EXECUTE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address, length, enabled) =
                         decode_destack_memory_protect_execute_args(context, args)?;
@@ -2870,7 +2842,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address, length) =
                         decode_destack_memory_protect_flush_instruction_cache_args(context, args)?;
@@ -2893,7 +2865,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             MEMORY_PROTECT_PROTECT_RANGE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address, length, protection) =
                         decode_destack_memory_protect_protect_range_args(context, args)?;
@@ -2915,7 +2887,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             MEMORY_PROTECT_REMAP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address, oldlength, newlength, flags) =
                         decode_destack_memory_protect_remap_args(context, args)?;

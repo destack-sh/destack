@@ -1,7 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::resource;
 use crate::platform::resource::native as resource_native;
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Close a resource by identifier.
 ///
@@ -21,7 +21,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_resource_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
     unsafe { resource_native::destack_resource_close(context, id) }
@@ -45,7 +45,7 @@ pub(crate) unsafe fn destack_resource_close(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_resource_kind(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::ResourceKind,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
@@ -70,7 +70,7 @@ pub(crate) unsafe fn destack_resource_kind(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_resource_remove(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
     unsafe { resource_native::destack_resource_remove(context, id) }
@@ -94,7 +94,7 @@ pub(crate) unsafe fn destack_resource_remove(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_resource_transfer(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     id: resource::ResourceId,
     ownership: resource::ResourceOwnership,
 ) -> RuntimeResult<()> {

@@ -2,8 +2,6 @@
 pub mod abi;
 /// Audio bindings.
 pub mod audio;
-/// Platform bindings for runtime integration.
-pub mod bindings;
 /// Platform context and configuration.
 pub mod context;
 /// Cross-domain platform helpers.
@@ -63,7 +61,6 @@ pub use abi::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, RuntimeStatus, VmAggregateCodec,
     VmArray, VmSlice, VmValueCodec,
 };
-pub use bindings::{BindingPolicy, BindingRegistry, ExecutionMode, VmBindingSet};
 pub use context::PlatformContext;
 pub use diagnostic::{PlatformError, PlatformErrorCode, PlatformResult};
 pub use generated::{PLATFORM_NATIVE_BINDINGS, PLATFORM_VM_BINDINGS};

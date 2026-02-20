@@ -5,10 +5,6 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
-    NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
-};
 use crate::platform::ipc::{
     MessageQueueReceive, MessageQueueReceiveVm, PipePair, PipePairVm, SharedMemoryMapping,
     SharedMemoryMappingVm, UnixPeerCredentials, UnixPeerCredentialsVm, UnixReceiveAncillary,
@@ -18,12 +14,16 @@ use crate::platform::{
     NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
     abi as platform_abi,
 };
+use crate::runtime::bindings::{
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
+    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
+use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
 
@@ -827,7 +827,7 @@ struct IpcUnixSendReplay {
 pub const IPC_MESSAGE_QUEUE_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.message.queueClose",
     "export function messageQueueClose(handle: MessageQueueHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.message"],
     BindingScope::Host,
@@ -839,7 +839,7 @@ pub const IPC_MESSAGE_QUEUE_CLOSE: BindingDescriptor = BindingDescriptor::extern
 pub const IPC_MESSAGE_QUEUE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.message.queueOpen",
     "export function messageQueueOpen(name: string, flags: uint32, mode: uint32, maxMessages: uint32, maxMessageBytes: uint32): Result<MessageQueueHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.message"],
     BindingScope::Host,
@@ -851,7 +851,7 @@ pub const IPC_MESSAGE_QUEUE_OPEN: BindingDescriptor = BindingDescriptor::externa
 pub const IPC_MESSAGE_QUEUE_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.message.queueReceive",
     "export function messageQueueReceive(handle: MessageQueueHandle, timeoutNs: uint64, buffer: Slice<uint8>): Result<MessageQueueReceive, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.message"],
     BindingScope::Host,
@@ -863,7 +863,7 @@ pub const IPC_MESSAGE_QUEUE_RECEIVE: BindingDescriptor = BindingDescriptor::exte
 pub const IPC_MESSAGE_QUEUE_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.message.queueSend",
     "export function messageQueueSend(handle: MessageQueueHandle, priority: uint32, timeoutNs: uint64, payload: Slice<uint8>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.message"],
     BindingScope::Host,
@@ -876,7 +876,7 @@ pub const IPC_MESSAGE_QUEUE_UNLINK: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.ipc.message.queueUnlink",
         "export function messageQueueUnlink(name: string): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["ipc.message"],
         BindingScope::Host,
@@ -902,7 +902,7 @@ pub const IPC_PIPE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.ipc.pipe.close",
         "export function pipeClose(handle: PipeHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["ipc.pipe"],
         BindingScope::Host,
@@ -928,7 +928,7 @@ pub const IPC_PIPE_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.ipc.pipe.open",
         "export function pipeOpen(flags: uint32): Result<PipePair, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["ipc.pipe"],
         BindingScope::Host,
@@ -953,7 +953,7 @@ pub const IPC_PIPE_OPEN: BindingDescriptor =
 pub const IPC_PIPE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.pipe.read",
     "export function pipeRead(handle: PipeHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.pipe"],
     BindingScope::Host,
@@ -965,7 +965,7 @@ pub const IPC_PIPE_READ: BindingDescriptor = BindingDescriptor::external_with_re
 pub const IPC_PIPE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.pipe.write",
     "export function pipeWrite(handle: PipeHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.pipe"],
     BindingScope::Host,
@@ -977,7 +977,7 @@ pub const IPC_PIPE_WRITE: BindingDescriptor = BindingDescriptor::external_with_r
 pub const IPC_SHARED_MEMORY_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sharedMemory.close",
     "export function sharedMemoryClose(handle: SharedMemoryHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.sharedMemory"],
     BindingScope::Host,
@@ -989,7 +989,7 @@ pub const IPC_SHARED_MEMORY_CLOSE: BindingDescriptor = BindingDescriptor::extern
 pub const IPC_SHARED_MEMORY_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sharedMemory.create",
     "export function sharedMemoryCreate(name: string, size: uint64, flags: uint32): Result<SharedMemoryHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.sharedMemory"],
     BindingScope::Host,
@@ -1001,7 +1001,7 @@ pub const IPC_SHARED_MEMORY_CREATE: BindingDescriptor = BindingDescriptor::exter
 pub const IPC_SHARED_MEMORY_MAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sharedMemory.map",
     "export function sharedMemoryMap(handle: SharedMemoryHandle, offset: uint64, length: uint64, flags: uint32): Result<SharedMemoryMapping, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.sharedMemory"],
     BindingScope::Host,
@@ -1013,7 +1013,7 @@ pub const IPC_SHARED_MEMORY_MAP: BindingDescriptor = BindingDescriptor::external
 pub const IPC_SHARED_MEMORY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sharedMemory.open",
     "export function sharedMemoryOpen(name: string, flags: uint32): Result<SharedMemoryHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.sharedMemory"],
     BindingScope::Host,
@@ -1025,7 +1025,7 @@ pub const IPC_SHARED_MEMORY_OPEN: BindingDescriptor = BindingDescriptor::externa
 pub const IPC_SHARED_MEMORY_UNMAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sharedMemory.unmap",
     "export function sharedMemoryUnmap(address: uint64, length: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.sharedMemory"],
     BindingScope::Host,
@@ -1037,7 +1037,7 @@ pub const IPC_SHARED_MEMORY_UNMAP: BindingDescriptor = BindingDescriptor::extern
 pub const IPC_SYNC_FUTEX_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sync.futexWait",
     "export function futexWait(sharedMemory: SharedMemoryHandle, offset: uint64, expected: uint32, timeoutNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.futex"],
     BindingScope::Host,
@@ -1049,7 +1049,7 @@ pub const IPC_SYNC_FUTEX_WAIT: BindingDescriptor = BindingDescriptor::external_w
 pub const IPC_SYNC_FUTEX_WAKE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sync.futexWake",
     "export function futexWake(sharedMemory: SharedMemoryHandle, offset: uint64, count: uint32): Result<uint32, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.futex"],
     BindingScope::Host,
@@ -1061,7 +1061,7 @@ pub const IPC_SYNC_FUTEX_WAKE: BindingDescriptor = BindingDescriptor::external_w
 pub const IPC_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sync.semaphoreCreate",
     "export function semaphoreCreate(name: string, initial: uint32, flags: uint32): Result<SemaphoreHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.semaphore"],
     BindingScope::Host,
@@ -1073,7 +1073,7 @@ pub const IPC_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::exte
 pub const IPC_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sync.semaphorePost",
     "export function semaphorePost(handle: SemaphoreHandle, count: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.semaphore"],
     BindingScope::Host,
@@ -1085,7 +1085,7 @@ pub const IPC_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::extern
 pub const IPC_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sync.semaphoreWait",
     "export function semaphoreWait(handle: SemaphoreHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.semaphore"],
     BindingScope::Host,
@@ -1097,7 +1097,7 @@ pub const IPC_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::extern
 pub const IPC_UNIX_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.unix.receive",
     "export function unixReceive(socket: SocketHandle, maxHandles: uint32): Result<UnixReceiveAncillary, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.fdPass", "ipc.unix"],
     BindingScope::Host,
@@ -1109,7 +1109,7 @@ pub const IPC_UNIX_RECEIVE: BindingDescriptor = BindingDescriptor::external_with
 pub const IPC_UNIX_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.unix.send",
     "export function unixSend(socket: SocketHandle, payload: Slice<uint8>, handles: Slice<TransferredHandle>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["ipc.fdPass", "ipc.unix"],
     BindingScope::Host,
@@ -1257,20 +1257,20 @@ pub const IPC_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for ipc bindings.
 #[inline]
 fn destack_ipc_message_queue_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::MessageQueueHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_MESSAGE_QUEUE_CLOSE,
         context.replay_payload_for(IPC_MESSAGE_QUEUE_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_message_queue_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_message_queue_close(context, handle)
             },
         },
@@ -1305,7 +1305,7 @@ fn destack_ipc_message_queue_close_replay(
 
 #[inline]
 fn destack_ipc_message_queue_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::MessageQueueHandle,
     name: NativeStringRef,
@@ -1316,7 +1316,7 @@ fn destack_ipc_message_queue_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&name, &flags, &mode, &maxmessages, &maxmessagebytes);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_MESSAGE_QUEUE_OPEN,
         context.replay_payload_for(IPC_MESSAGE_QUEUE_OPEN)?,
         || match world {
@@ -1331,7 +1331,7 @@ fn destack_ipc_message_queue_open_replay(
                     maxmessagebytes,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_message_queue_open(
                     context,
                     out,
@@ -1386,7 +1386,7 @@ fn destack_ipc_message_queue_open_replay(
 
 #[inline]
 fn destack_ipc_message_queue_receive_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut MessageQueueReceive,
     handle: resource::MessageQueueHandle,
@@ -1395,7 +1395,7 @@ fn destack_ipc_message_queue_receive_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns, &buffer);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_MESSAGE_QUEUE_RECEIVE,
         context.replay_payload_for(IPC_MESSAGE_QUEUE_RECEIVE)?,
         || match world {
@@ -1404,7 +1404,7 @@ fn destack_ipc_message_queue_receive_replay(
                     context, out, handle, timeoutns, buffer,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_message_queue_receive(
                     context, out, handle, timeoutns, buffer,
                 )
@@ -1463,7 +1463,7 @@ fn destack_ipc_message_queue_receive_replay(
 
 #[inline]
 fn destack_ipc_message_queue_send_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::MessageQueueHandle,
     priority: u32,
@@ -1472,7 +1472,7 @@ fn destack_ipc_message_queue_send_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &priority, &timeoutns, &argument_payload);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_MESSAGE_QUEUE_SEND,
         context.replay_payload_for(IPC_MESSAGE_QUEUE_SEND)?,
         || match world {
@@ -1485,7 +1485,7 @@ fn destack_ipc_message_queue_send_replay(
                     argument_payload,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_message_queue_send(
                     context,
                     handle,
@@ -1526,20 +1526,20 @@ fn destack_ipc_message_queue_send_replay(
 
 #[inline]
 fn destack_ipc_message_queue_unlink_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &name;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_MESSAGE_QUEUE_UNLINK,
         context.replay_payload_for(IPC_MESSAGE_QUEUE_UNLINK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_message_queue_unlink(context, name)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_message_queue_unlink(context, name)
             },
         },
@@ -1574,20 +1574,20 @@ fn destack_ipc_message_queue_unlink_replay(
 
 #[inline]
 fn destack_ipc_pipe_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::PipeHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_PIPE_CLOSE,
         context.replay_payload_for(IPC_PIPE_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_pipe_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_pipe_close(context, handle)
             },
         },
@@ -1622,21 +1622,21 @@ fn destack_ipc_pipe_close_replay(
 
 #[inline]
 fn destack_ipc_pipe_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut PipePair,
     flags: u32,
 ) -> RuntimeResult<()> {
     let _ = &flags;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_PIPE_OPEN,
         context.replay_payload_for(IPC_PIPE_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_pipe_open(context, out, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_pipe_open(context, out, flags)
             },
         },
@@ -1693,7 +1693,7 @@ fn destack_ipc_pipe_open_replay(
 
 #[inline]
 fn destack_ipc_pipe_read_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::PipeHandle,
@@ -1701,14 +1701,14 @@ fn destack_ipc_pipe_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_PIPE_READ,
         context.replay_payload_for(IPC_PIPE_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_pipe_read(context, out, handle, buffer)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_pipe_read(context, out, handle, buffer)
             },
         },
@@ -1755,7 +1755,7 @@ fn destack_ipc_pipe_read_replay(
 
 #[inline]
 fn destack_ipc_pipe_write_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::PipeHandle,
@@ -1763,14 +1763,14 @@ fn destack_ipc_pipe_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_PIPE_WRITE,
         context.replay_payload_for(IPC_PIPE_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_pipe_write(context, out, handle, buffer)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_pipe_write(context, out, handle, buffer)
             },
         },
@@ -1817,20 +1817,20 @@ fn destack_ipc_pipe_write_replay(
 
 #[inline]
 fn destack_ipc_shared_memory_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SharedMemoryHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_SHARED_MEMORY_CLOSE,
         context.replay_payload_for(IPC_SHARED_MEMORY_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_shared_memory_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_shared_memory_close(context, handle)
             },
         },
@@ -1865,7 +1865,7 @@ fn destack_ipc_shared_memory_close_replay(
 
 #[inline]
 fn destack_ipc_shared_memory_create_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::SharedMemoryHandle,
     name: NativeStringRef,
@@ -1874,14 +1874,14 @@ fn destack_ipc_shared_memory_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&name, &size, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_SHARED_MEMORY_CREATE,
         context.replay_payload_for(IPC_SHARED_MEMORY_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_shared_memory_create(context, out, name, size, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_shared_memory_create(
                     context, out, name, size, flags,
                 )
@@ -1930,7 +1930,7 @@ fn destack_ipc_shared_memory_create_replay(
 
 #[inline]
 fn destack_ipc_shared_memory_map_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SharedMemoryMapping,
     handle: resource::SharedMemoryHandle,
@@ -1940,7 +1940,7 @@ fn destack_ipc_shared_memory_map_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_SHARED_MEMORY_MAP,
         context.replay_payload_for(IPC_SHARED_MEMORY_MAP)?,
         || match world {
@@ -1949,7 +1949,7 @@ fn destack_ipc_shared_memory_map_replay(
                     context, out, handle, offset, length, flags,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_shared_memory_map(
                     context, out, handle, offset, length, flags,
                 )
@@ -2008,7 +2008,7 @@ fn destack_ipc_shared_memory_map_replay(
 
 #[inline]
 fn destack_ipc_shared_memory_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::SharedMemoryHandle,
     name: NativeStringRef,
@@ -2016,14 +2016,14 @@ fn destack_ipc_shared_memory_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&name, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_SHARED_MEMORY_OPEN,
         context.replay_payload_for(IPC_SHARED_MEMORY_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_shared_memory_open(context, out, name, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_shared_memory_open(
                     context, out, name, flags,
                 )
@@ -2072,21 +2072,21 @@ fn destack_ipc_shared_memory_open_replay(
 
 #[inline]
 fn destack_ipc_shared_memory_unmap_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
     let _ = (&address, &length);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_SHARED_MEMORY_UNMAP,
         context.replay_payload_for(IPC_SHARED_MEMORY_UNMAP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_shared_memory_unmap(context, address, length)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_shared_memory_unmap(
                     context, address, length,
                 )
@@ -2123,7 +2123,7 @@ fn destack_ipc_shared_memory_unmap_replay(
 
 #[inline]
 fn destack_ipc_sync_futex_wait_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
@@ -2132,7 +2132,7 @@ fn destack_ipc_sync_futex_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = (&sharedmemory, &offset, &expected, &timeoutns);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_SYNC_FUTEX_WAIT,
         context.replay_payload_for(IPC_SYNC_FUTEX_WAIT)?,
         || match world {
@@ -2145,7 +2145,7 @@ fn destack_ipc_sync_futex_wait_replay(
                     timeoutns,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_futex_wait(
                     context,
                     sharedmemory,
@@ -2186,7 +2186,7 @@ fn destack_ipc_sync_futex_wait_replay(
 
 #[inline]
 fn destack_ipc_sync_futex_wake_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     sharedmemory: resource::SharedMemoryHandle,
@@ -2195,14 +2195,14 @@ fn destack_ipc_sync_futex_wake_replay(
 ) -> RuntimeResult<()> {
     let _ = (&sharedmemory, &offset, &count);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_SYNC_FUTEX_WAKE,
         context.replay_payload_for(IPC_SYNC_FUTEX_WAKE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_futex_wake(context, out, sharedmemory, offset, count)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_futex_wake(
                     context,
                     out,
@@ -2255,7 +2255,7 @@ fn destack_ipc_sync_futex_wake_replay(
 
 #[inline]
 fn destack_ipc_sync_semaphore_create_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::SemaphoreHandle,
     name: NativeStringRef,
@@ -2264,14 +2264,14 @@ fn destack_ipc_sync_semaphore_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&name, &initial, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_SYNC_SEMAPHORE_CREATE,
         context.replay_payload_for(IPC_SYNC_SEMAPHORE_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_semaphore_create(context, out, name, initial, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_semaphore_create(
                     context, out, name, initial, flags,
                 )
@@ -2320,21 +2320,21 @@ fn destack_ipc_sync_semaphore_create_replay(
 
 #[inline]
 fn destack_ipc_sync_semaphore_post_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SemaphoreHandle,
     count: u32,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &count);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_SYNC_SEMAPHORE_POST,
         context.replay_payload_for(IPC_SYNC_SEMAPHORE_POST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_semaphore_post(context, handle, count)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_semaphore_post(context, handle, count)
             },
         },
@@ -2369,21 +2369,21 @@ fn destack_ipc_sync_semaphore_post_replay(
 
 #[inline]
 fn destack_ipc_sync_semaphore_wait_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_SYNC_SEMAPHORE_WAIT,
         context.replay_payload_for(IPC_SYNC_SEMAPHORE_WAIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_semaphore_wait(context, handle, timeoutns)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_semaphore_wait(context, handle, timeoutns)
             },
         },
@@ -2418,7 +2418,7 @@ fn destack_ipc_sync_semaphore_wait_replay(
 
 #[inline]
 fn destack_ipc_unix_receive_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut UnixReceiveAncillary,
     socket: resource::SocketHandle,
@@ -2426,14 +2426,14 @@ fn destack_ipc_unix_receive_replay(
 ) -> RuntimeResult<()> {
     let _ = (&socket, &maxhandles);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_UNIX_RECEIVE,
         context.replay_payload_for(IPC_UNIX_RECEIVE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_unix_receive(context, out, socket, maxhandles)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_unix_receive(
                     context, out, socket, maxhandles,
                 )
@@ -2522,7 +2522,7 @@ fn destack_ipc_unix_receive_replay(
 
 #[inline]
 fn destack_ipc_unix_send_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     socket: resource::SocketHandle,
@@ -2531,7 +2531,7 @@ fn destack_ipc_unix_send_replay(
 ) -> RuntimeResult<()> {
     let _ = (&socket, &argument_payload, &handles);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IPC_UNIX_SEND,
         context.replay_payload_for(IPC_UNIX_SEND)?,
         || match world {
@@ -2544,7 +2544,7 @@ fn destack_ipc_unix_send_replay(
                     handles,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_ipc_unix_send(
                     context,
                     out,
@@ -2966,61 +2966,59 @@ pub unsafe extern "C" fn destack_ipc_unix_send(
 /// VM replay implementations for ipc bindings.
 #[inline]
 fn destack_ipc_message_queue_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::MessageQueueHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_MESSAGE_QUEUE_CLOSE,
-            runtime.replay_payload_for(IPC_MESSAGE_QUEUE_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_ipc_message_queue_close(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_message_queue_close(
-                    runtime, context, handle,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IpcMessageQueueCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_MESSAGE_QUEUE_CLOSE,
+        runtime.replay_payload_for(IPC_MESSAGE_QUEUE_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_ipc_message_queue_close(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_ipc_message_queue_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IpcMessageQueueCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcMessageQueueCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcMessageQueueCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_message_queue_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_message_queue_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     name: vm::StringHandle,
@@ -3029,144 +3027,138 @@ fn destack_ipc_message_queue_open_vm_replay(
     maxmessages: u32,
     maxmessagebytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_MESSAGE_QUEUE_OPEN,
-            runtime.replay_payload_for(IPC_MESSAGE_QUEUE_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_ipc_message_queue_open(
-                    runtime,
-                    context,
-                    name,
-                    flags,
-                    mode,
-                    maxmessages,
-                    maxmessagebytes,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_message_queue_open(
-                    runtime,
-                    context,
-                    name,
-                    flags,
-                    mode,
-                    maxmessages,
-                    maxmessagebytes,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::MessageQueueHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IpcMessageQueueOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_MESSAGE_QUEUE_OPEN,
+        runtime.replay_payload_for(IPC_MESSAGE_QUEUE_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_ipc_message_queue_open(
+                runtime,
+                context,
+                name,
+                flags,
+                mode,
+                maxmessages,
+                maxmessagebytes,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_ipc_message_queue_open(
+                runtime,
+                context,
+                name,
+                flags,
+                mode,
+                maxmessages,
+                maxmessagebytes,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::MessageQueueHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = IpcMessageQueueOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcMessageQueueOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcMessageQueueOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_message_queue_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_message_queue_receive_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::MessageQueueHandle,
     timeoutns: u64,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_MESSAGE_QUEUE_RECEIVE,
-            runtime.replay_payload_for(IPC_MESSAGE_QUEUE_RECEIVE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_ipc_message_queue_receive(
-                    runtime, context, handle, timeoutns, buffer,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_ipc_message_queue_receive(
-                        runtime, context, handle, timeoutns, buffer,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: MessageQueueReceiveVm = value.clone();
-                    let result_recorded_bytes = result_value.bytes;
-                    let result_recorded_priority = result_value.priority;
-                    let result_recorded = MessageQueueReceive {
-                        bytes: result_recorded_bytes,
-                        priority: result_recorded_priority,
-                    };
-                    let payload = IpcMessageQueueReceiveReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_MESSAGE_QUEUE_RECEIVE,
+        runtime.replay_payload_for(IPC_MESSAGE_QUEUE_RECEIVE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_ipc_message_queue_receive(
+                runtime, context, handle, timeoutns, buffer,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_ipc_message_queue_receive(
+                runtime, context, handle, timeoutns, buffer,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: MessageQueueReceiveVm = value.clone();
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_priority = result_value.priority;
+                let result_recorded = MessageQueueReceive {
+                    bytes: result_recorded_bytes,
+                    priority: result_recorded_priority,
+                };
+                let payload = IpcMessageQueueReceiveReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcMessageQueueReceiveReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcMessageQueueReceiveReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_bytes = value.bytes;
-                        let vm_result_priority = value.priority;
-                        let vm_result = MessageQueueReceiveVm {
-                            bytes: vm_result_bytes,
-                            priority: vm_result_priority,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_bytes = value.bytes;
+                    let vm_result_priority = value.priority;
+                    let vm_result = MessageQueueReceiveVm {
+                        bytes: vm_result_bytes,
+                        priority: vm_result_priority,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_message_queue_receive_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_message_queue_send_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::MessageQueueHandle,
@@ -3174,472 +3166,454 @@ fn destack_ipc_message_queue_send_vm_replay(
     timeoutns: u64,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_MESSAGE_QUEUE_SEND,
-            runtime.replay_payload_for(IPC_MESSAGE_QUEUE_SEND)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_ipc_message_queue_send(
-                    runtime,
-                    context,
-                    handle,
-                    priority,
-                    timeoutns,
-                    argument_payload,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_message_queue_send(
-                    runtime,
-                    context,
-                    handle,
-                    priority,
-                    timeoutns,
-                    argument_payload,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IpcMessageQueueSendReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_MESSAGE_QUEUE_SEND,
+        runtime.replay_payload_for(IPC_MESSAGE_QUEUE_SEND)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_ipc_message_queue_send(
+                runtime,
+                context,
+                handle,
+                priority,
+                timeoutns,
+                argument_payload,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_ipc_message_queue_send(
+                runtime,
+                context,
+                handle,
+                priority,
+                timeoutns,
+                argument_payload,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IpcMessageQueueSendReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcMessageQueueSendReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcMessageQueueSendReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_message_queue_send_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_message_queue_unlink_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_MESSAGE_QUEUE_UNLINK,
-            runtime.replay_payload_for(IPC_MESSAGE_QUEUE_UNLINK)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_ipc_message_queue_unlink(runtime, context, name)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_ipc_message_queue_unlink(runtime, context, name)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IpcMessageQueueUnlinkReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_MESSAGE_QUEUE_UNLINK,
+        runtime.replay_payload_for(IPC_MESSAGE_QUEUE_UNLINK)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_ipc_message_queue_unlink(runtime, context, name)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_ipc_message_queue_unlink(runtime, context, name)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IpcMessageQueueUnlinkReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcMessageQueueUnlinkReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcMessageQueueUnlinkReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_message_queue_unlink_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_pipe_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::PipeHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_PIPE_CLOSE,
-            runtime.replay_payload_for(IPC_PIPE_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_ipc_pipe_close(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_ipc_pipe_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IpcPipeCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_PIPE_CLOSE,
+        runtime.replay_payload_for(IPC_PIPE_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_ipc_pipe_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_ipc_pipe_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IpcPipeCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcPipeCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcPipeCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_pipe_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_pipe_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_PIPE_OPEN,
-            runtime.replay_payload_for(IPC_PIPE_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_ipc_pipe_open(runtime, context, flags),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_ipc_pipe_open(runtime, context, flags)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: PipePairVm = value.clone();
-                    let result_recorded_read = result_value.read;
-                    let result_recorded_write = result_value.write;
-                    let result_recorded = PipePair {
-                        read: result_recorded_read,
-                        write: result_recorded_write,
-                    };
-                    let payload = IpcPipeOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_PIPE_OPEN,
+        runtime.replay_payload_for(IPC_PIPE_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_ipc_pipe_open(runtime, context, flags),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_ipc_pipe_open(runtime, context, flags)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: PipePairVm = value.clone();
+                let result_recorded_read = result_value.read;
+                let result_recorded_write = result_value.write;
+                let result_recorded = PipePair {
+                    read: result_recorded_read,
+                    write: result_recorded_write,
+                };
+                let payload = IpcPipeOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcPipeOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcPipeOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_read = value.read;
-                        let vm_result_write = value.write;
-                        let vm_result = PipePairVm {
-                            read: vm_result_read,
-                            write: vm_result_write,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_read = value.read;
+                    let vm_result_write = value.write;
+                    let vm_result = PipePairVm {
+                        read: vm_result_read,
+                        write: vm_result_write,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_pipe_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_pipe_read_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::PipeHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_PIPE_READ,
-            runtime.replay_payload_for(IPC_PIPE_READ)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_ipc_pipe_read(runtime, context, handle, buffer)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_ipc_pipe_read(runtime, context, handle, buffer)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IpcPipeReadReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_PIPE_READ,
+        runtime.replay_payload_for(IPC_PIPE_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_ipc_pipe_read(runtime, context, handle, buffer)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_ipc_pipe_read(runtime, context, handle, buffer)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = IpcPipeReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcPipeReadReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcPipeReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_pipe_read_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_pipe_write_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::PipeHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_PIPE_WRITE,
-            runtime.replay_payload_for(IPC_PIPE_WRITE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_ipc_pipe_write(runtime, context, handle, buffer)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_ipc_pipe_write(runtime, context, handle, buffer)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IpcPipeWriteReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_PIPE_WRITE,
+        runtime.replay_payload_for(IPC_PIPE_WRITE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_ipc_pipe_write(runtime, context, handle, buffer)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_ipc_pipe_write(runtime, context, handle, buffer)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = IpcPipeWriteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcPipeWriteReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcPipeWriteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_pipe_write_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_shared_memory_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SharedMemoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_SHARED_MEMORY_CLOSE,
-            runtime.replay_payload_for(IPC_SHARED_MEMORY_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_ipc_shared_memory_close(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_shared_memory_close(
-                    runtime, context, handle,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IpcSharedMemoryCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_SHARED_MEMORY_CLOSE,
+        runtime.replay_payload_for(IPC_SHARED_MEMORY_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_ipc_shared_memory_close(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_ipc_shared_memory_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IpcSharedMemoryCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcSharedMemoryCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcSharedMemoryCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_shared_memory_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_shared_memory_create_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     name: vm::StringHandle,
     size: u64,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_SHARED_MEMORY_CREATE,
-            runtime.replay_payload_for(IPC_SHARED_MEMORY_CREATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_ipc_shared_memory_create(
-                    runtime, context, name, size, flags,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_ipc_shared_memory_create(
-                        runtime, context, name, size, flags,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::SharedMemoryHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IpcSharedMemoryCreateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_SHARED_MEMORY_CREATE,
+        runtime.replay_payload_for(IPC_SHARED_MEMORY_CREATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_ipc_shared_memory_create(runtime, context, name, size, flags)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_ipc_shared_memory_create(
+                runtime, context, name, size, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::SharedMemoryHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = IpcSharedMemoryCreateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcSharedMemoryCreateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcSharedMemoryCreateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_shared_memory_create_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_shared_memory_map_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SharedMemoryHandle,
@@ -3647,184 +3621,178 @@ fn destack_ipc_shared_memory_map_vm_replay(
     length: u64,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_SHARED_MEMORY_MAP,
-            runtime.replay_payload_for(IPC_SHARED_MEMORY_MAP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_ipc_shared_memory_map(
-                    runtime, context, handle, offset, length, flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_shared_memory_map(
-                    runtime, context, handle, offset, length, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: SharedMemoryMappingVm = value.clone();
-                    let result_recorded_address = result_value.address;
-                    let result_recorded_length = result_value.length;
-                    let result_recorded = SharedMemoryMapping {
-                        address: result_recorded_address,
-                        length: result_recorded_length,
-                    };
-                    let payload = IpcSharedMemoryMapReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_SHARED_MEMORY_MAP,
+        runtime.replay_payload_for(IPC_SHARED_MEMORY_MAP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_ipc_shared_memory_map(
+                runtime, context, handle, offset, length, flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_ipc_shared_memory_map(
+                runtime, context, handle, offset, length, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: SharedMemoryMappingVm = value.clone();
+                let result_recorded_address = result_value.address;
+                let result_recorded_length = result_value.length;
+                let result_recorded = SharedMemoryMapping {
+                    address: result_recorded_address,
+                    length: result_recorded_length,
+                };
+                let payload = IpcSharedMemoryMapReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcSharedMemoryMapReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcSharedMemoryMapReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_address = value.address;
-                        let vm_result_length = value.length;
-                        let vm_result = SharedMemoryMappingVm {
-                            address: vm_result_address,
-                            length: vm_result_length,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_address = value.address;
+                    let vm_result_length = value.length;
+                    let vm_result = SharedMemoryMappingVm {
+                        address: vm_result_address,
+                        length: vm_result_length,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_shared_memory_map_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_shared_memory_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     name: vm::StringHandle,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_SHARED_MEMORY_OPEN,
-            runtime.replay_payload_for(IPC_SHARED_MEMORY_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_ipc_shared_memory_open(runtime, context, name, flags)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_shared_memory_open(
-                    runtime, context, name, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::SharedMemoryHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IpcSharedMemoryOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_SHARED_MEMORY_OPEN,
+        runtime.replay_payload_for(IPC_SHARED_MEMORY_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_ipc_shared_memory_open(runtime, context, name, flags)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_ipc_shared_memory_open(
+                runtime, context, name, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::SharedMemoryHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = IpcSharedMemoryOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcSharedMemoryOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcSharedMemoryOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_shared_memory_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_shared_memory_unmap_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_SHARED_MEMORY_UNMAP,
-            runtime.replay_payload_for(IPC_SHARED_MEMORY_UNMAP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_ipc_shared_memory_unmap(runtime, context, address, length)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_shared_memory_unmap(
-                    runtime, context, address, length,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IpcSharedMemoryUnmapReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_SHARED_MEMORY_UNMAP,
+        runtime.replay_payload_for(IPC_SHARED_MEMORY_UNMAP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_ipc_shared_memory_unmap(runtime, context, address, length)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_ipc_shared_memory_unmap(
+                runtime, context, address, length,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IpcSharedMemoryUnmapReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcSharedMemoryUnmapReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcSharedMemoryUnmapReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_shared_memory_unmap_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_sync_futex_wait_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     sharedmemory: resource::SharedMemoryHandle,
@@ -3832,474 +3800,456 @@ fn destack_ipc_sync_futex_wait_vm_replay(
     expected: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_SYNC_FUTEX_WAIT,
-            runtime.replay_payload_for(IPC_SYNC_FUTEX_WAIT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_ipc_futex_wait(
-                    runtime,
-                    context,
-                    sharedmemory,
-                    offset,
-                    expected,
-                    timeoutns,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_futex_wait(
-                    runtime,
-                    context,
-                    sharedmemory,
-                    offset,
-                    expected,
-                    timeoutns,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IpcSyncFutexWaitReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_SYNC_FUTEX_WAIT,
+        runtime.replay_payload_for(IPC_SYNC_FUTEX_WAIT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_ipc_futex_wait(
+                runtime,
+                context,
+                sharedmemory,
+                offset,
+                expected,
+                timeoutns,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_ipc_futex_wait(
+                runtime,
+                context,
+                sharedmemory,
+                offset,
+                expected,
+                timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IpcSyncFutexWaitReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcSyncFutexWaitReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcSyncFutexWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_sync_futex_wait_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_sync_futex_wake_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
     count: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_SYNC_FUTEX_WAKE,
-            runtime.replay_payload_for(IPC_SYNC_FUTEX_WAKE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_ipc_futex_wake(
-                    runtime,
-                    context,
-                    sharedmemory,
-                    offset,
-                    count,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_futex_wake(
-                    runtime,
-                    context,
-                    sharedmemory,
-                    offset,
-                    count,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u32 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IpcSyncFutexWakeReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_SYNC_FUTEX_WAKE,
+        runtime.replay_payload_for(IPC_SYNC_FUTEX_WAKE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_ipc_futex_wake(runtime, context, sharedmemory, offset, count)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_ipc_futex_wake(
+                runtime,
+                context,
+                sharedmemory,
+                offset,
+                count,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u32 = value.clone();
+                let result_recorded = result_value;
+                let payload = IpcSyncFutexWakeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcSyncFutexWakeReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcSyncFutexWakeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_sync_futex_wake_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_sync_semaphore_create_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     name: vm::StringHandle,
     initial: u32,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_SYNC_SEMAPHORE_CREATE,
-            runtime.replay_payload_for(IPC_SYNC_SEMAPHORE_CREATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_ipc_semaphore_create(
-                    runtime, context, name, initial, flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_semaphore_create(
-                    runtime, context, name, initial, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::SemaphoreHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IpcSyncSemaphoreCreateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_SYNC_SEMAPHORE_CREATE,
+        runtime.replay_payload_for(IPC_SYNC_SEMAPHORE_CREATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_ipc_semaphore_create(runtime, context, name, initial, flags)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_ipc_semaphore_create(
+                runtime, context, name, initial, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::SemaphoreHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = IpcSyncSemaphoreCreateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcSyncSemaphoreCreateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcSyncSemaphoreCreateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_sync_semaphore_create_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_sync_semaphore_post_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SemaphoreHandle,
     count: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_SYNC_SEMAPHORE_POST,
-            runtime.replay_payload_for(IPC_SYNC_SEMAPHORE_POST)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_ipc_semaphore_post(runtime, context, handle, count)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_semaphore_post(
-                    runtime, context, handle, count,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IpcSyncSemaphorePostReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_SYNC_SEMAPHORE_POST,
+        runtime.replay_payload_for(IPC_SYNC_SEMAPHORE_POST)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_ipc_semaphore_post(runtime, context, handle, count)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_ipc_semaphore_post(runtime, context, handle, count)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IpcSyncSemaphorePostReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcSyncSemaphorePostReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcSyncSemaphorePostReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_sync_semaphore_post_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_sync_semaphore_wait_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_SYNC_SEMAPHORE_WAIT,
-            runtime.replay_payload_for(IPC_SYNC_SEMAPHORE_WAIT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_ipc_semaphore_wait(runtime, context, handle, timeoutns)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_semaphore_wait(
-                    runtime, context, handle, timeoutns,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IpcSyncSemaphoreWaitReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_SYNC_SEMAPHORE_WAIT,
+        runtime.replay_payload_for(IPC_SYNC_SEMAPHORE_WAIT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_ipc_semaphore_wait(runtime, context, handle, timeoutns)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_ipc_semaphore_wait(
+                runtime, context, handle, timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IpcSyncSemaphoreWaitReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcSyncSemaphoreWaitReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcSyncSemaphoreWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_sync_semaphore_wait_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_unix_receive_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     socket: resource::SocketHandle,
     maxhandles: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_UNIX_RECEIVE,
-            runtime.replay_payload_for(IPC_UNIX_RECEIVE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_ipc_unix_receive(runtime, context, socket, maxhandles)
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_UNIX_RECEIVE,
+        runtime.replay_payload_for(IPC_UNIX_RECEIVE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_ipc_unix_receive(runtime, context, socket, maxhandles)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_ipc_unix_receive(
+                runtime, context, socket, maxhandles,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: UnixReceiveAncillaryVm = value.clone();
+                let result_recorded_bytes = result_value.bytes;
+                let result_recorded_handles_raw = result_value.handles.raw_values(context)?;
+                let mut result_recorded_handles =
+                    Vec::with_capacity(result_recorded_handles_raw.len());
+                for result_recorded_handles_item_value in result_recorded_handles_raw {
+                    let result_recorded_handles_item_inner_inner = decode_uint64(
+                        result_recorded_handles_item_value,
+                        "result_recorded_handles_item_inner_inner",
+                        "item",
+                    )?;
+                    let result_recorded_handles_item_inner =
+                        resource::ResourceId(result_recorded_handles_item_inner_inner);
+                    let result_recorded_handles_item =
+                        resource::TransferredHandle(result_recorded_handles_item_inner);
+                    let result_recorded_handles_item_recorded = result_recorded_handles_item;
+                    result_recorded_handles.push(result_recorded_handles_item_recorded);
                 }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_unix_receive(
-                    runtime, context, socket, maxhandles,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: UnixReceiveAncillaryVm = value.clone();
-                    let result_recorded_bytes = result_value.bytes;
-                    let result_recorded_handles_raw = result_value.handles.raw_values(context)?;
-                    let mut result_recorded_handles =
-                        Vec::with_capacity(result_recorded_handles_raw.len());
-                    for result_recorded_handles_item_value in result_recorded_handles_raw {
-                        let result_recorded_handles_item_inner_inner = decode_uint64(
-                            result_recorded_handles_item_value,
-                            "result_recorded_handles_item_inner_inner",
-                            "item",
-                        )?;
-                        let result_recorded_handles_item_inner =
-                            resource::ResourceId(result_recorded_handles_item_inner_inner);
-                        let result_recorded_handles_item =
-                            resource::TransferredHandle(result_recorded_handles_item_inner);
-                        let result_recorded_handles_item_recorded = result_recorded_handles_item;
-                        result_recorded_handles.push(result_recorded_handles_item_recorded);
-                    }
-                    let result_recorded_credentials_pid = result_value.credentials.pid;
-                    let result_recorded_credentials_uid = result_value.credentials.uid;
-                    let result_recorded_credentials_gid = result_value.credentials.gid;
-                    let result_recorded_credentials = UnixPeerCredentials {
-                        pid: result_recorded_credentials_pid,
-                        uid: result_recorded_credentials_uid,
-                        gid: result_recorded_credentials_gid,
-                    };
-                    let result_recorded = UnixReceiveAncillaryReplayRecord {
-                        bytes: result_recorded_bytes,
-                        handles: result_recorded_handles,
-                        credentials: result_recorded_credentials,
-                    };
-                    let payload = IpcUnixReceiveReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                let result_recorded_credentials_pid = result_value.credentials.pid;
+                let result_recorded_credentials_uid = result_value.credentials.uid;
+                let result_recorded_credentials_gid = result_value.credentials.gid;
+                let result_recorded_credentials = UnixPeerCredentials {
+                    pid: result_recorded_credentials_pid,
+                    uid: result_recorded_credentials_uid,
+                    gid: result_recorded_credentials_gid,
+                };
+                let result_recorded = UnixReceiveAncillaryReplayRecord {
+                    bytes: result_recorded_bytes,
+                    handles: result_recorded_handles,
+                    credentials: result_recorded_credentials,
+                };
+                let payload = IpcUnixReceiveReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcUnixReceiveReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcUnixReceiveReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_bytes = value.bytes;
-                        let mut vm_result_handles_values = Vec::with_capacity(value.handles.len());
-                        for vm_result_handles_item in value.handles.iter() {
-                            let vm_result_handles_item = *vm_result_handles_item;
-                            let vm_result_handles_item_value = vm_result_handles_item;
-                            vm_result_handles_values.push(vm_result_handles_item_value);
-                        }
-                        let vm_result_handles =
-                            VmArray::from_values(context, &vm_result_handles_values)?;
-                        let vm_result_credentials_pid = value.credentials.pid;
-                        let vm_result_credentials_uid = value.credentials.uid;
-                        let vm_result_credentials_gid = value.credentials.gid;
-                        let vm_result_credentials = UnixPeerCredentialsVm {
-                            pid: vm_result_credentials_pid,
-                            uid: vm_result_credentials_uid,
-                            gid: vm_result_credentials_gid,
-                        };
-                        let vm_result = UnixReceiveAncillaryVm {
-                            bytes: vm_result_bytes,
-                            handles: vm_result_handles,
-                            credentials: vm_result_credentials,
-                        };
-                        Ok(vm_result)
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_bytes = value.bytes;
+                    let mut vm_result_handles_values = Vec::with_capacity(value.handles.len());
+                    for vm_result_handles_item in value.handles.iter() {
+                        let vm_result_handles_item = *vm_result_handles_item;
+                        let vm_result_handles_item_value = vm_result_handles_item;
+                        vm_result_handles_values.push(vm_result_handles_item_value);
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    let vm_result_handles =
+                        VmArray::from_values(context, &vm_result_handles_values)?;
+                    let vm_result_credentials_pid = value.credentials.pid;
+                    let vm_result_credentials_uid = value.credentials.uid;
+                    let vm_result_credentials_gid = value.credentials.gid;
+                    let vm_result_credentials = UnixPeerCredentialsVm {
+                        pid: vm_result_credentials_pid,
+                        uid: vm_result_credentials_uid,
+                        gid: vm_result_credentials_gid,
+                    };
+                    let vm_result = UnixReceiveAncillaryVm {
+                        bytes: vm_result_bytes,
+                        handles: vm_result_handles,
+                        credentials: vm_result_credentials,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_unix_receive_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_ipc_unix_send_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     socket: resource::SocketHandle,
     argument_payload: VmSlice<u8>,
     handles: VmSlice<resource::TransferredHandle>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IPC_UNIX_SEND,
-            runtime.replay_payload_for(IPC_UNIX_SEND)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_ipc_unix_send(
-                    runtime,
-                    context,
-                    socket,
-                    argument_payload,
-                    handles,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_unix_send(
-                    runtime,
-                    context,
-                    socket,
-                    argument_payload,
-                    handles,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IpcUnixSendReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IPC_UNIX_SEND,
+        runtime.replay_payload_for(IPC_UNIX_SEND)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_ipc_unix_send(
+                runtime,
+                context,
+                socket,
+                argument_payload,
+                handles,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_ipc_unix_send(
+                runtime,
+                context,
+                socket,
+                argument_payload,
+                handles,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = IpcUnixSendReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IpcUnixSendReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IpcUnixSendReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_ipc_unix_send_result(context, result)?;
     Ok(result)
 }
@@ -4312,7 +4262,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             IPC_MESSAGE_QUEUE_CLOSE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_ipc_message_queue_close_args(context, args)?;
 
@@ -4331,7 +4281,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             IPC_MESSAGE_QUEUE_OPEN,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (name, flags, mode, maxmessages, maxmessagebytes) =
                         decode_destack_ipc_message_queue_open_args(context, args)?;
@@ -4360,7 +4310,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             IPC_MESSAGE_QUEUE_RECEIVE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, timeoutns, buffer) =
                         decode_destack_ipc_message_queue_receive_args(context, args)?;
@@ -4382,7 +4332,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             IPC_MESSAGE_QUEUE_SEND,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, priority, timeoutns, argument_payload) =
                         decode_destack_ipc_message_queue_send_args(context, args)?;
@@ -4410,7 +4360,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             IPC_MESSAGE_QUEUE_UNLINK,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (name,) = decode_destack_ipc_message_queue_unlink_args(context, args)?;
 
@@ -4425,7 +4375,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, IPC_PIPE_CLOSE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_ipc_pipe_close_args(context, args)?;
 
@@ -4439,7 +4389,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, IPC_PIPE_OPEN, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (flags,) = decode_destack_ipc_pipe_open_args(context, args)?;
 
@@ -4453,7 +4403,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, IPC_PIPE_READ, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffer) = decode_destack_ipc_pipe_read_args(context, args)?;
 
@@ -4467,7 +4417,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, IPC_PIPE_WRITE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffer) = decode_destack_ipc_pipe_write_args(context, args)?;
 
@@ -4485,7 +4435,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             IPC_SHARED_MEMORY_CLOSE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_ipc_shared_memory_close_args(context, args)?;
 
@@ -4504,7 +4454,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             IPC_SHARED_MEMORY_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (name, size, flags) =
                         decode_destack_ipc_shared_memory_create_args(context, args)?;
@@ -4526,7 +4476,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             IPC_SHARED_MEMORY_MAP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, offset, length, flags) =
                         decode_destack_ipc_shared_memory_map_args(context, args)?;
@@ -4548,7 +4498,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             IPC_SHARED_MEMORY_OPEN,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (name, flags) = decode_destack_ipc_shared_memory_open_args(context, args)?;
 
@@ -4567,7 +4517,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             IPC_SHARED_MEMORY_UNMAP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address, length) =
                         decode_destack_ipc_shared_memory_unmap_args(context, args)?;
@@ -4589,7 +4539,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             IPC_SYNC_FUTEX_WAIT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (sharedmemory, offset, expected, timeoutns) =
                         decode_destack_ipc_sync_futex_wait_args(context, args)?;
@@ -4617,7 +4567,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             IPC_SYNC_FUTEX_WAKE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (sharedmemory, offset, count) =
                         decode_destack_ipc_sync_futex_wake_args(context, args)?;
@@ -4644,7 +4594,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             IPC_SYNC_SEMAPHORE_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (name, initial, flags) =
                         decode_destack_ipc_sync_semaphore_create_args(context, args)?;
@@ -4666,7 +4616,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             IPC_SYNC_SEMAPHORE_POST,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, count) =
                         decode_destack_ipc_sync_semaphore_post_args(context, args)?;
@@ -4688,7 +4638,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             IPC_SYNC_SEMAPHORE_WAIT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_ipc_sync_semaphore_wait_args(context, args)?;
@@ -4706,7 +4656,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, IPC_UNIX_RECEIVE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (socket, maxhandles) = decode_destack_ipc_unix_receive_args(context, args)?;
 
@@ -4720,7 +4670,7 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, IPC_UNIX_SEND, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (socket, argument_payload, handles) =
                     decode_destack_ipc_unix_send_args(context, args)?;

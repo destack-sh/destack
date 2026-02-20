@@ -11,6 +11,7 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use super::{ResourceId, ResourceSnapshotAdapter, ResourceSnapshotPolicy};
+use crate::runtime::{RuntimeHookState, with_current_binding_call_context};
 
 /// Resource classification for platform handles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -330,6 +331,13 @@ impl ResourceTable {
     pub fn insert(&self, entry: ResourceEntry) -> ResourceId {
         let id = ResourceId(self.next_id.fetch_add(1, Ordering::Relaxed));
         self.entries.write().insert(id, entry);
+        let _ = with_current_binding_call_context(|context| {
+            context.rules().on_resource_attach(RuntimeHookState {
+                engine: Some(context.engine()),
+                resource_id: Some(id),
+                ..RuntimeHookState::empty()
+            })
+        });
         id
     }
 
@@ -337,6 +345,13 @@ impl ResourceTable {
     pub fn insert_with_id(&self, resource_id: ResourceId, entry: ResourceEntry) {
         self.entries.write().insert(resource_id, entry);
         self.next_id.fetch_max(resource_id.0 + 1, Ordering::Relaxed);
+        let _ = with_current_binding_call_context(|context| {
+            context.rules().on_resource_attach(RuntimeHookState {
+                engine: Some(context.engine()),
+                resource_id: Some(resource_id),
+                ..RuntimeHookState::empty()
+            })
+        });
     }
 
     /// Return true if the table contains the resource id.
@@ -368,7 +383,18 @@ impl ResourceTable {
 
     /// Remove a resource entry from the table.
     pub fn remove(&self, resource_id: ResourceId) -> Option<ResourceEntry> {
-        self.entries.write().remove(&resource_id)
+        let removed = self.entries.write().remove(&resource_id);
+        if removed.is_some() {
+            let _ = with_current_binding_call_context(|context| {
+                context.rules().on_resource_detach(RuntimeHookState {
+                    engine: Some(context.engine()),
+                    resource_id: Some(resource_id),
+                    ..RuntimeHookState::empty()
+                })
+            });
+        }
+
+        removed
     }
 
     /// Remove a resource entry and run its finalizer.

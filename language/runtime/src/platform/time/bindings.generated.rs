@@ -5,22 +5,22 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
-    NativeBinding, NativeBindingSet, ReplayPolicy, native_call,
-};
 use crate::platform::time::{
     ClockId, ClockMetadata, ClockMetadataVm, SleepClock, TimerClock, TimerFlags, TimerOptions,
     TimerOptionsVm,
 };
 use crate::platform::{PlatformError, RuntimeStatus, abi as platform_abi};
+use crate::runtime::bindings::{
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
+    BindingScope, NativeBinding, NativeBindingSet, native_call,
+};
 use crate::runtime::replay::TimeEventKind;
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
+use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
 
@@ -784,7 +784,7 @@ pub const TIME_CLOCK_METADATA: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.clock.metadata",
         "export function clockMetadata(clock: ClockId): Result<ClockMetadata, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["time.monotonic.read"],
         BindingScope::Runtime,
@@ -810,7 +810,7 @@ pub const TIME_CLOCK_MONO_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.clock.monoNs",
         "export function monoNs(): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Time(TimeEventKind::MonotonicSample),
         &["time.monotonic.read"],
         BindingScope::Runtime,
@@ -836,7 +836,7 @@ pub const TIME_CLOCK_NOW_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.clock.nowNs",
         "export function nowNs(clock: ClockId): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["time.monotonic.read"],
         BindingScope::Runtime,
@@ -862,7 +862,7 @@ pub const TIME_CLOCK_PROCESS_CPU_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.clock.processCpuNs",
         "export function processCpuNs(): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["time.monotonic.read"],
         BindingScope::Runtime,
@@ -888,7 +888,7 @@ pub const TIME_CLOCK_THREAD_CPU_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.clock.threadCpuNs",
         "export function threadCpuNs(): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["time.monotonic.read"],
         BindingScope::Runtime,
@@ -914,7 +914,7 @@ pub const TIME_CLOCK_WALL_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.clock.wallNs",
         "export function wallNs(): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Time(TimeEventKind::WallClockRead),
         &["time.wall.read"],
         BindingScope::Runtime,
@@ -940,7 +940,7 @@ pub const TIME_SLEEP_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.sleep.ns",
         "export function sleepNs(duration: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["time.wall.sleep"],
         BindingScope::Runtime,
@@ -965,7 +965,7 @@ pub const TIME_SLEEP_NS: BindingDescriptor =
 pub const TIME_SLEEP_ON_NS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.time.sleep.onNs",
     "export function sleepOnNs(duration: uint64, clock: SleepClock): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["time.wall.sleep"],
     BindingScope::Runtime,
@@ -978,7 +978,7 @@ pub const TIME_SLEEP_UNTIL_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.sleep.untilNs",
         "export function sleepUntilNs(deadline: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["time.wall.sleep"],
         BindingScope::Runtime,
@@ -1003,7 +1003,7 @@ pub const TIME_SLEEP_UNTIL_NS: BindingDescriptor =
 pub const TIME_SLEEP_UNTIL_ON_NS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.time.sleep.untilOnNs",
     "export function sleepUntilOnNs(deadline: uint64, clock: SleepClock): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["time.wall.sleep"],
     BindingScope::Runtime,
@@ -1015,7 +1015,7 @@ pub const TIME_SLEEP_UNTIL_ON_NS: BindingDescriptor = BindingDescriptor::externa
 pub const TIME_TIMER_AT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.time.timer.at",
     "export function timerAt(deadlineNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["time.timer"],
     BindingScope::Runtime,
@@ -1028,7 +1028,7 @@ pub const TIME_TIMER_CANCEL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.timer.cancel",
         "export function timerCancel(handle: TimerHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["time.timer"],
         BindingScope::Runtime,
@@ -1054,7 +1054,7 @@ pub const TIME_TIMER_CANCEL: BindingDescriptor =
 pub const TIME_TIMER_INTERVAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.time.timer.interval",
     "export function timerInterval(periodNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["time.timer"],
     BindingScope::Runtime,
@@ -1067,7 +1067,7 @@ pub const TIME_TIMER_IS_ACTIVE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.timer.isActive",
         "export function timerIsActive(handle: TimerHandle): Result<boolean, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["time.timer"],
         BindingScope::Runtime,
@@ -1093,7 +1093,7 @@ pub const TIME_TIMER_IS_ACTIVE: BindingDescriptor =
 pub const TIME_TIMER_ONCE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.time.timer.once",
     "export function timerOnce(delayNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["time.timer"],
     BindingScope::Runtime,
@@ -1106,7 +1106,7 @@ pub const TIME_TIMER_PAUSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.timer.pause",
         "export function timerPause(handle: TimerHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["time.timer"],
         BindingScope::Runtime,
@@ -1133,7 +1133,7 @@ pub const TIME_TIMER_REMAINING_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.timer.remainingNs",
         "export function timerRemainingNs(handle: TimerHandle): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["time.timer"],
         BindingScope::Runtime,
@@ -1159,7 +1159,7 @@ pub const TIME_TIMER_REMAINING_NS: BindingDescriptor =
 pub const TIME_TIMER_RESET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.time.timer.reset",
     "export function timerReset(handle: TimerHandle, delayNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["time.timer"],
     BindingScope::Runtime,
@@ -1172,7 +1172,7 @@ pub const TIME_TIMER_RESUME: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.timer.resume",
         "export function timerResume(handle: TimerHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["time.timer"],
         BindingScope::Runtime,
@@ -1198,7 +1198,7 @@ pub const TIME_TIMER_RESUME: BindingDescriptor =
 pub const TIME_TIMER_UPDATE_INTERVAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.time.timer.updateInterval",
     "export function timerUpdateInterval(handle: TimerHandle, periodNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["time.timer"],
     BindingScope::Runtime,
@@ -1340,13 +1340,13 @@ pub const TIME_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for time bindings.
 #[inline]
 fn destack_time_clock_metadata_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ClockMetadata,
     clock: ClockId,
 ) -> RuntimeResult<()> {
     let _ = &clock;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_CLOCK_METADATA,
         context.replay_payload_for(TIME_CLOCK_METADATA)?,
         || unsafe { platform_runtime_native::destack_time_clock_metadata(context, out, clock) },
@@ -1411,13 +1411,13 @@ fn destack_time_clock_metadata_replay(
 
 #[inline]
 fn destack_time_clock_now_ns_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     clock: ClockId,
 ) -> RuntimeResult<()> {
     let _ = &clock;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_CLOCK_NOW_NS,
         context.replay_payload_for(TIME_CLOCK_NOW_NS)?,
         || unsafe { platform_runtime_native::destack_time_now_ns(context, out, clock) },
@@ -1464,10 +1464,10 @@ fn destack_time_clock_now_ns_replay(
 
 #[inline]
 fn destack_time_clock_process_cpu_ns_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_CLOCK_PROCESS_CPU_NS,
         context.replay_payload_for(TIME_CLOCK_PROCESS_CPU_NS)?,
         || unsafe { platform_runtime_native::destack_time_process_cpu_ns(context, out) },
@@ -1514,10 +1514,10 @@ fn destack_time_clock_process_cpu_ns_replay(
 
 #[inline]
 fn destack_time_clock_thread_cpu_ns_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_CLOCK_THREAD_CPU_NS,
         context.replay_payload_for(TIME_CLOCK_THREAD_CPU_NS)?,
         || unsafe { platform_runtime_native::destack_time_thread_cpu_ns(context, out) },
@@ -1563,10 +1563,10 @@ fn destack_time_clock_thread_cpu_ns_replay(
 }
 
 #[inline]
-fn destack_time_sleep_ns_replay(context: &RuntimeCallContext, duration: u64) -> RuntimeResult<()> {
+fn destack_time_sleep_ns_replay(context: &BindingCallContext, duration: u64) -> RuntimeResult<()> {
     let _ = &duration;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_SLEEP_NS,
         context.replay_payload_for(TIME_SLEEP_NS)?,
         || unsafe { platform_runtime_native::destack_time_sleep_ns(context, duration) },
@@ -1601,13 +1601,13 @@ fn destack_time_sleep_ns_replay(context: &RuntimeCallContext, duration: u64) -> 
 
 #[inline]
 fn destack_time_sleep_on_ns_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     duration: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {
     let _ = (&duration, &clock);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_SLEEP_ON_NS,
         context.replay_payload_for(TIME_SLEEP_ON_NS)?,
         || unsafe { platform_runtime_native::destack_time_sleep_on_ns(context, duration, clock) },
@@ -1642,12 +1642,12 @@ fn destack_time_sleep_on_ns_replay(
 
 #[inline]
 fn destack_time_sleep_until_ns_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     deadline: u64,
 ) -> RuntimeResult<()> {
     let _ = &deadline;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_SLEEP_UNTIL_NS,
         context.replay_payload_for(TIME_SLEEP_UNTIL_NS)?,
         || unsafe { platform_runtime_native::destack_time_sleep_until_ns(context, deadline) },
@@ -1682,13 +1682,13 @@ fn destack_time_sleep_until_ns_replay(
 
 #[inline]
 fn destack_time_sleep_until_on_ns_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     deadline: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {
     let _ = (&deadline, &clock);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_SLEEP_UNTIL_ON_NS,
         context.replay_payload_for(TIME_SLEEP_UNTIL_ON_NS)?,
         || unsafe {
@@ -1725,14 +1725,14 @@ fn destack_time_sleep_until_on_ns_replay(
 
 #[inline]
 fn destack_time_timer_at_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::TimerHandle,
     deadlinens: u64,
     options: TimerOptions,
 ) -> RuntimeResult<()> {
     let _ = (&deadlinens, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_TIMER_AT,
         context.replay_payload_for(TIME_TIMER_AT)?,
         || unsafe {
@@ -1781,12 +1781,12 @@ fn destack_time_timer_at_replay(
 
 #[inline]
 fn destack_time_timer_cancel_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_TIMER_CANCEL,
         context.replay_payload_for(TIME_TIMER_CANCEL)?,
         || unsafe { platform_runtime_native::destack_time_timer_cancel(context, handle) },
@@ -1821,14 +1821,14 @@ fn destack_time_timer_cancel_replay(
 
 #[inline]
 fn destack_time_timer_interval_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::TimerHandle,
     periodns: u64,
     options: TimerOptions,
 ) -> RuntimeResult<()> {
     let _ = (&periodns, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_TIMER_INTERVAL,
         context.replay_payload_for(TIME_TIMER_INTERVAL)?,
         || unsafe {
@@ -1877,13 +1877,13 @@ fn destack_time_timer_interval_replay(
 
 #[inline]
 fn destack_time_timer_is_active_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut bool,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_TIMER_IS_ACTIVE,
         context.replay_payload_for(TIME_TIMER_IS_ACTIVE)?,
         || unsafe { platform_runtime_native::destack_time_timer_is_active(context, out, handle) },
@@ -1930,14 +1930,14 @@ fn destack_time_timer_is_active_replay(
 
 #[inline]
 fn destack_time_timer_once_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::TimerHandle,
     delayns: u64,
     options: TimerOptions,
 ) -> RuntimeResult<()> {
     let _ = (&delayns, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_TIMER_ONCE,
         context.replay_payload_for(TIME_TIMER_ONCE)?,
         || unsafe {
@@ -1986,12 +1986,12 @@ fn destack_time_timer_once_replay(
 
 #[inline]
 fn destack_time_timer_pause_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_TIMER_PAUSE,
         context.replay_payload_for(TIME_TIMER_PAUSE)?,
         || unsafe { platform_runtime_native::destack_time_timer_pause(context, handle) },
@@ -2026,13 +2026,13 @@ fn destack_time_timer_pause_replay(
 
 #[inline]
 fn destack_time_timer_remaining_ns_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_TIMER_REMAINING_NS,
         context.replay_payload_for(TIME_TIMER_REMAINING_NS)?,
         || unsafe {
@@ -2081,13 +2081,13 @@ fn destack_time_timer_remaining_ns_replay(
 
 #[inline]
 fn destack_time_timer_reset_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
     delayns: u64,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &delayns);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_TIMER_RESET,
         context.replay_payload_for(TIME_TIMER_RESET)?,
         || unsafe { platform_runtime_native::destack_time_timer_reset(context, handle, delayns) },
@@ -2122,12 +2122,12 @@ fn destack_time_timer_reset_replay(
 
 #[inline]
 fn destack_time_timer_resume_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_TIMER_RESUME,
         context.replay_payload_for(TIME_TIMER_RESUME)?,
         || unsafe { platform_runtime_native::destack_time_timer_resume(context, handle) },
@@ -2162,13 +2162,13 @@ fn destack_time_timer_resume_replay(
 
 #[inline]
 fn destack_time_timer_update_interval_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
     periodns: u64,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &periodns);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TIME_TIMER_UPDATE_INTERVAL,
         context.replay_payload_for(TIME_TIMER_UPDATE_INTERVAL)?,
         || unsafe {
@@ -2495,909 +2495,859 @@ pub unsafe extern "C" fn destack_time_timer_update_interval(
 /// VM replay implementations for time bindings.
 #[inline]
 fn destack_time_clock_metadata_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     clock: ClockId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_CLOCK_METADATA,
-            runtime.replay_payload_for(TIME_CLOCK_METADATA)?,
-            context,
-            |context| platform_runtime_vm::destack_time_clock_metadata(runtime, context, clock),
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: ClockMetadataVm = value.clone();
-                    let result_recorded_id = result_value.id;
-                    let result_recorded_source = result_value.source;
-                    let result_recorded_resolution_ns = result_value.resolution_ns;
-                    let result_recorded_is_monotonic = result_value.is_monotonic;
-                    let result_recorded = ClockMetadata {
-                        id: result_recorded_id,
-                        source: result_recorded_source,
-                        resolution_ns: result_recorded_resolution_ns,
-                        is_monotonic: result_recorded_is_monotonic,
-                    };
-                    let payload = TimeClockMetadataReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_CLOCK_METADATA,
+        runtime.replay_payload_for(TIME_CLOCK_METADATA)?,
+        context,
+        |context| platform_runtime_vm::destack_time_clock_metadata(runtime, context, clock),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: ClockMetadataVm = value.clone();
+                let result_recorded_id = result_value.id;
+                let result_recorded_source = result_value.source;
+                let result_recorded_resolution_ns = result_value.resolution_ns;
+                let result_recorded_is_monotonic = result_value.is_monotonic;
+                let result_recorded = ClockMetadata {
+                    id: result_recorded_id,
+                    source: result_recorded_source,
+                    resolution_ns: result_recorded_resolution_ns,
+                    is_monotonic: result_recorded_is_monotonic,
+                };
+                let payload = TimeClockMetadataReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeClockMetadataReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeClockMetadataReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_id = value.id;
-                        let vm_result_source = value.source;
-                        let vm_result_resolution_ns = value.resolution_ns;
-                        let vm_result_is_monotonic = value.is_monotonic;
-                        let vm_result = ClockMetadataVm {
-                            id: vm_result_id,
-                            source: vm_result_source,
-                            resolution_ns: vm_result_resolution_ns,
-                            is_monotonic: vm_result_is_monotonic,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_id = value.id;
+                    let vm_result_source = value.source;
+                    let vm_result_resolution_ns = value.resolution_ns;
+                    let vm_result_is_monotonic = value.is_monotonic;
+                    let vm_result = ClockMetadataVm {
+                        id: vm_result_id,
+                        source: vm_result_source,
+                        resolution_ns: vm_result_resolution_ns,
+                        is_monotonic: vm_result_is_monotonic,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_clock_metadata_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_clock_now_ns_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     clock: ClockId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_CLOCK_NOW_NS,
-            runtime.replay_payload_for(TIME_CLOCK_NOW_NS)?,
-            context,
-            |context| platform_runtime_vm::destack_time_now_ns(runtime, context, clock),
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = TimeClockNowNsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_CLOCK_NOW_NS,
+        runtime.replay_payload_for(TIME_CLOCK_NOW_NS)?,
+        context,
+        |context| platform_runtime_vm::destack_time_now_ns(runtime, context, clock),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = TimeClockNowNsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeClockNowNsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeClockNowNsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_clock_now_ns_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_clock_process_cpu_ns_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_CLOCK_PROCESS_CPU_NS,
-            runtime.replay_payload_for(TIME_CLOCK_PROCESS_CPU_NS)?,
-            context,
-            |context| platform_runtime_vm::destack_time_process_cpu_ns(runtime, context),
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = TimeClockProcessCpuNsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_CLOCK_PROCESS_CPU_NS,
+        runtime.replay_payload_for(TIME_CLOCK_PROCESS_CPU_NS)?,
+        context,
+        |context| platform_runtime_vm::destack_time_process_cpu_ns(runtime, context),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = TimeClockProcessCpuNsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeClockProcessCpuNsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeClockProcessCpuNsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_clock_process_cpu_ns_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_clock_thread_cpu_ns_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_CLOCK_THREAD_CPU_NS,
-            runtime.replay_payload_for(TIME_CLOCK_THREAD_CPU_NS)?,
-            context,
-            |context| platform_runtime_vm::destack_time_thread_cpu_ns(runtime, context),
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = TimeClockThreadCpuNsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_CLOCK_THREAD_CPU_NS,
+        runtime.replay_payload_for(TIME_CLOCK_THREAD_CPU_NS)?,
+        context,
+        |context| platform_runtime_vm::destack_time_thread_cpu_ns(runtime, context),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = TimeClockThreadCpuNsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeClockThreadCpuNsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeClockThreadCpuNsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_clock_thread_cpu_ns_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_sleep_ns_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     duration: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_SLEEP_NS,
-            runtime.replay_payload_for(TIME_SLEEP_NS)?,
-            context,
-            |context| platform_runtime_vm::destack_time_sleep_ns(runtime, context, duration),
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = TimeSleepNsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_SLEEP_NS,
+        runtime.replay_payload_for(TIME_SLEEP_NS)?,
+        context,
+        |context| platform_runtime_vm::destack_time_sleep_ns(runtime, context, duration),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TimeSleepNsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeSleepNsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeSleepNsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_sleep_ns_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_sleep_on_ns_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     duration: u64,
     clock: SleepClock,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_SLEEP_ON_NS,
-            runtime.replay_payload_for(TIME_SLEEP_ON_NS)?,
-            context,
-            |context| {
-                platform_runtime_vm::destack_time_sleep_on_ns(runtime, context, duration, clock)
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = TimeSleepOnNsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_SLEEP_ON_NS,
+        runtime.replay_payload_for(TIME_SLEEP_ON_NS)?,
+        context,
+        |context| platform_runtime_vm::destack_time_sleep_on_ns(runtime, context, duration, clock),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TimeSleepOnNsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeSleepOnNsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeSleepOnNsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_sleep_on_ns_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_sleep_until_ns_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     deadline: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_SLEEP_UNTIL_NS,
-            runtime.replay_payload_for(TIME_SLEEP_UNTIL_NS)?,
-            context,
-            |context| platform_runtime_vm::destack_time_sleep_until_ns(runtime, context, deadline),
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = TimeSleepUntilNsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_SLEEP_UNTIL_NS,
+        runtime.replay_payload_for(TIME_SLEEP_UNTIL_NS)?,
+        context,
+        |context| platform_runtime_vm::destack_time_sleep_until_ns(runtime, context, deadline),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TimeSleepUntilNsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeSleepUntilNsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeSleepUntilNsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_sleep_until_ns_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_sleep_until_on_ns_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     deadline: u64,
     clock: SleepClock,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_SLEEP_UNTIL_ON_NS,
-            runtime.replay_payload_for(TIME_SLEEP_UNTIL_ON_NS)?,
-            context,
-            |context| {
-                platform_runtime_vm::destack_time_sleep_until_on_ns(
-                    runtime, context, deadline, clock,
-                )
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = TimeSleepUntilOnNsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_SLEEP_UNTIL_ON_NS,
+        runtime.replay_payload_for(TIME_SLEEP_UNTIL_ON_NS)?,
+        context,
+        |context| {
+            platform_runtime_vm::destack_time_sleep_until_on_ns(runtime, context, deadline, clock)
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TimeSleepUntilOnNsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeSleepUntilOnNsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeSleepUntilOnNsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_sleep_until_on_ns_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_timer_at_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     deadlinens: u64,
     options: TimerOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_TIMER_AT,
-            runtime.replay_payload_for(TIME_TIMER_AT)?,
-            context,
-            |context| {
-                platform_runtime_vm::destack_time_timer_at(runtime, context, deadlinens, options)
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::TimerHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = TimeTimerAtReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_TIMER_AT,
+        runtime.replay_payload_for(TIME_TIMER_AT)?,
+        context,
+        |context| platform_runtime_vm::destack_time_timer_at(runtime, context, deadlinens, options),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::TimerHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = TimeTimerAtReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeTimerAtReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeTimerAtReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_timer_at_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_timer_cancel_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_TIMER_CANCEL,
-            runtime.replay_payload_for(TIME_TIMER_CANCEL)?,
-            context,
-            |context| platform_runtime_vm::destack_time_timer_cancel(runtime, context, handle),
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = TimeTimerCancelReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_TIMER_CANCEL,
+        runtime.replay_payload_for(TIME_TIMER_CANCEL)?,
+        context,
+        |context| platform_runtime_vm::destack_time_timer_cancel(runtime, context, handle),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TimeTimerCancelReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeTimerCancelReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeTimerCancelReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_timer_cancel_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_timer_interval_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     periodns: u64,
     options: TimerOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_TIMER_INTERVAL,
-            runtime.replay_payload_for(TIME_TIMER_INTERVAL)?,
-            context,
-            |context| {
-                platform_runtime_vm::destack_time_timer_interval(
-                    runtime, context, periodns, options,
-                )
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::TimerHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = TimeTimerIntervalReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_TIMER_INTERVAL,
+        runtime.replay_payload_for(TIME_TIMER_INTERVAL)?,
+        context,
+        |context| {
+            platform_runtime_vm::destack_time_timer_interval(runtime, context, periodns, options)
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::TimerHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = TimeTimerIntervalReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeTimerIntervalReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeTimerIntervalReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_timer_interval_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_timer_is_active_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_TIMER_IS_ACTIVE,
-            runtime.replay_payload_for(TIME_TIMER_IS_ACTIVE)?,
-            context,
-            |context| platform_runtime_vm::destack_time_timer_is_active(runtime, context, handle),
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: bool = value.clone();
-                    let result_recorded = result_value;
-                    let payload = TimeTimerIsActiveReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_TIMER_IS_ACTIVE,
+        runtime.replay_payload_for(TIME_TIMER_IS_ACTIVE)?,
+        context,
+        |context| platform_runtime_vm::destack_time_timer_is_active(runtime, context, handle),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: bool = value.clone();
+                let result_recorded = result_value;
+                let payload = TimeTimerIsActiveReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeTimerIsActiveReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeTimerIsActiveReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_timer_is_active_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_timer_once_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     delayns: u64,
     options: TimerOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_TIMER_ONCE,
-            runtime.replay_payload_for(TIME_TIMER_ONCE)?,
-            context,
-            |context| {
-                platform_runtime_vm::destack_time_timer_once(runtime, context, delayns, options)
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::TimerHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = TimeTimerOnceReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_TIMER_ONCE,
+        runtime.replay_payload_for(TIME_TIMER_ONCE)?,
+        context,
+        |context| platform_runtime_vm::destack_time_timer_once(runtime, context, delayns, options),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::TimerHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = TimeTimerOnceReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeTimerOnceReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeTimerOnceReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_timer_once_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_timer_pause_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_TIMER_PAUSE,
-            runtime.replay_payload_for(TIME_TIMER_PAUSE)?,
-            context,
-            |context| platform_runtime_vm::destack_time_timer_pause(runtime, context, handle),
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = TimeTimerPauseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_TIMER_PAUSE,
+        runtime.replay_payload_for(TIME_TIMER_PAUSE)?,
+        context,
+        |context| platform_runtime_vm::destack_time_timer_pause(runtime, context, handle),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TimeTimerPauseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeTimerPauseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeTimerPauseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_timer_pause_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_timer_remaining_ns_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_TIMER_REMAINING_NS,
-            runtime.replay_payload_for(TIME_TIMER_REMAINING_NS)?,
-            context,
-            |context| {
-                platform_runtime_vm::destack_time_timer_remaining_ns(runtime, context, handle)
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = TimeTimerRemainingNsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_TIMER_REMAINING_NS,
+        runtime.replay_payload_for(TIME_TIMER_REMAINING_NS)?,
+        context,
+        |context| platform_runtime_vm::destack_time_timer_remaining_ns(runtime, context, handle),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = TimeTimerRemainingNsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeTimerRemainingNsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeTimerRemainingNsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_timer_remaining_ns_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_timer_reset_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
     delayns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_TIMER_RESET,
-            runtime.replay_payload_for(TIME_TIMER_RESET)?,
-            context,
-            |context| {
-                platform_runtime_vm::destack_time_timer_reset(runtime, context, handle, delayns)
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = TimeTimerResetReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_TIMER_RESET,
+        runtime.replay_payload_for(TIME_TIMER_RESET)?,
+        context,
+        |context| platform_runtime_vm::destack_time_timer_reset(runtime, context, handle, delayns),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TimeTimerResetReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeTimerResetReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeTimerResetReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_timer_reset_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_timer_resume_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_TIMER_RESUME,
-            runtime.replay_payload_for(TIME_TIMER_RESUME)?,
-            context,
-            |context| platform_runtime_vm::destack_time_timer_resume(runtime, context, handle),
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = TimeTimerResumeReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_TIMER_RESUME,
+        runtime.replay_payload_for(TIME_TIMER_RESUME)?,
+        context,
+        |context| platform_runtime_vm::destack_time_timer_resume(runtime, context, handle),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TimeTimerResumeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeTimerResumeReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeTimerResumeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_timer_resume_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_time_timer_update_interval_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
     periodns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TIME_TIMER_UPDATE_INTERVAL,
-            runtime.replay_payload_for(TIME_TIMER_UPDATE_INTERVAL)?,
-            context,
-            |context| {
-                platform_runtime_vm::destack_time_timer_update_interval(
-                    runtime, context, handle, periodns,
-                )
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = TimeTimerUpdateIntervalReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TIME_TIMER_UPDATE_INTERVAL,
+        runtime.replay_payload_for(TIME_TIMER_UPDATE_INTERVAL)?,
+        context,
+        |context| {
+            platform_runtime_vm::destack_time_timer_update_interval(
+                runtime, context, handle, periodns,
+            )
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TimeTimerUpdateIntervalReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TimeTimerUpdateIntervalReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TimeTimerUpdateIntervalReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_time_timer_update_interval_result(context, result)?;
     Ok(result)
 }
@@ -3410,7 +3360,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             isolate,
             TIME_CLOCK_METADATA,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (clock,) = decode_destack_time_clock_metadata_args(context, args)?;
 
@@ -3428,7 +3378,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             isolate,
             TIME_CLOCK_MONO_NS,
             move |context, _args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // execute binding
                     let result =
                         runtime
@@ -3449,7 +3399,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             isolate,
             TIME_CLOCK_NOW_NS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (clock,) = decode_destack_time_clock_now_ns_args(context, args)?;
 
@@ -3467,7 +3417,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             isolate,
             TIME_CLOCK_PROCESS_CPU_NS,
             move |context, _args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // execute binding
                     runtime.check_policy(TIME_CLOCK_PROCESS_CPU_NS)?;
                     destack_time_clock_process_cpu_ns_vm_replay(runtime, context)
@@ -3482,7 +3432,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             isolate,
             TIME_CLOCK_THREAD_CPU_NS,
             move |context, _args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // execute binding
                     runtime.check_policy(TIME_CLOCK_THREAD_CPU_NS)?;
                     destack_time_clock_thread_cpu_ns_vm_replay(runtime, context)
@@ -3497,7 +3447,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             isolate,
             TIME_CLOCK_WALL_NS,
             move |context, _args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // execute binding
                     let result =
                         runtime
@@ -3514,7 +3464,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
     }
     {
         binding!(registry, isolate, TIME_SLEEP_NS, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (duration,) = decode_destack_time_sleep_ns_args(context, args)?;
 
@@ -3527,7 +3477,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
     }
     {
         binding!(registry, isolate, TIME_SLEEP_ON_NS, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (duration, clock) = decode_destack_time_sleep_on_ns_args(context, args)?;
 
@@ -3544,7 +3494,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             isolate,
             TIME_SLEEP_UNTIL_NS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (deadline,) = decode_destack_time_sleep_until_ns_args(context, args)?;
 
@@ -3562,7 +3512,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             isolate,
             TIME_SLEEP_UNTIL_ON_NS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (deadline, clock) =
                         decode_destack_time_sleep_until_on_ns_args(context, args)?;
@@ -3577,7 +3527,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
     }
     {
         binding!(registry, isolate, TIME_TIMER_AT, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (deadlinens, options) = decode_destack_time_timer_at_args(context, args)?;
 
@@ -3594,7 +3544,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             isolate,
             TIME_TIMER_CANCEL,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_time_timer_cancel_args(context, args)?;
 
@@ -3612,7 +3562,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             isolate,
             TIME_TIMER_INTERVAL,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (periodns, options) =
                         decode_destack_time_timer_interval_args(context, args)?;
@@ -3631,7 +3581,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             isolate,
             TIME_TIMER_IS_ACTIVE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_time_timer_is_active_args(context, args)?;
 
@@ -3645,7 +3595,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
     }
     {
         binding!(registry, isolate, TIME_TIMER_ONCE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (delayns, options) = decode_destack_time_timer_once_args(context, args)?;
 
@@ -3658,7 +3608,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
     }
     {
         binding!(registry, isolate, TIME_TIMER_PAUSE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_time_timer_pause_args(context, args)?;
 
@@ -3675,7 +3625,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             isolate,
             TIME_TIMER_REMAINING_NS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_time_timer_remaining_ns_args(context, args)?;
 
@@ -3689,7 +3639,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
     }
     {
         binding!(registry, isolate, TIME_TIMER_RESET, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, delayns) = decode_destack_time_timer_reset_args(context, args)?;
 
@@ -3706,7 +3656,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             isolate,
             TIME_TIMER_RESUME,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_time_timer_resume_args(context, args)?;
 
@@ -3724,7 +3674,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             isolate,
             TIME_TIMER_UPDATE_INTERVAL,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, periodns) =
                         decode_destack_time_timer_update_interval_args(context, args)?;

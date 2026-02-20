@@ -4,7 +4,7 @@ use destack_dir::EnumBackingType;
 
 /// Platform scope classification for bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum BindingScope {
+pub(crate) enum CatalogBindingScope {
     /// Binding executes through direct host platform operations.
     Host,
     /// Binding executes entirely inside runtime policy and state.
@@ -13,7 +13,7 @@ pub(crate) enum BindingScope {
 
 /// Blocking behavior classification for bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum BindingBlocking {
+pub(crate) enum CatalogBindingBlocking {
     /// Binding always blocks under normal operation.
     Always,
     /// Binding never blocks and returns immediately.
@@ -23,19 +23,19 @@ pub(crate) enum BindingBlocking {
 }
 /// Replay routing for generated bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum BindingReplayKind {
+pub(crate) enum CatalogBindingReplayKind {
     /// Regular binding replay behavior.
     Regular,
     /// Time read bindings with specialized replay.
-    Time(TimeEventKind),
+    Time(CatalogTimeEventKind),
     /// Randomness bindings with specialized replay.
-    Random(RandomEventKind),
+    Random(CatalogRandomEventKind),
 }
 
 /// Time event kinds supported by replay routing.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum TimeEventKind {
+pub(crate) enum CatalogTimeEventKind {
     /// Virtual clock seed event.
     Seed,
     /// Monotonic clock sample.
@@ -57,7 +57,7 @@ pub(crate) enum TimeEventKind {
 /// Random event kinds supported by replay routing.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum RandomEventKind {
+pub(crate) enum CatalogRandomEventKind {
     /// Stream seed or reseed event.
     Seed,
     /// Stream allocation event.
@@ -70,7 +70,7 @@ pub(crate) enum RandomEventKind {
 
 /// Replay behavior for external bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ReplayPolicy {
+pub(crate) enum CatalogReplayPolicy {
     /// Record the call for replay and return replayed values in replay execution.
     Recordable,
     /// Reject the call in deterministic or replay execution modes.
@@ -79,7 +79,7 @@ pub(crate) enum ReplayPolicy {
 
 /// Replay payload policy for recorded bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ReplayPayload {
+pub(crate) enum CatalogReplayPayload {
     /// Record only the result value.
     ResultsOnly,
     /// Record arguments and results for verification.
@@ -88,7 +88,7 @@ pub(crate) enum ReplayPayload {
 
 /// Effect classification for external bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum EffectClass {
+pub(crate) enum CatalogEffectClass {
     /// No observable side effects.
     Pure,
     /// Deterministic effects that do not require external I/O.
@@ -96,7 +96,7 @@ pub(crate) enum EffectClass {
     /// External side effects governed by replay policy.
     External {
         /// Replay behavior for the effect.
-        replay: ReplayPolicy,
+        replay: CatalogReplayPolicy,
     },
 }
 
@@ -116,19 +116,19 @@ pub(crate) struct BindingEntry {
     /// Whether the binding returns a Result wrapper.
     pub return_is_result: bool,
     /// Effect classification for replay and policy.
-    pub effect_class: EffectClass,
+    pub effect_class: CatalogEffectClass,
     /// Replay routing for the binding.
-    pub replay_kind: BindingReplayKind,
+    pub replay_kind: CatalogBindingReplayKind,
     /// Replay payload capability for recorded bindings.
-    pub replay_payload: ReplayPayload,
+    pub replay_payload: CatalogReplayPayload,
     /// Required platform capabilities for this binding.
     pub requires: Vec<String>,
     /// Host platforms where this binding is supported.
     pub host_platforms: Vec<String>,
     /// Platform scope for this binding.
-    pub scope: BindingScope,
+    pub scope: CatalogBindingScope,
     /// Blocking behavior for this binding.
-    pub blocking: BindingBlocking,
+    pub blocking: CatalogBindingBlocking,
 }
 
 /// Return metadata extracted from a binding signature.

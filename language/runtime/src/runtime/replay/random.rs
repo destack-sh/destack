@@ -1,7 +1,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::ExecutionMode;
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::replay::{RandomEvent, RandomEventKind, ReplayController, ReplayEvent};
+use destack_workspace::ExecutionMode;
 
 impl ReplayController {
     /// Read the next random event for replay.

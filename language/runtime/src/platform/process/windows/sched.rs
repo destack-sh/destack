@@ -8,7 +8,7 @@ use crate::platform::{
     core as core_platform,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
@@ -38,7 +38,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_affinity(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessCpuSet,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -70,7 +70,7 @@ pub(crate) unsafe fn destack_process_get_affinity(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_priority(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut i32,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -145,7 +145,7 @@ pub(crate) unsafe fn destack_process_get_priority(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_scheduler(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessSchedulerConfig,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -177,7 +177,7 @@ pub(crate) unsafe fn destack_process_get_scheduler(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_affinity(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     pid: ProcessId,
     cpus: ProcessCpuSet,
 ) -> RuntimeResult<()> {
@@ -207,7 +207,7 @@ pub(crate) unsafe fn destack_process_set_affinity(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_priority(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     pid: ProcessId,
     priority: i32,
 ) -> RuntimeResult<()> {
@@ -273,7 +273,7 @@ pub(crate) unsafe fn destack_process_set_priority(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_scheduler(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     pid: ProcessId,
     config: ProcessSchedulerConfig,
 ) -> RuntimeResult<()> {
@@ -301,7 +301,7 @@ pub(crate) unsafe fn destack_process_set_scheduler(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_process_yield_now(_context: &RuntimeCallContext) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_process_yield_now(_context: &BindingCallContext) -> RuntimeResult<()> {
     use windows_sys::Win32::System::Threading::{Sleep, SwitchToThread};
 
     let switched = unsafe { SwitchToThread() };

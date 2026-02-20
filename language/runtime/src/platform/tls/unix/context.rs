@@ -3,7 +3,7 @@ use crate::platform::tls::{
     TlsContextOptions, TlsHostnameVerificationMode, TlsSessionResumptionMode, core as core_tls,
 };
 use crate::platform::{NativeSlice, NativeStringSlice, PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Close one tls context object.
 ///
@@ -23,7 +23,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_context_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<()> {
     core_tls::remove_context_resource(context, handle)
@@ -47,7 +47,7 @@ pub(crate) unsafe fn destack_tls_context_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_context_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::TlsContextHandle,
     options: TlsContextOptions,
 ) -> RuntimeResult<()> {
@@ -86,7 +86,7 @@ pub(crate) unsafe fn destack_tls_context_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TlsContextHandle,
     suites: NativeStringSlice,
 ) -> RuntimeResult<()> {
@@ -127,7 +127,7 @@ pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_groups(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TlsContextHandle,
     groups: NativeStringSlice,
 ) -> RuntimeResult<()> {
@@ -168,7 +168,7 @@ pub(crate) unsafe fn destack_tls_context_set_groups(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TlsContextHandle,
     mode: TlsHostnameVerificationMode,
 ) -> RuntimeResult<()> {
@@ -199,7 +199,7 @@ pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_identity_pem(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TlsContextHandle,
     certificatechainpem: NativeSlice<u8>,
     privatekeypem: NativeSlice<u8>,
@@ -250,7 +250,7 @@ pub(crate) unsafe fn destack_tls_context_set_identity_pem(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_keylog_enabled(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TlsContextHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -281,7 +281,7 @@ pub(crate) unsafe fn destack_tls_context_set_keylog_enabled(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_session_resumption(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TlsContextHandle,
     mode: TlsSessionResumptionMode,
 ) -> RuntimeResult<()> {
@@ -312,7 +312,7 @@ pub(crate) unsafe fn destack_tls_context_set_session_resumption(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TlsContextHandle,
     algorithms: NativeStringSlice,
 ) -> RuntimeResult<()> {
@@ -354,7 +354,7 @@ pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_trust_anchors_pem(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TlsContextHandle,
     trustanchorspem: NativeSlice<u8>,
 ) -> RuntimeResult<()> {

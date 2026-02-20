@@ -5,10 +5,6 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
-    NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
-};
 use crate::platform::display::{
     DisplayDescriptor, DisplayDescriptorReplayRecord, DisplayDescriptorVm, DisplayMode,
     DisplayModeVm, WindowEvent, WindowEventVm, WindowOptions, WindowOptionsVm,
@@ -16,12 +12,16 @@ use crate::platform::display::{
 use crate::platform::{
     NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmSlice, abi as platform_abi,
 };
+use crate::runtime::bindings::{
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
+    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
+use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
 
@@ -537,7 +537,7 @@ pub const DISPLAY_MONITOR_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.monitor.close",
         "export function close(handle: DisplayHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["display.read"],
         BindingScope::Host,
@@ -563,7 +563,7 @@ pub const DISPLAY_MONITOR_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.monitor.list",
         "export function list(): Result<Slice<DisplayDescriptor>, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["display.read"],
         BindingScope::Host,
@@ -589,7 +589,7 @@ pub const DISPLAY_MONITOR_MODES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.monitor.modes",
         "export function modes(handle: DisplayHandle): Result<Slice<DisplayMode>, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["display.mode"],
         BindingScope::Host,
@@ -615,7 +615,7 @@ pub const DISPLAY_MONITOR_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.monitor.open",
         "export function open(id: string): Result<DisplayHandle, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["display.read"],
         BindingScope::Host,
@@ -640,7 +640,7 @@ pub const DISPLAY_MONITOR_OPEN: BindingDescriptor =
 pub const DISPLAY_MONITOR_SET_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.setMode",
     "export function setMode(handle: DisplayHandle, mode: DisplayMode): Result<void, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["display.mode"],
     BindingScope::Host,
@@ -653,7 +653,7 @@ pub const DISPLAY_WINDOW_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.window.close",
         "export function windowClose(window: WindowHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["display.window"],
         BindingScope::Host,
@@ -679,7 +679,7 @@ pub const DISPLAY_WINDOW_EVENT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.window.event",
         "export function windowEvent(window: WindowHandle): Result<WindowEvent, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["display.window"],
         BindingScope::Host,
@@ -704,7 +704,7 @@ pub const DISPLAY_WINDOW_EVENT: BindingDescriptor =
 pub const DISPLAY_WINDOW_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.open",
     "export function windowOpen(display: DisplayHandle, options: WindowOptions): Result<WindowHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["display.window"],
     BindingScope::Host,
@@ -716,7 +716,7 @@ pub const DISPLAY_WINDOW_OPEN: BindingDescriptor = BindingDescriptor::external_w
 pub const DISPLAY_WINDOW_SET_TITLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setTitle",
     "export function windowSetTitle(window: WindowHandle, title: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["display.window"],
     BindingScope::Host,
@@ -729,7 +729,7 @@ pub const DISPLAY_WINDOW_TRY_EVENT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.window.tryEvent",
         "export function windowTryEvent(window: WindowHandle): Result<WindowEvent, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["display.window"],
         BindingScope::Host,
@@ -754,7 +754,7 @@ pub const DISPLAY_WINDOW_TRY_EVENT: BindingDescriptor =
 pub const DISPLAY_WINDOW_VSYNC_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.vsyncWait",
     "export function windowVsyncWait(window: WindowHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["display.vsync"],
     BindingScope::Host,
@@ -842,20 +842,20 @@ pub const DISPLAY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for display bindings.
 #[inline]
 fn destack_display_monitor_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         DISPLAY_MONITOR_CLOSE,
         context.replay_payload_for(DISPLAY_MONITOR_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_display_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_display_close(context, handle)
             },
         },
@@ -890,16 +890,16 @@ fn destack_display_monitor_close_replay(
 
 #[inline]
 fn destack_display_monitor_list_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<DisplayDescriptor>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         DISPLAY_MONITOR_LIST,
         context.replay_payload_for(DISPLAY_MONITOR_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_display_list(context, out) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_display_list(context, out)
             },
         },
@@ -983,21 +983,21 @@ fn destack_display_monitor_list_replay(
 
 #[inline]
 fn destack_display_monitor_modes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<DisplayMode>,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         DISPLAY_MONITOR_MODES,
         context.replay_payload_for(DISPLAY_MONITOR_MODES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_display_modes(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_display_modes(context, out, handle)
             },
         },
@@ -1075,21 +1075,21 @@ fn destack_display_monitor_modes_replay(
 
 #[inline]
 fn destack_display_monitor_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::DisplayHandle,
     id: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &id;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         DISPLAY_MONITOR_OPEN,
         context.replay_payload_for(DISPLAY_MONITOR_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_display_open(context, out, id)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_display_open(context, out, id)
             },
         },
@@ -1136,20 +1136,20 @@ fn destack_display_monitor_open_replay(
 
 #[inline]
 fn destack_display_window_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let _ = &window;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         DISPLAY_WINDOW_CLOSE,
         context.replay_payload_for(DISPLAY_WINDOW_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_display_window_close(context, window)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_display_window_close(context, window)
             },
         },
@@ -1184,21 +1184,21 @@ fn destack_display_window_close_replay(
 
 #[inline]
 fn destack_display_window_event_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut WindowEvent,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let _ = &window;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         DISPLAY_WINDOW_EVENT,
         context.replay_payload_for(DISPLAY_WINDOW_EVENT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_display_window_event(context, out, window)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_display_window_event(context, out, window)
             },
         },
@@ -1263,7 +1263,7 @@ fn destack_display_window_event_replay(
 
 #[inline]
 fn destack_display_window_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::WindowHandle,
     display: resource::DisplayHandle,
@@ -1271,14 +1271,14 @@ fn destack_display_window_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&display, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         DISPLAY_WINDOW_OPEN,
         context.replay_payload_for(DISPLAY_WINDOW_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_display_window_open(context, out, display, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_display_window_open(
                     context, out, display, options,
                 )
@@ -1327,21 +1327,21 @@ fn destack_display_window_open_replay(
 
 #[inline]
 fn destack_display_window_set_title_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     title: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&window, &title);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         DISPLAY_WINDOW_SET_TITLE,
         context.replay_payload_for(DISPLAY_WINDOW_SET_TITLE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_display_window_set_title(context, window, title)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_display_window_set_title(context, window, title)
             },
         },
@@ -1376,21 +1376,21 @@ fn destack_display_window_set_title_replay(
 
 #[inline]
 fn destack_display_window_try_event_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut WindowEvent,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let _ = &window;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         DISPLAY_WINDOW_TRY_EVENT,
         context.replay_payload_for(DISPLAY_WINDOW_TRY_EVENT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_display_window_try_event(context, out, window)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_display_window_try_event(context, out, window)
             },
         },
@@ -1455,21 +1455,21 @@ fn destack_display_window_try_event_replay(
 
 #[inline]
 fn destack_display_window_vsync_wait_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let _ = (&window, &timeoutns);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         DISPLAY_WINDOW_VSYNC_WAIT,
         context.replay_payload_for(DISPLAY_WINDOW_VSYNC_WAIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_display_window_vsync_wait(context, window, timeoutns)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_display_window_vsync_wait(
                     context, window, timeoutns,
                 )
@@ -1583,7 +1583,7 @@ pub unsafe extern "C" fn destack_display_monitor_set_mode(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_display_set_mode(context, handle, mode)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_display_set_mode(context, handle, mode)
                 },
             }
@@ -1687,802 +1687,754 @@ pub unsafe extern "C" fn destack_display_window_vsync_wait(
 /// VM replay implementations for display bindings.
 #[inline]
 fn destack_display_monitor_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            DISPLAY_MONITOR_CLOSE,
-            runtime.replay_payload_for(DISPLAY_MONITOR_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_display_close(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_display_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = DisplayMonitorCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_MONITOR_CLOSE,
+        runtime.replay_payload_for(DISPLAY_MONITOR_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_display_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayMonitorCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        DisplayMonitorCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayMonitorCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_display_monitor_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_display_monitor_list_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            DISPLAY_MONITOR_LIST,
-            runtime.replay_payload_for(DISPLAY_MONITOR_LIST)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_display_list(runtime, context),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_display_list(runtime, context)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmSlice<DisplayDescriptorVm> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item = {
-                            if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_type(
-                                        "result_recorded_item",
-                                        "item",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let slots = context
-                                .aggregate_slots(result_recorded_item_value)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 5 {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item",
-                                        "expected 5 fields",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let result_recorded_item_id =
-                                decode_string(slots[0], "result_recorded_item_id", "id")?;
-                            let result_recorded_item_name =
-                                decode_string(slots[1], "result_recorded_item_name", "name")?;
-                            let result_recorded_item_width_mm = decode_uint32(
-                                slots[2],
-                                "result_recorded_item_width_mm",
-                                "widthMm",
-                            )?;
-                            let result_recorded_item_height_mm = decode_uint32(
-                                slots[3],
-                                "result_recorded_item_height_mm",
-                                "heightMm",
-                            )?;
-                            let result_recorded_item_primary =
-                                decode_bool(slots[4], "result_recorded_item_primary", "primary")?;
-                            DisplayDescriptorVm {
-                                id: result_recorded_item_id,
-                                name: result_recorded_item_name,
-                                width_mm: result_recorded_item_width_mm,
-                                height_mm: result_recorded_item_height_mm,
-                                primary: result_recorded_item_primary,
-                            }
-                        };
-                        let result_recorded_item_recorded_id = {
-                            let result_recorded_item_recorded_id_ref = context
-                                .string_ref(result_recorded_item.id)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_item_recorded_id_ref.as_str().to_string()
-                        };
-                        let result_recorded_item_recorded_name = {
-                            let result_recorded_item_recorded_name_ref = context
-                                .string_ref(result_recorded_item.name)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_item_recorded_name_ref.as_str().to_string()
-                        };
-                        let result_recorded_item_recorded_width_mm = result_recorded_item.width_mm;
-                        let result_recorded_item_recorded_height_mm =
-                            result_recorded_item.height_mm;
-                        let result_recorded_item_recorded_primary = result_recorded_item.primary;
-                        let result_recorded_item_recorded = DisplayDescriptorReplayRecord {
-                            id: result_recorded_item_recorded_id,
-                            name: result_recorded_item_recorded_name,
-                            width_mm: result_recorded_item_recorded_width_mm,
-                            height_mm: result_recorded_item_recorded_height_mm,
-                            primary: result_recorded_item_recorded_primary,
-                        };
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = DisplayMonitorListReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        DisplayMonitorListReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item = vm_result_item.clone();
-                            let vm_result_item_value_id_value =
-                                context.intern_string(vm_result_item.id.as_str());
-                            let vm_result_item_value_id =
-                                vm::StringHandle::new(vm_result_item_value_id_value);
-                            let vm_result_item_value_name_value =
-                                context.intern_string(vm_result_item.name.as_str());
-                            let vm_result_item_value_name =
-                                vm::StringHandle::new(vm_result_item_value_name_value);
-                            let vm_result_item_value_width_mm = vm_result_item.width_mm;
-                            let vm_result_item_value_height_mm = vm_result_item.height_mm;
-                            let vm_result_item_value_primary = vm_result_item.primary;
-                            let vm_result_item_value = DisplayDescriptorVm {
-                                id: vm_result_item_value_id,
-                                name: vm_result_item_value_name,
-                                width_mm: vm_result_item_value_width_mm,
-                                height_mm: vm_result_item_value_height_mm,
-                                primary: vm_result_item_value_primary,
-                            };
-                            let vm_result_item_value_encoded = {
-                                let field_0 = vm_result_item_value.id.value();
-                                let field_1 = vm_result_item_value.name.value();
-                                let field_2 =
-                                    vm::Value::uint(vm_result_item_value.width_mm as u64, 32);
-                                let field_3 =
-                                    vm::Value::uint(vm_result_item_value.height_mm as u64, 32);
-                                let field_4 = vm::Value::bool(vm_result_item_value.primary);
-                                context.allocate_aggregate(vec![
-                                    field_0, field_1, field_2, field_3, field_4,
-                                ])
-                            };
-                            vm_result_values.push(vm_result_item_value_encoded);
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_MONITOR_LIST,
+        runtime.replay_payload_for(DISPLAY_MONITOR_LIST)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_display_list(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_list(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<DisplayDescriptorVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_item",
+                                "item",
+                            ))
+                            .boxed());
                         }
-                        let vm_result_data = context.allocate_raw_values(vm_result_values);
-                        let vm_result: VmSlice<DisplayDescriptorVm> = VmSlice {
-                            data: vm_result_data,
-                            len: value.len() as u32,
-                            _marker: std::marker::PhantomData,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                        let slots = context
+                            .aggregate_slots(result_recorded_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 5 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "expected 5 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_item_id =
+                            decode_string(slots[0], "result_recorded_item_id", "id")?;
+                        let result_recorded_item_name =
+                            decode_string(slots[1], "result_recorded_item_name", "name")?;
+                        let result_recorded_item_width_mm =
+                            decode_uint32(slots[2], "result_recorded_item_width_mm", "widthMm")?;
+                        let result_recorded_item_height_mm =
+                            decode_uint32(slots[3], "result_recorded_item_height_mm", "heightMm")?;
+                        let result_recorded_item_primary =
+                            decode_bool(slots[4], "result_recorded_item_primary", "primary")?;
+                        DisplayDescriptorVm {
+                            id: result_recorded_item_id,
+                            name: result_recorded_item_name,
+                            width_mm: result_recorded_item_width_mm,
+                            height_mm: result_recorded_item_height_mm,
+                            primary: result_recorded_item_primary,
+                        }
+                    };
+                    let result_recorded_item_recorded_id = {
+                        let result_recorded_item_recorded_id_ref = context
+                            .string_ref(result_recorded_item.id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_name = {
+                        let result_recorded_item_recorded_name_ref = context
+                            .string_ref(result_recorded_item.name)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_name_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_width_mm = result_recorded_item.width_mm;
+                    let result_recorded_item_recorded_height_mm = result_recorded_item.height_mm;
+                    let result_recorded_item_recorded_primary = result_recorded_item.primary;
+                    let result_recorded_item_recorded = DisplayDescriptorReplayRecord {
+                        id: result_recorded_item_recorded_id,
+                        name: result_recorded_item_recorded_name,
+                        width_mm: result_recorded_item_recorded_width_mm,
+                        height_mm: result_recorded_item_recorded_height_mm,
+                        primary: result_recorded_item_recorded_primary,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
                 }
-            },
-        );
+                let payload = DisplayMonitorListReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayMonitorListReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value_id_value =
+                            context.intern_string(vm_result_item.id.as_str());
+                        let vm_result_item_value_id =
+                            vm::StringHandle::new(vm_result_item_value_id_value);
+                        let vm_result_item_value_name_value =
+                            context.intern_string(vm_result_item.name.as_str());
+                        let vm_result_item_value_name =
+                            vm::StringHandle::new(vm_result_item_value_name_value);
+                        let vm_result_item_value_width_mm = vm_result_item.width_mm;
+                        let vm_result_item_value_height_mm = vm_result_item.height_mm;
+                        let vm_result_item_value_primary = vm_result_item.primary;
+                        let vm_result_item_value = DisplayDescriptorVm {
+                            id: vm_result_item_value_id,
+                            name: vm_result_item_value_name,
+                            width_mm: vm_result_item_value_width_mm,
+                            height_mm: vm_result_item_value_height_mm,
+                            primary: vm_result_item_value_primary,
+                        };
+                        let vm_result_item_value_encoded = {
+                            let field_0 = vm_result_item_value.id.value();
+                            let field_1 = vm_result_item_value.name.value();
+                            let field_2 = vm::Value::uint(vm_result_item_value.width_mm as u64, 32);
+                            let field_3 =
+                                vm::Value::uint(vm_result_item_value.height_mm as u64, 32);
+                            let field_4 = vm::Value::bool(vm_result_item_value.primary);
+                            context.allocate_aggregate(vec![
+                                field_0, field_1, field_2, field_3, field_4,
+                            ])
+                        };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmSlice<DisplayDescriptorVm> = VmSlice {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_display_monitor_list_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_display_monitor_modes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            DISPLAY_MONITOR_MODES,
-            runtime.replay_payload_for(DISPLAY_MONITOR_MODES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_display_modes(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_display_modes(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmSlice<DisplayModeVm> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item = {
-                            if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_type(
-                                        "result_recorded_item",
-                                        "item",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let slots = context
-                                .aggregate_slots(result_recorded_item_value)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 4 {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item",
-                                        "expected 4 fields",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let result_recorded_item_width =
-                                decode_uint32(slots[0], "result_recorded_item_width", "width")?;
-                            let result_recorded_item_height =
-                                decode_uint32(slots[1], "result_recorded_item_height", "height")?;
-                            let result_recorded_item_refresh_milli_hz = decode_uint32(
-                                slots[2],
-                                "result_recorded_item_refresh_milli_hz",
-                                "refreshMilliHz",
-                            )?;
-                            let result_recorded_item_format =
-                                decode_uint32(slots[3], "result_recorded_item_format", "format")?;
-                            DisplayModeVm {
-                                width: result_recorded_item_width,
-                                height: result_recorded_item_height,
-                                refresh_milli_hz: result_recorded_item_refresh_milli_hz,
-                                format: result_recorded_item_format,
-                            }
-                        };
-                        let result_recorded_item_recorded_width = result_recorded_item.width;
-                        let result_recorded_item_recorded_height = result_recorded_item.height;
-                        let result_recorded_item_recorded_refresh_milli_hz =
-                            result_recorded_item.refresh_milli_hz;
-                        let result_recorded_item_recorded_format = result_recorded_item.format;
-                        let result_recorded_item_recorded = DisplayMode {
-                            width: result_recorded_item_recorded_width,
-                            height: result_recorded_item_recorded_height,
-                            refresh_milli_hz: result_recorded_item_recorded_refresh_milli_hz,
-                            format: result_recorded_item_recorded_format,
-                        };
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = DisplayMonitorModesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        DisplayMonitorModesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item = *vm_result_item;
-                            let vm_result_item_value_width = vm_result_item.width;
-                            let vm_result_item_value_height = vm_result_item.height;
-                            let vm_result_item_value_refresh_milli_hz =
-                                vm_result_item.refresh_milli_hz;
-                            let vm_result_item_value_format = vm_result_item.format;
-                            let vm_result_item_value = DisplayModeVm {
-                                width: vm_result_item_value_width,
-                                height: vm_result_item_value_height,
-                                refresh_milli_hz: vm_result_item_value_refresh_milli_hz,
-                                format: vm_result_item_value_format,
-                            };
-                            let vm_result_item_value_encoded = {
-                                let field_0 =
-                                    vm::Value::uint(vm_result_item_value.width as u64, 32);
-                                let field_1 =
-                                    vm::Value::uint(vm_result_item_value.height as u64, 32);
-                                let field_2 = vm::Value::uint(
-                                    vm_result_item_value.refresh_milli_hz as u64,
-                                    32,
-                                );
-                                let field_3 =
-                                    vm::Value::uint(vm_result_item_value.format as u64, 32);
-                                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
-                            };
-                            vm_result_values.push(vm_result_item_value_encoded);
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_MONITOR_MODES,
+        runtime.replay_payload_for(DISPLAY_MONITOR_MODES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_display_modes(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_modes(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<DisplayModeVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_item",
+                                "item",
+                            ))
+                            .boxed());
                         }
-                        let vm_result_data = context.allocate_raw_values(vm_result_values);
-                        let vm_result: VmSlice<DisplayModeVm> = VmSlice {
-                            data: vm_result_data,
-                            len: value.len() as u32,
-                            _marker: std::marker::PhantomData,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                        let slots = context
+                            .aggregate_slots(result_recorded_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 4 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "expected 4 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_item_width =
+                            decode_uint32(slots[0], "result_recorded_item_width", "width")?;
+                        let result_recorded_item_height =
+                            decode_uint32(slots[1], "result_recorded_item_height", "height")?;
+                        let result_recorded_item_refresh_milli_hz = decode_uint32(
+                            slots[2],
+                            "result_recorded_item_refresh_milli_hz",
+                            "refreshMilliHz",
+                        )?;
+                        let result_recorded_item_format =
+                            decode_uint32(slots[3], "result_recorded_item_format", "format")?;
+                        DisplayModeVm {
+                            width: result_recorded_item_width,
+                            height: result_recorded_item_height,
+                            refresh_milli_hz: result_recorded_item_refresh_milli_hz,
+                            format: result_recorded_item_format,
+                        }
+                    };
+                    let result_recorded_item_recorded_width = result_recorded_item.width;
+                    let result_recorded_item_recorded_height = result_recorded_item.height;
+                    let result_recorded_item_recorded_refresh_milli_hz =
+                        result_recorded_item.refresh_milli_hz;
+                    let result_recorded_item_recorded_format = result_recorded_item.format;
+                    let result_recorded_item_recorded = DisplayMode {
+                        width: result_recorded_item_recorded_width,
+                        height: result_recorded_item_recorded_height,
+                        refresh_milli_hz: result_recorded_item_recorded_refresh_milli_hz,
+                        format: result_recorded_item_recorded_format,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
                 }
-            },
-        );
+                let payload = DisplayMonitorModesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayMonitorModesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value_width = vm_result_item.width;
+                        let vm_result_item_value_height = vm_result_item.height;
+                        let vm_result_item_value_refresh_milli_hz = vm_result_item.refresh_milli_hz;
+                        let vm_result_item_value_format = vm_result_item.format;
+                        let vm_result_item_value = DisplayModeVm {
+                            width: vm_result_item_value_width,
+                            height: vm_result_item_value_height,
+                            refresh_milli_hz: vm_result_item_value_refresh_milli_hz,
+                            format: vm_result_item_value_format,
+                        };
+                        let vm_result_item_value_encoded = {
+                            let field_0 = vm::Value::uint(vm_result_item_value.width as u64, 32);
+                            let field_1 = vm::Value::uint(vm_result_item_value.height as u64, 32);
+                            let field_2 =
+                                vm::Value::uint(vm_result_item_value.refresh_milli_hz as u64, 32);
+                            let field_3 = vm::Value::uint(vm_result_item_value.format as u64, 32);
+                            context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+                        };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmSlice<DisplayModeVm> = VmSlice {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_display_monitor_modes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_display_monitor_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            DISPLAY_MONITOR_OPEN,
-            runtime.replay_payload_for(DISPLAY_MONITOR_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_display_open(runtime, context, id),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_display_open(runtime, context, id)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::DisplayHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = DisplayMonitorOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_MONITOR_OPEN,
+        runtime.replay_payload_for(DISPLAY_MONITOR_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_display_open(runtime, context, id),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_open(runtime, context, id)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::DisplayHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = DisplayMonitorOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        DisplayMonitorOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayMonitorOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_display_monitor_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_display_window_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            DISPLAY_WINDOW_CLOSE,
-            runtime.replay_payload_for(DISPLAY_WINDOW_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_display_window_close(runtime, context, window)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_display_window_close(runtime, context, window)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = DisplayWindowCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_CLOSE,
+        runtime.replay_payload_for(DISPLAY_WINDOW_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_close(runtime, context, window)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_window_close(runtime, context, window)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        DisplayWindowCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_display_window_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_display_window_event_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            DISPLAY_WINDOW_EVENT,
-            runtime.replay_payload_for(DISPLAY_WINDOW_EVENT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_display_window_event(runtime, context, window)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_display_window_event(runtime, context, window)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: WindowEventVm = value.clone();
-                    let result_recorded_kind = result_value.kind;
-                    let result_recorded_a = result_value.a;
-                    let result_recorded_b = result_value.b;
-                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                    let result_recorded = WindowEvent {
-                        kind: result_recorded_kind,
-                        a: result_recorded_a,
-                        b: result_recorded_b,
-                        timestamp_ns: result_recorded_timestamp_ns,
-                    };
-                    let payload = DisplayWindowEventReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_EVENT,
+        runtime.replay_payload_for(DISPLAY_WINDOW_EVENT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_event(runtime, context, window)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_window_event(runtime, context, window)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: WindowEventVm = value.clone();
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_a = result_value.a;
+                let result_recorded_b = result_value.b;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded = WindowEvent {
+                    kind: result_recorded_kind,
+                    a: result_recorded_a,
+                    b: result_recorded_b,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                };
+                let payload = DisplayWindowEventReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        DisplayWindowEventReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowEventReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_kind = value.kind;
-                        let vm_result_a = value.a;
-                        let vm_result_b = value.b;
-                        let vm_result_timestamp_ns = value.timestamp_ns;
-                        let vm_result = WindowEventVm {
-                            kind: vm_result_kind,
-                            a: vm_result_a,
-                            b: vm_result_b,
-                            timestamp_ns: vm_result_timestamp_ns,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_kind = value.kind;
+                    let vm_result_a = value.a;
+                    let vm_result_b = value.b;
+                    let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result = WindowEventVm {
+                        kind: vm_result_kind,
+                        a: vm_result_a,
+                        b: vm_result_b,
+                        timestamp_ns: vm_result_timestamp_ns,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_display_window_event_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_display_window_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     display: resource::DisplayHandle,
     options: WindowOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            DISPLAY_WINDOW_OPEN,
-            runtime.replay_payload_for(DISPLAY_WINDOW_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_display_window_open(runtime, context, display, options)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_display_window_open(
-                    runtime, context, display, options,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::WindowHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = DisplayWindowOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_OPEN,
+        runtime.replay_payload_for(DISPLAY_WINDOW_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_open(runtime, context, display, options)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_display_window_open(
+                runtime, context, display, options,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::WindowHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = DisplayWindowOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        DisplayWindowOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_display_window_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_display_window_set_title_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     title: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            DISPLAY_WINDOW_SET_TITLE,
-            runtime.replay_payload_for(DISPLAY_WINDOW_SET_TITLE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_display_window_set_title(runtime, context, window, title)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_display_window_set_title(
-                        runtime, context, window, title,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = DisplayWindowSetTitleReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_SET_TITLE,
+        runtime.replay_payload_for(DISPLAY_WINDOW_SET_TITLE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_set_title(runtime, context, window, title)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_display_window_set_title(
+                runtime, context, window, title,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowSetTitleReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        DisplayWindowSetTitleReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowSetTitleReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_display_window_set_title_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_display_window_try_event_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            DISPLAY_WINDOW_TRY_EVENT,
-            runtime.replay_payload_for(DISPLAY_WINDOW_TRY_EVENT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_display_window_try_event(runtime, context, window)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_display_window_try_event(
-                        runtime, context, window,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: WindowEventVm = value.clone();
-                    let result_recorded_kind = result_value.kind;
-                    let result_recorded_a = result_value.a;
-                    let result_recorded_b = result_value.b;
-                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                    let result_recorded = WindowEvent {
-                        kind: result_recorded_kind,
-                        a: result_recorded_a,
-                        b: result_recorded_b,
-                        timestamp_ns: result_recorded_timestamp_ns,
-                    };
-                    let payload = DisplayWindowTryEventReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_TRY_EVENT,
+        runtime.replay_payload_for(DISPLAY_WINDOW_TRY_EVENT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_try_event(runtime, context, window)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_window_try_event(runtime, context, window)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: WindowEventVm = value.clone();
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_a = result_value.a;
+                let result_recorded_b = result_value.b;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded = WindowEvent {
+                    kind: result_recorded_kind,
+                    a: result_recorded_a,
+                    b: result_recorded_b,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                };
+                let payload = DisplayWindowTryEventReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        DisplayWindowTryEventReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowTryEventReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_kind = value.kind;
-                        let vm_result_a = value.a;
-                        let vm_result_b = value.b;
-                        let vm_result_timestamp_ns = value.timestamp_ns;
-                        let vm_result = WindowEventVm {
-                            kind: vm_result_kind,
-                            a: vm_result_a,
-                            b: vm_result_b,
-                            timestamp_ns: vm_result_timestamp_ns,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_kind = value.kind;
+                    let vm_result_a = value.a;
+                    let vm_result_b = value.b;
+                    let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result = WindowEventVm {
+                        kind: vm_result_kind,
+                        a: vm_result_a,
+                        b: vm_result_b,
+                        timestamp_ns: vm_result_timestamp_ns,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_display_window_try_event_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_display_window_vsync_wait_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            DISPLAY_WINDOW_VSYNC_WAIT,
-            runtime.replay_payload_for(DISPLAY_WINDOW_VSYNC_WAIT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_display_window_vsync_wait(
-                    runtime, context, window, timeoutns,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_display_window_vsync_wait(
-                        runtime, context, window, timeoutns,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = DisplayWindowVsyncWaitReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_VSYNC_WAIT,
+        runtime.replay_payload_for(DISPLAY_WINDOW_VSYNC_WAIT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_vsync_wait(runtime, context, window, timeoutns)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_display_window_vsync_wait(
+                runtime, context, window, timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowVsyncWaitReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        DisplayWindowVsyncWaitReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowVsyncWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_display_window_vsync_wait_result(context, result)?;
     Ok(result)
 }
@@ -2495,7 +2447,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             DISPLAY_MONITOR_CLOSE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_display_monitor_close_args(context, args)?;
 
@@ -2514,7 +2466,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             DISPLAY_MONITOR_LIST,
             move |context, _args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // execute binding
                     runtime.check_policy(DISPLAY_MONITOR_LIST)?;
                     let world = runtime.check_and_resolve_world(DISPLAY_MONITOR_LIST)?;
@@ -2530,7 +2482,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             DISPLAY_MONITOR_MODES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_display_monitor_modes_args(context, args)?;
 
@@ -2549,7 +2501,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             DISPLAY_MONITOR_OPEN,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (id,) = decode_destack_display_monitor_open_args(context, args)?;
 
@@ -2568,7 +2520,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             DISPLAY_MONITOR_SET_MODE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, mode) =
                         decode_destack_display_monitor_set_mode_args(context, args)?;
@@ -2581,7 +2533,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                             RuntimeWorld::Host => platform_vm::destack_display_set_mode(
                                 runtime, context, handle, mode,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_display_set_mode(
                                     runtime, context, handle, mode,
                                 )
@@ -2600,7 +2552,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             DISPLAY_WINDOW_CLOSE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (window,) = decode_destack_display_window_close_args(context, args)?;
 
@@ -2619,7 +2571,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             DISPLAY_WINDOW_EVENT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (window,) = decode_destack_display_window_event_args(context, args)?;
 
@@ -2638,7 +2590,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             DISPLAY_WINDOW_OPEN,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (display, options) =
                         decode_destack_display_window_open_args(context, args)?;
@@ -2658,7 +2610,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             DISPLAY_WINDOW_SET_TITLE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (window, title) =
                         decode_destack_display_window_set_title_args(context, args)?;
@@ -2680,7 +2632,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             DISPLAY_WINDOW_TRY_EVENT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (window,) = decode_destack_display_window_try_event_args(context, args)?;
 
@@ -2699,7 +2651,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             DISPLAY_WINDOW_VSYNC_WAIT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (window, timeoutns) =
                         decode_destack_display_window_vsync_wait_args(context, args)?;

@@ -12,7 +12,7 @@ use crate::platform::input::{
     validation as input_validation,
 };
 use crate::platform::{PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Return whether one binding targets the macos global-session pointer backend.
 #[cfg(target_os = "macos")]
@@ -23,7 +23,7 @@ fn is_macos_session_pointer_binding(binding: &input_core::UnixInputBinding) -> b
 
 /// Validate pointer capability for one opened unix input handle.
 fn resolve_pointer_binding(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<input_core::UnixInputBinding> {
@@ -49,7 +49,7 @@ fn resolve_pointer_binding(
 
 /// Read one pointer snapshot from one opened unix handle.
 fn pointer_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     relative: bool,
     operation: &'static str,
@@ -107,7 +107,7 @@ fn pointer_state(
 /// Capture one pointer baseline and relative-mode flag for one opened unix handle.
 #[cfg(target_os = "macos")]
 fn set_relative_mode_macos(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enabled: bool,
     operation: &'static str,
@@ -121,7 +121,7 @@ fn set_relative_mode_macos(
 /// Capture one relative-mode flag for one opened linux pointer handle.
 #[cfg(target_os = "linux")]
 fn set_relative_mode_linux(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     descriptor: Option<RawFd>,
     enabled: bool,
@@ -144,7 +144,7 @@ fn set_relative_mode_linux(
 /// Capture one relative-mode flag for one opened unsupported unix pointer handle.
 #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
 fn set_relative_mode_other_unix(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _handle: resource::InputDeviceHandle,
     _enabled: bool,
     operation: &'static str,
@@ -154,7 +154,7 @@ fn set_relative_mode_other_unix(
 
 /// Set relative pointer mode for one opened unix handle.
 fn set_relative_mode(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enabled: bool,
     operation: &'static str,
@@ -186,7 +186,7 @@ fn set_relative_mode(
 
 /// Set one pointer grab mode for one opened unix handle.
 fn set_grab_mode(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     mode: InputPointerGrabMode,
@@ -240,7 +240,7 @@ fn set_grab_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_capture(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     enabled: bool,
@@ -310,7 +310,7 @@ pub(crate) unsafe fn destack_input_pointer_capture(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_relative_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputPointerState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -348,7 +348,7 @@ pub(crate) unsafe fn destack_input_pointer_relative_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_set_grab_mode(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     mode: InputPointerGrabMode,
@@ -380,7 +380,7 @@ pub(crate) unsafe fn destack_input_pointer_set_grab_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_set_relative_mode(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -412,7 +412,7 @@ pub(crate) unsafe fn destack_input_pointer_set_relative_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputPointerState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -450,7 +450,7 @@ pub(crate) unsafe fn destack_input_pointer_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_warp(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     x: f64,

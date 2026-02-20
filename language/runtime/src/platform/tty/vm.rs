@@ -3,7 +3,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::tty::{PtyPairVm, TtyModeVm, TtySizeVm};
 use crate::platform::{PlatformError, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 /// Read bytes from a terminal.
@@ -24,7 +24,7 @@ use destack_vm as vm;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_read(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
@@ -54,7 +54,7 @@ pub(crate) fn destack_tty_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_write(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
@@ -84,7 +84,7 @@ pub(crate) fn destack_tty_write(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_get_mode(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<TtyModeVm> {
@@ -113,7 +113,7 @@ pub(crate) fn destack_tty_get_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_set_mode(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     mode: TtyModeVm,
@@ -143,7 +143,7 @@ pub(crate) fn destack_tty_set_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_pty_close(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<()> {
@@ -172,7 +172,7 @@ pub(crate) fn destack_tty_pty_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_pty_open(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     rows: u32,
     columns: u32,
@@ -203,7 +203,7 @@ pub(crate) fn destack_tty_pty_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_get_size(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<TtySizeVm> {
@@ -232,7 +232,7 @@ pub(crate) fn destack_tty_get_size(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_set_size(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     size: TtySizeVm,

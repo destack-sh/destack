@@ -3,7 +3,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::{ResourceId, ResourceKind, ResourceKindVm, ResourceOwnership};
 use crate::platform::{PlatformError, PlatformErrorCode};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 /// Return a stable label for one resource kind.
@@ -100,7 +100,7 @@ fn resource_not_found(op: &'static str, id: ResourceId) -> Box<RuntimeError> {
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_resource_close(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
@@ -131,7 +131,7 @@ pub(crate) fn destack_resource_close(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_resource_kind(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<ResourceKindVm> {
@@ -167,7 +167,7 @@ pub(crate) fn destack_resource_kind(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_resource_remove(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
@@ -198,7 +198,7 @@ pub(crate) fn destack_resource_remove(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_resource_transfer(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
     ownership: ResourceOwnership,

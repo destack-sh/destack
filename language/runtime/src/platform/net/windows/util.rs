@@ -6,7 +6,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::net::{SocketAddress, SocketFamily, core as core_net};
 use crate::platform::resource::{ListenerHandle, ResourceFinalizer, ResourceKind, SocketHandle};
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Finalizer that closes a socket handle.
 #[derive(Debug)]
@@ -48,7 +48,7 @@ pub(super) fn net_error_with_code(syscall: &str, code: i32) -> Box<RuntimeError>
 
 /// Resolve a socket descriptor from a handle.
 pub(super) fn socket_descriptor(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<SOCKET> {
     // resolve the socket resource
@@ -119,7 +119,7 @@ pub(super) fn with_socket_address_raw<T>(
 
 /// Encode raw sockaddr storage into a socket address payload.
 pub(super) fn socket_address_raw_from_storage(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     storage: &SOCKADDR_STORAGE,
     length: i32,
 ) -> RuntimeResult<SocketAddress> {
@@ -149,7 +149,7 @@ pub(super) fn socket_address_raw_from_storage(
 
 /// Resolve a listener descriptor from a handle.
 pub(super) fn listener_descriptor(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<SOCKET> {
     // resolve the listener resource

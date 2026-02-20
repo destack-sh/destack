@@ -59,7 +59,7 @@ use crate::platform::input::{
     InputTouchContactState, InputTouchState,
 };
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Prefix for monitor event device identifiers derived from raw device handles.
 pub(super) const WINDOWS_INPUT_MONITOR_ID_PREFIX: &str = "raw:device:";
@@ -1542,7 +1542,7 @@ fn button_infos_for_raw_input_device(
 
 /// Build one runtime capabilities payload from one raw-input descriptor.
 pub(super) fn capabilities_for_raw_input_device(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     device: &RawInputDeviceDescriptor,
 ) -> InputDeviceCapabilities {
     let mut kinds = Vec::new();
@@ -2973,7 +2973,7 @@ pub(super) fn release_input_stream(device_id: &str) {
 
 /// Read one event for one opened raw-input device.
 pub(super) fn read_device_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     device: &RawInputDeviceDescriptor,
     nonblocking: bool,
     operation: &'static str,
@@ -3125,7 +3125,7 @@ fn monitor_kind_from_action(action: InputEventAction) -> InputMonitorEventKind {
 
 /// Build one monitor event payload for raw-input monitor deltas.
 fn build_raw_monitor_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     timestamp_ns: u64,
     sequence: u64,
     device_id: &str,
@@ -3146,7 +3146,7 @@ fn build_raw_monitor_event(
 
 /// Read one monitor event from the raw queue.
 pub(super) fn read_monitor_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<InputMonitorEvent> {
@@ -3791,7 +3791,7 @@ fn decode_cached_raw_gamepad_state(
 
 /// Read one gamepad state snapshot for one raw-input gamepad descriptor.
 pub(super) fn gamepad_state_for_raw_input_device(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     device: &RawInputDeviceDescriptor,
     operation: &'static str,
 ) -> RuntimeResult<InputGamepadState> {
@@ -3899,7 +3899,7 @@ pub(super) fn set_gamepad_light_for_raw_input_device(
 
 /// Read one raw-hid report for one opened device descriptor.
 pub(super) fn read_raw_hid_report_with_timeout(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     device: &RawInputDeviceDescriptor,
     maxbytes: u32,
     timeoutns: u64,
@@ -3925,7 +3925,7 @@ pub(super) fn read_raw_hid_report_with_timeout(
 
 /// Read one raw-hid report for one opened device descriptor.
 pub(super) fn read_raw_hid_report(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     device: &RawInputDeviceDescriptor,
     maxbytes: u32,
     nonblocking: bool,
@@ -3951,7 +3951,7 @@ pub(super) fn read_raw_hid_report(
 
 /// Read one current touch snapshot from active contact state.
 pub(super) fn read_touch_state_snapshot(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     device: &RawInputDeviceDescriptor,
     operation: &'static str,
 ) -> RuntimeResult<InputTouchState> {

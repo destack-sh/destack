@@ -8,7 +8,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, PlatformErrorCode,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
@@ -73,7 +73,7 @@ fn session_pid_to_unix_target(pid: ProcessId, field: &str) -> RuntimeResult<libc
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_getpgid(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut ProcessId,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -119,7 +119,7 @@ pub(crate) unsafe fn destack_process_getpgid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_setpgid(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     pid: ProcessId,
     pgid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -161,7 +161,7 @@ pub(crate) unsafe fn destack_process_setpgid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_setsid(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
     if out.is_null() {

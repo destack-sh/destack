@@ -1,7 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::debug::{InspectorEndpoint, ProfileKind, TraceLevel, native as debug_native};
 use crate::platform::{NativeArray, NativeStringRef};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use crate::platform::resource;
 
@@ -22,7 +22,7 @@ use crate::platform::resource;
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_debug_break_now(context: &RuntimeCallContext) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_debug_break_now(context: &BindingCallContext) -> RuntimeResult<()> {
     unsafe { debug_native::destack_debug_break_now(context) }
 }
 
@@ -44,7 +44,7 @@ pub(crate) unsafe fn destack_debug_break_now(context: &RuntimeCallContext) -> Ru
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_mark(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     label: NativeStringRef,
 ) -> RuntimeResult<()> {
     unsafe { debug_native::destack_debug_mark(context, label) }
@@ -68,7 +68,7 @@ pub(crate) unsafe fn destack_debug_mark(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_inspector_endpoint(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InspectorEndpoint,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<()> {
@@ -93,7 +93,7 @@ pub(crate) unsafe fn destack_debug_inspector_endpoint(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_inspector_start(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::InspectorHandle,
     host: NativeStringRef,
     port: u16,
@@ -119,7 +119,7 @@ pub(crate) unsafe fn destack_debug_inspector_start(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_inspector_stop(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<()> {
     unsafe { debug_native::destack_debug_inspector_stop(context, handle) }
@@ -143,7 +143,7 @@ pub(crate) unsafe fn destack_debug_inspector_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_profile_snapshot(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<u8>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<()> {
@@ -168,7 +168,7 @@ pub(crate) unsafe fn destack_debug_profile_snapshot(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_profile_start(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::ProfileHandle,
     kind: ProfileKind,
 ) -> RuntimeResult<()> {
@@ -193,7 +193,7 @@ pub(crate) unsafe fn destack_debug_profile_start(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_profile_stop(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<()> {
     unsafe { debug_native::destack_debug_profile_stop(context, handle) }
@@ -217,7 +217,7 @@ pub(crate) unsafe fn destack_debug_profile_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_trace_emit(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     category: NativeStringRef,
     name: NativeStringRef,
     payloadjson: NativeStringRef,
@@ -243,7 +243,7 @@ pub(crate) unsafe fn destack_debug_trace_emit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_trace_start(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::TraceHandle,
     level: TraceLevel,
     destination: NativeStringRef,
@@ -269,7 +269,7 @@ pub(crate) unsafe fn destack_debug_trace_start(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_trace_stop(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TraceHandle,
 ) -> RuntimeResult<()> {
     unsafe { debug_native::destack_debug_trace_stop(context, handle) }

@@ -5,7 +5,7 @@ use crate::platform::ResourceId;
 use crate::platform::fs::{
     FileHandle, FileMode, FileOffset, OpenFlags, OsPath, PathBytes, PathUtf16, core as core_fs,
 };
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Open flag value for write-only truncation.
 const O_WRONLY: u32 = 0x1;
@@ -28,7 +28,7 @@ const O_WRONLY: u32 = 0x1;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathBytes,
     size: FileOffset,
 ) -> RuntimeResult<()> {
@@ -65,7 +65,7 @@ pub(crate) unsafe fn destack_fs_truncate_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     size: FileOffset,
 ) -> RuntimeResult<()> {
@@ -102,7 +102,7 @@ pub(crate) unsafe fn destack_fs_truncate_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: OsPath,
     size: FileOffset,
 ) -> RuntimeResult<()> {

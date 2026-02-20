@@ -5,22 +5,22 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
-    NativeBinding, NativeBindingSet, ReplayPolicy, native_call,
-};
 use crate::platform::security::{
     PlatformCapability, PlatformCapabilityVm, SecurityPolicyRule, SecurityPolicyRuleVm,
 };
 use crate::platform::{
     NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmSlice, abi as platform_abi,
 };
+use crate::runtime::bindings::{
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
+    BindingScope, NativeBinding, NativeBindingSet, native_call,
+};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
+use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
 
@@ -503,7 +503,7 @@ pub const SECURITY_SANDBOX_ENTER: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.security.sandbox.enter",
         "export function sandboxEnter(name: string): Result<SandboxHandle, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["security.sandbox"],
         BindingScope::Runtime,
@@ -529,7 +529,7 @@ pub const SECURITY_SANDBOX_EXIT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.security.sandbox.exit",
         "export function sandboxExit(handle: SandboxHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["security.sandbox"],
         BindingScope::Runtime,
@@ -630,13 +630,13 @@ pub const SECURITY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for security bindings.
 #[inline]
 fn destack_security_sandbox_enter_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::SandboxHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &name;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         SECURITY_SANDBOX_ENTER,
         context.replay_payload_for(SECURITY_SANDBOX_ENTER)?,
         || unsafe { platform_runtime_native::destack_security_sandbox_enter(context, out, name) },
@@ -683,12 +683,12 @@ fn destack_security_sandbox_enter_replay(
 
 #[inline]
 fn destack_security_sandbox_exit_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         SECURITY_SANDBOX_EXIT,
         context.replay_payload_for(SECURITY_SANDBOX_EXIT)?,
         || unsafe { platform_runtime_native::destack_security_sandbox_exit(context, handle) },
@@ -913,96 +913,92 @@ pub unsafe extern "C" fn destack_security_sandbox_exit(
 /// VM replay implementations for security bindings.
 #[inline]
 fn destack_security_sandbox_enter_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            SECURITY_SANDBOX_ENTER,
-            runtime.replay_payload_for(SECURITY_SANDBOX_ENTER)?,
-            context,
-            |context| platform_runtime_vm::destack_security_sandbox_enter(runtime, context, name),
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::SandboxHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = SecuritySandboxEnterReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        SECURITY_SANDBOX_ENTER,
+        runtime.replay_payload_for(SECURITY_SANDBOX_ENTER)?,
+        context,
+        |context| platform_runtime_vm::destack_security_sandbox_enter(runtime, context, name),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::SandboxHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = SecuritySandboxEnterReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        SecuritySandboxEnterReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    SecuritySandboxEnterReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_security_sandbox_enter_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_security_sandbox_exit_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            SECURITY_SANDBOX_EXIT,
-            runtime.replay_payload_for(SECURITY_SANDBOX_EXIT)?,
-            context,
-            |context| platform_runtime_vm::destack_security_sandbox_exit(runtime, context, handle),
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = SecuritySandboxExitReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        SECURITY_SANDBOX_EXIT,
+        runtime.replay_payload_for(SECURITY_SANDBOX_EXIT)?,
+        context,
+        |context| platform_runtime_vm::destack_security_sandbox_exit(runtime, context, handle),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = SecuritySandboxExitReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        SecuritySandboxExitReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    SecuritySandboxExitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_security_sandbox_exit_result(context, result)?;
     Ok(result)
 }
@@ -1015,7 +1011,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
             isolate,
             SECURITY_CAPABILITY_HAS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (capability,) = decode_destack_security_capability_has_args(context, args)?;
 
@@ -1038,7 +1034,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
             isolate,
             SECURITY_CAPABILITY_LIST,
             move |context, _args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // execute binding
                     let result = {
                         runtime.check_policy(SECURITY_CAPABILITY_LIST)?;
@@ -1056,7 +1052,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
             isolate,
             SECURITY_ENFORCE_SANDBOX_SEAL,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) =
                         decode_destack_security_enforce_sandbox_seal_args(context, args)?;
@@ -1078,7 +1074,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
             isolate,
             SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, capabilities) =
                         decode_destack_security_enforce_sandbox_set_capabilities_args(
@@ -1107,7 +1103,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
             isolate,
             SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (enabled,) =
                         decode_destack_security_enforce_set_write_xor_execute_args(context, args)?;
@@ -1131,7 +1127,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
             isolate,
             SECURITY_POLICY_GET,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (scope,) = decode_destack_security_policy_get_args(context, args)?;
 
@@ -1152,7 +1148,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
             isolate,
             SECURITY_POLICY_GET_RULES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (scope,) = decode_destack_security_policy_get_rules_args(context, args)?;
 
@@ -1175,7 +1171,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
             isolate,
             SECURITY_POLICY_SET,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (scope, capabilities) =
                         decode_destack_security_policy_set_args(context, args)?;
@@ -1202,7 +1198,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
             isolate,
             SECURITY_POLICY_SET_RULES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (scope, rules) =
                         decode_destack_security_policy_set_rules_args(context, args)?;
@@ -1226,7 +1222,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
             isolate,
             SECURITY_SANDBOX_ENTER,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (name,) = decode_destack_security_sandbox_enter_args(context, args)?;
 
@@ -1244,7 +1240,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
             isolate,
             SECURITY_SANDBOX_EXIT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_security_sandbox_exit_args(context, args)?;
 

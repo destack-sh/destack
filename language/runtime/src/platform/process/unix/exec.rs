@@ -7,7 +7,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::fs::core as core_fs;
@@ -36,7 +36,7 @@ unsafe fn decode_native_strings(slice: NativeStringSlice) -> RuntimeResult<Vec<S
 
 /// Resolve a directory handle into a unix descriptor.
 fn resolve_directory_fd(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<i32> {
     let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
@@ -57,7 +57,7 @@ fn resolve_directory_fd(
 
 /// Resolve a file handle into a unix descriptor.
 fn resolve_file_fd(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::FileHandle,
 ) -> RuntimeResult<i32> {
     let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
@@ -93,7 +93,7 @@ fn resolve_file_fd(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_exec(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     command: fs::OsPath,
     arguments: NativeStringSlice,
     environment: NativeStringSlice,
@@ -141,7 +141,7 @@ pub(crate) unsafe fn destack_process_exec(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_execat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     directory: resource::DirectoryHandle,
     path: fs::OsPath,
     arguments: NativeStringSlice,
@@ -204,7 +204,7 @@ pub(crate) unsafe fn destack_process_execat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_fexec(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     executable: resource::FileHandle,
     arguments: NativeStringSlice,
     environment: NativeStringSlice,

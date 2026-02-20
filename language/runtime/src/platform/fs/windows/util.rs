@@ -41,7 +41,7 @@ use crate::platform::resource::{
     DirectoryHandle, FileHandle, ResourceEntry, ResourceFinalizer, ResourceKind,
 };
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Random characters used for mkdtemp suffixes.
 pub(super) const MKDTEMP_CHARS: &[u8; 62] =
@@ -224,12 +224,12 @@ pub(super) fn utf16_units(path: PathUtf16, name: &str) -> RuntimeResult<Vec<u16>
 }
 
 /// Build a UTF-16 path payload from units.
-pub(super) fn path_utf16_from_units(context: &RuntimeCallContext, units: &[u16]) -> PathUtf16 {
+pub(super) fn path_utf16_from_units(context: &BindingCallContext, units: &[u16]) -> PathUtf16 {
     PathUtf16Abi::<NativeAbi>(context.store_array(units.to_vec()))
 }
 
 /// Build a UTF-16 path payload from a PathBuf.
-pub(super) fn path_utf16_from_pathbuf(context: &RuntimeCallContext, path: &Path) -> PathUtf16 {
+pub(super) fn path_utf16_from_pathbuf(context: &BindingCallContext, path: &Path) -> PathUtf16 {
     let units: Vec<u16> = path.as_os_str().encode_wide().collect();
     path_utf16_from_units(context, &units)
 }
@@ -700,7 +700,7 @@ impl Drop for SidHandle {
 
 /// Resolve a resource entry for a file handle.
 pub(super) fn file_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<HANDLE> {
     // resolve the resource entry
@@ -728,7 +728,7 @@ pub(super) fn file_handle(
 
 /// Resolve Windows SIDs for POSIX-style uid and gid values.
 pub(super) fn posix_sids(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<(SidHandle, SidHandle)> {
@@ -769,7 +769,7 @@ pub(super) fn win32_error(syscall: &str, code: u32) -> Box<RuntimeError> {
 
 /// Resolve a resource entry for a file handle with cursor tracking.
 pub(super) fn file_resource(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<Arc<Mutex<i64>>> {
     // resolve the resource entry
@@ -792,7 +792,7 @@ pub(super) fn file_resource(
 
 /// Resolve a resource entry for a directory handle.
 pub(super) fn directory_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<HANDLE> {
     // resolve the resource entry
@@ -818,7 +818,7 @@ pub(super) fn directory_handle(
 
 /// Resolve a resource entry for a socket handle.
 pub(super) fn socket_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<SOCKET> {
     let socket = core_net::require_resource(
@@ -841,7 +841,7 @@ pub(super) fn socket_handle(
 
 /// Resolve a directory handle into a PathBuf.
 pub(super) fn directory_path(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<PathBuf> {
     // resolve the directory path from the handle

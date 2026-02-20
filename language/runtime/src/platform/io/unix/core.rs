@@ -22,7 +22,7 @@ use crate::platform::poller::PlatformPollerBackend;
 use crate::platform::proactor::Proactor;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
 use crate::platform::{PlatformError, PlatformErrorCode, PlatformHandle, ResourceId};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Return one standardized null-pointer error for output arguments.
 pub(super) fn require_out<T>(out: *mut T) -> RuntimeResult<()> {
@@ -95,7 +95,7 @@ fn event_signal_descriptor_map() -> &'static Mutex<HashMap<(usize, ResourceId), 
 /// Return the descriptor-map key for one event token in one runtime instance.
 #[cfg(all(unix, not(target_os = "linux")))]
 fn event_signal_descriptor_key(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     token: EventToken,
 ) -> (usize, ResourceId) {
     (io_core::runtime_instance_key(context), ResourceId(token.0))
@@ -217,7 +217,7 @@ pub(crate) fn host_completion_create_proactor(entries: u32) -> RuntimeResult<Box
 
 /// Execute one generic descriptor fcntl-style operation.
 pub(crate) fn host_control_fcntl(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ResourceId,
     command: DescriptorControlCommand,
     argument: u64,
@@ -267,7 +267,7 @@ pub(crate) fn host_control_fcntl(
 
 /// Execute one generic descriptor ioctl-style operation.
 pub(crate) fn host_control_ioctl(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ResourceId,
     request: DescriptorRequest,
 ) -> RuntimeResult<DescriptorResult> {
@@ -354,7 +354,7 @@ pub(crate) const fn host_map_poll_backend(backend: PollBackend) -> PlatformPolle
 
 /// Resolve one poll target resource into one platform handle.
 pub(crate) fn host_poll_resolve_target_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     target: ResourceId,
 ) -> RuntimeResult<PlatformHandle> {
     // resolve one runtime target entry
@@ -385,7 +385,7 @@ pub(crate) fn host_poll_resolve_target_handle(
 
 /// Resolve one completion target resource into one platform handle.
 pub(crate) fn host_completion_resolve_target_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     target: ResourceId,
     operation: &'static str,
 ) -> RuntimeResult<PlatformHandle> {
@@ -414,7 +414,7 @@ pub(crate) fn host_completion_resolve_target_handle(
 
 /// Register one accepted socket handle into the runtime resource table.
 pub(crate) fn host_completion_register_accepted_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: PlatformHandle,
 ) -> RuntimeResult<i64> {
     let descriptor = handle.as_raw_fd();
@@ -431,7 +431,7 @@ pub(crate) fn host_completion_register_accepted_handle(
 
 /// Open one event token on Unix hosts.
 pub(crate) fn host_event_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     initial: u64,
 ) -> RuntimeResult<EventToken> {
     #[cfg(target_os = "linux")]
@@ -504,7 +504,7 @@ pub(crate) fn host_event_open(
 
 /// Close one event token on Unix hosts.
 pub(crate) fn host_event_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     token: EventToken,
 ) -> RuntimeResult<()> {
     #[cfg(all(unix, not(target_os = "linux")))]
@@ -527,7 +527,7 @@ pub(crate) fn host_event_close(
 
 /// Signal one event token on Unix hosts.
 pub(crate) fn host_event_signal(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     token: EventToken,
     value: u64,
 ) -> RuntimeResult<()> {

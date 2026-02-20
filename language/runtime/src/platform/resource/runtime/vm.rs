@@ -2,7 +2,7 @@ use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::resource::{ResourceId, ResourceKindVm, ResourceOwnership, vm as resource_vm};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Close a resource by identifier.
 ///
@@ -22,7 +22,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_resource_close(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
@@ -47,7 +47,7 @@ pub(crate) fn destack_resource_close(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_resource_kind(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<ResourceKindVm> {
@@ -72,7 +72,7 @@ pub(crate) fn destack_resource_kind(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_resource_remove(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
@@ -97,7 +97,7 @@ pub(crate) fn destack_resource_remove(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_resource_transfer(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
     ownership: ResourceOwnership,

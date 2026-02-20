@@ -1,7 +1,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::time::ClockMetadata;
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::{BindingCallContext, RuntimeHookState};
 use destack_workspace::TimeMode;
 
 /// Return one invalid-pointer error.
@@ -16,32 +16,38 @@ pub(crate) fn unsupported_host_operation_error(operation: &str) -> Box<RuntimeEr
 }
 
 /// Return true when the runtime clock is virtualized.
-pub(crate) fn is_virtual_clock(context: &RuntimeCallContext) -> bool {
+pub(crate) fn is_virtual_clock(context: &BindingCallContext) -> bool {
     context.runtime().time.mode() == TimeMode::Virtual
 }
 
 /// Return one runtime-backed wall clock sample.
-pub(crate) fn runtime_wall_nanos(context: &RuntimeCallContext) -> u64 {
+pub(crate) fn runtime_wall_nanos(context: &BindingCallContext) -> u64 {
+    context
+        .rules()
+        .on_time_read(RuntimeHookState::from_engine(Some(context.engine())));
     context.runtime().time.wall_nanos()
 }
 
 /// Return one runtime-backed monotonic clock sample.
-pub(crate) fn runtime_mono_nanos(context: &RuntimeCallContext) -> u64 {
+pub(crate) fn runtime_mono_nanos(context: &BindingCallContext) -> u64 {
+    context
+        .rules()
+        .on_time_read(RuntimeHookState::from_engine(Some(context.engine())));
     context.runtime().time.mono_nanos()
 }
 
 /// Sleep one runtime-backed duration.
-pub(crate) fn runtime_sleep_nanos(context: &RuntimeCallContext, duration: u64) {
+pub(crate) fn runtime_sleep_nanos(context: &BindingCallContext, duration: u64) {
     context.runtime().time.sleep_nanos(duration);
 }
 
 /// Sleep until one runtime-backed wall deadline.
-pub(crate) fn runtime_sleep_until_wall_nanos(context: &RuntimeCallContext, deadline: u64) {
+pub(crate) fn runtime_sleep_until_wall_nanos(context: &BindingCallContext, deadline: u64) {
     context.runtime().time.sleep_until_nanos(deadline);
 }
 
 /// Sleep until one runtime-backed monotonic deadline.
-pub(crate) fn runtime_sleep_until_mono_nanos(context: &RuntimeCallContext, deadline: u64) {
+pub(crate) fn runtime_sleep_until_mono_nanos(context: &BindingCallContext, deadline: u64) {
     let now = runtime_mono_nanos(context);
     if deadline <= now {
         return;

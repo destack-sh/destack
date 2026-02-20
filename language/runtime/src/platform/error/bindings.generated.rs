@@ -5,18 +5,18 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::{
+use crate::platform::error::PlatformErrorVm;
+use crate::platform::{PlatformError, RuntimeStatus, VmArray, abi as platform_abi};
+use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingScope, NativeBinding,
     NativeBindingSet, native_call,
 };
-use crate::platform::error::PlatformErrorVm;
-use crate::platform::{PlatformError, RuntimeStatus, VmArray, abi as platform_abi};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::with_runtime_call_context;
+use crate::runtime::with_binding_call_context;
 
 use crate::platform::error as platform_error;
 use crate::platform::error::runtime::{
@@ -207,7 +207,7 @@ pub fn register_error_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             ERROR_ERROR_TAKE_PLATFORM_ERROR,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (errorid,) =
                         decode_destack_error_error_take_platform_error_args(context, args)?;

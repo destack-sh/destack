@@ -27,7 +27,7 @@ use crate::platform::gpu::{
     GpuVertexAttributeVm, GpuVertexBufferLayoutVm, GpuVertexStateVm, GpuVertexStepMode,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 /// Close one GPU adapter.
@@ -48,7 +48,7 @@ use destack_vm as vm;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_adapter_close(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<()> {
@@ -77,7 +77,7 @@ pub(crate) fn destack_gpu_adapter_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_adapter_features(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<VmSlice<GpuFeatureId>> {
@@ -106,7 +106,7 @@ pub(crate) fn destack_gpu_adapter_features(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_adapter_format_capabilities(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuAdapterHandle,
     format: u32,
@@ -136,7 +136,7 @@ pub(crate) fn destack_gpu_adapter_format_capabilities(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_adapter_has_feature(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuAdapterHandle,
     feature: GpuFeatureId,
@@ -166,7 +166,7 @@ pub(crate) fn destack_gpu_adapter_has_feature(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_adapter_info(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<GpuAdapterInfoVm> {
@@ -195,7 +195,7 @@ pub(crate) fn destack_gpu_adapter_info(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_adapter_limits(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<GpuAdapterLimitsVm> {
@@ -224,7 +224,7 @@ pub(crate) fn destack_gpu_adapter_limits(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_adapter_list(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     request: GpuAdapterRequestVm,
 ) -> RuntimeResult<VmArray<GpuAdapterInfoVm>> {
@@ -253,7 +253,7 @@ pub(crate) fn destack_gpu_adapter_list(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_adapter_open(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<resource::GpuAdapterHandle> {
@@ -282,7 +282,7 @@ pub(crate) fn destack_gpu_adapter_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_bind_group_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     layout: resource::GpuBindGroupLayoutHandle,
@@ -314,7 +314,7 @@ pub(crate) fn destack_gpu_bind_group_create(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_bind_group_destroy(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuBindGroupHandle,
 ) -> RuntimeResult<()> {
@@ -343,7 +343,7 @@ pub(crate) fn destack_gpu_bind_group_destroy(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_bind_group_layout_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     entries: VmSlice<GpuBindGroupLayoutEntryVm>,
@@ -374,7 +374,7 @@ pub(crate) fn destack_gpu_bind_group_layout_create(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_bind_group_layout_destroy(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuBindGroupLayoutHandle,
 ) -> RuntimeResult<()> {
@@ -403,7 +403,7 @@ pub(crate) fn destack_gpu_bind_group_layout_destroy(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_pipeline_layout_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuPipelineLayoutOptionsVm,
@@ -433,7 +433,7 @@ pub(crate) fn destack_gpu_pipeline_layout_create(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_pipeline_layout_destroy(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuPipelineLayoutHandle,
 ) -> RuntimeResult<()> {
@@ -462,7 +462,7 @@ pub(crate) fn destack_gpu_pipeline_layout_destroy(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_bind_compute_pipeline(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuComputePassHandle,
     pipeline: resource::GpuPipelineHandle,
@@ -492,7 +492,7 @@ pub(crate) fn destack_gpu_command_bind_compute_pipeline(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_bind_render_pipeline(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     pipeline: resource::GpuPipelineHandle,
@@ -522,7 +522,7 @@ pub(crate) fn destack_gpu_command_bind_render_pipeline(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_clear_buffer(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     buffer: resource::GpuBufferHandle,
@@ -555,7 +555,7 @@ pub(crate) fn destack_gpu_command_clear_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_compute_pass_begin(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     options: GpuComputePassOptionsVm,
@@ -585,7 +585,7 @@ pub(crate) fn destack_gpu_command_compute_pass_begin(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_compute_pass_end(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<()> {
@@ -614,7 +614,7 @@ pub(crate) fn destack_gpu_command_compute_pass_end(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_compute_pass_insert_debug_marker(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuComputePassHandle,
     marker: vm::StringHandle,
@@ -644,7 +644,7 @@ pub(crate) fn destack_gpu_command_compute_pass_insert_debug_marker(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_compute_pass_pop_debug_group(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<()> {
@@ -673,7 +673,7 @@ pub(crate) fn destack_gpu_command_compute_pass_pop_debug_group(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_compute_pass_push_debug_group(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuComputePassHandle,
     label: vm::StringHandle,
@@ -703,7 +703,7 @@ pub(crate) fn destack_gpu_command_compute_pass_push_debug_group(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_copy_buffer(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     src: resource::GpuBufferHandle,
@@ -737,7 +737,7 @@ pub(crate) fn destack_gpu_command_copy_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_copy_buffer_to_texture(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     source: GpuBufferCopyVm,
@@ -769,7 +769,7 @@ pub(crate) fn destack_gpu_command_copy_buffer_to_texture(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_copy_texture_to_buffer(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     source: GpuTextureCopyVm,
@@ -801,7 +801,7 @@ pub(crate) fn destack_gpu_command_copy_texture_to_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_copy_texture_to_texture(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     source: GpuTextureCopyVm,
@@ -833,7 +833,7 @@ pub(crate) fn destack_gpu_command_copy_texture_to_texture(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_dispatch(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuComputePassHandle,
     groupx: u32,
@@ -865,7 +865,7 @@ pub(crate) fn destack_gpu_command_dispatch(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_dispatch_indirect(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuComputePassHandle,
     buffer: resource::GpuBufferHandle,
@@ -896,7 +896,7 @@ pub(crate) fn destack_gpu_command_dispatch_indirect(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_draw(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     vertexcount: u32,
@@ -935,7 +935,7 @@ pub(crate) fn destack_gpu_command_draw(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_draw_indexed(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     indexcount: u32,
@@ -976,7 +976,7 @@ pub(crate) fn destack_gpu_command_draw_indexed(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_draw_indexed_indirect(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -1009,7 +1009,7 @@ pub(crate) fn destack_gpu_command_draw_indexed_indirect(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_draw_indirect(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -1042,7 +1042,7 @@ pub(crate) fn destack_gpu_command_draw_indirect(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_encoder_close(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<()> {
@@ -1071,7 +1071,7 @@ pub(crate) fn destack_gpu_command_encoder_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_encoder_finish(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<()> {
@@ -1100,7 +1100,7 @@ pub(crate) fn destack_gpu_command_encoder_finish(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_encoder_open(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuCommandEncoderOptionsVm,
@@ -1130,7 +1130,7 @@ pub(crate) fn destack_gpu_command_encoder_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_execute_bundles(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     bundles: VmSlice<resource::GpuRenderBundleHandle>,
@@ -1160,7 +1160,7 @@ pub(crate) fn destack_gpu_command_execute_bundles(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_insert_debug_marker(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     marker: vm::StringHandle,
@@ -1191,7 +1191,7 @@ pub(crate) fn destack_gpu_command_insert_debug_marker(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -1224,7 +1224,7 @@ pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect_count(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -1268,7 +1268,7 @@ pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect_count(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_multi_draw_indirect(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -1301,7 +1301,7 @@ pub(crate) fn destack_gpu_command_multi_draw_indirect(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_multi_draw_indirect_count(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -1344,7 +1344,7 @@ pub(crate) fn destack_gpu_command_multi_draw_indirect_count(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_pop_debug_group(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<()> {
@@ -1373,7 +1373,7 @@ pub(crate) fn destack_gpu_command_pop_debug_group(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_push_debug_group(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     label: vm::StringHandle,
@@ -1403,7 +1403,7 @@ pub(crate) fn destack_gpu_command_push_debug_group(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_queue_submit(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     queue: resource::GpuQueueHandle,
     commandlists: VmSlice<resource::GpuCommandListHandle>,
@@ -1434,7 +1434,7 @@ pub(crate) fn destack_gpu_queue_submit(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_queue_wait_idle(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
@@ -1464,7 +1464,7 @@ pub(crate) fn destack_gpu_queue_wait_idle(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_queue_write_buffer(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     queue: resource::GpuQueueHandle,
     buffer: resource::GpuBufferHandle,
@@ -1498,7 +1498,7 @@ pub(crate) fn destack_gpu_queue_write_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_queue_write_texture(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     queue: resource::GpuQueueHandle,
     destination: GpuTextureCopyVm,
@@ -1531,7 +1531,7 @@ pub(crate) fn destack_gpu_queue_write_texture(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_bundle_destroy(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderBundleHandle,
 ) -> RuntimeResult<()> {
@@ -1560,7 +1560,7 @@ pub(crate) fn destack_gpu_render_bundle_destroy(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_bundle_draw(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     vertexcount: u32,
@@ -1599,7 +1599,7 @@ pub(crate) fn destack_gpu_render_bundle_draw(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_bundle_draw_indexed(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     indexcount: u32,
@@ -1640,7 +1640,7 @@ pub(crate) fn destack_gpu_render_bundle_draw_indexed(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_bundle_draw_indexed_indirect(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     buffer: resource::GpuBufferHandle,
@@ -1673,7 +1673,7 @@ pub(crate) fn destack_gpu_render_bundle_draw_indexed_indirect(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_bundle_draw_indirect(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     buffer: resource::GpuBufferHandle,
@@ -1706,7 +1706,7 @@ pub(crate) fn destack_gpu_render_bundle_draw_indirect(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_bundle_encoder_close(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<()> {
@@ -1735,7 +1735,7 @@ pub(crate) fn destack_gpu_render_bundle_encoder_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_bundle_encoder_finish(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<resource::GpuRenderBundleHandle> {
@@ -1764,7 +1764,7 @@ pub(crate) fn destack_gpu_render_bundle_encoder_finish(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_bundle_encoder_open(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuRenderBundleEncoderOptionsVm,
@@ -1794,7 +1794,7 @@ pub(crate) fn destack_gpu_render_bundle_encoder_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_bundle_insert_debug_marker(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     marker: vm::StringHandle,
@@ -1824,7 +1824,7 @@ pub(crate) fn destack_gpu_render_bundle_insert_debug_marker(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_bundle_pop_debug_group(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<()> {
@@ -1853,7 +1853,7 @@ pub(crate) fn destack_gpu_render_bundle_pop_debug_group(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_bundle_push_debug_group(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     label: vm::StringHandle,
@@ -1883,7 +1883,7 @@ pub(crate) fn destack_gpu_render_bundle_push_debug_group(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_bundle_set_bind_group(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     index: u32,
@@ -1915,7 +1915,7 @@ pub(crate) fn destack_gpu_render_bundle_set_bind_group(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_bundle_set_index_buffer(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     buffer: resource::GpuBufferHandle,
@@ -1948,7 +1948,7 @@ pub(crate) fn destack_gpu_render_bundle_set_index_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_bundle_set_pipeline(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     pipeline: resource::GpuPipelineHandle,
@@ -1978,7 +1978,7 @@ pub(crate) fn destack_gpu_render_bundle_set_pipeline(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_bundle_set_vertex_buffer(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderBundleEncoderHandle,
     slot: u32,
@@ -2012,7 +2012,7 @@ pub(crate) fn destack_gpu_render_bundle_set_vertex_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_render_pass_begin(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     options: GpuRenderPassOptionsVm,
@@ -2042,7 +2042,7 @@ pub(crate) fn destack_gpu_command_render_pass_begin(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_render_pass_end(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
@@ -2071,7 +2071,7 @@ pub(crate) fn destack_gpu_command_render_pass_end(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_render_pass_insert_debug_marker(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     marker: vm::StringHandle,
@@ -2101,7 +2101,7 @@ pub(crate) fn destack_gpu_command_render_pass_insert_debug_marker(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_render_pass_pop_debug_group(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
@@ -2130,7 +2130,7 @@ pub(crate) fn destack_gpu_command_render_pass_pop_debug_group(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_render_pass_push_debug_group(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     label: vm::StringHandle,
@@ -2160,7 +2160,7 @@ pub(crate) fn destack_gpu_command_render_pass_push_debug_group(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_set_blend_constant(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     r: f64,
@@ -2193,7 +2193,7 @@ pub(crate) fn destack_gpu_command_set_blend_constant(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_set_compute_bind_group(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuComputePassHandle,
     index: u32,
@@ -2225,7 +2225,7 @@ pub(crate) fn destack_gpu_command_set_compute_bind_group(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_set_index_buffer(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -2258,7 +2258,7 @@ pub(crate) fn destack_gpu_command_set_index_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_set_render_bind_group(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     index: u32,
@@ -2290,7 +2290,7 @@ pub(crate) fn destack_gpu_command_set_render_bind_group(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_set_scissor(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     x: u32,
@@ -2323,7 +2323,7 @@ pub(crate) fn destack_gpu_command_set_scissor(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_set_stencil_reference(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     reference: u32,
@@ -2353,7 +2353,7 @@ pub(crate) fn destack_gpu_command_set_stencil_reference(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_set_vertex_buffer(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     slot: u32,
@@ -2386,7 +2386,7 @@ pub(crate) fn destack_gpu_command_set_vertex_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_set_viewport(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuRenderPassHandle,
     x: f64,
@@ -2421,7 +2421,7 @@ pub(crate) fn destack_gpu_command_set_viewport(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_set_label(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ResourceId,
     label: vm::StringHandle,
@@ -2451,7 +2451,7 @@ pub(crate) fn destack_gpu_set_label(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_device_close(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -2480,7 +2480,7 @@ pub(crate) fn destack_gpu_device_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_device_features(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<VmSlice<GpuFeatureId>> {
@@ -2509,7 +2509,7 @@ pub(crate) fn destack_gpu_device_features(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_device_has_feature(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     feature: GpuFeatureId,
@@ -2539,7 +2539,7 @@ pub(crate) fn destack_gpu_device_has_feature(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_device_info(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<GpuDeviceInfoVm> {
@@ -2568,7 +2568,7 @@ pub(crate) fn destack_gpu_device_info(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_device_limits(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<GpuAdapterLimitsVm> {
@@ -2597,7 +2597,7 @@ pub(crate) fn destack_gpu_device_limits(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_device_open(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     adapter: resource::GpuAdapterHandle,
     options: GpuDeviceOptionsVm,
@@ -2627,7 +2627,7 @@ pub(crate) fn destack_gpu_device_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_device_poll(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     wait: bool,
@@ -2658,7 +2658,7 @@ pub(crate) fn destack_gpu_device_poll(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_device_pop_error_scope(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     timeoutns: u64,
@@ -2688,7 +2688,7 @@ pub(crate) fn destack_gpu_device_pop_error_scope(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_device_push_error_scope(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     filter: GpuErrorFilter,
@@ -2718,7 +2718,7 @@ pub(crate) fn destack_gpu_device_push_error_scope(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_device_queue(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<resource::GpuQueueHandle> {
@@ -2747,7 +2747,7 @@ pub(crate) fn destack_gpu_device_queue(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_device_status(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<GpuDeviceStatusVm> {
@@ -2776,7 +2776,7 @@ pub(crate) fn destack_gpu_device_status(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_pipeline_bind_group_layout(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     pipeline: resource::GpuPipelineHandle,
     groupindex: u32,
@@ -2806,7 +2806,7 @@ pub(crate) fn destack_gpu_pipeline_bind_group_layout(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_compute_pipeline_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuComputePipelineOptionsVm,
@@ -2836,7 +2836,7 @@ pub(crate) fn destack_gpu_compute_pipeline_create(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_pipeline_destroy(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
@@ -2865,7 +2865,7 @@ pub(crate) fn destack_gpu_pipeline_destroy(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_render_pipeline_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuRenderPipelineOptionsVm,
@@ -2895,7 +2895,7 @@ pub(crate) fn destack_gpu_render_pipeline_create(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_shader_compilation_info(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuShaderHandle,
     timeoutns: u64,
@@ -2925,7 +2925,7 @@ pub(crate) fn destack_gpu_shader_compilation_info(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_shader_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuShaderOptionsVm,
@@ -2956,7 +2956,7 @@ pub(crate) fn destack_gpu_shader_create(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_shader_destroy(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuShaderHandle,
 ) -> RuntimeResult<()> {
@@ -2986,7 +2986,7 @@ pub(crate) fn destack_gpu_shader_destroy(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_gpu_surface_acquire(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     surface: resource::GpuSurfaceHandle,
     timeoutns: u64,
@@ -3016,7 +3016,7 @@ pub(crate) fn destack_gpu_surface_acquire(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_gpu_surface_capabilities(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     surface: resource::GpuSurfaceHandle,
     adapter: resource::GpuAdapterHandle,
@@ -3046,7 +3046,7 @@ pub(crate) fn destack_gpu_surface_capabilities(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_gpu_surface_close(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     surface: resource::GpuSurfaceHandle,
 ) -> RuntimeResult<()> {
@@ -3075,7 +3075,7 @@ pub(crate) fn destack_gpu_surface_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_gpu_surface_configure(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     surface: resource::GpuSurfaceHandle,
@@ -3106,7 +3106,7 @@ pub(crate) fn destack_gpu_surface_configure(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_gpu_surface_open(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<resource::GpuSurfaceHandle> {
@@ -3136,7 +3136,7 @@ pub(crate) fn destack_gpu_surface_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_gpu_surface_present(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     surface: resource::GpuSurfaceHandle,
     options: GpuPresentOptionsVm,
@@ -3166,7 +3166,7 @@ pub(crate) fn destack_gpu_surface_present(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_gpu_surface_unconfigure(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     surface: resource::GpuSurfaceHandle,
 ) -> RuntimeResult<()> {
@@ -3195,7 +3195,7 @@ pub(crate) fn destack_gpu_surface_unconfigure(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_buffer_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuBufferOptionsVm,
@@ -3225,7 +3225,7 @@ pub(crate) fn destack_gpu_buffer_create(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_buffer_destroy(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<()> {
@@ -3254,7 +3254,7 @@ pub(crate) fn destack_gpu_buffer_destroy(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_buffer_info(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<GpuBufferInfoVm> {
@@ -3283,7 +3283,7 @@ pub(crate) fn destack_gpu_buffer_info(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_buffer_map(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuBufferHandle,
     offset: u64,
@@ -3315,7 +3315,7 @@ pub(crate) fn destack_gpu_buffer_map(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_buffer_read(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuBufferHandle,
     offset: u64,
@@ -3346,7 +3346,7 @@ pub(crate) fn destack_gpu_buffer_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_buffer_unmap(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<()> {
@@ -3375,7 +3375,7 @@ pub(crate) fn destack_gpu_buffer_unmap(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_buffer_write(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuBufferHandle,
     offset: u64,
@@ -3406,7 +3406,7 @@ pub(crate) fn destack_gpu_buffer_write(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_sampler_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuSamplerOptionsVm,
@@ -3436,7 +3436,7 @@ pub(crate) fn destack_gpu_sampler_create(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_sampler_destroy(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuSamplerHandle,
 ) -> RuntimeResult<()> {
@@ -3465,7 +3465,7 @@ pub(crate) fn destack_gpu_sampler_destroy(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_texture_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuTextureOptionsVm,
@@ -3495,7 +3495,7 @@ pub(crate) fn destack_gpu_texture_create(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_texture_destroy(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<()> {
@@ -3524,7 +3524,7 @@ pub(crate) fn destack_gpu_texture_destroy(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_texture_info(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<GpuTextureInfoVm> {
@@ -3553,7 +3553,7 @@ pub(crate) fn destack_gpu_texture_info(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_texture_view_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     texture: resource::GpuTextureHandle,
     options: GpuTextureViewOptionsVm,
@@ -3583,7 +3583,7 @@ pub(crate) fn destack_gpu_texture_view_create(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_texture_view_destroy(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuTextureViewHandle,
 ) -> RuntimeResult<()> {
@@ -3612,7 +3612,7 @@ pub(crate) fn destack_gpu_texture_view_destroy(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_begin_compute_pipeline_statistics_query(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     computepass: resource::GpuComputePassHandle,
     queryset: resource::GpuQuerySetHandle,
@@ -3643,7 +3643,7 @@ pub(crate) fn destack_gpu_command_begin_compute_pipeline_statistics_query(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_begin_occlusion_query(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
@@ -3674,7 +3674,7 @@ pub(crate) fn destack_gpu_command_begin_occlusion_query(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_begin_render_pipeline_statistics_query(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
@@ -3705,7 +3705,7 @@ pub(crate) fn destack_gpu_command_begin_render_pipeline_statistics_query(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_end_compute_pipeline_statistics_query(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     computepass: resource::GpuComputePassHandle,
 ) -> RuntimeResult<()> {
@@ -3734,7 +3734,7 @@ pub(crate) fn destack_gpu_command_end_compute_pipeline_statistics_query(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_end_occlusion_query(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
@@ -3763,7 +3763,7 @@ pub(crate) fn destack_gpu_command_end_occlusion_query(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_end_render_pipeline_statistics_query(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
@@ -3792,7 +3792,7 @@ pub(crate) fn destack_gpu_command_end_render_pipeline_statistics_query(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_resolve_queries(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     commandlist: resource::GpuCommandListHandle,
     queryset: resource::GpuQuerySetHandle,
@@ -3833,7 +3833,7 @@ pub(crate) fn destack_gpu_command_resolve_queries(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_command_write_timestamp(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     commandlist: resource::GpuCommandListHandle,
     queryset: resource::GpuQuerySetHandle,
@@ -3864,7 +3864,7 @@ pub(crate) fn destack_gpu_command_write_timestamp(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_fence_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuFenceOptionsVm,
@@ -3894,7 +3894,7 @@ pub(crate) fn destack_gpu_fence_create(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_fence_destroy(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuFenceHandle,
 ) -> RuntimeResult<()> {
@@ -3924,7 +3924,7 @@ pub(crate) fn destack_gpu_fence_destroy(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_query_set_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuQuerySetOptionsVm,
@@ -3954,7 +3954,7 @@ pub(crate) fn destack_gpu_query_set_create(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_query_set_destroy(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeResult<()> {
@@ -3983,7 +3983,7 @@ pub(crate) fn destack_gpu_query_set_destroy(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_query_set_info(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeResult<GpuQuerySetInfoVm> {
@@ -4012,7 +4012,7 @@ pub(crate) fn destack_gpu_query_set_info(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_queue_signal(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     queue: resource::GpuQueueHandle,
     fence: resource::GpuFenceHandle,
@@ -4043,7 +4043,7 @@ pub(crate) fn destack_gpu_queue_signal(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_queue_timestamp_period(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     queue: resource::GpuQueueHandle,
 ) -> RuntimeResult<f64> {
@@ -4072,7 +4072,7 @@ pub(crate) fn destack_gpu_queue_timestamp_period(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_queue_wait(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     queue: resource::GpuQueueHandle,
     fence: resource::GpuFenceHandle,
@@ -4104,7 +4104,7 @@ pub(crate) fn destack_gpu_queue_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_gpu_queue_work_done(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     queue: resource::GpuQueueHandle,
     timeoutns: u64,

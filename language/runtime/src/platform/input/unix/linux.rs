@@ -21,7 +21,7 @@ use crate::platform::input::{
     InputTouchEventPayload, InputTouchState,
 };
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Linux input-device directory path.
 pub(super) const INPUT_DEVICE_DIRECTORY: &str = "/dev/input";
@@ -620,7 +620,7 @@ pub(super) fn linux_runtime_device_id_for_path(path: &str) -> String {
 
 /// Enumerate Linux evdev devices and map them into runtime metadata.
 pub(super) fn list_linux_devices(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
 ) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
     let evdev_paths = list_linux_device_paths()?;
     let hidraw_paths = list_linux_hidraw_paths()?;
@@ -702,7 +702,7 @@ pub(super) fn list_linux_devices(
 
 /// Read one Linux evdev event from one descriptor.
 pub(super) fn read_linux_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     descriptor: RawFd,
     nonblocking: bool,
     device_id: &str,
@@ -958,7 +958,7 @@ fn pointer_buttons_from_key_bits(key_bits: &[u8]) -> u32 {
 
 /// Query one keyboard snapshot from one Linux input descriptor.
 pub(super) fn keyboard_state_snapshot(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     descriptor: RawFd,
     sequence: u64,
     device_id: &str,
@@ -1079,7 +1079,7 @@ fn read_gamepad_trigger(descriptor: RawFd, axis: u16) -> f64 {
 
 /// Query one gamepad snapshot from one Linux input descriptor.
 pub(super) fn gamepad_state_snapshot(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     descriptor: RawFd,
     player_index: u8,
     operation: &'static str,
@@ -1274,7 +1274,7 @@ pub(super) fn gamepad_state_snapshot(
 
 /// Query one touch snapshot from one Linux input descriptor.
 pub(super) fn touch_state_snapshot(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     descriptor: RawFd,
     sequence: u64,
     device_id: &str,
@@ -1855,7 +1855,7 @@ fn is_touch_absolute_code(code: u16) -> bool {
 
 /// Map one Linux evdev payload into one runtime input event.
 fn map_linux_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     raw: LinuxInputEvent,
     device_id: &str,
     device_kind: InputDeviceKind,
@@ -2301,7 +2301,7 @@ pub(super) fn linux_device_kind_for_path(path: &str) -> InputDeviceKind {
 
 /// Query one backend-derived capabilities payload for one opened Linux descriptor.
 pub(super) fn query_linux_capabilities(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     descriptor: RawFd,
     device_kind: InputDeviceKind,
     supports_exclusive_grab: bool,

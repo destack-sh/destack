@@ -5,7 +5,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::tty::bindings_generated as bindings;
 use crate::platform::{NativeSlice, PlatformError};
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::resource;
@@ -29,7 +29,7 @@ use crate::platform::tty::{PtyPair, TtyMode, TtySize};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_read(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u64,
     handle: resource::TtyHandle,
     buffer: NativeSlice<u8>,
@@ -60,7 +60,7 @@ pub(crate) unsafe fn destack_tty_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_write(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u64,
     handle: resource::TtyHandle,
     buffer: NativeSlice<u8>,
@@ -91,7 +91,7 @@ pub(crate) unsafe fn destack_tty_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_get_mode(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut TtyMode,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
@@ -121,7 +121,7 @@ pub(crate) unsafe fn destack_tty_get_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_set_mode(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::TtyHandle,
     mode: TtyMode,
 ) -> RuntimeResult<()> {
@@ -148,7 +148,7 @@ pub(crate) unsafe fn destack_tty_set_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_pty_close(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -174,7 +174,7 @@ pub(crate) unsafe fn destack_tty_pty_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_pty_open(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut PtyPair,
     rows: u32,
     columns: u32,
@@ -206,7 +206,7 @@ pub(crate) unsafe fn destack_tty_pty_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_get_size(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut TtySize,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
@@ -236,7 +236,7 @@ pub(crate) unsafe fn destack_tty_get_size(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_set_size(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::TtyHandle,
     size: TtySize,
 ) -> RuntimeResult<()> {

@@ -8,7 +8,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 use windows_sys::Win32::Foundation::{
     CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, HANDLE, INVALID_HANDLE_VALUE,
@@ -74,7 +74,7 @@ unsafe fn decode_native_strings(slice: NativeStringSlice) -> RuntimeResult<Vec<S
 
 /// Resolve a file handle into a Windows handle value.
 fn resolve_file_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::FileHandle,
 ) -> RuntimeResult<HANDLE> {
     core_fs::require_resource(
@@ -96,7 +96,7 @@ fn resolve_file_handle(
 
 /// Resolve a pipe handle into a Windows handle value.
 fn resolve_pipe_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::PipeHandle,
 ) -> RuntimeResult<HANDLE> {
     core_fs::require_resource(
@@ -289,7 +289,7 @@ fn close_spawn_handle(handle: HANDLE) {
 
 /// Resolve one stdio slot into a concrete inheritable child handle.
 fn resolve_spawn_stdio_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     index: usize,
     descriptor: ProcessStdio,
 ) -> RuntimeResult<HANDLE> {
@@ -331,7 +331,7 @@ fn resolve_spawn_stdio_handle(
 
 /// Resolve explicit stdio descriptors into startup handles.
 fn resolve_spawn_stdio_handles(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     stdio: &[ProcessStdio],
 ) -> RuntimeResult<Option<[HANDLE; 3]>> {
     if stdio.is_empty() {
@@ -407,7 +407,7 @@ fn spawn_current_directory(options: ProcessSpawnOptions) -> RuntimeResult<Option
 
 /// Spawn a child process and register its handle payload.
 fn spawn_process(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::ProcessHandle,
     command: String,
     arguments: Vec<String>,
@@ -531,7 +531,7 @@ fn spawn_process(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_spawn(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::ProcessHandle,
     command: fs::OsPath,
     arguments: NativeStringSlice,
@@ -567,7 +567,7 @@ pub(crate) unsafe fn destack_process_spawn(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_spawn_with_actions(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::ProcessHandle,
     command: fs::OsPath,
     arguments: NativeStringSlice,

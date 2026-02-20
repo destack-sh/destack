@@ -7,7 +7,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
@@ -38,7 +38,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_egid(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut GroupId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -70,7 +70,7 @@ pub(crate) unsafe fn destack_process_egid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_euid(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut UserId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -102,7 +102,7 @@ pub(crate) unsafe fn destack_process_euid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_gid(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut GroupId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -134,7 +134,7 @@ pub(crate) unsafe fn destack_process_gid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_group_ids(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut ProcessGroupIds,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -203,7 +203,7 @@ pub(crate) unsafe fn destack_process_group_ids(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_groups(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<GroupId>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -255,7 +255,7 @@ pub(crate) unsafe fn destack_process_groups(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_pid(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -287,7 +287,7 @@ pub(crate) unsafe fn destack_process_pid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_ppid(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -319,7 +319,7 @@ pub(crate) unsafe fn destack_process_ppid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_egid(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     groupid: GroupId,
 ) -> RuntimeResult<()> {
     let result = unsafe { libc::setegid(groupid.0 as libc::gid_t) };
@@ -351,7 +351,7 @@ pub(crate) unsafe fn destack_process_set_egid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_euid(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     userid: UserId,
 ) -> RuntimeResult<()> {
     let result = unsafe { libc::seteuid(userid.0 as libc::uid_t) };
@@ -383,7 +383,7 @@ pub(crate) unsafe fn destack_process_set_euid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_gid(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     groupid: GroupId,
 ) -> RuntimeResult<()> {
     let result = unsafe { libc::setgid(groupid.0 as libc::gid_t) };
@@ -415,7 +415,7 @@ pub(crate) unsafe fn destack_process_set_gid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_group_ids(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     ids: ProcessGroupIds,
 ) -> RuntimeResult<()> {
     #[cfg(any(
@@ -485,7 +485,7 @@ pub(crate) unsafe fn destack_process_set_group_ids(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_groups(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     groups: NativeSlice<GroupId>,
 ) -> RuntimeResult<()> {
     let groups = unsafe { groups.as_slice()? };
@@ -530,7 +530,7 @@ pub(crate) unsafe fn destack_process_set_groups(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_uid(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     userid: UserId,
 ) -> RuntimeResult<()> {
     let result = unsafe { libc::setuid(userid.0 as libc::uid_t) };
@@ -562,7 +562,7 @@ pub(crate) unsafe fn destack_process_set_uid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_user_ids(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     ids: ProcessUserIds,
 ) -> RuntimeResult<()> {
     #[cfg(any(
@@ -632,7 +632,7 @@ pub(crate) unsafe fn destack_process_set_user_ids(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_uid(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut UserId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -664,7 +664,7 @@ pub(crate) unsafe fn destack_process_uid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_user_ids(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut ProcessUserIds,
 ) -> RuntimeResult<()> {
     if out.is_null() {

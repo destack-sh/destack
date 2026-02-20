@@ -7,7 +7,7 @@ use crate::platform::fs::{
     CopyFlags, FileHandle, FileOffset, FileSize, OsPath, PathBytes, PathUtf16, core as core_fs,
 };
 use crate::platform::{NativeSlice, PlatformError};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Copy a file.
 ///
@@ -27,7 +27,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     from: PathBytes,
     to: PathBytes,
     flags: CopyFlags,
@@ -66,7 +66,7 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
     flags: CopyFlags,
@@ -105,7 +105,7 @@ pub(crate) unsafe fn destack_fs_copyfile_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copy_file_range(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     src: FileHandle,
     src_offset: FileOffset,
@@ -188,7 +188,7 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from: OsPath,
     to: OsPath,
     flags: CopyFlags,

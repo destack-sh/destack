@@ -8,7 +8,7 @@ use crate::platform::crypto::{
     CryptoSignatureScheme, CryptoStoreOptionsVm,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 /// Delete one certificate from one provider store when allowed.
@@ -29,7 +29,7 @@ use destack_vm as vm;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_certificate_delete(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<()> {
@@ -58,7 +58,7 @@ pub(crate) fn destack_crypto_certificate_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_certificate_export(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoCertificateHandle,
     format: CryptoCertificateFormat,
@@ -88,7 +88,7 @@ pub(crate) fn destack_crypto_certificate_export(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_certificate_import(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     store: resource::CryptoStoreHandle,
     format: CryptoCertificateFormat,
@@ -119,7 +119,7 @@ pub(crate) fn destack_crypto_certificate_import(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_certificate_metadata(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<CryptoCertificateMetadataVm> {
@@ -148,7 +148,7 @@ pub(crate) fn destack_crypto_certificate_metadata(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_certificate_verify(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     request: CryptoCertificateVerifyRequestVm,
 ) -> RuntimeResult<CryptoCertificateVerifyResultVm> {
@@ -177,7 +177,7 @@ pub(crate) fn destack_crypto_certificate_verify(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_decrypt(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
     scheme: CryptoEncryptionScheme,
@@ -205,7 +205,7 @@ pub(crate) fn destack_crypto_key_decrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_delete(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<()> {
@@ -231,7 +231,7 @@ pub(crate) fn destack_crypto_key_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_encrypt(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
     scheme: CryptoEncryptionScheme,
@@ -259,7 +259,7 @@ pub(crate) fn destack_crypto_key_encrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_export_public(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
@@ -289,7 +289,7 @@ pub(crate) fn destack_crypto_key_export_public(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_generate(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     store: resource::CryptoStoreHandle,
     spec: CryptoKeySpecVm,
@@ -316,7 +316,7 @@ pub(crate) fn destack_crypto_key_generate(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_import(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     store: resource::CryptoStoreHandle,
     format: CryptoKeyFormat,
@@ -346,7 +346,7 @@ pub(crate) fn destack_crypto_key_import(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_metadata(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<CryptoKeyMetadataVm> {
@@ -372,7 +372,7 @@ pub(crate) fn destack_crypto_key_metadata(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_sign(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
     scheme: CryptoSignatureScheme,
@@ -400,7 +400,7 @@ pub(crate) fn destack_crypto_key_sign(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_verify(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
     scheme: CryptoSignatureScheme,
@@ -429,7 +429,7 @@ pub(crate) fn destack_crypto_key_verify(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_store_close(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoStoreHandle,
 ) -> RuntimeResult<()> {
@@ -455,7 +455,7 @@ pub(crate) fn destack_crypto_store_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_store_list_certificates(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoStoreHandle,
     query: CryptoCertificateQueryVm,
@@ -485,7 +485,7 @@ pub(crate) fn destack_crypto_store_list_certificates(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_store_list_keys(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoStoreHandle,
     query: CryptoKeyQueryVm,
@@ -515,7 +515,7 @@ pub(crate) fn destack_crypto_store_list_keys(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_store_open(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     options: CryptoStoreOptionsVm,
 ) -> RuntimeResult<resource::CryptoStoreHandle> {

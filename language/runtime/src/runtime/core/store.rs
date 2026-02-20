@@ -4,23 +4,26 @@ use std::ptr;
 
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, NativeStringSlice};
 
-/// Per-call storage for native string references returned by runtime bindings.
+/// Per-call storage for native ABI references returned by bindings.
 ///
-/// Stored strings are valid until the next runtime call on the same thread.
+/// Stored pointers are valid until the next runtime call on the same thread.
 #[derive(Debug, Default)]
-pub struct RuntimeCallStringStore {
+pub struct BindingCallArena {
     /// Owned strings backing native string references.
     strings: RefCell<Vec<Box<str>>>,
+    /// Owned slices backing native slice references.
+    values: RefCell<Vec<Box<dyn Any>>>,
 }
 
-impl RuntimeCallStringStore {
-    /// Clear all stored strings.
+impl BindingCallArena {
+    /// Clear all stored references.
     pub fn clear(&self) {
         self.strings.borrow_mut().clear();
+        self.values.borrow_mut().clear();
     }
 
     /// Store a string and return a native string reference.
-    pub fn store(&self, value: &str) -> NativeStringRef {
+    pub fn store_string(&self, value: &str) -> NativeStringRef {
         let mut strings = self.strings.borrow_mut();
         strings.push(value.to_owned().into_boxed_str());
 
@@ -29,30 +32,14 @@ impl RuntimeCallStringStore {
     }
 
     /// Store an optional string and return a native string reference.
-    pub fn store_option(&self, value: Option<&String>) -> NativeStringRef {
+    pub fn store_string_option(&self, value: Option<&String>) -> NativeStringRef {
         match value {
-            Some(value) => self.store(value),
+            Some(value) => self.store_string(value),
             None => NativeStringRef {
                 data: ptr::null(),
                 len: 0,
             },
         }
-    }
-}
-
-/// Per-call storage for native slices returned by runtime bindings.
-///
-/// Stored slices are valid until the next runtime call on the same thread.
-#[derive(Debug, Default)]
-pub struct RuntimeCallValueStore {
-    /// Owned slices backing native slice references.
-    values: RefCell<Vec<Box<dyn Any>>>,
-}
-
-impl RuntimeCallValueStore {
-    /// Clear all stored values.
-    pub fn clear(&self) {
-        self.values.borrow_mut().clear();
     }
 
     /// Store a slice and return a native slice reference.

@@ -27,7 +27,7 @@ use crate::platform::tls::{
     TlsSessionResumptionMode, TlsSessionResumptionState, TlsVersion,
 };
 use crate::platform::{NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Canonical resource kind used for tls context resources.
 const TLS_CONTEXT_RESOURCE_KIND: ResourceKind = ResourceKind::TlsContext;
@@ -183,7 +183,7 @@ pub(crate) struct TlsSessionResource {
 
 /// Insert one TLS context resource.
 pub(crate) fn insert_context_resource(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     value: TlsContextResource,
 ) -> resource::TlsContextHandle {
     // store the context payload
@@ -197,7 +197,7 @@ pub(crate) fn insert_context_resource(
 
 /// Resolve one TLS context resource.
 pub(crate) fn resolve_context_resource(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<Arc<Mutex<TlsContextResource>>> {
     // resolve one context payload
@@ -224,7 +224,7 @@ pub(crate) fn resolve_context_resource(
 
 /// Remove one TLS context resource.
 pub(crate) fn remove_context_resource(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<()> {
     // remove one context payload
@@ -256,7 +256,7 @@ pub(crate) fn remove_context_resource(
 
 /// Insert one TLS session resource.
 pub(crate) fn insert_session_resource(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     socket: resource::SocketHandle,
     connection: HostTlsConnection,
 ) -> resource::TlsSessionHandle {
@@ -275,7 +275,7 @@ pub(crate) fn insert_session_resource(
 
 /// Resolve one TLS session resource.
 pub(crate) fn resolve_session_resource(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<Arc<TlsSessionResource>> {
     // resolve one session payload
@@ -302,7 +302,7 @@ pub(crate) fn resolve_session_resource(
 
 /// Remove one TLS session resource.
 pub(crate) fn remove_session_resource(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     // remove one session payload
@@ -618,7 +618,7 @@ pub(crate) fn decode_native_string(value: NativeStringRef, field: &str) -> Runti
 
 /// Resolve one socket handle and ensure it is socket-backed.
 pub(crate) fn require_socket_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     // ensure one valid socket entry is present

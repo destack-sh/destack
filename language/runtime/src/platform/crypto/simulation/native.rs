@@ -4,7 +4,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use crate::platform::crypto::{
     CryptoCertificateFormat, CryptoCertificateMetadata, CryptoCertificateQuery,
@@ -32,7 +32,7 @@ use crate::platform::resource;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_delete(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<()> {
     let _ = context;
@@ -62,7 +62,7 @@ pub(crate) unsafe fn destack_crypto_certificate_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_export(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoCertificateHandle,
     format: CryptoCertificateFormat,
@@ -94,7 +94,7 @@ pub(crate) unsafe fn destack_crypto_certificate_export(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_import(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::CryptoCertificateHandle,
     store: resource::CryptoStoreHandle,
     format: CryptoCertificateFormat,
@@ -127,7 +127,7 @@ pub(crate) unsafe fn destack_crypto_certificate_import(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_metadata(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut CryptoCertificateMetadata,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<()> {
@@ -158,7 +158,7 @@ pub(crate) unsafe fn destack_crypto_certificate_metadata(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_verify(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut CryptoCertificateVerifyResult,
     request: CryptoCertificateVerifyRequest,
 ) -> RuntimeResult<()> {
@@ -189,7 +189,7 @@ pub(crate) unsafe fn destack_crypto_certificate_verify(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_decrypt(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     scheme: CryptoEncryptionScheme,
@@ -219,7 +219,7 @@ pub(crate) unsafe fn destack_crypto_key_decrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_delete(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<()> {
     let _ = context;
@@ -246,7 +246,7 @@ pub(crate) unsafe fn destack_crypto_key_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_encrypt(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     scheme: CryptoEncryptionScheme,
@@ -276,7 +276,7 @@ pub(crate) unsafe fn destack_crypto_key_encrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_export_public(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
@@ -308,7 +308,7 @@ pub(crate) unsafe fn destack_crypto_key_export_public(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_generate(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::CryptoKeyHandle,
     store: resource::CryptoStoreHandle,
     spec: CryptoKeySpec,
@@ -337,7 +337,7 @@ pub(crate) unsafe fn destack_crypto_key_generate(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_import(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::CryptoKeyHandle,
     store: resource::CryptoStoreHandle,
     format: CryptoKeyFormat,
@@ -369,7 +369,7 @@ pub(crate) unsafe fn destack_crypto_key_import(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_metadata(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut CryptoKeyMetadata,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<()> {
@@ -397,7 +397,7 @@ pub(crate) unsafe fn destack_crypto_key_metadata(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_sign(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     scheme: CryptoSignatureScheme,
@@ -427,7 +427,7 @@ pub(crate) unsafe fn destack_crypto_key_sign(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_verify(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut bool,
     handle: resource::CryptoKeyHandle,
     scheme: CryptoSignatureScheme,
@@ -458,7 +458,7 @@ pub(crate) unsafe fn destack_crypto_key_verify(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::CryptoStoreHandle,
 ) -> RuntimeResult<()> {
     let _ = context;
@@ -485,7 +485,7 @@ pub(crate) unsafe fn destack_crypto_store_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_list_certificates(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<resource::CryptoCertificateHandle>,
     handle: resource::CryptoStoreHandle,
     query: CryptoCertificateQuery,
@@ -517,7 +517,7 @@ pub(crate) unsafe fn destack_crypto_store_list_certificates(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_list_keys(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<resource::CryptoKeyHandle>,
     handle: resource::CryptoStoreHandle,
     query: CryptoKeyQuery,
@@ -549,7 +549,7 @@ pub(crate) unsafe fn destack_crypto_store_list_keys(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::CryptoStoreHandle,
     options: CryptoStoreOptions,
 ) -> RuntimeResult<()> {

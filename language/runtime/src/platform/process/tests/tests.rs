@@ -26,7 +26,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, VmArray, VmSlice,
     VmValueCodec, fs,
 };
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 
 /// Spawn options used by process harness helpers.
@@ -172,7 +172,7 @@ fn vm_path_to_utf8(
 }
 
 /// Encode a UTF-8 path string into native `OsPath`.
-fn native_path_from_utf8(context: &RuntimeCallContext, value: &str) -> fs::OsPath {
+fn native_path_from_utf8(context: &BindingCallContext, value: &str) -> fs::OsPath {
     core_fs::os_path_from_utf8_string(context, value.to_string())
 }
 
@@ -669,7 +669,7 @@ pub(crate) fn spawn_shell(command: String, arguments: Vec<String>) -> RuntimeRes
 /// Process harness context used by tests.
 pub(crate) struct ProcessHarnessContext<'call> {
     /// Runtime call context active for this operation.
-    pub(super) call_context: &'call RuntimeCallContext,
+    pub(super) call_context: &'call BindingCallContext,
     /// VM context when running VM bindings.
     pub(super) vm_context: Option<*mut ()>,
 }
@@ -677,7 +677,7 @@ pub(crate) struct ProcessHarnessContext<'call> {
 impl<'call> ProcessHarnessContext<'call> {
     /// Return the runtime call context for native harness operations.
     #[cfg(windows)]
-    pub(crate) fn call_context(&self) -> &'call RuntimeCallContext {
+    pub(crate) fn call_context(&self) -> &'call BindingCallContext {
         self.call_context
     }
 }

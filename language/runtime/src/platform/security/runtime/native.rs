@@ -3,7 +3,7 @@ use crate::platform::security::{
     PlatformCapability, SecurityPolicyRule, native as security_native,
 };
 use crate::platform::{NativeSlice, NativeStringRef};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use crate::platform::resource;
 
@@ -25,7 +25,7 @@ use crate::platform::resource;
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_capability_has(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut bool,
     capability: PlatformCapability,
 ) -> RuntimeResult<()> {
@@ -50,7 +50,7 @@ pub(crate) unsafe fn destack_security_capability_has(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_capability_list(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<PlatformCapability>,
 ) -> RuntimeResult<()> {
     unsafe { security_native::destack_security_capability_list(context, out) }
@@ -74,7 +74,7 @@ pub(crate) unsafe fn destack_security_capability_list(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_get(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<PlatformCapability>,
     scope: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -99,7 +99,7 @@ pub(crate) unsafe fn destack_security_policy_get(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_get_rules(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<SecurityPolicyRule>,
     scope: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -124,7 +124,7 @@ pub(crate) unsafe fn destack_security_policy_get_rules(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_set(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     scope: NativeStringRef,
     capabilities: NativeSlice<PlatformCapability>,
 ) -> RuntimeResult<()> {
@@ -149,7 +149,7 @@ pub(crate) unsafe fn destack_security_policy_set(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_set_rules(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     scope: NativeStringRef,
     rules: NativeSlice<SecurityPolicyRule>,
 ) -> RuntimeResult<()> {
@@ -174,7 +174,7 @@ pub(crate) unsafe fn destack_security_policy_set_rules(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_security_sandbox_enter(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::SandboxHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -199,7 +199,7 @@ pub(crate) unsafe fn destack_security_sandbox_enter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_security_sandbox_exit(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
     unsafe { security_native::destack_security_sandbox_exit(context, handle) }
@@ -223,7 +223,7 @@ pub(crate) unsafe fn destack_security_sandbox_exit(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_sandbox_seal(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
     unsafe { security_native::destack_security_sandbox_seal(context, handle) }
@@ -247,7 +247,7 @@ pub(crate) unsafe fn destack_security_sandbox_seal(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_sandbox_set_capabilities(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::SandboxHandle,
     capabilities: NativeSlice<PlatformCapability>,
 ) -> RuntimeResult<()> {
@@ -274,7 +274,7 @@ pub(crate) unsafe fn destack_security_sandbox_set_capabilities(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_set_write_xor_execute(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     enabled: bool,
 ) -> RuntimeResult<()> {
     unsafe { security_native::destack_security_set_write_xor_execute(context, enabled) }

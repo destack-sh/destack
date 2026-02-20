@@ -10,7 +10,7 @@ use crate::platform::fs::{
 use crate::platform::net::SocketHandle;
 use crate::platform::resource::{DirectoryHandle, FileHandle, PipeHandle, ResourceId};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Check file access permissions.
 ///
@@ -30,7 +30,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_access_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathBytes,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
@@ -56,7 +56,7 @@ pub(crate) unsafe fn destack_fs_access_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_access_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
@@ -82,7 +82,7 @@ pub(crate) unsafe fn destack_fs_access_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathBytes,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -108,7 +108,7 @@ pub(crate) unsafe fn destack_fs_chmod_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -134,7 +134,7 @@ pub(crate) unsafe fn destack_fs_chmod_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmodat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     mode: FileMode,
@@ -162,7 +162,7 @@ pub(crate) unsafe fn destack_fs_fchmodat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmodat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     mode: FileMode,
@@ -190,7 +190,7 @@ pub(crate) unsafe fn destack_fs_fchmodat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chown_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathBytes,
     uid: u32,
     gid: u32,
@@ -217,7 +217,7 @@ pub(crate) unsafe fn destack_fs_chown_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chown_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     uid: u32,
     gid: u32,
@@ -244,7 +244,7 @@ pub(crate) unsafe fn destack_fs_chown_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchownat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     uid: u32,
@@ -273,7 +273,7 @@ pub(crate) unsafe fn destack_fs_fchownat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchownat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     uid: u32,
@@ -302,7 +302,7 @@ pub(crate) unsafe fn destack_fs_fchownat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     let _ = (context, handle);
@@ -327,7 +327,7 @@ pub(crate) unsafe fn destack_fs_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_closedir(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = (context, handle);
@@ -352,7 +352,7 @@ pub(crate) unsafe fn destack_fs_closedir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from: PathBytes,
     to: PathBytes,
     flags: CopyFlags,
@@ -379,7 +379,7 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
     flags: CopyFlags,
@@ -406,7 +406,7 @@ pub(crate) unsafe fn destack_fs_copyfile_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmod(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -432,7 +432,7 @@ pub(crate) unsafe fn destack_fs_fchmod(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchown(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     uid: u32,
     gid: u32,
@@ -459,7 +459,7 @@ pub(crate) unsafe fn destack_fs_fchown(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fdatasync(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     let _ = (context, handle);
@@ -484,7 +484,7 @@ pub(crate) unsafe fn destack_fs_fdatasync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fstat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut Stat,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -510,7 +510,7 @@ pub(crate) unsafe fn destack_fs_fstat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fstatfs(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut StatFs,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -536,7 +536,7 @@ pub(crate) unsafe fn destack_fs_fstatfs(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsync(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     let _ = (context, handle);
@@ -561,7 +561,7 @@ pub(crate) unsafe fn destack_fs_fsync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_ftruncate(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     size: FileOffset,
 ) -> RuntimeResult<()> {
@@ -587,7 +587,7 @@ pub(crate) unsafe fn destack_fs_ftruncate(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_futimes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     atimens: u64,
     mtimens: u64,
@@ -614,7 +614,7 @@ pub(crate) unsafe fn destack_fs_futimes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_link_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     existingpath: PathBytes,
     newpath: PathBytes,
 ) -> RuntimeResult<()> {
@@ -640,7 +640,7 @@ pub(crate) unsafe fn destack_fs_link_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_link_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     existingpath: PathUtf16,
     newpath: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -666,7 +666,7 @@ pub(crate) unsafe fn destack_fs_link_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut Stat,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -692,7 +692,7 @@ pub(crate) unsafe fn destack_fs_lstat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut Stat,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -718,7 +718,7 @@ pub(crate) unsafe fn destack_fs_lstat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathBytes,
     atimens: u64,
     mtimens: u64,
@@ -745,7 +745,7 @@ pub(crate) unsafe fn destack_fs_lutimes_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     atimens: u64,
     mtimens: u64,
@@ -772,7 +772,7 @@ pub(crate) unsafe fn destack_fs_lutimes_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimensat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     atimens: u64,
@@ -801,7 +801,7 @@ pub(crate) unsafe fn destack_fs_utimensat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimensat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     atimens: u64,
@@ -830,7 +830,7 @@ pub(crate) unsafe fn destack_fs_utimensat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut PathBytes,
     template: PathBytes,
 ) -> RuntimeResult<()> {
@@ -856,7 +856,7 @@ pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut PathUtf16,
     template: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -882,7 +882,7 @@ pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_open_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut FileHandle,
     path: PathBytes,
     flags: OpenFlags,
@@ -910,7 +910,7 @@ pub(crate) unsafe fn destack_fs_open_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_open_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut FileHandle,
     path: PathUtf16,
     flags: OpenFlags,
@@ -938,7 +938,7 @@ pub(crate) unsafe fn destack_fs_open_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_opendir_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut DirectoryHandle,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -964,7 +964,7 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_opendir_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut DirectoryHandle,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -990,7 +990,7 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
@@ -1017,7 +1017,7 @@ pub(crate) unsafe fn destack_fs_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readdir(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut NativeArray<Dirent>,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
@@ -1043,7 +1043,7 @@ pub(crate) unsafe fn destack_fs_readdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlink_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut PathBytes,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -1069,7 +1069,7 @@ pub(crate) unsafe fn destack_fs_readlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlink_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut PathUtf16,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -1095,7 +1095,7 @@ pub(crate) unsafe fn destack_fs_readlink_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readv(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -1122,7 +1122,7 @@ pub(crate) unsafe fn destack_fs_readv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_realpath_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut PathBytes,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -1148,7 +1148,7 @@ pub(crate) unsafe fn destack_fs_realpath_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_realpath_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut PathUtf16,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -1174,7 +1174,7 @@ pub(crate) unsafe fn destack_fs_realpath_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rename_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from: PathBytes,
     to: PathBytes,
 ) -> RuntimeResult<()> {
@@ -1200,7 +1200,7 @@ pub(crate) unsafe fn destack_fs_rename_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rename_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -1226,7 +1226,7 @@ pub(crate) unsafe fn destack_fs_rename_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathBytes,
 ) -> RuntimeResult<()> {
     let _ = (context, path);
@@ -1251,7 +1251,7 @@ pub(crate) unsafe fn destack_fs_rmdir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
     let _ = (context, path);
@@ -1276,7 +1276,7 @@ pub(crate) unsafe fn destack_fs_rmdir_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_stat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut Stat,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -1302,7 +1302,7 @@ pub(crate) unsafe fn destack_fs_stat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_stat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut Stat,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -1328,7 +1328,7 @@ pub(crate) unsafe fn destack_fs_stat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut StatFs,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -1354,7 +1354,7 @@ pub(crate) unsafe fn destack_fs_statfs_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut StatFs,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -1380,7 +1380,7 @@ pub(crate) unsafe fn destack_fs_statfs_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     target: PathBytes,
     path: PathBytes,
     kind: SymlinkType,
@@ -1407,7 +1407,7 @@ pub(crate) unsafe fn destack_fs_symlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     target: PathUtf16,
     path: PathUtf16,
     kind: SymlinkType,
@@ -1434,7 +1434,7 @@ pub(crate) unsafe fn destack_fs_symlink_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathBytes,
     size: FileOffset,
 ) -> RuntimeResult<()> {
@@ -1460,7 +1460,7 @@ pub(crate) unsafe fn destack_fs_truncate_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     size: FileOffset,
 ) -> RuntimeResult<()> {
@@ -1486,7 +1486,7 @@ pub(crate) unsafe fn destack_fs_truncate_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathBytes,
 ) -> RuntimeResult<()> {
     let _ = (context, path);
@@ -1511,7 +1511,7 @@ pub(crate) unsafe fn destack_fs_unlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
     let _ = (context, path);
@@ -1536,7 +1536,7 @@ pub(crate) unsafe fn destack_fs_unlink_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathBytes,
     atimens: u64,
     mtimens: u64,
@@ -1563,7 +1563,7 @@ pub(crate) unsafe fn destack_fs_utimes_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     atimens: u64,
     mtimens: u64,
@@ -1590,7 +1590,7 @@ pub(crate) unsafe fn destack_fs_utimes_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_write(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
@@ -1617,7 +1617,7 @@ pub(crate) unsafe fn destack_fs_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_writev(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -1644,7 +1644,7 @@ pub(crate) unsafe fn destack_fs_writev(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathBytes,
@@ -1673,7 +1673,7 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathUtf16,
@@ -1702,7 +1702,7 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathBytes,
@@ -1730,7 +1730,7 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathUtf16,
@@ -1758,7 +1758,7 @@ pub(crate) unsafe fn destack_fs_openat2_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathBytes,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -1784,7 +1784,7 @@ pub(crate) unsafe fn destack_fs_mkdir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -1810,7 +1810,7 @@ pub(crate) unsafe fn destack_fs_mkdir_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdirat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     mode: FileMode,
@@ -1837,7 +1837,7 @@ pub(crate) unsafe fn destack_fs_mkdirat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdirat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     mode: FileMode,
@@ -1864,7 +1864,7 @@ pub(crate) unsafe fn destack_fs_mkdirat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathBytes,
     to_dir: DirectoryHandle,
@@ -1892,7 +1892,7 @@ pub(crate) unsafe fn destack_fs_renameat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathUtf16,
     to_dir: DirectoryHandle,
@@ -1920,7 +1920,7 @@ pub(crate) unsafe fn destack_fs_renameat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat2_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathBytes,
     to_dir: DirectoryHandle,
@@ -1949,7 +1949,7 @@ pub(crate) unsafe fn destack_fs_renameat2_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat2_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathUtf16,
     to_dir: DirectoryHandle,
@@ -1978,7 +1978,7 @@ pub(crate) unsafe fn destack_fs_renameat2_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlinkat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     flags: AtFlags,
@@ -2005,7 +2005,7 @@ pub(crate) unsafe fn destack_fs_unlinkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlinkat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     flags: AtFlags,
@@ -2032,7 +2032,7 @@ pub(crate) unsafe fn destack_fs_unlinkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_linkat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     existing_dir: DirectoryHandle,
     existing_path: PathBytes,
     new_dir: DirectoryHandle,
@@ -2068,7 +2068,7 @@ pub(crate) unsafe fn destack_fs_linkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_linkat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     existing_dir: DirectoryHandle,
     existing_path: PathUtf16,
     new_dir: DirectoryHandle,
@@ -2104,7 +2104,7 @@ pub(crate) unsafe fn destack_fs_linkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlinkat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     target: PathBytes,
     dir: DirectoryHandle,
     path: PathBytes,
@@ -2132,7 +2132,7 @@ pub(crate) unsafe fn destack_fs_symlinkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlinkat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     target: PathUtf16,
     dir: DirectoryHandle,
     path: PathUtf16,
@@ -2160,7 +2160,7 @@ pub(crate) unsafe fn destack_fs_symlinkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlinkat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut PathBytes,
     dir: DirectoryHandle,
     path: PathBytes,
@@ -2187,7 +2187,7 @@ pub(crate) unsafe fn destack_fs_readlinkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlinkat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut PathUtf16,
     dir: DirectoryHandle,
     path: PathUtf16,
@@ -2214,7 +2214,7 @@ pub(crate) unsafe fn destack_fs_readlinkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut Stat,
     dir: DirectoryHandle,
     path: PathBytes,
@@ -2242,7 +2242,7 @@ pub(crate) unsafe fn destack_fs_statat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut Stat,
     dir: DirectoryHandle,
     path: PathUtf16,
@@ -2270,7 +2270,7 @@ pub(crate) unsafe fn destack_fs_statat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lock(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeResult<()> {
@@ -2296,7 +2296,7 @@ pub(crate) unsafe fn destack_fs_lock(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copy_file_range(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut u64,
     src: FileHandle,
     src_offset: FileOffset,
@@ -2326,7 +2326,7 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut FileHandle,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -2352,7 +2352,7 @@ pub(crate) unsafe fn destack_fs_dup(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup2(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut FileHandle,
     handle: FileHandle,
     target: FileHandle,
@@ -2379,7 +2379,7 @@ pub(crate) unsafe fn destack_fs_dup2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup3(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut FileHandle,
     handle: FileHandle,
     target: FileHandle,
@@ -2407,7 +2407,7 @@ pub(crate) unsafe fn destack_fs_dup3(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fadvise(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
@@ -2435,7 +2435,7 @@ pub(crate) unsafe fn destack_fs_fadvise(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fallocate(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
@@ -2463,7 +2463,7 @@ pub(crate) unsafe fn destack_fs_fallocate(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_madvise(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     mapping: NativeSlice<u8>,
     advice: MmapAdvice,
 ) -> RuntimeResult<()> {
@@ -2489,7 +2489,7 @@ pub(crate) unsafe fn destack_fs_madvise(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mmap_anonymous(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut NativeSlice<u8>,
     length: FileSize,
     prot: MmapProt,
@@ -2517,7 +2517,7 @@ pub(crate) unsafe fn destack_fs_mmap_anonymous(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mmap_file(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut NativeSlice<u8>,
     handle: FileHandle,
     offset: FileOffset,
@@ -2547,7 +2547,7 @@ pub(crate) unsafe fn destack_fs_mmap_file(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mprotect(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     mapping: NativeSlice<u8>,
     prot: MmapProt,
 ) -> RuntimeResult<()> {
@@ -2573,7 +2573,7 @@ pub(crate) unsafe fn destack_fs_mprotect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_msync(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     mapping: NativeSlice<u8>,
     flags: MmapSyncFlags,
 ) -> RuntimeResult<()> {
@@ -2599,7 +2599,7 @@ pub(crate) unsafe fn destack_fs_msync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_munmap(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     mapping: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (context, mapping);
@@ -2624,7 +2624,7 @@ pub(crate) unsafe fn destack_fs_munmap(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pread(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
@@ -2652,7 +2652,7 @@ pub(crate) unsafe fn destack_fs_pread(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_preadv(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -2680,7 +2680,7 @@ pub(crate) unsafe fn destack_fs_preadv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_preadv2(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -2709,7 +2709,7 @@ pub(crate) unsafe fn destack_fs_preadv2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pwrite(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
@@ -2737,7 +2737,7 @@ pub(crate) unsafe fn destack_fs_pwrite(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pwritev(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -2765,7 +2765,7 @@ pub(crate) unsafe fn destack_fs_pwritev(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pwritev2(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -2794,7 +2794,7 @@ pub(crate) unsafe fn destack_fs_pwritev2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_seek(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut FileOffset,
     handle: FileHandle,
     offset: FileOffset,
@@ -2822,7 +2822,7 @@ pub(crate) unsafe fn destack_fs_seek(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_sendfile(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut u64,
     socket: SocketHandle,
     file: FileHandle,
@@ -2851,7 +2851,7 @@ pub(crate) unsafe fn destack_fs_sendfile(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_splice(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut u64,
     source: ResourceId,
     sourcecursor: i64,
@@ -2890,7 +2890,7 @@ pub(crate) unsafe fn destack_fs_splice(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_tee(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut u64,
     sourcepipe: PipeHandle,
     targetpipe: PipeHandle,
@@ -2919,7 +2919,7 @@ pub(crate) unsafe fn destack_fs_tee(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_vmsplice(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut u64,
     pipe: PipeHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -2947,7 +2947,7 @@ pub(crate) unsafe fn destack_fs_vmsplice(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_sync_file_range(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
@@ -2975,7 +2975,7 @@ pub(crate) unsafe fn destack_fs_sync_file_range(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     path: PathBytes,
     name: NativeStringRef,
@@ -3002,7 +3002,7 @@ pub(crate) unsafe fn destack_fs_getxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     path: PathUtf16,
     name: NativeStringRef,
@@ -3029,7 +3029,7 @@ pub(crate) unsafe fn destack_fs_getxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     path: PathBytes,
     name: NativeStringRef,
@@ -3056,7 +3056,7 @@ pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     path: PathUtf16,
     name: NativeStringRef,
@@ -3083,7 +3083,7 @@ pub(crate) unsafe fn destack_fs_lgetxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fgetxattr_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     handle: FileHandle,
     name: NativeStringRef,
@@ -3110,7 +3110,7 @@ pub(crate) unsafe fn destack_fs_fgetxattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathBytes,
     name: NativeStringRef,
     value: NativeSlice<u8>,
@@ -3138,7 +3138,7 @@ pub(crate) unsafe fn destack_fs_setxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     name: NativeStringRef,
     value: NativeSlice<u8>,
@@ -3166,7 +3166,7 @@ pub(crate) unsafe fn destack_fs_setxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathBytes,
     name: NativeStringRef,
     value: NativeSlice<u8>,
@@ -3194,7 +3194,7 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     name: NativeStringRef,
     value: NativeSlice<u8>,
@@ -3222,7 +3222,7 @@ pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsetxattr_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     name: NativeStringRef,
     value: NativeSlice<u8>,
@@ -3250,7 +3250,7 @@ pub(crate) unsafe fn destack_fs_fsetxattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut NativeArray<NativeStringRef>,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -3276,7 +3276,7 @@ pub(crate) unsafe fn destack_fs_listxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut NativeArray<NativeStringRef>,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -3302,7 +3302,7 @@ pub(crate) unsafe fn destack_fs_listxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut NativeArray<NativeStringRef>,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -3328,7 +3328,7 @@ pub(crate) unsafe fn destack_fs_llistxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut NativeArray<NativeStringRef>,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -3354,7 +3354,7 @@ pub(crate) unsafe fn destack_fs_llistxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_flistxattr_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _out: *mut NativeArray<NativeStringRef>,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -3380,7 +3380,7 @@ pub(crate) unsafe fn destack_fs_flistxattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathBytes,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -3406,7 +3406,7 @@ pub(crate) unsafe fn destack_fs_removexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -3432,7 +3432,7 @@ pub(crate) unsafe fn destack_fs_removexattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathBytes,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -3458,7 +3458,7 @@ pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -3484,7 +3484,7 @@ pub(crate) unsafe fn destack_fs_lremovexattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fremovexattr_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {

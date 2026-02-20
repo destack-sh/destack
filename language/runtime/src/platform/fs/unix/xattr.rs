@@ -13,7 +13,7 @@ use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{core as core_fs, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, net as platform_net, *};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStrExt;
@@ -38,7 +38,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<u8>,
     path: PathBytes,
     name: NativeStringRef,
@@ -97,7 +97,7 @@ pub(crate) unsafe fn destack_fs_getxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<u8>,
     path: PathUtf16,
     name: NativeStringRef,
@@ -144,7 +144,7 @@ pub(crate) unsafe fn destack_fs_getxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<u8>,
     path: PathBytes,
     name: NativeStringRef,
@@ -194,7 +194,7 @@ pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<u8>,
     path: PathUtf16,
     name: NativeStringRef,
@@ -244,7 +244,7 @@ pub(crate) unsafe fn destack_fs_lgetxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fgetxattr_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<u8>,
     handle: FileHandle,
     name: NativeStringRef,
@@ -294,7 +294,7 @@ pub(crate) unsafe fn destack_fs_fgetxattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathBytes,
     name: NativeStringRef,
     value: NativeSlice<u8>,
@@ -336,7 +336,7 @@ pub(crate) unsafe fn destack_fs_setxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathUtf16,
     name: NativeStringRef,
     value: NativeSlice<u8>,
@@ -378,7 +378,7 @@ pub(crate) unsafe fn destack_fs_setxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathBytes,
     name: NativeStringRef,
     value: NativeSlice<u8>,
@@ -420,7 +420,7 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathUtf16,
     name: NativeStringRef,
     value: NativeSlice<u8>,
@@ -462,7 +462,7 @@ pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsetxattr_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     name: NativeStringRef,
     value: NativeSlice<u8>,
@@ -504,7 +504,7 @@ pub(crate) unsafe fn destack_fs_fsetxattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -545,7 +545,7 @@ pub(crate) unsafe fn destack_fs_listxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -586,7 +586,7 @@ pub(crate) unsafe fn destack_fs_listxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -627,7 +627,7 @@ pub(crate) unsafe fn destack_fs_llistxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -668,7 +668,7 @@ pub(crate) unsafe fn destack_fs_llistxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_flistxattr_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -709,7 +709,7 @@ pub(crate) unsafe fn destack_fs_flistxattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathBytes,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -740,7 +740,7 @@ pub(crate) unsafe fn destack_fs_removexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathUtf16,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -771,7 +771,7 @@ pub(crate) unsafe fn destack_fs_removexattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathBytes,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -802,7 +802,7 @@ pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathUtf16,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -833,7 +833,7 @@ pub(crate) unsafe fn destack_fs_lremovexattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fremovexattr_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -864,7 +864,7 @@ pub(crate) unsafe fn destack_fs_fremovexattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<u8>,
     path: OsPath,
     name: NativeStringRef,
@@ -895,7 +895,7 @@ pub(crate) unsafe fn destack_fs_getxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<u8>,
     path: OsPath,
     name: NativeStringRef,
@@ -926,7 +926,7 @@ pub(crate) unsafe fn destack_fs_lgetxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fgetxattr(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<u8>,
     handle: FileHandle,
     name: NativeStringRef,
@@ -952,7 +952,7 @@ pub(crate) unsafe fn destack_fs_fgetxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: OsPath,
     name: NativeStringRef,
     value: NativeSlice<u8>,
@@ -984,7 +984,7 @@ pub(crate) unsafe fn destack_fs_setxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: OsPath,
     name: NativeStringRef,
     value: NativeSlice<u8>,
@@ -1016,7 +1016,7 @@ pub(crate) unsafe fn destack_fs_lsetxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsetxattr(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     name: NativeStringRef,
     value: NativeSlice<u8>,
@@ -1043,7 +1043,7 @@ pub(crate) unsafe fn destack_fs_fsetxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
 ) -> RuntimeResult<()> {
@@ -1073,7 +1073,7 @@ pub(crate) unsafe fn destack_fs_listxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
 ) -> RuntimeResult<()> {
@@ -1103,7 +1103,7 @@ pub(crate) unsafe fn destack_fs_llistxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_flistxattr(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -1128,7 +1128,7 @@ pub(crate) unsafe fn destack_fs_flistxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -1158,7 +1158,7 @@ pub(crate) unsafe fn destack_fs_removexattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -1188,7 +1188,7 @@ pub(crate) unsafe fn destack_fs_lremovexattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fremovexattr(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {

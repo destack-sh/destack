@@ -1,15 +1,15 @@
 use serde::{Deserialize, Serialize};
 
 use crate::platform::ResourceId;
-use crate::platform::bindings::{BindingId, CodecId};
+use crate::runtime::bindings::{BindingId, CodecId};
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{MicrotaskId, TaskId};
 
 /// Event types recorded for deterministic replay.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ReplayEvent {
-    /// Scheduler event for task ordering.
-    SchedulerEvent(SchedulerEvent),
+    /// Task queue event for task ordering.
+    TaskQueueEvent(TaskQueueEvent),
     /// Time seed or wall clock read.
     TimeEvent(TimeEvent),
     /// Random seed or random bytes.
@@ -79,31 +79,31 @@ impl CheckpointId {
     }
 }
 
-/// Scheduler event captured for replay.
+/// Task queue event captured for replay.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SchedulerEvent {
+pub struct TaskQueueEvent {
     /// Subject scheduled by the runtime.
-    pub subject: SchedulerSubject,
-    /// Scheduler queue for the event.
-    pub queue: SchedulerQueue,
-    /// Scheduler event kind.
-    pub kind: SchedulerEventKind,
+    pub subject: TaskSubject,
+    /// Task queue for the event.
+    pub queue: TaskQueue,
+    /// Task queue event kind.
+    pub kind: QueueEventKind,
     /// Monotonic sequence counter for ordering.
     pub sequence: u64,
 }
 
-/// Subject identifier for scheduler events.
+/// Subject identifier for task queue events.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum SchedulerSubject {
+pub enum TaskSubject {
     /// A macrotask scheduled by the event loop.
     Task(TaskId),
     /// A microtask scheduled for Promise jobs.
     Microtask(MicrotaskId),
 }
 
-/// Scheduler queues for runtime execution.
+/// Task queues for runtime execution.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum SchedulerQueue {
+pub enum TaskQueue {
     /// Microtask queue drained between macrotasks.
     Microtask,
     /// Primary macrotask queue.
@@ -118,9 +118,9 @@ pub enum SchedulerQueue {
     Idle,
 }
 
-/// Scheduler event kinds captured for replay.
+/// Task queue event kinds captured for replay.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum SchedulerEventKind {
+pub enum QueueEventKind {
     /// Enqueued for execution.
     Enqueue,
     /// Dequeued for execution.
@@ -137,7 +137,7 @@ pub enum SchedulerEventKind {
     ExternalWake(ExternalWakeSource),
 }
 
-/// External wakeup sources for scheduler events.
+/// External wakeup sources for task queue events.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum ExternalWakeSource {
     /// Timer fired.

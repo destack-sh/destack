@@ -9,7 +9,7 @@ use crate::platform::input::{
     validation as input_validation,
 };
 use crate::platform::{PlatformError, core as core_platform, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Return whether one resolved binding supports pointer state queries.
 fn is_pointer_capable_backend(resolved: &input_core::WindowsInputResolved) -> bool {
@@ -29,7 +29,7 @@ fn is_pointer_capable_backend(resolved: &input_core::WindowsInputResolved) -> bo
 
 /// Read one pointer state snapshot for one opened Windows input handle.
 pub(super) fn pointer_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     relative: bool,
     operation: &'static str,
@@ -104,7 +104,7 @@ pub(super) fn pointer_state(
 
 /// Set relative pointer mode for one opened Windows input handle.
 pub(super) fn pointer_set_relative_mode(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enabled: bool,
     operation: &'static str,
@@ -132,7 +132,7 @@ pub(super) fn pointer_set_relative_mode(
 
 /// Set one pointer grab mode for one opened Windows input handle.
 pub(super) fn pointer_set_grab_mode(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     mode: InputPointerGrabMode,
@@ -167,7 +167,7 @@ pub(super) fn pointer_set_grab_mode(
 
 /// Toggle pointer capture mode for one opened Windows input handle.
 pub(super) fn pointer_capture(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     enabled: bool,
@@ -221,7 +221,7 @@ pub(super) fn pointer_capture(
 
 /// Warp pointer position for one opened Windows input handle.
 pub(super) fn pointer_warp(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     x: f64,
@@ -282,7 +282,7 @@ pub(super) fn pointer_warp(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_capture(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     enabled: bool,
@@ -316,7 +316,7 @@ pub(crate) unsafe fn destack_input_pointer_capture(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_relative_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputPointerState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -354,7 +354,7 @@ pub(crate) unsafe fn destack_input_pointer_relative_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_set_grab_mode(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     mode: InputPointerGrabMode,
@@ -386,7 +386,7 @@ pub(crate) unsafe fn destack_input_pointer_set_grab_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_set_relative_mode(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -418,7 +418,7 @@ pub(crate) unsafe fn destack_input_pointer_set_relative_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputPointerState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -456,7 +456,7 @@ pub(crate) unsafe fn destack_input_pointer_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_warp(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     x: f64,

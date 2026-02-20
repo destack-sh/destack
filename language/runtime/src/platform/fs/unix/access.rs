@@ -8,7 +8,7 @@ use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{core as core_fs, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, net as platform_net, *};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStrExt;
@@ -33,7 +33,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_access_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathBytes,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
@@ -65,7 +65,7 @@ pub(crate) unsafe fn destack_fs_access_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_access_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathUtf16,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
@@ -92,7 +92,7 @@ pub(crate) unsafe fn destack_fs_access_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathBytes,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -124,7 +124,7 @@ pub(crate) unsafe fn destack_fs_chmod_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathUtf16,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -151,7 +151,7 @@ pub(crate) unsafe fn destack_fs_chmod_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmodat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     mode: FileMode,
@@ -193,7 +193,7 @@ pub(crate) unsafe fn destack_fs_fchmodat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmodat_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     mode: FileMode,
@@ -222,7 +222,7 @@ pub(crate) unsafe fn destack_fs_fchmodat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chown_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathBytes,
     uid: u32,
     gid: u32,
@@ -255,7 +255,7 @@ pub(crate) unsafe fn destack_fs_chown_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chown_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathUtf16,
     uid: u32,
     gid: u32,
@@ -283,7 +283,7 @@ pub(crate) unsafe fn destack_fs_chown_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchownat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     uid: u32,
@@ -319,7 +319,7 @@ pub(crate) unsafe fn destack_fs_fchownat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchownat_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     uid: u32,
@@ -349,7 +349,7 @@ pub(crate) unsafe fn destack_fs_fchownat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_access(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: OsPath,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
@@ -379,7 +379,7 @@ pub(crate) unsafe fn destack_fs_access(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -409,7 +409,7 @@ pub(crate) unsafe fn destack_fs_chmod(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmodat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     mode: FileMode,
@@ -441,7 +441,7 @@ pub(crate) unsafe fn destack_fs_fchmodat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chown(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: OsPath,
     uid: u32,
     gid: u32,
@@ -472,7 +472,7 @@ pub(crate) unsafe fn destack_fs_chown(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchownat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     uid: u32,
@@ -505,7 +505,7 @@ pub(crate) unsafe fn destack_fs_fchownat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_accessat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     mode: AccessMode,

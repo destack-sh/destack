@@ -8,11 +8,11 @@ use crate::platform::input::{
     validation as input_validation,
 };
 use crate::platform::{NativeArray, PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Resolve one opened haptics-capable Unix binding.
 fn resolve_haptics_binding(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<input_core::UnixInputBinding> {
@@ -49,7 +49,7 @@ fn resolve_haptics_binding(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_effects(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<InputHapticEffectType>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -113,7 +113,7 @@ pub(crate) unsafe fn destack_input_haptics_effects(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_play(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputHapticsResult,
     handle: resource::InputDeviceHandle,
     effect: InputHapticEffectType,
@@ -211,7 +211,7 @@ pub(crate) unsafe fn destack_input_haptics_play(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_stop(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     // resolve one opened haptics-capable binding

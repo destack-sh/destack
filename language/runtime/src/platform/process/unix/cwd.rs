@@ -7,7 +7,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::fs::core as core_fs;
@@ -40,7 +40,7 @@ use std::ffi::{CStr, CString};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_chdir(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     let path = core_fs::os_path_to_utf8_string(path, "path")?;
@@ -87,7 +87,7 @@ pub(crate) unsafe fn destack_process_chdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_cwd(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut fs::OsPath,
 ) -> RuntimeResult<()> {
     if out.is_null() {

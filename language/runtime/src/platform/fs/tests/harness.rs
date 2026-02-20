@@ -381,8 +381,8 @@ impl<'call> FsHarnessContext<'call> {
         let error = self
             .runtime
             .runtime
-            .context
-            .errors()
+            .state
+            .errors
             .take(RuntimeErrorId::from_raw(status.error_id))
             .unwrap_or_else(|| {
                 RuntimeError::from(PlatformError::io(format!(

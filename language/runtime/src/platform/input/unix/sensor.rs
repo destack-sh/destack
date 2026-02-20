@@ -9,11 +9,11 @@ use crate::platform::input::{
     InputSensorSample, validation as input_validation,
 };
 use crate::platform::{NativeArray, PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Resolve one opened sensor-capable Unix binding.
 fn resolve_sensor_binding(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<input_core::UnixInputBinding> {
@@ -119,7 +119,7 @@ fn disabled_sensor_stream(operation: &'static str) -> Box<RuntimeError> {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_configure(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputSensorEffectiveConfig,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -173,7 +173,7 @@ pub(crate) unsafe fn destack_input_sensor_configure(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_list(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<InputSensorDescriptor>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -219,7 +219,7 @@ pub(crate) unsafe fn destack_input_sensor_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputSensorSample,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -286,7 +286,7 @@ pub(crate) unsafe fn destack_input_sensor_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_try_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputSensorSample,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,

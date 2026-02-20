@@ -2,7 +2,7 @@ use super::core::require_out;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::io::{EventToken, core as io_core};
 use crate::platform::resource;
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Attach an event token to a poll target key.
 ///
@@ -22,7 +22,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_attach(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     token: EventToken,
     target: resource::ResourceId,
     key: u64,
@@ -48,7 +48,7 @@ pub(crate) unsafe fn destack_io_event_attach(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     token: EventToken,
 ) -> RuntimeResult<()> {
     io_core::event_close(context, token)
@@ -72,7 +72,7 @@ pub(crate) unsafe fn destack_io_event_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut EventToken,
     initial: u64,
 ) -> RuntimeResult<()> {
@@ -105,7 +105,7 @@ pub(crate) unsafe fn destack_io_event_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_signal(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     token: EventToken,
     argument_value: u64,
 ) -> RuntimeResult<()> {

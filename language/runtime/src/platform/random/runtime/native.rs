@@ -3,8 +3,8 @@ use crate::platform::random::{
     RandomStream, RandomStreamDomain, RandomStreamState, SecureRandomMetadata, SecureRandomSource,
 };
 use crate::platform::{NativeSlice, NativeStringRef, PlatformError, PlatformErrorCode};
-use crate::runtime::RuntimeCallContext;
 use crate::runtime::random::RandomStreamId;
+use crate::runtime::{BindingCallContext, RuntimeHookState};
 
 /// Convert a platform stream handle into a runtime stream id.
 fn stream_id(stream: RandomStream) -> RandomStreamId {
@@ -14,6 +14,15 @@ fn stream_id(stream: RandomStream) -> RandomStreamId {
 /// Convert a runtime stream id into a platform stream handle.
 fn stream_handle(stream_id: RandomStreamId) -> RandomStream {
     RandomStream(stream_id.get())
+}
+
+/// Record one random read hook for runtime rules.
+fn on_random_read(context: &BindingCallContext, stream_id: Option<RandomStreamId>) {
+    context.rules().on_random_read(RuntimeHookState {
+        engine: Some(context.engine()),
+        random_stream_id: stream_id,
+        ..RuntimeHookState::empty()
+    });
 }
 
 /// Map one secure random backend error.
@@ -55,9 +64,11 @@ fn secure_random_error(operation: &'static str, error: getrandom::Error) -> Box<
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_random_secure_bytes(
-    _context: &RuntimeCallContext,
+    context: &BindingCallContext,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
+    on_random_read(context, None);
+
     // resolve one mutable native slice
     let bytes = unsafe { buffer.as_mut_slice()? };
 
@@ -84,9 +95,11 @@ pub(crate) unsafe fn destack_random_secure_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_random_secure_bytes_try(
-    _context: &RuntimeCallContext,
+    context: &BindingCallContext,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
+    on_random_read(context, None);
+
     // resolve one mutable native slice
     let bytes = unsafe { buffer.as_mut_slice()? };
 
@@ -113,7 +126,7 @@ pub(crate) unsafe fn destack_random_secure_bytes_try(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_random_secure_metadata(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut SecureRandomMetadata,
 ) -> RuntimeResult<()> {
     // validate out pointer for native ABI writes
@@ -158,7 +171,7 @@ pub(crate) unsafe fn destack_random_secure_metadata(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_random_stream_export(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut RandomStreamState,
     stream: RandomStream,
 ) -> RuntimeResult<()> {
@@ -185,9 +198,11 @@ pub(crate) unsafe fn destack_random_stream_export(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_random_fill_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
+    on_random_read(context, Some(context.random_stream_id()));
+
     // resolve one mutable native slice
     let bytes = unsafe { buffer.as_mut_slice()? };
 
@@ -216,10 +231,12 @@ pub(crate) unsafe fn destack_random_fill_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_random_fill_bytes_from(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     stream: RandomStream,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
+    on_random_read(context, Some(stream_id(stream)));
+
     // resolve one mutable native slice
     let bytes = unsafe { buffer.as_mut_slice()? };
 
@@ -250,7 +267,7 @@ pub(crate) unsafe fn destack_random_fill_bytes_from(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_random_stream_import(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     stream: RandomStream,
     state: RandomStreamState,
 ) -> RuntimeResult<()> {
@@ -277,7 +294,7 @@ pub(crate) unsafe fn destack_random_stream_import(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_random_stream_in(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut RandomStream,
     domain: RandomStreamDomain,
 ) -> RuntimeResult<()> {
@@ -294,7 +311,6 @@ pub(crate) unsafe fn destack_random_stream_in(
             .random
             .split_stream(context.random_stream_id()),
     };
-
     // write the stream handle to the ABI out pointer
     unsafe {
         std::ptr::write(out, stream_handle(stream_id));
@@ -321,7 +337,7 @@ pub(crate) unsafe fn destack_random_stream_in(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_random_stream_jump(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     stream: RandomStream,
     jump: u64,
 ) -> RuntimeResult<()> {
@@ -352,13 +368,15 @@ pub(crate) unsafe fn destack_random_stream_jump(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_random_next_u64(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
     // validate out pointer for native ABI writes
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
+
+    on_random_read(context, Some(context.random_stream_id()));
 
     // sample one value from the current runtime stream
     let value = context
@@ -392,7 +410,7 @@ pub(crate) unsafe fn destack_random_next_u64(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_random_next_u64_from(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     stream: RandomStream,
 ) -> RuntimeResult<()> {
@@ -400,6 +418,8 @@ pub(crate) unsafe fn destack_random_next_u64_from(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
+
+    on_random_read(context, Some(stream_id(stream)));
 
     // sample one value from the requested runtime stream
     let value = context.runtime().random.next_stream_u64(stream_id(stream));
@@ -430,7 +450,7 @@ pub(crate) unsafe fn destack_random_next_u64_from(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_random_stream_split(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut RandomStream,
     parent: RandomStream,
 ) -> RuntimeResult<()> {
@@ -441,7 +461,6 @@ pub(crate) unsafe fn destack_random_stream_split(
 
     // derive one child stream from the parent stream
     let child_stream = context.runtime().random.split_stream(stream_id(parent));
-
     // write the child stream handle to the ABI out pointer
     unsafe {
         std::ptr::write(out, stream_handle(child_stream));
@@ -468,7 +487,7 @@ pub(crate) unsafe fn destack_random_stream_split(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_random_stream(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut RandomStream,
 ) -> RuntimeResult<()> {
     // validate out pointer for native ABI writes
@@ -478,7 +497,6 @@ pub(crate) unsafe fn destack_random_stream(
 
     // allocate one process-scoped stream id
     let stream_id = context.runtime().random.new_stream_id();
-
     // write the stream handle to the ABI out pointer
     unsafe {
         std::ptr::write(out, stream_handle(stream_id));

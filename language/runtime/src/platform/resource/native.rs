@@ -1,6 +1,6 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{PlatformError, PlatformErrorCode, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Validate one required output pointer.
 unsafe fn check_out_pointer<T>(out: *mut T, name: &'static str) -> RuntimeResult<()> {
@@ -43,7 +43,7 @@ fn resource_not_found(op: &'static str, id: resource::ResourceId) -> Box<Runtime
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_resource_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
     // remove the entry and run finalization
@@ -73,7 +73,7 @@ pub(crate) unsafe fn destack_resource_close(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_resource_kind(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::ResourceKind,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
@@ -113,7 +113,7 @@ pub(crate) unsafe fn destack_resource_kind(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_resource_remove(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
     // remove the entry and run finalization
@@ -143,7 +143,7 @@ pub(crate) unsafe fn destack_resource_remove(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_resource_transfer(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     id: resource::ResourceId,
     ownership: resource::ResourceOwnership,
 ) -> RuntimeResult<()> {

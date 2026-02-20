@@ -2,10 +2,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::runtime::replay::{RandomEventKind, TimeEventKind};
 use destack_base::fnv1a_128;
+pub use destack_workspace::{BindingBlocking, BindingEffect, BindingScope};
 
 /// Replay behavior for external bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ReplayPolicy {
+pub enum BindingReplayPolicy {
     /// Record the call for replay and return replayed values in replay execution.
     Recordable,
     /// Reject the call in deterministic or replay execution modes.
@@ -14,7 +15,7 @@ pub enum ReplayPolicy {
 
 /// Replay payload policy for recorded bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ReplayPayload {
+pub enum BindingReplayPayload {
     /// Record only the result value.
     Results,
     /// Record arguments and results for verification.
@@ -23,13 +24,29 @@ pub enum ReplayPayload {
 
 /// Effect classification for external bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EffectClass {
+pub enum BindingEffectClass {
     /// No observable side effects.
     Pure,
     /// Deterministic effects that do not require external I/O.
     Deterministic,
     /// External side effects governed by replay policy.
-    External { replay: ReplayPolicy },
+    External { replay: BindingReplayPolicy },
+}
+
+impl BindingEffectClass {
+    /// Return the shared effect class selector for matching and policy.
+    pub const fn binding_effect(self) -> BindingEffect {
+        match self {
+            BindingEffectClass::Pure => BindingEffect::Pure,
+            BindingEffectClass::Deterministic => BindingEffect::Deterministic,
+            BindingEffectClass::External {
+                replay: BindingReplayPolicy::Recordable,
+            } => BindingEffect::ExternalRecordable,
+            BindingEffectClass::External {
+                replay: BindingReplayPolicy::NonRecordable,
+            } => BindingEffect::ExternalNonRecordable,
+        }
+    }
 }
 
 /// Replay routing for external bindings.
@@ -41,26 +58,6 @@ pub enum BindingReplayKind {
     Time(TimeEventKind),
     /// Record a random event with a specific kind.
     Random(RandomEventKind),
-}
-
-/// Platform scope classification for runtime bindings.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum BindingScope {
-    /// Binding executes via direct host platform operations.
-    Host,
-    /// Binding executes entirely inside runtime-managed state.
-    Runtime,
-}
-
-/// Blocking behavior classification for runtime bindings.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum BindingBlocking {
-    /// Binding always blocks under normal execution.
-    Always,
-    /// Binding never blocks and returns immediately.
-    Never,
-    /// Binding may block depending on runtime or host readiness.
-    Sometimes,
 }
 
 /// Bitmask describing binding effect classes.
@@ -87,15 +84,15 @@ impl BindingEffectMask {
     }
 }
 
-const fn effect_mask_for_class(effect_class: EffectClass) -> BindingEffectMask {
+const fn effect_mask_for_class(effect_class: BindingEffectClass) -> BindingEffectMask {
     match effect_class {
-        EffectClass::Pure => BindingEffectMask::PURE,
-        EffectClass::Deterministic => BindingEffectMask::DETERMINISTIC,
-        EffectClass::External {
-            replay: ReplayPolicy::Recordable,
+        BindingEffectClass::Pure => BindingEffectMask::PURE,
+        BindingEffectClass::Deterministic => BindingEffectMask::DETERMINISTIC,
+        BindingEffectClass::External {
+            replay: BindingReplayPolicy::Recordable,
         } => BindingEffectMask::EXTERNAL_RECORDABLE,
-        EffectClass::External {
-            replay: ReplayPolicy::NonRecordable,
+        BindingEffectClass::External {
+            replay: BindingReplayPolicy::NonRecordable,
         } => BindingEffectMask::EXTERNAL_NONRECORDABLE,
     }
 }
@@ -265,13 +262,13 @@ pub struct BindingDescriptor {
     /// Payload codec id for record/replay.
     pub codec: CodecId,
     /// Effect classification for policy and replay.
-    pub effect_class: EffectClass,
+    pub effect_class: BindingEffectClass,
     /// Effect mask for policy checks.
     pub effect_mask: BindingEffectMask,
     /// Replay routing for the binding.
     pub replay_kind: BindingReplayKind,
     /// Replay payload capability for recorded bindings.
-    pub replay_payload: ReplayPayload,
+    pub replay_payload: BindingReplayPayload,
     /// Required platform capabilities for this binding.
     pub requires: &'static [&'static str],
     /// Host platforms where this binding is supported.
@@ -289,9 +286,9 @@ impl BindingDescriptor {
         name: &'static str,
         signature: &'static str,
         codec: CodecId,
-        effect_class: EffectClass,
+        effect_class: BindingEffectClass,
         replay_kind: BindingReplayKind,
-        replay_payload: ReplayPayload,
+        replay_payload: BindingReplayPayload,
     ) -> Self {
         Self::with_codec_and_replay_kind_with_requires(
             name,
@@ -309,9 +306,9 @@ impl BindingDescriptor {
         name: &'static str,
         signature: &'static str,
         codec: CodecId,
-        effect_class: EffectClass,
+        effect_class: BindingEffectClass,
         replay_kind: BindingReplayKind,
-        replay_payload: ReplayPayload,
+        replay_payload: BindingReplayPayload,
         requires: &'static [&'static str],
     ) -> Self {
         Self::with_codec_and_replay_kind_with_requires_and_behavior(
@@ -332,9 +329,9 @@ impl BindingDescriptor {
         name: &'static str,
         signature: &'static str,
         codec: CodecId,
-        effect_class: EffectClass,
+        effect_class: BindingEffectClass,
         replay_kind: BindingReplayKind,
-        replay_payload: ReplayPayload,
+        replay_payload: BindingReplayPayload,
         requires: &'static [&'static str],
         scope: BindingScope,
         blocking: BindingBlocking,
@@ -361,7 +358,7 @@ impl BindingDescriptor {
         name: &'static str,
         signature: &'static str,
         codec: CodecId,
-        effect_class: EffectClass,
+        effect_class: BindingEffectClass,
     ) -> Self {
         Self::with_codec_with_requires(name, signature, codec, effect_class, &[])
     }
@@ -371,7 +368,7 @@ impl BindingDescriptor {
         name: &'static str,
         signature: &'static str,
         codec: CodecId,
-        effect_class: EffectClass,
+        effect_class: BindingEffectClass,
         requires: &'static [&'static str],
     ) -> Self {
         Self::with_codec_and_replay_kind_with_requires(
@@ -380,7 +377,7 @@ impl BindingDescriptor {
             codec,
             effect_class,
             BindingReplayKind::Regular,
-            ReplayPayload::Results,
+            BindingReplayPayload::Results,
             requires,
         )
     }
@@ -389,7 +386,7 @@ impl BindingDescriptor {
     pub const fn new(
         name: &'static str,
         signature: &'static str,
-        effect_class: EffectClass,
+        effect_class: BindingEffectClass,
     ) -> Self {
         Self::new_with_requires(name, signature, effect_class, &[])
     }
@@ -398,7 +395,7 @@ impl BindingDescriptor {
     pub const fn new_with_requires(
         name: &'static str,
         signature: &'static str,
-        effect_class: EffectClass,
+        effect_class: BindingEffectClass,
         requires: &'static [&'static str],
     ) -> Self {
         Self::with_codec_with_requires(name, signature, CODEC_POSTCARD_V1, effect_class, requires)
@@ -436,9 +433,9 @@ impl BindingDescriptor {
             name,
             signature,
             CODEC_POSTCARD_V1,
-            EffectClass::Pure,
+            BindingEffectClass::Pure,
             BindingReplayKind::Regular,
-            ReplayPayload::Results,
+            BindingReplayPayload::Results,
             requires,
             scope,
             blocking,
@@ -477,9 +474,9 @@ impl BindingDescriptor {
             name,
             signature,
             CODEC_POSTCARD_V1,
-            EffectClass::Deterministic,
+            BindingEffectClass::Deterministic,
             BindingReplayKind::Regular,
-            ReplayPayload::Results,
+            BindingReplayPayload::Results,
             requires,
             scope,
             blocking,
@@ -490,7 +487,7 @@ impl BindingDescriptor {
     pub const fn external(
         name: &'static str,
         signature: &'static str,
-        replay: ReplayPolicy,
+        replay: BindingReplayPolicy,
         replay_kind: BindingReplayKind,
     ) -> Self {
         Self::external_with_requires(name, signature, replay, replay_kind, &[])
@@ -500,7 +497,7 @@ impl BindingDescriptor {
     pub const fn external_with_requires(
         name: &'static str,
         signature: &'static str,
-        replay: ReplayPolicy,
+        replay: BindingReplayPolicy,
         replay_kind: BindingReplayKind,
         requires: &'static [&'static str],
     ) -> Self {
@@ -519,7 +516,7 @@ impl BindingDescriptor {
     pub const fn external_with_requires_and_behavior(
         name: &'static str,
         signature: &'static str,
-        replay: ReplayPolicy,
+        replay: BindingReplayPolicy,
         replay_kind: BindingReplayKind,
         requires: &'static [&'static str],
         scope: BindingScope,
@@ -530,7 +527,7 @@ impl BindingDescriptor {
             signature,
             replay,
             replay_kind,
-            ReplayPayload::Results,
+            BindingReplayPayload::Results,
             requires,
             scope,
             blocking,
@@ -541,9 +538,9 @@ impl BindingDescriptor {
     pub const fn external_with_payload(
         name: &'static str,
         signature: &'static str,
-        replay: ReplayPolicy,
+        replay: BindingReplayPolicy,
         replay_kind: BindingReplayKind,
-        replay_payload: ReplayPayload,
+        replay_payload: BindingReplayPayload,
     ) -> Self {
         Self::external_with_payload_with_requires(
             name,
@@ -561,9 +558,9 @@ impl BindingDescriptor {
     pub const fn external_with_payload_with_requires(
         name: &'static str,
         signature: &'static str,
-        replay: ReplayPolicy,
+        replay: BindingReplayPolicy,
         replay_kind: BindingReplayKind,
-        replay_payload: ReplayPayload,
+        replay_payload: BindingReplayPayload,
         requires: &'static [&'static str],
         scope: BindingScope,
         blocking: BindingBlocking,
@@ -572,7 +569,7 @@ impl BindingDescriptor {
             name,
             signature,
             CODEC_POSTCARD_V1,
-            EffectClass::External { replay },
+            BindingEffectClass::External { replay },
             replay_kind,
             replay_payload,
             requires,
@@ -582,7 +579,7 @@ impl BindingDescriptor {
     }
 
     /// Return the replay payload capability for this binding.
-    pub const fn replay_payload(self) -> ReplayPayload {
+    pub const fn replay_payload(self) -> BindingReplayPayload {
         self.replay_payload
     }
 
