@@ -19,7 +19,7 @@ export enum InputDeviceKind {
 }
 
 /// Input device information.
-export struct InputDeviceInfo {
+export struct InputDeviceDescriptor {
     /// Stable runtime input device identifier.
     id: string;
     /// Stable runtime instance identifier for this connection.
@@ -112,7 +112,7 @@ export enum InputCapabilityMetadataFidelity {
 }
 
 /// Input axis capability entry.
-export struct InputAxisInfo {
+export struct InputAxisMetadata {
     /// Backend-native axis code.
     code: uint32;
     /// Minimum normalized axis value.
@@ -128,7 +128,7 @@ export struct InputAxisInfo {
 }
 
 /// Input button capability entry.
-export struct InputButtonInfo {
+export struct InputButtonMetadata {
     /// Backend-native button code.
     code: uint32;
     /// Whether this button reports analog values.
@@ -140,9 +140,9 @@ export struct InputDeviceCapabilities {
     /// High-level capability categories for the device.
     kinds: Array<InputDeviceCapabilityKind>;
     /// Axis capability entries when reported by backend.
-    axes: Array<InputAxisInfo>;
+    axes: Array<InputAxisMetadata>;
     /// Button capability entries when reported by backend.
-    buttons: Array<InputButtonInfo>;
+    buttons: Array<InputButtonMetadata>;
     /// Aggregate metadata origin for this capability snapshot.
     metadataOrigin: InputCapabilityMetadataOrigin;
     /// Aggregate axis metadata fidelity for this capability snapshot.
@@ -208,7 +208,7 @@ declare namespace input {
         scope: "host",
         blocking: "sometimes",
     })
-    export function list(): Result<Slice<InputDeviceInfo>, PlatformError>;
+    export function list(): Result<Slice<InputDeviceDescriptor>, PlatformError>;
 
     /// Open one input device.
     ///

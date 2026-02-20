@@ -7,7 +7,7 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::{
-    DisplayInfo, DisplayInfoVm, DisplayMode, DisplayModeVm, WindowEvent, WindowEventVm,
+    DisplayDescriptor, DisplayDescriptorVm, DisplayMode, DisplayModeVm, WindowEvent, WindowEventVm,
     WindowOptions, WindowOptionsVm, native as display_native, vm as display_vm,
 };
 use crate::platform::{
@@ -79,14 +79,15 @@ impl<'call> DisplayHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_display_list(
         &mut self,
-    ) -> RuntimeResult<HarnessValue<NativeSlice<DisplayInfo>, VmSlice<DisplayInfoVm>>> {
+    ) -> RuntimeResult<HarnessValue<NativeSlice<DisplayDescriptor>, VmSlice<DisplayDescriptorVm>>>
+    {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out = display_vm::destack_display_list(self.call_context, context)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<NativeSlice<DisplayInfo>>::uninit();
+                let mut out = std::mem::MaybeUninit::<NativeSlice<DisplayDescriptor>>::uninit();
                 unsafe {
                     display_native::destack_display_list(self.call_context, out.as_mut_ptr())?;
                 }

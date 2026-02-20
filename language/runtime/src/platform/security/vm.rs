@@ -1,10 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::security::{
-    PlatformCapabilityVm, SecurityFilterKind, SecurityFilterVm, SecurityPolicyMode,
-    SecurityPolicyRuleVm,
-};
+use crate::platform::security::{PlatformCapabilityVm, SecurityPolicyMode, SecurityPolicyRuleVm};
 use crate::platform::{PlatformError, VmSlice, resource};
 use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
@@ -65,36 +62,6 @@ pub(crate) fn destack_security_capability_list(
     .boxed())
 }
 
-/// Install one host filter for a sandbox scope.
-///
-/// Install one host-enforced filter descriptor for a sandbox scope.
-/// Filter parsing and host mapping are selected by the filter kind.
-///
-/// # Platform
-/// Hybrid across runtime and host enforcement hooks.
-/// Uses runtime-to-host policy adapters for seccomp, pledge, landlock, seatbelt, or token restrictions.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `security.filter`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_security_sandbox_install_filter(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SandboxHandle,
-    filter: SecurityFilterVm,
-) -> RuntimeResult<()> {
-    let _ = (handle, filter);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.security.enforce.sandboxInstallFilter is not available in the VM yet",
-    ))
-    .boxed())
-}
-
 /// Seal one sandbox policy.
 ///
 /// Transition one sandbox scope into sealed mode.
@@ -150,6 +117,35 @@ pub(crate) fn destack_security_sandbox_set_capabilities(
     let _ = (handle, capabilities);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.security.enforce.sandboxSetCapabilities is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Set runtime W^X policy.
+///
+/// Enable or disable runtime write-xor-execute policy enforcement.
+/// Policy update affects subsequent executable-memory transitions.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime memory policy controls layered over host page protections.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `security.restrict`.
+///
+/// # Replay
+/// Deterministic.
+pub(crate) fn destack_security_set_write_xor_execute(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    let _ = enabled;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.security.enforce.setWriteXorExecute is not available in the VM yet",
     ))
     .boxed())
 }

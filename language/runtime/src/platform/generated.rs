@@ -3,7 +3,7 @@
 use crate::platform::bindings::{NativeBindingSet, VmBindingSet};
 use crate::platform::{
     audio, crypto, debug, display, error, ffi, fs, gpu, input, io, ipc, memory, net, os, process,
-    random, resource, security, thread, time, timer, tls, tty,
+    random, resource, security, thread, time, tls, tty,
 };
 
 /// Native binding sets for all platform domains.
@@ -28,7 +28,6 @@ pub const PLATFORM_NATIVE_BINDINGS: &[NativeBindingSet] = &[
     security::SECURITY_NATIVE_BINDINGS,
     thread::THREAD_NATIVE_BINDINGS,
     time::TIME_NATIVE_BINDINGS,
-    timer::TIMER_NATIVE_BINDINGS,
     tls::TLS_NATIVE_BINDINGS,
     tty::TTY_NATIVE_BINDINGS,
 ];
@@ -55,7 +54,6 @@ pub const PLATFORM_VM_BINDINGS: &[VmBindingSet] = &[
     security::SECURITY_VM_BINDINGS,
     thread::THREAD_VM_BINDINGS,
     time::TIME_VM_BINDINGS,
-    timer::TIMER_VM_BINDINGS,
     tls::TLS_VM_BINDINGS,
     tty::TTY_VM_BINDINGS,
 ];

@@ -10,32 +10,32 @@ use crate::platform::bindings::{
     NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
 };
 use crate::platform::input::{
-    InputAxisInfo, InputAxisInfoVm, InputButtonInfo, InputButtonInfoVm, InputCompositionEvent,
-    InputCompositionEventPayload, InputCompositionEventPayloadReplayRecord,
+    InputAxisMetadata, InputAxisMetadataVm, InputButtonMetadata, InputButtonMetadataVm,
+    InputCompositionEvent, InputCompositionEventPayload, InputCompositionEventPayloadReplayRecord,
     InputCompositionEventPayloadVm, InputCompositionEventReplayRecord, InputCompositionEventVm,
     InputDeviceCapabilities, InputDeviceCapabilitiesReplayRecord, InputDeviceCapabilitiesVm,
-    InputDeviceCapabilityKind, InputDeviceEventPayload, InputDeviceEventPayloadVm, InputDeviceInfo,
-    InputDeviceInfoReplayRecord, InputDeviceInfoVm, InputDeviceKind, InputEvent, InputEventAction,
-    InputEventKind, InputEventPayload, InputEventPayloadReplayRecord, InputEventPayloadVm,
-    InputEventReplayRecord, InputEventVm, InputGamepadBatteryInfo, InputGamepadBatteryInfoVm,
-    InputGamepadButtonState, InputGamepadButtonStateVm, InputGamepadEventPayload,
-    InputGamepadEventPayloadVm, InputGamepadState, InputGamepadStateReplayRecord,
-    InputGamepadStateVm, InputGamepadTouchState, InputGamepadTouchStateVm,
-    InputHapticEffectParameters, InputHapticEffectParametersVm, InputHapticEffectType,
-    InputHapticsResult, InputKeyEventPayload, InputKeyEventPayloadVm, InputKeyboardState,
-    InputKeyboardStateReplayRecord, InputKeyboardStateVm, InputMonitorEvent,
+    InputDeviceCapabilityKind, InputDeviceDescriptor, InputDeviceDescriptorReplayRecord,
+    InputDeviceDescriptorVm, InputDeviceEventPayload, InputDeviceEventPayloadVm, InputDeviceKind,
+    InputEvent, InputEventAction, InputEventKind, InputEventPayload, InputEventPayloadReplayRecord,
+    InputEventPayloadVm, InputEventReplayRecord, InputEventVm, InputGamepadBatteryStatus,
+    InputGamepadBatteryStatusVm, InputGamepadButtonState, InputGamepadButtonStateVm,
+    InputGamepadEventPayload, InputGamepadEventPayloadVm, InputGamepadState,
+    InputGamepadStateReplayRecord, InputGamepadStateVm, InputGamepadTouchState,
+    InputGamepadTouchStateVm, InputHapticEffectParameters, InputHapticEffectParametersVm,
+    InputHapticEffectType, InputHapticsResult, InputKeyEventPayload, InputKeyEventPayloadVm,
+    InputKeyboardState, InputKeyboardStateReplayRecord, InputKeyboardStateVm, InputMonitorEvent,
     InputMonitorEventReplayRecord, InputMonitorEventVm, InputPointerButtonEventPayload,
     InputPointerButtonEventPayloadVm, InputPointerGrabMode, InputPointerMotionEventPayload,
     InputPointerMotionEventPayloadVm, InputPointerState, InputPointerStateVm, InputRawHidReport,
     InputRawHidReportReplayRecord, InputRawHidReportVm, InputReadMode, InputScrollEventPayload,
-    InputScrollEventPayloadVm, InputSensorConfig, InputSensorConfigVm, InputSensorEffectiveConfig,
-    InputSensorEffectiveConfigVm, InputSensorEventPayload, InputSensorEventPayloadVm,
-    InputSensorInfo, InputSensorInfoVm, InputSensorKind, InputSensorSample, InputSensorSampleVm,
-    InputTextEventPayload, InputTextEventPayloadReplayRecord, InputTextEventPayloadVm,
-    InputTextInputArea, InputTextInputAreaVm, InputTextInputType, InputTouchContactPhase,
-    InputTouchContactState, InputTouchContactStateVm, InputTouchEventPayload,
-    InputTouchEventPayloadVm, InputTouchState, InputTouchStateReplayRecord, InputTouchStateVm,
-    InputWindowTarget, InputWindowTargetVm,
+    InputScrollEventPayloadVm, InputSensorConfig, InputSensorConfigVm, InputSensorDescriptor,
+    InputSensorDescriptorVm, InputSensorEffectiveConfig, InputSensorEffectiveConfigVm,
+    InputSensorEventPayload, InputSensorEventPayloadVm, InputSensorKind, InputSensorSample,
+    InputSensorSampleVm, InputTextEventPayload, InputTextEventPayloadReplayRecord,
+    InputTextEventPayloadVm, InputTextInputArea, InputTextInputAreaVm, InputTextInputType,
+    InputTouchContactPhase, InputTouchContactState, InputTouchContactStateVm,
+    InputTouchEventPayload, InputTouchEventPayloadVm, InputTouchState, InputTouchStateReplayRecord,
+    InputTouchStateVm, InputWindowTarget, InputWindowTargetVm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
@@ -292,7 +292,7 @@ fn encode_destack_input_device_close_result(
 #[inline]
 fn encode_destack_input_device_list_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<VmSlice<InputDeviceInfoVm>>,
+    result: RuntimeResult<VmSlice<InputDeviceDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
 }
@@ -1495,7 +1495,7 @@ fn decode_destack_input_sensor_list_args(
 #[inline]
 fn encode_destack_input_sensor_list_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<VmArray<InputSensorInfoVm>>,
+    result: RuntimeResult<VmArray<InputSensorDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
 }
@@ -2004,7 +2004,7 @@ struct InputDeviceCloseReplay {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputDeviceListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<InputDeviceInfoReplayRecord>, PlatformError>,
+    pub result: Result<Vec<InputDeviceDescriptorReplayRecord>, PlatformError>,
 }
 
 /// Replay payload for destack.input.device.open.
@@ -2214,7 +2214,7 @@ struct InputSensorConfigureReplay {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputSensorListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<InputSensorInfo>, PlatformError>,
+    pub result: Result<Vec<InputSensorDescriptor>, PlatformError>,
 }
 
 /// Replay payload for destack.input.sensor.read.
@@ -2329,7 +2329,7 @@ pub const INPUT_DEVICE_CLOSE: BindingDescriptor =
 pub const INPUT_DEVICE_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.input.device.list",
-        "export function list(): Result<Slice<InputDeviceInfo>, PlatformError>",
+        "export function list(): Result<Slice<InputDeviceDescriptor>, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["input.read"],
@@ -2786,7 +2786,7 @@ pub const INPUT_SENSOR_CONFIGURE: BindingDescriptor = BindingDescriptor::externa
 /// Binding descriptor for destack.input.sensor.list.
 pub const INPUT_SENSOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.sensor.list",
-    "export function sensorList(handle: InputDeviceHandle): Result<InputSensorInfo[], PlatformError>",
+    "export function sensorList(handle: InputDeviceHandle): Result<InputSensorDescriptor[], PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.read"],
@@ -3247,7 +3247,7 @@ fn destack_input_device_capabilities_replay(
                     let result_recorded_axes_item_recorded_fuzz = result_recorded_axes_item.fuzz;
                     let result_recorded_axes_item_recorded_resolution =
                         result_recorded_axes_item.resolution;
-                    let result_recorded_axes_item_recorded = InputAxisInfo {
+                    let result_recorded_axes_item_recorded = InputAxisMetadata {
                         code: result_recorded_axes_item_recorded_code,
                         minimum: result_recorded_axes_item_recorded_minimum,
                         maximum: result_recorded_axes_item_recorded_maximum,
@@ -3266,7 +3266,7 @@ fn destack_input_device_capabilities_replay(
                         result_recorded_buttons_item.code;
                     let result_recorded_buttons_item_recorded_analog =
                         result_recorded_buttons_item.analog;
-                    let result_recorded_buttons_item_recorded = InputButtonInfo {
+                    let result_recorded_buttons_item_recorded = InputButtonMetadata {
                         code: result_recorded_buttons_item_recorded_code,
                         analog: result_recorded_buttons_item_recorded_analog,
                     };
@@ -3347,7 +3347,7 @@ fn destack_input_device_capabilities_replay(
                         let value_native_axes_item_native_fuzz = value_native_axes_item.fuzz;
                         let value_native_axes_item_native_resolution =
                             value_native_axes_item.resolution;
-                        let value_native_axes_item_native = InputAxisInfo {
+                        let value_native_axes_item_native = InputAxisMetadata {
                             code: value_native_axes_item_native_code,
                             minimum: value_native_axes_item_native_minimum,
                             maximum: value_native_axes_item_native_maximum,
@@ -3363,7 +3363,7 @@ fn destack_input_device_capabilities_replay(
                         let value_native_buttons_item_native_code = value_native_buttons_item.code;
                         let value_native_buttons_item_native_analog =
                             value_native_buttons_item.analog;
-                        let value_native_buttons_item_native = InputButtonInfo {
+                        let value_native_buttons_item_native = InputButtonMetadata {
                             code: value_native_buttons_item_native_code,
                             analog: value_native_buttons_item_native_analog,
                         };
@@ -3468,7 +3468,7 @@ fn destack_input_device_close_replay(
 fn destack_input_device_list_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    out: *mut NativeSlice<InputDeviceInfo>,
+    out: *mut NativeSlice<InputDeviceDescriptor>,
 ) -> RuntimeResult<()> {
     context.replay().run_binding_with_payload_policy(
         INPUT_DEVICE_LIST,
@@ -3525,7 +3525,7 @@ fn destack_input_device_list_replay(
                         result_recorded_item.supports_raw_hid;
                     let result_recorded_item_recorded_is_virtual = result_recorded_item.is_virtual;
                     let result_recorded_item_recorded_is_system = result_recorded_item.is_system;
-                    let result_recorded_item_recorded = InputDeviceInfoReplayRecord {
+                    let result_recorded_item_recorded = InputDeviceDescriptorReplayRecord {
                         id: result_recorded_item_recorded_id,
                         instance_id: result_recorded_item_recorded_instance_id,
                         hardware_id: result_recorded_item_recorded_hardware_id,
@@ -3605,7 +3605,7 @@ fn destack_input_device_list_replay(
                             value_native_item.supports_raw_hid;
                         let value_native_item_native_is_virtual = value_native_item.is_virtual;
                         let value_native_item_native_is_system = value_native_item.is_system;
-                        let value_native_item_native = InputDeviceInfo {
+                        let value_native_item_native = InputDeviceDescriptor {
                             id: value_native_item_native_id,
                             instance_id: value_native_item_native_instance_id,
                             hardware_id: value_native_item_native_hardware_id,
@@ -5391,7 +5391,7 @@ fn destack_input_gamepad_state_replay(
                 let result_recorded_player_index = result_value.player_index;
                 let result_recorded_battery_state = result_value.battery.state;
                 let result_recorded_battery_level = result_value.battery.level;
-                let result_recorded_battery = InputGamepadBatteryInfo {
+                let result_recorded_battery = InputGamepadBatteryStatus {
                     state: result_recorded_battery_state,
                     level: result_recorded_battery_level,
                 };
@@ -5484,7 +5484,7 @@ fn destack_input_gamepad_state_replay(
                     let value_native_player_index = value.player_index;
                     let value_native_battery_state = value.battery.state;
                     let value_native_battery_level = value.battery.level;
-                    let value_native_battery = InputGamepadBatteryInfo {
+                    let value_native_battery = InputGamepadBatteryStatus {
                         state: value_native_battery_state,
                         level: value_native_battery_level,
                     };
@@ -6771,7 +6771,7 @@ fn destack_input_sensor_configure_replay(
 fn destack_input_sensor_list_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    out: *mut NativeArray<InputSensorInfo>,
+    out: *mut NativeArray<InputSensorDescriptor>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
@@ -6807,7 +6807,7 @@ fn destack_input_sensor_list_replay(
                     let result_recorded_item_recorded_resolution = result_recorded_item.resolution;
                     let result_recorded_item_recorded_supports_wake =
                         result_recorded_item.supports_wake;
-                    let result_recorded_item_recorded = InputSensorInfo {
+                    let result_recorded_item_recorded = InputSensorDescriptor {
                         kind: result_recorded_item_recorded_kind,
                         min_sample_rate_hz: result_recorded_item_recorded_min_sample_rate_hz,
                         max_sample_rate_hz: result_recorded_item_recorded_max_sample_rate_hz,
@@ -6846,7 +6846,7 @@ fn destack_input_sensor_list_replay(
                         let value_native_item_native_resolution = value_native_item.resolution;
                         let value_native_item_native_supports_wake =
                             value_native_item.supports_wake;
-                        let value_native_item_native = InputSensorInfo {
+                        let value_native_item_native = InputSensorDescriptor {
                             kind: value_native_item_native_kind,
                             min_sample_rate_hz: value_native_item_native_min_sample_rate_hz,
                             max_sample_rate_hz: value_native_item_native_max_sample_rate_hz,
@@ -7712,7 +7712,7 @@ pub unsafe extern "C" fn destack_input_device_close(
 
 #[unsafe(export_name = "destack.input.device.list")]
 pub unsafe extern "C" fn destack_input_device_list(
-    out: *mut NativeSlice<InputDeviceInfo>,
+    out: *mut NativeSlice<InputDeviceDescriptor>,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
@@ -8204,7 +8204,7 @@ pub unsafe extern "C" fn destack_input_sensor_configure(
 
 #[unsafe(export_name = "destack.input.sensor.list")]
 pub unsafe extern "C" fn destack_input_sensor_list(
-    out: *mut NativeArray<InputSensorInfo>,
+    out: *mut NativeArray<InputSensorDescriptor>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8489,7 +8489,7 @@ fn destack_input_device_capabilities_vm_replay(
                                 "result_recorded_axes_item_resolution",
                                 "resolution",
                             )?;
-                            InputAxisInfoVm {
+                            InputAxisMetadataVm {
                                 code: result_recorded_axes_item_code,
                                 minimum: result_recorded_axes_item_minimum,
                                 maximum: result_recorded_axes_item_maximum,
@@ -8510,7 +8510,7 @@ fn destack_input_device_capabilities_vm_replay(
                             result_recorded_axes_item.fuzz;
                         let result_recorded_axes_item_recorded_resolution =
                             result_recorded_axes_item.resolution;
-                        let result_recorded_axes_item_recorded = InputAxisInfo {
+                        let result_recorded_axes_item_recorded = InputAxisMetadata {
                             code: result_recorded_axes_item_recorded_code,
                             minimum: result_recorded_axes_item_recorded_minimum,
                             maximum: result_recorded_axes_item_recorded_maximum,
@@ -8556,7 +8556,7 @@ fn destack_input_device_capabilities_vm_replay(
                                 "result_recorded_buttons_item_analog",
                                 "analog",
                             )?;
-                            InputButtonInfoVm {
+                            InputButtonMetadataVm {
                                 code: result_recorded_buttons_item_code,
                                 analog: result_recorded_buttons_item_analog,
                             }
@@ -8565,7 +8565,7 @@ fn destack_input_device_capabilities_vm_replay(
                             result_recorded_buttons_item.code;
                         let result_recorded_buttons_item_recorded_analog =
                             result_recorded_buttons_item.analog;
-                        let result_recorded_buttons_item_recorded = InputButtonInfo {
+                        let result_recorded_buttons_item_recorded = InputButtonMetadata {
                             code: result_recorded_buttons_item_recorded_code,
                             analog: result_recorded_buttons_item_recorded_analog,
                         };
@@ -8654,7 +8654,7 @@ fn destack_input_device_capabilities_vm_replay(
                             let vm_result_axes_item_value_fuzz = vm_result_axes_item.fuzz;
                             let vm_result_axes_item_value_resolution =
                                 vm_result_axes_item.resolution;
-                            let vm_result_axes_item_value = InputAxisInfoVm {
+                            let vm_result_axes_item_value = InputAxisMetadataVm {
                                 code: vm_result_axes_item_value_code,
                                 minimum: vm_result_axes_item_value_minimum,
                                 maximum: vm_result_axes_item_value_maximum,
@@ -8679,7 +8679,7 @@ fn destack_input_device_capabilities_vm_replay(
                         }
                         let vm_result_axes_data =
                             context.allocate_raw_values(vm_result_axes_values);
-                        let vm_result_axes: VmArray<InputAxisInfoVm> = VmArray {
+                        let vm_result_axes: VmArray<InputAxisMetadataVm> = VmArray {
                             data: vm_result_axes_data,
                             len: value.axes.len() as u32,
                             capacity: value.axes.len() as u32,
@@ -8690,7 +8690,7 @@ fn destack_input_device_capabilities_vm_replay(
                             let vm_result_buttons_item = *vm_result_buttons_item;
                             let vm_result_buttons_item_value_code = vm_result_buttons_item.code;
                             let vm_result_buttons_item_value_analog = vm_result_buttons_item.analog;
-                            let vm_result_buttons_item_value = InputButtonInfoVm {
+                            let vm_result_buttons_item_value = InputButtonMetadataVm {
                                 code: vm_result_buttons_item_value_code,
                                 analog: vm_result_buttons_item_value_analog,
                             };
@@ -8704,7 +8704,7 @@ fn destack_input_device_capabilities_vm_replay(
                         }
                         let vm_result_buttons_data =
                             context.allocate_raw_values(vm_result_buttons_values);
-                        let vm_result_buttons: VmArray<InputButtonInfoVm> = VmArray {
+                        let vm_result_buttons: VmArray<InputButtonMetadataVm> = VmArray {
                             data: vm_result_buttons_data,
                             len: value.buttons.len() as u32,
                             capacity: value.buttons.len() as u32,
@@ -8830,7 +8830,7 @@ fn destack_input_device_list_vm_replay(
             |context, result| {
                 let _ = &context;
                 if let Ok(value) = result {
-                    let result_value: VmSlice<InputDeviceInfoVm> = value.clone();
+                    let result_value: VmSlice<InputDeviceDescriptorVm> = value.clone();
                     let result_recorded_raw = result_value.raw_values(context)?;
                     let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                     for result_recorded_item_value in result_recorded_raw {
@@ -8969,7 +8969,7 @@ fn destack_input_device_list_vm_replay(
                                 "result_recorded_item_is_system",
                                 "isSystem",
                             )?;
-                            InputDeviceInfoVm {
+                            InputDeviceDescriptorVm {
                                 id: result_recorded_item_id,
                                 instance_id: result_recorded_item_instance_id,
                                 hardware_id: result_recorded_item_hardware_id,
@@ -9061,7 +9061,7 @@ fn destack_input_device_list_vm_replay(
                             result_recorded_item.is_virtual;
                         let result_recorded_item_recorded_is_system =
                             result_recorded_item.is_system;
-                        let result_recorded_item_recorded = InputDeviceInfoReplayRecord {
+                        let result_recorded_item_recorded = InputDeviceDescriptorReplayRecord {
                             id: result_recorded_item_recorded_id,
                             instance_id: result_recorded_item_recorded_instance_id,
                             hardware_id: result_recorded_item_recorded_hardware_id,
@@ -9151,7 +9151,7 @@ fn destack_input_device_list_vm_replay(
                                 vm_result_item.supports_raw_hid;
                             let vm_result_item_value_is_virtual = vm_result_item.is_virtual;
                             let vm_result_item_value_is_system = vm_result_item.is_system;
-                            let vm_result_item_value = InputDeviceInfoVm {
+                            let vm_result_item_value = InputDeviceDescriptorVm {
                                 id: vm_result_item_value_id,
                                 instance_id: vm_result_item_value_instance_id,
                                 hardware_id: vm_result_item_value_hardware_id,
@@ -9217,7 +9217,7 @@ fn destack_input_device_list_vm_replay(
                             vm_result_values.push(vm_result_item_value_encoded);
                         }
                         let vm_result_data = context.allocate_raw_values(vm_result_values);
-                        let vm_result: VmSlice<InputDeviceInfoVm> = VmSlice {
+                        let vm_result: VmSlice<InputDeviceDescriptorVm> = VmSlice {
                             data: vm_result_data,
                             len: value.len() as u32,
                             _marker: std::marker::PhantomData,
@@ -11138,7 +11138,7 @@ fn destack_input_gamepad_state_vm_replay(
                     let result_recorded_player_index = result_value.player_index;
                     let result_recorded_battery_state = result_value.battery.state;
                     let result_recorded_battery_level = result_value.battery.level;
-                    let result_recorded_battery = InputGamepadBatteryInfo {
+                    let result_recorded_battery = InputGamepadBatteryStatus {
                         state: result_recorded_battery_state,
                         level: result_recorded_battery_level,
                     };
@@ -11330,7 +11330,7 @@ fn destack_input_gamepad_state_vm_replay(
                         let vm_result_player_index = value.player_index;
                         let vm_result_battery_state = value.battery.state;
                         let vm_result_battery_level = value.battery.level;
-                        let vm_result_battery = InputGamepadBatteryInfoVm {
+                        let vm_result_battery = InputGamepadBatteryStatusVm {
                             state: vm_result_battery_state,
                             level: vm_result_battery_level,
                         };
@@ -12667,7 +12667,7 @@ fn destack_input_sensor_list_vm_replay(
             |context, result| {
                 let _ = &context;
                 if let Ok(value) = result {
-                    let result_value: VmArray<InputSensorInfoVm> = value.clone();
+                    let result_value: VmArray<InputSensorDescriptorVm> = value.clone();
                     let result_recorded_raw = result_value.raw_values(context)?;
                     let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                     for result_recorded_item_value in result_recorded_raw {
@@ -12732,7 +12732,7 @@ fn destack_input_sensor_list_vm_replay(
                                 "result_recorded_item_supports_wake",
                                 "supportsWake",
                             )?;
-                            InputSensorInfoVm {
+                            InputSensorDescriptorVm {
                                 kind: result_recorded_item_kind,
                                 min_sample_rate_hz: result_recorded_item_min_sample_rate_hz,
                                 max_sample_rate_hz: result_recorded_item_max_sample_rate_hz,
@@ -12749,7 +12749,7 @@ fn destack_input_sensor_list_vm_replay(
                             result_recorded_item.resolution;
                         let result_recorded_item_recorded_supports_wake =
                             result_recorded_item.supports_wake;
-                        let result_recorded_item_recorded = InputSensorInfo {
+                        let result_recorded_item_recorded = InputSensorDescriptor {
                             kind: result_recorded_item_recorded_kind,
                             min_sample_rate_hz: result_recorded_item_recorded_min_sample_rate_hz,
                             max_sample_rate_hz: result_recorded_item_recorded_max_sample_rate_hz,
@@ -12789,7 +12789,7 @@ fn destack_input_sensor_list_vm_replay(
                                 vm_result_item.max_sample_rate_hz;
                             let vm_result_item_value_resolution = vm_result_item.resolution;
                             let vm_result_item_value_supports_wake = vm_result_item.supports_wake;
-                            let vm_result_item_value = InputSensorInfoVm {
+                            let vm_result_item_value = InputSensorDescriptorVm {
                                 kind: vm_result_item_value_kind,
                                 min_sample_rate_hz: vm_result_item_value_min_sample_rate_hz,
                                 max_sample_rate_hz: vm_result_item_value_max_sample_rate_hz,
@@ -12812,7 +12812,7 @@ fn destack_input_sensor_list_vm_replay(
                             vm_result_values.push(vm_result_item_value_encoded);
                         }
                         let vm_result_data = context.allocate_raw_values(vm_result_values);
-                        let vm_result: VmArray<InputSensorInfoVm> = VmArray {
+                        let vm_result: VmArray<InputSensorDescriptorVm> = VmArray {
                             data: vm_result_data,
                             len: value.len() as u32,
                             capacity: value.len() as u32,

@@ -93,6 +93,46 @@ impl VmValueCodec for PollInterest {
     }
 }
 
+/// ABI newtype for TimerFdFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TimerFdFlags(
+    /// Inner value.
+    pub u32,
+);
+
+pub type TimerFdFlagsVm = TimerFdFlags;
+
+impl VmValueCodec for TimerFdFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for TimerFdSetFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TimerFdSetFlags(
+    /// Inner value.
+    pub u32,
+);
+
+pub type TimerFdSetFlagsVm = TimerFdSetFlags;
+
+impl VmValueCodec for TimerFdSetFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI enum for CompletionOperationKind.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -169,6 +209,41 @@ impl VmValueCodec for PollBackend {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
                     "unknown PollBackend value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for TimerFdClock.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TimerFdClock {
+    /// Realtime.
+    Realtime = 1,
+    /// Monotonic.
+    Monotonic = 2,
+    /// Boottime.
+    Boottime = 3,
+}
+
+impl VmValueCodec for TimerFdClock {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Realtime,
+            2u8 => Self::Monotonic,
+            3u8 => Self::Boottime,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TimerFdClock value",
                 ))
                 .boxed());
             }
@@ -543,6 +618,60 @@ impl VmAggregateCodec for PollEvent {
             <u64 as VmAggregateCodec>::encode_with_context(self.key, context)?,
             <PollInterest as VmAggregateCodec>::encode_with_context(self.ready, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.data, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for TimerFdSpec.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct TimerFdSpec {
+    /// The initial_ns field.
+    pub initial_ns: u64,
+    /// The interval_ns field.
+    pub interval_ns: u64,
+}
+
+pub type TimerFdSpecVm = TimerFdSpec;
+
+impl VmAggregateCodec for TimerFdSpec {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "TimerFdSpec",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_initial_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_interval_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            initial_ns: field_initial_ns,
+            interval_ns: field_interval_ns,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.initial_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.interval_ns, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }

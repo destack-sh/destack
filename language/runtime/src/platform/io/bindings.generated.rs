@@ -13,8 +13,9 @@ use crate::platform::io::{
     CompletionEvent, CompletionEventVm, CompletionOperation, CompletionOperationKind,
     CompletionOperationVm, DescriptorControlCommand, DescriptorControlFlags, DescriptorRequest,
     DescriptorRequestVm, DescriptorResult, DescriptorResultReplayRecord, DescriptorResultVm,
-    EventToken, PollBackend, PollEvent, PollEventVm, PollInterest, UringFeatures, UringFeaturesVm,
-    UringParameters, UringParametersVm,
+    EventToken, PollBackend, PollEvent, PollEventVm, PollInterest, TimerFdClock, TimerFdFlags,
+    TimerFdSetFlags, TimerFdSpec, TimerFdSpecVm, UringFeatures, UringFeaturesVm, UringParameters,
+    UringParametersVm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, PlatformError, RuntimeStatus, VmArray, VmSlice, abi as platform_abi,
@@ -944,6 +945,162 @@ fn encode_destack_io_poll_wait_result(
     result.map(|value| value.to_value(context))
 }
 
+/// Decode arguments for destack.io.timerfd.close.
+#[inline]
+fn decode_destack_io_timerfd_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::TimerFdHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "TimerFdHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TimerFdHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::TimerFdHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.io.timerfd.close.
+#[inline]
+fn encode_destack_io_timerfd_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.io.timerfd.get.
+#[inline]
+fn decode_destack_io_timerfd_get_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::TimerFdHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "TimerFdHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TimerFdHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::TimerFdHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.io.timerfd.get.
+#[inline]
+fn encode_destack_io_timerfd_get_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<TimerFdSpecVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.initial_ns, 64);
+        let field_1 = vm::Value::uint(value.interval_ns, 64);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
+}
+
+/// Decode arguments for destack.io.timerfd.open.
+#[inline]
+fn decode_destack_io_timerfd_open_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(TimerFdClock, TimerFdFlags)> {
+    let clock_value = arg_value(args, 0, "clock", "TimerFdClock")?;
+    let clock_raw = decode_uint8(clock_value, "clock_raw", "TimerFdClock")?;
+    let clock = match clock_raw {
+        1u8 => TimerFdClock::Realtime,
+        2u8 => TimerFdClock::Monotonic,
+        3u8 => TimerFdClock::Boottime,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "clock",
+                "unknown TimerFdClock value",
+            ))
+            .boxed());
+        }
+    };
+    let flags_value = arg_value(args, 1, "flags", "TimerFdFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "TimerFdFlags")?;
+    let flags = TimerFdFlags(flags_inner);
+    Ok((clock, flags))
+}
+
+/// Encode the result for destack.io.timerfd.open.
+#[inline]
+fn encode_destack_io_timerfd_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::TimerFdHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.io.timerfd.read.
+#[inline]
+fn decode_destack_io_timerfd_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::TimerFdHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "TimerFdHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TimerFdHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::TimerFdHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.io.timerfd.read.
+#[inline]
+fn encode_destack_io_timerfd_read_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u64>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value, 64))
+}
+
+/// Decode arguments for destack.io.timerfd.set.
+#[inline]
+fn decode_destack_io_timerfd_set_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::TimerFdHandle, TimerFdSpecVm, TimerFdSetFlags)> {
+    let handle_value = arg_value(args, 0, "handle", "TimerFdHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TimerFdHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::TimerFdHandle(handle_inner);
+    let spec_value = arg_value(args, 1, "spec", "TimerFdSpec")?;
+    let spec = {
+        if spec_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "spec",
+                "TimerFdSpec",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(spec_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "spec",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let spec_initial_ns = decode_uint64(slots[0], "spec_initial_ns", "initialNs")?;
+        let spec_interval_ns = decode_uint64(slots[1], "spec_interval_ns", "intervalNs")?;
+        TimerFdSpecVm {
+            initial_ns: spec_initial_ns,
+            interval_ns: spec_interval_ns,
+        }
+    };
+    let flags_value = arg_value(args, 2, "flags", "TimerFdSetFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "TimerFdSetFlags")?;
+    let flags = TimerFdSetFlags(flags_inner);
+    Ok((handle, spec, flags))
+}
+
+/// Encode the result for destack.io.timerfd.set.
+#[inline]
+fn encode_destack_io_timerfd_set_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
 /// Decode arguments for destack.io.uring.close.
 #[inline]
 fn decode_destack_io_uring_close_args(
@@ -1303,6 +1460,41 @@ struct IoPollUpdateReplay {
 struct IoPollWaitReplay {
     /// Replay result payload.
     pub result: Result<Vec<PollEvent>, PlatformError>,
+}
+
+/// Replay payload for destack.io.timerfd.close.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct IoTimerfdCloseReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.io.timerfd.get.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct IoTimerfdGetReplay {
+    /// Replay result payload.
+    pub result: Result<TimerFdSpec, PlatformError>,
+}
+
+/// Replay payload for destack.io.timerfd.open.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct IoTimerfdOpenReplay {
+    /// Replay result payload.
+    pub result: Result<resource::TimerFdHandle, PlatformError>,
+}
+
+/// Replay payload for destack.io.timerfd.read.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct IoTimerfdReadReplay {
+    /// Replay result payload.
+    pub result: Result<u64, PlatformError>,
+}
+
+/// Replay payload for destack.io.timerfd.set.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct IoTimerfdSetReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.io.uring.close.
@@ -1739,6 +1931,108 @@ pub const IO_POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_req
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.io.timerfd.close.
+pub const IO_TIMERFD_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.io.timerfd.close",
+        "export function timerFdClose(handle: TimerFdHandle): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["io.timerfd"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.io.timerfd.get.
+pub const IO_TIMERFD_GET: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.io.timerfd.get",
+        "export function timerFdGet(handle: TimerFdHandle): Result<TimerFdSpec, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["io.timerfd"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.io.timerfd.open.
+pub const IO_TIMERFD_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.timerfd.open",
+    "export function timerFdOpen(clock: TimerFdClock, flags: TimerFdFlags): Result<TimerFdHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.timerfd"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.io.timerfd.read.
+pub const IO_TIMERFD_READ: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.io.timerfd.read",
+        "export function timerFdRead(handle: TimerFdHandle): Result<uint64, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["io.timerfd"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.io.timerfd.set.
+pub const IO_TIMERFD_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.timerfd.set",
+    "export function timerFdSet(handle: TimerFdHandle, spec: TimerFdSpec, flags: TimerFdSetFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.timerfd"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.io.uring.close.
 pub const IO_URING_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
@@ -1853,6 +2147,11 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     IO_POLL_REGISTER,
     IO_POLL_UPDATE,
     IO_POLL_WAIT,
+    IO_TIMERFD_CLOSE,
+    IO_TIMERFD_GET,
+    IO_TIMERFD_OPEN,
+    IO_TIMERFD_READ,
+    IO_TIMERFD_SET,
     IO_URING_CLOSE,
     IO_URING_FEATURES,
     IO_URING_OPEN,
@@ -1985,6 +2284,31 @@ pub const IO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             IO_POLL_WAIT,
             "destack.io.poll.wait",
             destack_io_poll_wait as *const (),
+        ),
+        NativeBinding::new(
+            IO_TIMERFD_CLOSE,
+            "destack.io.timerfd.close",
+            destack_io_timerfd_close as *const (),
+        ),
+        NativeBinding::new(
+            IO_TIMERFD_GET,
+            "destack.io.timerfd.get",
+            destack_io_timerfd_get as *const (),
+        ),
+        NativeBinding::new(
+            IO_TIMERFD_OPEN,
+            "destack.io.timerfd.open",
+            destack_io_timerfd_open as *const (),
+        ),
+        NativeBinding::new(
+            IO_TIMERFD_READ,
+            "destack.io.timerfd.read",
+            destack_io_timerfd_read as *const (),
+        ),
+        NativeBinding::new(
+            IO_TIMERFD_SET,
+            "destack.io.timerfd.set",
+            destack_io_timerfd_set as *const (),
         ),
         NativeBinding::new(
             IO_URING_CLOSE,
@@ -3534,6 +3858,298 @@ fn destack_io_poll_wait_replay(
 }
 
 #[inline]
+fn destack_io_timerfd_close_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::TimerFdHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        IO_TIMERFD_CLOSE,
+        context.replay_payload_for(IO_TIMERFD_CLOSE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_io_timer_fd_close(context, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_io_timer_fd_close(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoTimerfdCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoTimerfdCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_io_timerfd_get_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut TimerFdSpec,
+    handle: resource::TimerFdHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        IO_TIMERFD_GET,
+        context.replay_payload_for(IO_TIMERFD_GET)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_io_timer_fd_get(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_io_timer_fd_get(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_initial_ns = result_value.initial_ns;
+                let result_recorded_interval_ns = result_value.interval_ns;
+                let result_recorded = TimerFdSpec {
+                    initial_ns: result_recorded_initial_ns,
+                    interval_ns: result_recorded_interval_ns,
+                };
+                let payload = IoTimerfdGetReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoTimerfdGetReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_initial_ns = value.initial_ns;
+                    let value_native_interval_ns = value.interval_ns;
+                    let value_native = TimerFdSpec {
+                        initial_ns: value_native_initial_ns,
+                        interval_ns: value_native_interval_ns,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_io_timerfd_open_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::TimerFdHandle,
+    clock: TimerFdClock,
+    flags: TimerFdFlags,
+) -> RuntimeResult<()> {
+    let _ = (&clock, &flags);
+
+    context.replay().run_binding_with_payload_policy(
+        IO_TIMERFD_OPEN,
+        context.replay_payload_for(IO_TIMERFD_OPEN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_io_timer_fd_open(context, out, clock, flags)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_io_timer_fd_open(context, out, clock, flags)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = IoTimerfdOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoTimerfdOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_io_timerfd_read_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+    handle: resource::TimerFdHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        IO_TIMERFD_READ,
+        context.replay_payload_for(IO_TIMERFD_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_io_timer_fd_read(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_io_timer_fd_read(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = IoTimerfdReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoTimerfdReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_io_timerfd_set_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::TimerFdHandle,
+    spec: TimerFdSpec,
+    flags: TimerFdSetFlags,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &spec, &flags);
+
+    context.replay().run_binding_with_payload_policy(
+        IO_TIMERFD_SET,
+        context.replay_payload_for(IO_TIMERFD_SET)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_io_timer_fd_set(context, handle, spec, flags)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_io_timer_fd_set(context, handle, spec, flags)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoTimerfdSetReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoTimerfdSetReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_io_uring_close_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
@@ -4337,6 +4953,86 @@ pub unsafe extern "C" fn destack_io_poll_wait(
         context.check_policy(IO_POLL_WAIT)?;
         let world = context.check_and_resolve_world(IO_POLL_WAIT)?;
         destack_io_poll_wait_replay(context, world, out, handle, timeoutns, maxevents)
+    })
+}
+
+#[unsafe(export_name = "destack.io.timerfd.close")]
+pub unsafe extern "C" fn destack_io_timerfd_close(
+    handle: resource::TimerFdHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        context.check_policy(IO_TIMERFD_CLOSE)?;
+        let world = context.check_and_resolve_world(IO_TIMERFD_CLOSE)?;
+        destack_io_timerfd_close_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.io.timerfd.get")]
+pub unsafe extern "C" fn destack_io_timerfd_get(
+    out: *mut TimerFdSpec,
+    handle: resource::TimerFdHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(IO_TIMERFD_GET)?;
+        let world = context.check_and_resolve_world(IO_TIMERFD_GET)?;
+        destack_io_timerfd_get_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.io.timerfd.open")]
+pub unsafe extern "C" fn destack_io_timerfd_open(
+    out: *mut resource::TimerFdHandle,
+    clock: TimerFdClock,
+    flags: TimerFdFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &clock, &flags);
+
+        context.check_policy(IO_TIMERFD_OPEN)?;
+        let world = context.check_and_resolve_world(IO_TIMERFD_OPEN)?;
+        destack_io_timerfd_open_replay(context, world, out, clock, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.io.timerfd.read")]
+pub unsafe extern "C" fn destack_io_timerfd_read(
+    out: *mut u64,
+    handle: resource::TimerFdHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(IO_TIMERFD_READ)?;
+        let world = context.check_and_resolve_world(IO_TIMERFD_READ)?;
+        destack_io_timerfd_read_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.io.timerfd.set")]
+pub unsafe extern "C" fn destack_io_timerfd_set(
+    handle: resource::TimerFdHandle,
+    spec: TimerFdSpec,
+    flags: TimerFdSetFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &spec, &flags);
+
+        context.check_policy(IO_TIMERFD_SET)?;
+        let world = context.check_and_resolve_world(IO_TIMERFD_SET)?;
+        destack_io_timerfd_set_replay(context, world, handle, spec, flags)
     })
 }
 
@@ -6013,6 +6709,301 @@ fn destack_io_poll_wait_vm_replay(
 }
 
 #[inline]
+fn destack_io_timerfd_close_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::TimerFdHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            IO_TIMERFD_CLOSE,
+            runtime.replay_payload_for(IO_TIMERFD_CLOSE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_io_timer_fd_close(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_io_timer_fd_close(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = IoTimerfdCloseReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        IoTimerfdCloseReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_io_timerfd_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_io_timerfd_get_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::TimerFdHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            IO_TIMERFD_GET,
+            runtime.replay_payload_for(IO_TIMERFD_GET)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_io_timer_fd_get(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_io_timer_fd_get(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: TimerFdSpecVm = value.clone();
+                    let result_recorded_initial_ns = result_value.initial_ns;
+                    let result_recorded_interval_ns = result_value.interval_ns;
+                    let result_recorded = TimerFdSpec {
+                        initial_ns: result_recorded_initial_ns,
+                        interval_ns: result_recorded_interval_ns,
+                    };
+                    let payload = IoTimerfdGetReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        IoTimerfdGetReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_initial_ns = value.initial_ns;
+                        let vm_result_interval_ns = value.interval_ns;
+                        let vm_result = TimerFdSpecVm {
+                            initial_ns: vm_result_initial_ns,
+                            interval_ns: vm_result_interval_ns,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_io_timerfd_get_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_io_timerfd_open_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    clock: TimerFdClock,
+    flags: TimerFdFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            IO_TIMERFD_OPEN,
+            runtime.replay_payload_for(IO_TIMERFD_OPEN)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_io_timer_fd_open(runtime, context, clock, flags)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_io_timer_fd_open(runtime, context, clock, flags)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: resource::TimerFdHandle = value.clone();
+                    let result_recorded = result_value;
+                    let payload = IoTimerfdOpenReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        IoTimerfdOpenReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_io_timerfd_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_io_timerfd_read_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::TimerFdHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            IO_TIMERFD_READ,
+            runtime.replay_payload_for(IO_TIMERFD_READ)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_io_timer_fd_read(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_io_timer_fd_read(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: u64 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = IoTimerfdReadReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        IoTimerfdReadReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_io_timerfd_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_io_timerfd_set_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::TimerFdHandle,
+    spec: TimerFdSpecVm,
+    flags: TimerFdSetFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            IO_TIMERFD_SET,
+            runtime.replay_payload_for(IO_TIMERFD_SET)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_io_timer_fd_set(runtime, context, handle, spec, flags)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_timer_fd_set(
+                    runtime, context, handle, spec, flags,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = IoTimerfdSetReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        IoTimerfdSetReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_io_timerfd_set_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_io_uring_close_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -6843,6 +7834,76 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 destack_io_poll_wait_vm_replay(
                     runtime, context, world, handle, timeoutns, maxevents,
                 )
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, IO_TIMERFD_CLOSE, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (handle,) = decode_destack_io_timerfd_close_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(IO_TIMERFD_CLOSE)?;
+                let world = runtime.check_and_resolve_world(IO_TIMERFD_CLOSE)?;
+                destack_io_timerfd_close_vm_replay(runtime, context, world, handle)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, IO_TIMERFD_GET, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (handle,) = decode_destack_io_timerfd_get_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(IO_TIMERFD_GET)?;
+                let world = runtime.check_and_resolve_world(IO_TIMERFD_GET)?;
+                destack_io_timerfd_get_vm_replay(runtime, context, world, handle)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, IO_TIMERFD_OPEN, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (clock, flags) = decode_destack_io_timerfd_open_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(IO_TIMERFD_OPEN)?;
+                let world = runtime.check_and_resolve_world(IO_TIMERFD_OPEN)?;
+                destack_io_timerfd_open_vm_replay(runtime, context, world, clock, flags)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, IO_TIMERFD_READ, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (handle,) = decode_destack_io_timerfd_read_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(IO_TIMERFD_READ)?;
+                let world = runtime.check_and_resolve_world(IO_TIMERFD_READ)?;
+                destack_io_timerfd_read_vm_replay(runtime, context, world, handle)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, IO_TIMERFD_SET, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (handle, spec, flags) = decode_destack_io_timerfd_set_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(IO_TIMERFD_SET)?;
+                let world = runtime.check_and_resolve_world(IO_TIMERFD_SET)?;
+                destack_io_timerfd_set_vm_replay(runtime, context, world, handle, spec, flags)
             })
             .map_err(Into::into)
         });

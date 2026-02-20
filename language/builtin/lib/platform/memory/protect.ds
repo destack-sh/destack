@@ -130,33 +130,4 @@ declare namespace memory {
     )
     export function flushInstructionCache(address: uint64, length: uint64): Result<void, PlatformError>;
 
-    /// Set runtime W^X policy.
-    ///
-    /// Enable or disable runtime write-xor-execute policy enforcement.
-    /// Policy update affects subsequent executable-memory transitions.
-    ///
-    /// # Platform
-    /// Runtime-managed on all targets.
-    /// Uses runtime memory policy controls layered over host page protections.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.execute`.
-    ///
-    /// # Replay
-    /// Deterministic.
-    @binding(
-        "destack.memory.protect.setWriteXorExecute",
-        {
-            effect: "deterministic",
-            replay: "nonrecordable",
-            capabilities: ["memory.execute"],
-            platforms: ["windows", "unix"],
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
-    export function setWriteXorExecute(enabled: boolean): Result<void, PlatformError>;
 }

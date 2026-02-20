@@ -9,17 +9,17 @@ use crate::runtime::RuntimeCallContext;
 use bindings::*;
 
 use crate::platform::input::{
-    InputAxisInfo, InputButtonInfo, InputCompositionEvent, InputCompositionEventPayload,
-    InputDeviceCapabilities, InputDeviceCapabilityKind, InputDeviceEventPayload, InputDeviceInfo,
-    InputDeviceKind, InputEvent, InputEventAction, InputEventKind, InputEventPayload,
-    InputGamepadBatteryInfo, InputGamepadBatteryState, InputGamepadButtonState,
-    InputGamepadConnectionType, InputGamepadEventPayload, InputGamepadMappingType,
-    InputGamepadState, InputGamepadTouchState, InputHapticEffectParameters, InputHapticEffectType,
-    InputHapticsResult, InputKeyEventPayload, InputKeyboardState, InputMonitorEvent,
-    InputMonitorEventKind, InputPointerButtonEventPayload, InputPointerGrabMode,
-    InputPointerMotionEventPayload, InputPointerState, InputRawHidReport, InputReadMode,
-    InputScrollEventPayload, InputSensorConfig, InputSensorEffectiveConfig,
-    InputSensorEventPayload, InputSensorInfo, InputSensorKind, InputSensorSample,
+    InputAxisMetadata, InputButtonMetadata, InputCompositionEvent, InputCompositionEventPayload,
+    InputDeviceCapabilities, InputDeviceCapabilityKind, InputDeviceDescriptor,
+    InputDeviceEventPayload, InputDeviceKind, InputEvent, InputEventAction, InputEventKind,
+    InputEventPayload, InputGamepadBatteryState, InputGamepadBatteryStatus,
+    InputGamepadButtonState, InputGamepadConnectionType, InputGamepadEventPayload,
+    InputGamepadMappingType, InputGamepadState, InputGamepadTouchState,
+    InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult, InputKeyEventPayload,
+    InputKeyboardState, InputMonitorEvent, InputMonitorEventKind, InputPointerButtonEventPayload,
+    InputPointerGrabMode, InputPointerMotionEventPayload, InputPointerState, InputRawHidReport,
+    InputReadMode, InputScrollEventPayload, InputSensorConfig, InputSensorDescriptor,
+    InputSensorEffectiveConfig, InputSensorEventPayload, InputSensorKind, InputSensorSample,
     InputTextEventPayload, InputTextInputArea, InputTextInputType, InputTouchContactPhase,
     InputTouchContactState, InputTouchEventPayload, InputTouchState, InputWindowTarget,
 };
@@ -110,7 +110,7 @@ pub(crate) unsafe fn destack_input_close(
 /// External, recordable.
 pub(crate) unsafe fn destack_input_list(
     context: &RuntimeCallContext,
-    out: *mut NativeSlice<InputDeviceInfo>,
+    out: *mut NativeSlice<InputDeviceDescriptor>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -1072,7 +1072,7 @@ pub(crate) unsafe fn destack_input_sensor_configure(
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_list(
     context: &RuntimeCallContext,
-    out: *mut NativeArray<InputSensorInfo>,
+    out: *mut NativeArray<InputSensorDescriptor>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {

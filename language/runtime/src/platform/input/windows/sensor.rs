@@ -3,7 +3,7 @@ use super::{core as input_core, raw as raw_input};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputSensorConfig, InputSensorEffectiveConfig, InputSensorInfo, InputSensorKind,
+    InputSensorConfig, InputSensorDescriptor, InputSensorEffectiveConfig, InputSensorKind,
     InputSensorSample, validation as input_validation,
 };
 use crate::platform::{NativeArray, PlatformError, resource};
@@ -136,7 +136,7 @@ pub(crate) unsafe fn destack_input_sensor_configure(
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_list(
     context: &RuntimeCallContext,
-    out: *mut NativeArray<InputSensorInfo>,
+    out: *mut NativeArray<InputSensorDescriptor>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     // validate output pointer

@@ -1,7 +1,7 @@
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::abi::NativeAbi;
+use crate::platform::abi::{NativeAbi, VmAbi};
 use crate::platform::fs::{
     OsPath, OsPathVm, PathBytesAbi, PathEncoding, PathUtf16Abi, core as core_fs,
 };
@@ -9,12 +9,13 @@ use crate::platform::net::{
     AcceptFlags, KeepAliveConfig, Linger, NetInterfaceVm, PacketCaptureOptionsVm,
     PacketCaptureRecordVm, PacketCaptureStatsVm, PacketFanoutOptionsVm, PacketRingOptionsVm,
     PacketTimestampMode, ResolveFlags, ResolveQueryVm, ReverseLookupFlags, ReverseLookupNameVm,
-    RouteEntryVm, SocketAddress, SocketAddressVm, SocketCredentials, SocketCredentialsVm,
-    SocketFamily, SocketMessageFlags, SocketOptionLevel, SocketOptionName, SocketPair,
-    SocketPairVm, SocketProtocol, SocketRecvBatchRequestVm, SocketRecvFromVm, SocketRecvMessage,
-    SocketRecvMessageVm, SocketSendBatchEntryVm, SocketSendMessage, SocketSendMessageVm,
-    SocketSendToVm, SocketShutdown, SocketTimestampingMode, SocketType, UdpMessageFlags,
-    UdpReceive, UdpReceiveVm, UdpSourceMembershipV4Vm, UdpSourceMembershipV6Vm, UdsAddressVm,
+    RouteEntryVm, SocketAddress, SocketAddressVm, SocketControlBufferAbi, SocketCredentials,
+    SocketCredentialsVm, SocketFamily, SocketMessageFlags, SocketOptionLevel, SocketOptionName,
+    SocketPair, SocketPairVm, SocketProtocol, SocketRecvBatchRequestVm, SocketRecvFrom,
+    SocketRecvFromVm, SocketRecvMessage, SocketRecvMessageVm, SocketSendBatchEntryVm,
+    SocketSendMessage, SocketSendMessageVm, SocketSendTo, SocketSendToVm, SocketShutdown,
+    SocketTimestampingMode, SocketType, UdpMessageFlags, UdpReceive, UdpReceiveVm,
+    UdpSourceMembershipV4Vm, UdpSourceMembershipV6Vm, UdsAddress, UdsAddressKind, UdsAddressVm,
     host as host_net,
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
@@ -701,7 +702,7 @@ pub fn destack_net_close_listener(
 pub fn destack_net_socket(
     runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    family: crate::platform::net::SocketFamily,
+    family: SocketFamily,
     socket_type: SocketType,
     protocol: SocketProtocol,
 ) -> RuntimeResult<SocketHandle> {
@@ -730,7 +731,7 @@ pub fn destack_net_socket(
 pub fn destack_net_socket_pair(
     runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    family: crate::platform::net::SocketFamily,
+    family: SocketFamily,
     socket_type: SocketType,
     protocol: SocketProtocol,
 ) -> RuntimeResult<SocketPairVm> {
@@ -863,7 +864,7 @@ pub fn destack_net_resolve_text(
     context: &mut vm::ExternalCallContext<'_>,
     host: vm::StringHandle,
     port: u16,
-    family: crate::platform::net::SocketFamily,
+    family: SocketFamily,
     flags: ResolveFlags,
 ) -> RuntimeResult<VmArray<SocketAddressVm>> {
     // resolve the host string into native storage
@@ -971,7 +972,7 @@ pub fn destack_net_reverse_lookup_text(
 pub fn destack_net_udp_socket(
     runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    family: crate::platform::net::SocketFamily,
+    family: SocketFamily,
 ) -> RuntimeResult<SocketHandle> {
     call_out(|out| unsafe { host_net::destack_net_udp_socket(runtime, out, family) })
 }
@@ -2225,7 +2226,7 @@ fn udp_receive_to_vm(
 
 fn udp_receive_raw_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
-    receive: crate::platform::net::UdpReceive,
+    receive: UdpReceive,
 ) -> RuntimeResult<UdpReceiveVm> {
     udp_receive_to_vm(context, receive)
 }
@@ -2234,9 +2235,9 @@ fn socket_send_to_from_vm(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     send_to: SocketSendToVm,
-) -> RuntimeResult<crate::platform::net::SocketSendTo> {
+) -> RuntimeResult<SocketSendTo> {
     let address = socket_address_raw_from_vm(runtime, context, send_to.address)?;
-    Ok(crate::platform::net::SocketSendTo {
+    Ok(SocketSendTo {
         address,
         flags: send_to.flags,
     })
@@ -2244,7 +2245,7 @@ fn socket_send_to_from_vm(
 
 fn socket_recv_from_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
-    recv_from: crate::platform::net::SocketRecvFrom,
+    recv_from: SocketRecvFrom,
 ) -> RuntimeResult<SocketRecvFromVm> {
     let address = socket_address_raw_to_vm(context, recv_from.address)?;
     Ok(SocketRecvFromVm {
@@ -2263,8 +2264,7 @@ fn socket_send_message_from_vm(
     let fds = runtime.store_array(fds);
     let address = socket_address_raw_from_vm(runtime, context, message.address)?;
     let control = message.control.0.read_bytes(context)?;
-    let control =
-        crate::platform::net::SocketControlBufferAbi::<NativeAbi>(runtime.store_array(control));
+    let control = SocketControlBufferAbi::<NativeAbi>(runtime.store_array(control));
     Ok(SocketSendMessage {
         has_address: message.has_address,
         address,
@@ -2287,8 +2287,7 @@ fn socket_recv_message_to_vm(
     let address = socket_address_raw_to_vm(context, message.address)?;
     let control = unsafe { message.control.0.as_slice()? };
     let control = VmArray::from_bytes(context, control);
-    let control =
-        crate::platform::net::SocketControlBufferAbi::<crate::platform::abi::VmAbi>(control);
+    let control = SocketControlBufferAbi::<VmAbi>(control);
     let fds = unsafe { message.fds.as_slice()? };
     let fds = VmArray::from_values(context, fds)?;
     Ok(SocketRecvMessageVm {
@@ -2340,25 +2339,22 @@ fn uds_address_from_vm(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     address: UdsAddressVm,
-) -> RuntimeResult<crate::platform::net::UdsAddress> {
+) -> RuntimeResult<UdsAddress> {
     let path = path_ref_from_vm(runtime, context, address.path)?;
     let abstract_name = address.abstract_name.read_bytes(context)?;
     let abstract_name = runtime.store_array(abstract_name);
 
-    Ok(crate::platform::net::UdsAddress {
+    Ok(UdsAddress {
         kind: address.kind,
         path,
         abstract_name,
     })
 }
 
-fn uds_path(
-    runtime: &RuntimeCallContext,
-    address: crate::platform::net::UdsAddress,
-) -> RuntimeResult<OsPath> {
+fn uds_path(runtime: &RuntimeCallContext, address: UdsAddress) -> RuntimeResult<OsPath> {
     match address.kind {
-        crate::platform::net::UdsAddressKind::Path => Ok(address.path),
-        crate::platform::net::UdsAddressKind::Abstract => {
+        UdsAddressKind::Path => Ok(address.path),
+        UdsAddressKind::Abstract => {
             let name = unsafe { address.abstract_name.as_slice()? };
             let mut bytes = Vec::with_capacity(name.len().saturating_add(1));
             bytes.push(0);
@@ -2370,7 +2366,7 @@ fn uds_path(
                 utf16: core_fs::empty_path_utf16(),
             })
         }
-        crate::platform::net::UdsAddressKind::Unnamed => {
+        UdsAddressKind::Unnamed => {
             Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsConnect")).boxed())
         }
     }

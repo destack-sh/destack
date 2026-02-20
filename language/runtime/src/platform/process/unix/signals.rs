@@ -138,8 +138,8 @@ pub(crate) unsafe fn destack_process_signal_mask_update(
 /// Delivery ordering and batching follow runtime and host signal queue semantics.
 ///
 /// # Platform
-/// Runtime-integrated on Unix and Windows targets.
-/// Uses runtime subscription delivery with host signal waiting primitives.
+/// Unix and Windows.
+/// Uses host signal delivery queues and wait primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -172,8 +172,8 @@ pub(crate) unsafe fn destack_process_signal_receive(
 /// Subscription mode and coalescing behavior follow runtime and host integration rules.
 ///
 /// # Platform
-/// Runtime-integrated on Unix and Windows targets.
-/// Uses runtime subscription state with host signal integration.
+/// Unix and Windows.
+/// Uses host signal subscription state and queue integration.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -219,8 +219,8 @@ pub(crate) unsafe fn destack_process_signal_subscribe(
 /// Empty queue behavior is reported through host-specific not-ready errors.
 ///
 /// # Platform
-/// Runtime-integrated on Unix and Windows targets.
-/// Uses runtime subscription polling with nonblocking host signal probes.
+/// Unix and Windows.
+/// Uses host signal queue polling with nonblocking probes.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
@@ -287,8 +287,8 @@ pub(crate) unsafe fn destack_process_signal_try_wait(
 /// Pending events may still be readable depending on host queueing behavior.
 ///
 /// # Platform
-/// Runtime-integrated on Unix and Windows targets.
-/// Uses runtime subscription teardown with host signal integration.
+/// Unix and Windows.
+/// Uses host signal subscription teardown semantics.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.

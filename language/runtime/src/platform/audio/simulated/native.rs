@@ -7,9 +7,9 @@ use crate::platform::{NativeSlice, NativeStringRef, PlatformError};
 use crate::runtime::RuntimeCallContext;
 
 use crate::platform::audio::{
-    AudioClockDomain, AudioClockSnapshot, AudioDeviceDirection, AudioDeviceEvent, AudioDeviceInfo,
-    AudioDeviceListRequest, AudioDeviceOpenOptions, AudioStreamAvailability, AudioStreamConfig,
-    AudioStreamInfo, AudioStreamState, AudioStreamTiming,
+    AudioClockDomain, AudioClockSnapshot, AudioDeviceDescriptor, AudioDeviceDirection,
+    AudioDeviceEvent, AudioDeviceListRequest, AudioDeviceOpenOptions, AudioStreamAvailability,
+    AudioStreamConfig, AudioStreamSnapshot, AudioStreamState, AudioStreamTiming,
 };
 use crate::platform::resource;
 
@@ -138,9 +138,9 @@ pub(crate) unsafe fn destack_audio_device_default(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_device_info(
+pub(crate) unsafe fn destack_audio_device_descriptor(
     _context: &RuntimeCallContext,
-    out: *mut AudioDeviceInfo,
+    out: *mut AudioDeviceDescriptor,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = (out, handle);
@@ -167,7 +167,7 @@ pub(crate) unsafe fn destack_audio_device_info(
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_device_list(
     _context: &RuntimeCallContext,
-    out: *mut NativeSlice<AudioDeviceInfo>,
+    out: *mut NativeSlice<AudioDeviceDescriptor>,
     request: AudioDeviceListRequest,
 ) -> RuntimeResult<()> {
     let _ = (out, request);
@@ -436,9 +436,9 @@ pub(crate) unsafe fn destack_audio_stream_flush(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_stream_info(
+pub(crate) unsafe fn destack_audio_stream_snapshot(
     _context: &RuntimeCallContext,
-    out: *mut AudioStreamInfo,
+    out: *mut AudioStreamSnapshot,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = (out, handle);

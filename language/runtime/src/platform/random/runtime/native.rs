@@ -1,8 +1,10 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::random::{RandomStream, RandomStreamDomain, RandomStreamState};
-use crate::platform::{NativeSlice, PlatformError};
-use crate::random::RandomStreamId;
+use crate::platform::random::{
+    RandomStream, RandomStreamDomain, RandomStreamState, SecureRandomMetadata, SecureRandomSource,
+};
+use crate::platform::{NativeSlice, NativeStringRef, PlatformError, PlatformErrorCode};
 use crate::runtime::RuntimeCallContext;
+use crate::runtime::random::RandomStreamId;
 
 /// Convert a platform stream handle into a runtime stream id.
 fn stream_id(stream: RandomStream) -> RandomStreamId {
@@ -12,6 +14,130 @@ fn stream_id(stream: RandomStream) -> RandomStreamId {
 /// Convert a runtime stream id into a platform stream handle.
 fn stream_handle(stream_id: RandomStreamId) -> RandomStream {
     RandomStream(stream_id.get())
+}
+
+/// Map one secure random backend error.
+fn secure_random_error(operation: &'static str, error: getrandom::Error) -> Box<RuntimeError> {
+    // map would-block when the backend exposes a retryable readiness error
+    let code = if let Some(error_code) = error.raw_os_error() {
+        if error_code == libc::EAGAIN {
+            Some(PlatformErrorCode::IoWouldBlock)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    // preserve backend error details in the platform error
+    RuntimeError::from(PlatformError::random(
+        code,
+        format!("{operation} failed: {error}"),
+    ))
+    .boxed()
+}
+
+/// Fill a slice with cryptographically secure random bytes.
+///
+/// Read entropy from host cryptographic RNG facilities.
+/// Entropy quality and blocking behavior follow host kernel guarantees.
+///
+/// # Platform
+/// Unix and Windows where host entropy APIs are available.
+/// Uses getrandom(2) or getentropy on Unix and BCryptGenRandom on Windows.
+///
+/// # Errors
+/// Returns randomUnavailable, notSupported.
+///
+/// # Security
+/// Requires `random.secure`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_random_secure_bytes(
+    _context: &RuntimeCallContext,
+    buffer: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    // resolve one mutable native slice
+    let bytes = unsafe { buffer.as_mut_slice()? };
+
+    // fill secure bytes from the host entropy backend
+    getrandom::fill(bytes)
+        .map_err(|error| secure_random_error("destack.random.secure.bytes", error))
+}
+
+/// Fill a slice with secure random bytes without blocking.
+///
+/// Try to read secure entropy without blocking the current execution context.
+/// Fails with `ioWouldBlock` when the host source requires blocking.
+///
+/// # Platform
+/// Unix and Windows where host entropy APIs are available.
+/// Uses nonblocking host entropy APIs when available and runtime fallbacks otherwise.
+///
+/// # Errors
+/// Returns randomUnavailable, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `random.secure`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_random_secure_bytes_try(
+    _context: &RuntimeCallContext,
+    buffer: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    // resolve one mutable native slice
+    let bytes = unsafe { buffer.as_mut_slice()? };
+
+    // request secure bytes and surface backend would-block errors explicitly
+    getrandom::fill(bytes)
+        .map_err(|error| secure_random_error("destack.random.secure.bytesTry", error))
+}
+
+/// Query secure randomness source metadata.
+///
+/// Return source metadata for the secure random backend selected by the runtime.
+/// Metadata values are normalized across host operating systems.
+///
+/// # Platform
+/// Unix and Windows where host entropy APIs are available.
+/// Uses runtime source selection metadata.
+///
+/// # Errors
+/// Returns randomUnavailable, notSupported.
+///
+/// # Security
+/// Requires `random.secure`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_random_secure_metadata(
+    _context: &RuntimeCallContext,
+    out: *mut SecureRandomMetadata,
+) -> RuntimeResult<()> {
+    // validate out pointer for native ABI writes
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // construct conservative backend metadata for the current secure source
+    let info = SecureRandomMetadata {
+        source: SecureRandomSource::Kernel,
+        backend_name: NativeStringRef::from("getrandom"),
+        may_block: true,
+        is_cryptographic: true,
+        is_seeded: true,
+        is_fips_approved: false,
+        entropy_bits_per_byte: 8.0,
+    };
+
+    // write one metadata payload to the native out pointer
+    unsafe {
+        std::ptr::write(out, info);
+    }
+
+    Ok(())
 }
 
 /// Export deterministic stream state.

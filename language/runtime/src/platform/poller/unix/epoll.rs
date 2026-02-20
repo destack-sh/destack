@@ -506,10 +506,9 @@ fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
 
 #[cfg(test)]
 mod tests {
-    use super::EpollPoller;
-    use crate::platform::{
-        PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags, PollerToken,
-        ResourceId,
+    use super::{
+        EpollPoller, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
+        PollerToken, ResourceId,
     };
 
     /// Ensures epoll emits a readable event when data is available.

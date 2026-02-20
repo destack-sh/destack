@@ -21,7 +21,7 @@ use crate::platform::proactor::{
     ProactorOp, ProactorRequest,
 };
 use crate::platform::resource::{self, ResourceEntry, ResourceKind};
-use crate::platform::{PlatformError, PlatformErrorCode, PlatformEvent, ResourceId};
+use crate::platform::{NativeSlice, PlatformError, PlatformErrorCode, PlatformEvent, ResourceId};
 use crate::runtime::RuntimeCallContext;
 
 #[cfg(target_os = "linux")]
@@ -1052,7 +1052,7 @@ pub(super) fn completion_submit(
 pub(super) fn completion_submit_batch(
     context: &RuntimeCallContext,
     handle: resource::CompletionHandle,
-    operationwords: crate::platform::NativeSlice<u64>,
+    operationwords: NativeSlice<u64>,
     operationcount: u32,
     operationwordstride: u32,
 ) -> RuntimeResult<u32> {
@@ -1519,7 +1519,7 @@ pub(super) fn uring_features(
 pub(super) fn uring_register_files(
     context: &RuntimeCallContext,
     handle: resource::UringHandle,
-    files: crate::platform::NativeSlice<resource::ResourceId>,
+    files: NativeSlice<resource::ResourceId>,
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
@@ -1598,8 +1598,8 @@ pub(super) fn uring_unregister_files(
 pub(super) fn uring_register_buffers(
     context: &RuntimeCallContext,
     handle: resource::UringHandle,
-    addresses: crate::platform::NativeSlice<u64>,
-    lengths: crate::platform::NativeSlice<u32>,
+    addresses: NativeSlice<u64>,
+    lengths: NativeSlice<u32>,
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {

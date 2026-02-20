@@ -7,9 +7,8 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::security::{
-    PlatformCapability, PlatformCapabilityVm, SecurityFilter, SecurityFilterKind, SecurityFilterVm,
-    SecurityPolicyMode, SecurityPolicyRule, SecurityPolicyRuleVm, native as security_native,
-    vm as security_vm,
+    PlatformCapability, PlatformCapabilityVm, SecurityPolicyMode, SecurityPolicyRule,
+    SecurityPolicyRuleVm, native as security_native, vm as security_vm,
 };
 use crate::platform::{
     NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmSlice, resource,
@@ -122,51 +121,6 @@ impl<'call> SecurityHarnessContext<'call> {
         }
     }
 
-    /// Install one host filter for a sandbox scope.
-    ///
-    /// Install one host-enforced filter descriptor for a sandbox scope.
-    /// Filter parsing and host mapping are selected by the filter kind.
-    ///
-    /// # Platform
-    /// Hybrid across runtime and host enforcement hooks.
-    /// Uses runtime-to-host policy adapters for seccomp, pledge, landlock, seatbelt, or token restrictions.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `security.filter`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_security_sandbox_install_filter(
-        &mut self,
-        handle: resource::SandboxHandle,
-        filter: HarnessValue<SecurityFilter, SecurityFilterVm>,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let filter = filter.into_vm("filter")?;
-                security_vm::destack_security_sandbox_install_filter(
-                    self.call_context,
-                    context,
-                    handle,
-                    filter,
-                )
-            }
-            None => {
-                let filter = filter.into_native("filter")?;
-                unsafe {
-                    security_native::destack_security_sandbox_install_filter(
-                        self.call_context,
-                        handle,
-                        filter,
-                    )
-                }
-            }
-        }
-    }
-
     /// Seal one sandbox policy.
     ///
     /// Transition one sandbox scope into sealed mode.
@@ -240,6 +194,39 @@ impl<'call> SecurityHarnessContext<'call> {
                     )
                 }
             }
+        }
+    }
+
+    /// Set runtime W^X policy.
+    ///
+    /// Enable or disable runtime write-xor-execute policy enforcement.
+    /// Policy update affects subsequent executable-memory transitions.
+    ///
+    /// # Platform
+    /// Runtime-managed on all targets.
+    /// Uses runtime memory policy controls layered over host page protections.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `security.restrict`.
+    ///
+    /// # Replay
+    /// Deterministic.
+    pub(crate) fn destack_security_set_write_xor_execute(
+        &mut self,
+        enabled: bool,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => security_vm::destack_security_set_write_xor_execute(
+                self.call_context,
+                context,
+                enabled,
+            ),
+            None => unsafe {
+                security_native::destack_security_set_write_xor_execute(self.call_context, enabled)
+            },
         }
     }
 

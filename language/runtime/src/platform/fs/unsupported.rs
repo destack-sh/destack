@@ -2,9 +2,10 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{
-    AccessMode, AllocFlags, AtFlags, CopyFlags, FileAdvice, FileLockFlags, FileMode, FileOffset,
-    FileSize, MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags, OpenFlags, OpenOptions, PathBytes,
-    PathUtf16, RenameFlags, SeekWhence, Stat, StatFs, SymlinkType, SyncFlags, XattrFlags,
+    AccessMode, AllocFlags, AtFlags, CopyFlags, Dirent, FileAdvice, FileLockFlags, FileMode,
+    FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags, OpenFlags, OpenOptions,
+    PathBytes, PathUtf16, RenameFlags, SeekWhence, Stat, StatFs, SymlinkType, SyncFlags,
+    XattrFlags,
 };
 use crate::platform::net::SocketHandle;
 use crate::platform::resource::{DirectoryHandle, FileHandle, PipeHandle, ResourceId};
@@ -1017,7 +1018,7 @@ pub(crate) unsafe fn destack_fs_read(
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readdir(
     context: &RuntimeCallContext,
-    _out: *mut NativeArray<crate::platform::fs::Dirent>,
+    _out: *mut NativeArray<Dirent>,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = (context, handle);

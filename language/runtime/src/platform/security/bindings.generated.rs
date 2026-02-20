@@ -7,11 +7,10 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
-    NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
+    NativeBinding, NativeBindingSet, ReplayPolicy, native_call,
 };
 use crate::platform::security::{
-    PlatformCapability, PlatformCapabilityVm, SecurityFilter, SecurityFilterKind, SecurityFilterVm,
-    SecurityPolicyRule, SecurityPolicyRuleVm,
+    PlatformCapability, PlatformCapabilityVm, SecurityPolicyRule, SecurityPolicyRuleVm,
 };
 use crate::platform::{
     NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmSlice, abi as platform_abi,
@@ -27,9 +26,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::platform::security::runtime::{
     native as platform_runtime_native, vm as platform_runtime_vm,
-};
-use crate::platform::security::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
 };
 use crate::platform::security::{native as platform_native, vm as platform_vm};
 use crate::platform::{resource as platform_resource, resource, security as platform_security};
@@ -47,6 +43,18 @@ fn arg_value(
     })?;
 
     Ok(value)
+}
+
+/// Decode a boolean argument.
+#[allow(dead_code)]
+fn decode_bool(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<bool> {
+    value.as_bool().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode an unsigned integer argument with an explicit width.
@@ -67,22 +75,6 @@ fn decode_uint(
     }
 
     Ok(raw)
-}
-
-/// Decode a u8 argument.
-#[allow(dead_code)]
-fn decode_uint8(value: vm::Value, name: &'static str, expected: &'static str) -> RuntimeResult<u8> {
-    Ok(decode_uint(value, name, expected, 8)? as u8)
-}
-
-/// Decode a u32 argument.
-#[allow(dead_code)]
-fn decode_uint32(
-    value: vm::Value,
-    name: &'static str,
-    expected: &'static str,
-) -> RuntimeResult<u32> {
-    Ok(decode_uint(value, name, expected, 32)? as u32)
 }
 
 /// Decode a u64 argument.
@@ -153,74 +145,6 @@ fn encode_destack_security_capability_list_result(
     result.map(|value| value.to_value(context))
 }
 
-/// Decode arguments for destack.security.enforce.sandboxInstallFilter.
-#[inline]
-fn decode_destack_security_enforce_sandbox_install_filter_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::SandboxHandle, SecurityFilterVm)> {
-    let handle_value = arg_value(args, 0, "handle", "SandboxHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SandboxHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::SandboxHandle(handle_inner);
-    let filter_value = arg_value(args, 1, "filter", "SecurityFilter")?;
-    let filter = {
-        if filter_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "filter",
-                "SecurityFilter",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(filter_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "filter",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let filter_kind_raw = decode_uint8(slots[0], "filter_kind_raw", "kind")?;
-        let filter_kind = match filter_kind_raw {
-            1u8 => SecurityFilterKind::SeccompBpf,
-            2u8 => SecurityFilterKind::Landlock,
-            3u8 => SecurityFilterKind::Pledge,
-            4u8 => SecurityFilterKind::Unveil,
-            5u8 => SecurityFilterKind::Seatbelt,
-            6u8 => SecurityFilterKind::WindowsToken,
-            255u8 => SecurityFilterKind::Custom,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "filter_kind",
-                    "unknown SecurityFilterKind value",
-                ))
-                .boxed());
-            }
-        };
-        let filter_payload = decode_slice::<u8>(context, slots[1], "filter_payload", "payload")?;
-        let filter_flags = decode_uint32(slots[2], "filter_flags", "flags")?;
-        let filter_profile_name = decode_string(slots[3], "filter_profile_name", "profileName")?;
-        SecurityFilterVm {
-            kind: filter_kind,
-            payload: filter_payload,
-            flags: filter_flags,
-            profile_name: filter_profile_name,
-        }
-    };
-    Ok((handle, filter))
-}
-
-/// Encode the result for destack.security.enforce.sandboxInstallFilter.
-#[inline]
-fn encode_destack_security_enforce_sandbox_install_filter_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
 /// Decode arguments for destack.security.enforce.sandboxSeal.
 #[inline]
 fn decode_destack_security_enforce_sandbox_seal_args(
@@ -266,6 +190,26 @@ fn decode_destack_security_enforce_sandbox_set_capabilities_args(
 /// Encode the result for destack.security.enforce.sandboxSetCapabilities.
 #[inline]
 fn encode_destack_security_enforce_sandbox_set_capabilities_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.security.enforce.setWriteXorExecute.
+#[inline]
+fn decode_destack_security_enforce_set_write_xor_execute_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(bool,)> {
+    let enabled_value = arg_value(args, 0, "enabled", "boolean")?;
+    let enabled = decode_bool(enabled_value, "enabled", "boolean")?;
+    Ok((enabled,))
+}
+
+/// Encode the result for destack.security.enforce.setWriteXorExecute.
+#[inline]
+fn encode_destack_security_enforce_set_write_xor_execute_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -456,18 +400,6 @@ pub const SECURITY_CAPABILITY_LIST: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.security.enforce.sandboxInstallFilter.
-pub const SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.security.enforce.sandboxInstallFilter",
-    "export function sandboxInstallFilter(handle: SandboxHandle, filter: SecurityFilter): Result<void, PlatformError>",
-    ReplayPolicy::NonRecordable,
-    BindingReplayKind::Regular,
-    &["security.filter"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
 /// Binding descriptor for destack.security.enforce.sandboxSeal.
 pub const SECURITY_ENFORCE_SANDBOX_SEAL: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -501,6 +433,30 @@ pub const SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES: BindingDescriptor = Binding
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.security.enforce.setWriteXorExecute.
+pub const SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE: BindingDescriptor =
+    BindingDescriptor::deterministic_with_requires_and_behavior(
+        "destack.security.enforce.setWriteXorExecute",
+        "export function setWriteXorExecute(enabled: boolean): Result<void, PlatformError>",
+        &["security.restrict"],
+        BindingScope::Runtime,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.security.policy.get.
 pub const SECURITY_POLICY_GET: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -598,9 +554,9 @@ pub const SECURITY_SANDBOX_EXIT: BindingDescriptor =
 pub const BINDINGS: &[BindingDescriptor] = &[
     SECURITY_CAPABILITY_HAS,
     SECURITY_CAPABILITY_LIST,
-    SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER,
     SECURITY_ENFORCE_SANDBOX_SEAL,
     SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES,
+    SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE,
     SECURITY_POLICY_GET,
     SECURITY_POLICY_GET_RULES,
     SECURITY_POLICY_SET,
@@ -624,11 +580,6 @@ pub const SECURITY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_security_capability_list as *const (),
         ),
         NativeBinding::new(
-            SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER,
-            "destack.security.enforce.sandboxInstallFilter",
-            destack_security_enforce_sandbox_install_filter as *const (),
-        ),
-        NativeBinding::new(
             SECURITY_ENFORCE_SANDBOX_SEAL,
             "destack.security.enforce.sandboxSeal",
             destack_security_enforce_sandbox_seal as *const (),
@@ -637,6 +588,11 @@ pub const SECURITY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES,
             "destack.security.enforce.sandboxSetCapabilities",
             destack_security_enforce_sandbox_set_capabilities as *const (),
+        ),
+        NativeBinding::new(
+            SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE,
+            "destack.security.enforce.setWriteXorExecute",
+            destack_security_enforce_set_write_xor_execute as *const (),
         ),
         NativeBinding::new(
             SECURITY_POLICY_GET,
@@ -803,33 +759,6 @@ pub unsafe extern "C" fn destack_security_capability_list(
     })
 }
 
-#[unsafe(export_name = "destack.security.enforce.sandboxInstallFilter")]
-pub unsafe extern "C" fn destack_security_enforce_sandbox_install_filter(
-    handle: resource::SandboxHandle,
-    filter: SecurityFilter,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&handle, &filter);
-
-        {
-            context.check_policy(SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER)?;
-            let world = context.check_and_resolve_world(SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_security_sandbox_install_filter(
-                        context, handle, filter,
-                    )
-                },
-                RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_security_sandbox_install_filter(
-                        context, handle, filter,
-                    )
-                },
-            }
-        }
-    })
-}
-
 #[unsafe(export_name = "destack.security.enforce.sandboxSeal")]
 pub unsafe extern "C" fn destack_security_enforce_sandbox_seal(
     handle: resource::SandboxHandle,
@@ -860,6 +789,22 @@ pub unsafe extern "C" fn destack_security_enforce_sandbox_set_capabilities(
                     handle,
                     capabilities,
                 )
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.security.enforce.setWriteXorExecute")]
+pub unsafe extern "C" fn destack_security_enforce_set_write_xor_execute(
+    enabled: bool,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &enabled;
+
+        {
+            context.check_policy(SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE)?;
+            unsafe {
+                platform_runtime_native::destack_security_set_write_xor_execute(context, enabled)
             }
         }
     })
@@ -1109,41 +1054,6 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
         binding!(
             registry,
             isolate,
-            SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER,
-            move |context, args| {
-                with_runtime_call_context(|runtime| {
-                    // decode args
-                    let (handle, filter) =
-                        decode_destack_security_enforce_sandbox_install_filter_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        runtime.check_policy(SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER)?;
-                        let world = runtime
-                            .check_and_resolve_world(SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER)?;
-                        match world {
-                            RuntimeWorld::Host => {
-                                platform_vm::destack_security_sandbox_install_filter(
-                                    runtime, context, handle, filter,
-                                )
-                            }
-                            RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_security_sandbox_install_filter(
-                                    runtime, context, handle, filter,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_security_enforce_sandbox_install_filter_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
             SECURITY_ENFORCE_SANDBOX_SEAL,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
@@ -1186,6 +1096,30 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
                         )
                     };
                     encode_destack_security_enforce_sandbox_set_capabilities_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (enabled,) =
+                        decode_destack_security_enforce_set_write_xor_execute_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        runtime.check_policy(SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE)?;
+                        platform_runtime_vm::destack_security_set_write_xor_execute(
+                            runtime, context, enabled,
+                        )
+                    };
+                    encode_destack_security_enforce_set_write_xor_execute_result(context, result)
                 })
                 .map_err(Into::into)
             }

@@ -9,10 +9,10 @@ use crate::platform::bindings::{
     BindingDescriptor, BindingId, BindingPolicy, NativeBinding, NativeBindingSet, PolicyEngine,
     VmBindingSet,
 };
+use crate::runtime::scheduler::Scheduler;
 use crate::runtime::{
     RuntimeCallContext, RuntimeContext, RuntimeState, enter_runtime_call_context,
 };
-use crate::scheduler::Scheduler;
 use destack_workspace::RuntimeOptions;
 
 /// Raw pointers captured for binding calls.

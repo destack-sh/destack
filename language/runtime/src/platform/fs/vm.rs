@@ -13,7 +13,7 @@ use crate::platform::fs::{
     Stat, StatFs, StatusFlags, Statx, StatxFlags, StatxMask, SymlinkType, SyncFlags, WatchBatchVm,
     WatchOptionsVm, XattrFlags,
 };
-use crate::platform::resource::{PipeHandle, ResourceId, SocketHandle};
+use crate::platform::resource::{PipeHandle, ResourceId, SocketHandle, WatchHandle};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice};
 use crate::runtime::RuntimeCallContext;
 
@@ -1984,7 +1984,7 @@ pub fn destack_fs_watch(
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     options: WatchOptionsVm,
-) -> RuntimeResult<crate::platform::resource::WatchHandle> {
+) -> RuntimeResult<WatchHandle> {
     // NOTE #Incomplete: implement vm filesystem watch open
     let _ = (runtime, context, path, options);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watch")).boxed())
@@ -2010,7 +2010,7 @@ pub fn destack_fs_watch(
 pub fn destack_fs_watch_close(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
-    handle: crate::platform::resource::WatchHandle,
+    handle: WatchHandle,
 ) -> RuntimeResult<()> {
     // NOTE #Incomplete: implement vm filesystem watch close
     let _ = (runtime, context, handle);
@@ -2037,7 +2037,7 @@ pub fn destack_fs_watch_close(
 pub fn destack_fs_watch_read(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
-    handle: crate::platform::resource::WatchHandle,
+    handle: WatchHandle,
 ) -> RuntimeResult<WatchBatchVm> {
     // NOTE #Incomplete: implement vm filesystem watch read
     let _ = (runtime, context, handle);
@@ -2067,7 +2067,7 @@ pub fn destack_fs_watchat(
     directory: DirectoryHandle,
     path: OsPathVm,
     options: WatchOptionsVm,
-) -> RuntimeResult<crate::platform::resource::WatchHandle> {
+) -> RuntimeResult<WatchHandle> {
     // NOTE #Incomplete: implement vm filesystem watch open at
     let _ = (runtime, context, directory, path, options);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchat")).boxed())

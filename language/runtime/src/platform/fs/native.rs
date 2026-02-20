@@ -5,7 +5,7 @@ use crate::platform::{NativeArray, NativeSlice, PlatformError};
 use crate::runtime::RuntimeCallContext;
 
 #[allow(unused_imports)]
-pub(crate) use crate::platform::fs::host::*;
+pub(crate) use super::host::*;
 
 /// Read an extended attribute by path with a raw name payload.
 ///

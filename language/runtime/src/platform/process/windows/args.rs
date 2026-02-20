@@ -26,8 +26,8 @@ use crate::platform::{fs, resource};
 /// Argument decoding and quoting semantics follow the host process loader.
 ///
 /// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses startup argument capture, not a dedicated syscall.
+/// Unix and Windows.
+/// Uses startup argument capture from the host process loader.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.

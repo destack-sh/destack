@@ -39,7 +39,7 @@ export enum InputGamepadBatteryState {
 }
 
 /// Gamepad battery information.
-export struct InputGamepadBatteryInfo {
+export struct InputGamepadBatteryStatus {
     /// Battery state.
     state: InputGamepadBatteryState;
     /// Battery level in the range [0, 1] when available.
@@ -83,7 +83,7 @@ export struct InputGamepadState {
     /// Player index in the range [0, 15] when available, otherwise 255.
     playerIndex: uint8;
     /// Battery information snapshot.
-    battery: InputGamepadBatteryInfo;
+    battery: InputGamepadBatteryStatus;
     /// Whether this device supports whole-device rumble.
     supportsRumble: boolean;
     /// Whether this device supports trigger rumble.

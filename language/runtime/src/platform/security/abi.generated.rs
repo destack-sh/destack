@@ -42,53 +42,6 @@ impl VmAggregateCodec for PlatformCapabilityAbi<VmAbi> {
     }
 }
 
-/// ABI enum for SecurityFilterKind.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum SecurityFilterKind {
-    /// SeccompBpf.
-    SeccompBpf = 1,
-    /// Landlock.
-    Landlock = 2,
-    /// Pledge.
-    Pledge = 3,
-    /// Unveil.
-    Unveil = 4,
-    /// Seatbelt.
-    Seatbelt = 5,
-    /// WindowsToken.
-    WindowsToken = 6,
-    /// Custom.
-    Custom = 255,
-}
-
-impl VmValueCodec for SecurityFilterKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            1u8 => Self::SeccompBpf,
-            2u8 => Self::Landlock,
-            3u8 => Self::Pledge,
-            4u8 => Self::Unveil,
-            5u8 => Self::Seatbelt,
-            6u8 => Self::WindowsToken,
-            255u8 => Self::Custom,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown SecurityFilterKind value",
-                ))
-                .boxed());
-            }
-        };
-        Ok(decoded)
-    }
-
-    fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
-    }
-}
-
 /// ABI enum for SecurityPolicyMode.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -121,97 +74,6 @@ impl VmValueCodec for SecurityPolicyMode {
 
     fn encode(self) -> vm::Value {
         <u8 as VmValueCodec>::encode(self as u8)
-    }
-}
-
-/// ABI struct for SecurityFilter.
-#[repr(C)]
-pub struct SecurityFilterAbi<A: BindingAbi> {
-    /// The kind field.
-    pub kind: SecurityFilterKind,
-    /// The payload field.
-    pub payload: A::Slice<u8>,
-    /// The flags field.
-    pub flags: u32,
-    /// The profile_name field.
-    pub profile_name: A::String,
-}
-
-pub type SecurityFilter = SecurityFilterAbi<NativeAbi>;
-pub type SecurityFilterVm = SecurityFilterAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for SecurityFilterAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("SecurityFilterAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for SecurityFilterAbi<NativeAbi> {}
-impl Clone for SecurityFilterAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for SecurityFilterAbi<VmAbi> {}
-impl Clone for SecurityFilterAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for SecurityFilterAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "SecurityFilter",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let field_kind =
-            <SecurityFilterKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_payload =
-            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_profile_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        Ok(Self {
-            kind: field_kind,
-            payload: field_payload,
-            flags: field_flags,
-            profile_name: field_profile_name,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <SecurityFilterKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.payload, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
-                self.profile_name,
-                context,
-            )?,
-        ];
-        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -293,19 +155,6 @@ impl VmAggregateCodec for SecurityPolicyRuleAbi<VmAbi> {
         ];
         Ok(context.allocate_aggregate(slots))
     }
-}
-
-/// Replay struct for SecurityFilter.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SecurityFilterReplayRecord {
-    /// The kind field.
-    pub kind: SecurityFilterKind,
-    /// The payload field.
-    pub payload: Vec<u8>,
-    /// The flags field.
-    pub flags: u32,
-    /// The profile_name field.
-    pub profile_name: String,
 }
 
 /// Replay struct for SecurityPolicyRule.

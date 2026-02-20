@@ -795,7 +795,7 @@ pub(crate) unsafe fn destack_net_recv_from(
     context: &RuntimeCallContext,
     out: *mut SocketRecvFrom,
     handle: SocketHandle,
-    buffer: crate::platform::NativeSlice<u8>,
+    buffer: NativeSlice<u8>,
     recv_flags: SocketMessageFlags,
 ) -> RuntimeResult<()> {
     // ensure the output pointer is valid
@@ -859,7 +859,7 @@ pub(crate) unsafe fn destack_net_send_to(
     context: &RuntimeCallContext,
     out: *mut u64,
     handle: SocketHandle,
-    buffer: crate::platform::NativeSlice<u8>,
+    buffer: NativeSlice<u8>,
     message: SocketSendTo,
 ) -> RuntimeResult<()> {
     // ensure the output pointer is valid

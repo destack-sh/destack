@@ -1,10 +1,11 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::fs::OsPathVm;
 use crate::platform::io::{
     CompletionEventVm, CompletionOperationVm, DescriptorControlCommand, DescriptorControlFlags,
     DescriptorRequestVm, DescriptorResultVm, EventToken, PollBackend, PollEventVm, PollInterest,
-    UringFeaturesVm, UringParametersVm,
+    TimerFdClock, TimerFdFlags, TimerFdSetFlags, TimerFdSpecVm, UringFeaturesVm, UringParametersVm,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, resource};
 use crate::runtime::RuntimeCallContext;
@@ -334,7 +335,7 @@ pub(crate) fn destack_io_device_control(
 pub(crate) fn destack_io_device_open(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    path: crate::platform::fs::OsPathVm,
+    path: OsPathVm,
     flags: u32,
     mode: u32,
 ) -> RuntimeResult<resource::DeviceHandle> {
@@ -864,4 +865,132 @@ pub(crate) fn destack_io_uring_unregister_files(
         "destack.io.uring.unregisterFiles",
     ))
     .boxed())
+}
+
+/// Close one timerfd descriptor.
+///
+/// Close one descriptor and release host timer queue resources.
+/// Pending expirations are discarded according to host close semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses close(2) on Linux and returns `notSupported` where timerfd is unavailable.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.timerfd`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_io_timer_fd_close(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    _handle: resource::TimerFdHandle,
+) -> RuntimeResult<()> {
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.timerfd.close")).boxed())
+}
+
+/// Read the active timerfd schedule.
+///
+/// Return one normalized schedule snapshot for the descriptor.
+/// Returned values are measured in nanoseconds using host timerfd conversion rules.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses timerfd_gettime(2) on Linux and returns `notSupported` where timerfd is unavailable.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.timerfd`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_io_timer_fd_get(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    _handle: resource::TimerFdHandle,
+) -> RuntimeResult<TimerFdSpecVm> {
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.timerfd.get")).boxed())
+}
+
+/// Open one timerfd style descriptor.
+///
+/// Create one descriptor-backed timer queue in the requested clock domain.
+/// Timerfd behavior and descriptor flags follow host kernel semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses timerfd_create(2) on Linux and returns `notSupported` where timerfd is unavailable.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.timerfd`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_io_timer_fd_open(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    _clock: TimerFdClock,
+    _flags: TimerFdFlags,
+) -> RuntimeResult<resource::TimerFdHandle> {
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.timerfd.open")).boxed())
+}
+
+/// Read one timerfd expiration counter.
+///
+/// Consume one pending expiration counter value from the descriptor.
+/// Counter semantics follow host timerfd read behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses read(2) on timerfd descriptors on Linux and returns `notSupported` where timerfd is unavailable.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.timerfd`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_io_timer_fd_read(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    _handle: resource::TimerFdHandle,
+) -> RuntimeResult<u64> {
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.timerfd.read")).boxed())
+}
+
+/// Update one timerfd schedule.
+///
+/// Replace the timer schedule with one initial deadline and one interval period.
+/// Absolute or relative interpretation is controlled by the provided set flags.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses timerfd_settime(2) on Linux and returns `notSupported` where timerfd is unavailable.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.timerfd`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_io_timer_fd_set(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    _handle: resource::TimerFdHandle,
+    _spec: TimerFdSpecVm,
+    _flags: TimerFdSetFlags,
+) -> RuntimeResult<()> {
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.timerfd.set")).boxed())
 }

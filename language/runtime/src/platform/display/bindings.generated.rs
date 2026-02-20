@@ -10,8 +10,8 @@ use crate::platform::bindings::{
     NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
 };
 use crate::platform::display::{
-    DisplayInfo, DisplayInfoReplayRecord, DisplayInfoVm, DisplayMode, DisplayModeVm, WindowEvent,
-    WindowEventVm, WindowOptions, WindowOptionsVm,
+    DisplayDescriptor, DisplayDescriptorReplayRecord, DisplayDescriptorVm, DisplayMode,
+    DisplayModeVm, WindowEvent, WindowEventVm, WindowOptions, WindowOptionsVm,
 };
 use crate::platform::{
     NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmSlice, abi as platform_abi,
@@ -180,7 +180,7 @@ fn encode_destack_display_monitor_close_result(
 #[inline]
 fn encode_destack_display_monitor_list_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<VmSlice<DisplayInfoVm>>,
+    result: RuntimeResult<VmSlice<DisplayDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
 }
@@ -473,7 +473,7 @@ struct DisplayMonitorCloseReplay {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<DisplayInfoReplayRecord>, PlatformError>,
+    pub result: Result<Vec<DisplayDescriptorReplayRecord>, PlatformError>,
 }
 
 /// Replay payload for destack.display.monitor.modes.
@@ -562,7 +562,7 @@ pub const DISPLAY_MONITOR_CLOSE: BindingDescriptor =
 pub const DISPLAY_MONITOR_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.monitor.list",
-        "export function list(): Result<Slice<DisplayInfo>, PlatformError>",
+        "export function list(): Result<Slice<DisplayDescriptor>, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["display.read"],
@@ -892,7 +892,7 @@ fn destack_display_monitor_close_replay(
 fn destack_display_monitor_list_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    out: *mut NativeSlice<DisplayInfo>,
+    out: *mut NativeSlice<DisplayDescriptor>,
 ) -> RuntimeResult<()> {
     context.replay().run_binding_with_payload_policy(
         DISPLAY_MONITOR_LIST,
@@ -922,7 +922,7 @@ fn destack_display_monitor_list_replay(
                     let result_recorded_item_recorded_width_mm = result_recorded_item.width_mm;
                     let result_recorded_item_recorded_height_mm = result_recorded_item.height_mm;
                     let result_recorded_item_recorded_primary = result_recorded_item.primary;
-                    let result_recorded_item_recorded = DisplayInfoReplayRecord {
+                    let result_recorded_item_recorded = DisplayDescriptorReplayRecord {
                         id: result_recorded_item_recorded_id,
                         name: result_recorded_item_recorded_name,
                         width_mm: result_recorded_item_recorded_width_mm,
@@ -960,7 +960,7 @@ fn destack_display_monitor_list_replay(
                         let value_native_item_native_width_mm = value_native_item.width_mm;
                         let value_native_item_native_height_mm = value_native_item.height_mm;
                         let value_native_item_native_primary = value_native_item.primary;
-                        let value_native_item_native = DisplayInfo {
+                        let value_native_item_native = DisplayDescriptor {
                             id: value_native_item_native_id,
                             name: value_native_item_native_name,
                             width_mm: value_native_item_native_width_mm,
@@ -1520,7 +1520,7 @@ pub unsafe extern "C" fn destack_display_monitor_close(
 
 #[unsafe(export_name = "destack.display.monitor.list")]
 pub unsafe extern "C" fn destack_display_monitor_list(
-    out: *mut NativeSlice<DisplayInfo>,
+    out: *mut NativeSlice<DisplayDescriptor>,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
@@ -1758,7 +1758,7 @@ fn destack_display_monitor_list_vm_replay(
             |context, result| {
                 let _ = &context;
                 if let Ok(value) = result {
-                    let result_value: VmSlice<DisplayInfoVm> = value.clone();
+                    let result_value: VmSlice<DisplayDescriptorVm> = value.clone();
                     let result_recorded_raw = result_value.raw_values(context)?;
                     let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                     for result_recorded_item_value in result_recorded_raw {
@@ -1800,7 +1800,7 @@ fn destack_display_monitor_list_vm_replay(
                             )?;
                             let result_recorded_item_primary =
                                 decode_bool(slots[4], "result_recorded_item_primary", "primary")?;
-                            DisplayInfoVm {
+                            DisplayDescriptorVm {
                                 id: result_recorded_item_id,
                                 name: result_recorded_item_name,
                                 width_mm: result_recorded_item_width_mm,
@@ -1824,7 +1824,7 @@ fn destack_display_monitor_list_vm_replay(
                         let result_recorded_item_recorded_height_mm =
                             result_recorded_item.height_mm;
                         let result_recorded_item_recorded_primary = result_recorded_item.primary;
-                        let result_recorded_item_recorded = DisplayInfoReplayRecord {
+                        let result_recorded_item_recorded = DisplayDescriptorReplayRecord {
                             id: result_recorded_item_recorded_id,
                             name: result_recorded_item_recorded_name,
                             width_mm: result_recorded_item_recorded_width_mm,
@@ -1868,7 +1868,7 @@ fn destack_display_monitor_list_vm_replay(
                             let vm_result_item_value_width_mm = vm_result_item.width_mm;
                             let vm_result_item_value_height_mm = vm_result_item.height_mm;
                             let vm_result_item_value_primary = vm_result_item.primary;
-                            let vm_result_item_value = DisplayInfoVm {
+                            let vm_result_item_value = DisplayDescriptorVm {
                                 id: vm_result_item_value_id,
                                 name: vm_result_item_value_name,
                                 width_mm: vm_result_item_value_width_mm,
@@ -1890,7 +1890,7 @@ fn destack_display_monitor_list_vm_replay(
                             vm_result_values.push(vm_result_item_value_encoded);
                         }
                         let vm_result_data = context.allocate_raw_values(vm_result_values);
-                        let vm_result: VmSlice<DisplayInfoVm> = VmSlice {
+                        let vm_result: VmSlice<DisplayDescriptorVm> = VmSlice {
                             data: vm_result_data,
                             len: value.len() as u32,
                             _marker: std::marker::PhantomData,

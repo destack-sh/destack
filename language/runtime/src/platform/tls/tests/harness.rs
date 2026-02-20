@@ -1,6 +1,6 @@
 use super::*;
 #[cfg(windows)]
-use crate::platform::net::SocketFamily;
+use crate::platform::net::{SocketFamily, SocketProtocol};
 
 #[path = "harness.generated.rs"]
 mod generated;
@@ -317,11 +317,11 @@ fn stream_socket_type() -> SocketType {
 }
 
 #[cfg(windows)]
-fn stream_socket_family() -> crate::platform::net::SocketFamily {
+fn stream_socket_family() -> SocketFamily {
     SocketFamily::IPv4
 }
 
 #[cfg(windows)]
-fn stream_socket_protocol() -> crate::platform::net::SocketProtocol {
-    crate::platform::net::SocketProtocol(windows_sys::Win32::Networking::WinSock::IPPROTO_TCP)
+fn stream_socket_protocol() -> SocketProtocol {
+    SocketProtocol(windows_sys::Win32::Networking::WinSock::IPPROTO_TCP)
 }

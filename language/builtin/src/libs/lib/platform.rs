@@ -291,6 +291,12 @@ builtin_lib_sources_targeted!(
         (LIB_PLATFORM_IO_DEVICE_DS, "lib", "platform/io", "device.ds"),
         (LIB_PLATFORM_IO_EVENT_DS, "lib", "platform/io", "event.ds"),
         (LIB_PLATFORM_IO_INDEX_DS, "lib", "platform/io", "index.ds"),
+        (
+            LIB_PLATFORM_IO_TIMERFD_DS,
+            "lib",
+            "platform/io",
+            "timerfd.ds"
+        ),
         (LIB_PLATFORM_IO_POLL_DS, "lib", "platform/io", "poll.ds"),
         (LIB_PLATFORM_IO_URING_DS, "lib", "platform/io", "uring.ds"),
         (LIB_PLATFORM_IPC_INDEX_DS, "lib", "platform/ipc", "index.ds"),
@@ -604,23 +610,10 @@ builtin_lib_sources_targeted!(
             "sleep.ds"
         ),
         (
-            LIB_PLATFORM_TIMER_CONTROL_DS,
+            LIB_PLATFORM_TIME_TIMER_DS,
             "lib",
-            "platform/timer",
-            "control.ds"
-        ),
-        (LIB_PLATFORM_TIMER_FD_DS, "lib", "platform/timer", "fd.ds"),
-        (
-            LIB_PLATFORM_TIMER_INDEX_DS,
-            "lib",
-            "platform/timer",
-            "index.ds"
-        ),
-        (
-            LIB_PLATFORM_TIMER_SCHEDULE_DS,
-            "lib",
-            "platform/timer",
-            "schedule.ds"
+            "platform/time",
+            "timer.ds"
         ),
         (
             LIB_PLATFORM_TLS_CONTEXT_DS,
@@ -708,6 +701,7 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_IO_DEVICE_DS,
         LIB_PLATFORM_IO_EVENT_DS,
         LIB_PLATFORM_IO_INDEX_DS,
+        LIB_PLATFORM_IO_TIMERFD_DS,
         LIB_PLATFORM_IO_POLL_DS,
         LIB_PLATFORM_IO_URING_DS,
         LIB_PLATFORM_IPC_INDEX_DS,
@@ -775,10 +769,7 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_TIME_CLOCK_DS,
         LIB_PLATFORM_TIME_INDEX_DS,
         LIB_PLATFORM_TIME_SLEEP_DS,
-        LIB_PLATFORM_TIMER_CONTROL_DS,
-        LIB_PLATFORM_TIMER_FD_DS,
-        LIB_PLATFORM_TIMER_INDEX_DS,
-        LIB_PLATFORM_TIMER_SCHEDULE_DS,
+        LIB_PLATFORM_TIME_TIMER_DS,
         LIB_PLATFORM_TLS_CONTEXT_DS,
         LIB_PLATFORM_TLS_INDEX_DS,
         LIB_PLATFORM_TLS_SESSION_DS,

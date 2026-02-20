@@ -60,7 +60,7 @@ export struct AudioStreamState {
 }
 
 /// Audio stream negotiated format snapshot.
-export struct AudioStreamInfo {
+export struct AudioStreamSnapshot {
     /// Effective sample rate in hertz.
     sampleRate: uint32;
     /// Effective channel count.
@@ -262,7 +262,7 @@ declare namespace audio {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.audio.stream.info", {
+    @binding("destack.audio.stream.snapshot", {
         effect: "external",
         replay: "recordable",
         capabilities: ["audio.control"],
@@ -270,7 +270,7 @@ declare namespace audio {
         scope: "host",
         blocking: "never",
     })
-    export function streamInfo(handle: AudioStreamHandle): Result<AudioStreamInfo, PlatformError>;
+    export function streamSnapshot(handle: AudioStreamHandle): Result<AudioStreamSnapshot, PlatformError>;
 
     /// Read one stream timing snapshot.
     ///

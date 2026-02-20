@@ -555,37 +555,6 @@ impl<'call> MemoryHarnessContext<'call> {
             }
         }
     }
-
-    /// Set runtime W^X policy.
-    ///
-    /// Enable or disable runtime write-xor-execute policy enforcement.
-    /// Policy update affects subsequent executable-memory transitions.
-    ///
-    /// # Platform
-    /// Runtime-managed on all targets.
-    /// Uses runtime memory policy controls layered over host page protections.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.execute`.
-    ///
-    /// # Replay
-    /// Deterministic.
-    pub(crate) fn destack_memory_set_write_xor_execute(
-        &mut self,
-        enabled: bool,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                memory_vm::destack_memory_set_write_xor_execute(self.call_context, context, enabled)
-            }
-            None => unsafe {
-                memory_native::destack_memory_set_write_xor_execute(self.call_context, enabled)
-            },
-        }
-    }
 }
 
 /// Wrapper that carries one native or VM value for generated harness bindings.

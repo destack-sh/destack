@@ -1,16 +1,40 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::fs::OsPathVm;
 use crate::platform::io::{
     CompletionEvent, CompletionEventVm, CompletionOperation, CompletionOperationKind,
     CompletionOperationVm, DescriptorControlCommand, DescriptorControlFlags, DescriptorRequest,
     DescriptorRequestVm, DescriptorResult, DescriptorResultVm, EventToken, PollBackend,
-    PollEventVm, PollInterest, UringFeaturesVm, UringParametersVm, core as core_io,
-    host as host_io,
+    PollEventVm, PollInterest, TimerFdClock, TimerFdFlags, TimerFdSetFlags, TimerFdSpec,
+    TimerFdSpecVm, UringFeaturesVm, UringParametersVm, core as core_io, host as host_io,
 };
 use crate::platform::{NativeSlice, PlatformError, VmArray, VmSlice, VmValueCodec, resource};
 use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+
+/// Call one host binding with one output pointer.
+fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
+    let mut out = std::mem::MaybeUninit::<T>::uninit();
+    call(out.as_mut_ptr())?;
+    Ok(unsafe { out.assume_init() })
+}
+
+/// Convert one native timerfd schedule into one vm timerfd schedule.
+fn vm_timer_fd_spec(spec: TimerFdSpec) -> TimerFdSpecVm {
+    TimerFdSpecVm {
+        initial_ns: spec.initial_ns,
+        interval_ns: spec.interval_ns,
+    }
+}
+
+/// Convert one vm timerfd schedule into one native timerfd schedule.
+fn native_timer_fd_spec(spec: TimerFdSpecVm) -> TimerFdSpec {
+    TimerFdSpec {
+        initial_ns: spec.initial_ns,
+        interval_ns: spec.interval_ns,
+    }
+}
 
 /// Encode one poll event slice into one VM array.
 fn encode_poll_events_vm_array(
@@ -430,7 +454,7 @@ pub(crate) fn destack_io_device_control(
 pub(crate) fn destack_io_device_open(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    path: crate::platform::fs::OsPathVm,
+    path: OsPathVm,
     flags: u32,
     mode: u32,
 ) -> RuntimeResult<resource::DeviceHandle> {
@@ -935,4 +959,134 @@ pub(crate) fn destack_io_uring_unregister_files(
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     core_io::uring_unregister_files(runtime, handle)
+}
+
+/// Close one timerfd descriptor.
+///
+/// Close one descriptor and release host timer queue resources.
+/// Pending expirations are discarded according to host close semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses close(2) on Linux and returns `notSupported` where timerfd is unavailable.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.timerfd`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_io_timer_fd_close(
+    runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TimerFdHandle,
+) -> RuntimeResult<()> {
+    unsafe { host_io::destack_io_timer_fd_close(runtime, handle) }
+}
+
+/// Read the active timerfd schedule.
+///
+/// Return one normalized schedule snapshot for the descriptor.
+/// Returned values are measured in nanoseconds using host timerfd conversion rules.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses timerfd_gettime(2) on Linux and returns `notSupported` where timerfd is unavailable.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.timerfd`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_io_timer_fd_get(
+    runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TimerFdHandle,
+) -> RuntimeResult<TimerFdSpecVm> {
+    let spec = call_out(|out| unsafe { host_io::destack_io_timer_fd_get(runtime, out, handle) })?;
+    Ok(vm_timer_fd_spec(spec))
+}
+
+/// Open one timerfd style descriptor.
+///
+/// Create one descriptor-backed timer queue in the requested clock domain.
+/// Timerfd behavior and descriptor flags follow host kernel semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses timerfd_create(2) on Linux and returns `notSupported` where timerfd is unavailable.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.timerfd`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_io_timer_fd_open(
+    runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    clock: TimerFdClock,
+    flags: TimerFdFlags,
+) -> RuntimeResult<resource::TimerFdHandle> {
+    call_out(|out| unsafe { host_io::destack_io_timer_fd_open(runtime, out, clock, flags) })
+}
+
+/// Read one timerfd expiration counter.
+///
+/// Consume one pending expiration counter value from the descriptor.
+/// Counter semantics follow host timerfd read behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses read(2) on timerfd descriptors on Linux and returns `notSupported` where timerfd is unavailable.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.timerfd`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_io_timer_fd_read(
+    runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TimerFdHandle,
+) -> RuntimeResult<u64> {
+    call_out(|out| unsafe { host_io::destack_io_timer_fd_read(runtime, out, handle) })
+}
+
+/// Update one timerfd schedule.
+///
+/// Replace the timer schedule with one initial deadline and one interval period.
+/// Absolute or relative interpretation is controlled by the provided set flags.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses timerfd_settime(2) on Linux and returns `notSupported` where timerfd is unavailable.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.timerfd`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_io_timer_fd_set(
+    runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TimerFdHandle,
+    spec: TimerFdSpecVm,
+    flags: TimerFdSetFlags,
+) -> RuntimeResult<()> {
+    let spec = native_timer_fd_spec(spec);
+    unsafe { host_io::destack_io_timer_fd_set(runtime, handle, spec, flags) }
 }

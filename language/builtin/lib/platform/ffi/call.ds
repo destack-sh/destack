@@ -10,8 +10,8 @@ declare namespace ffi {
     /// ABI packing, alignment, and calling convention semantics are runtime-defined and backend-specific.
     ///
     /// # Platform
-    /// Runtime-managed on all targets.
-    /// Uses runtime ABI trampolines over host process calling conventions.
+    /// Unix and Windows.
+    /// Uses host ABI trampolines over process calling conventions.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -28,7 +28,7 @@ declare namespace ffi {
             replay: "nonrecordable",
             capabilities: ["ffi.call"],
             platforms: ["windows", "unix"],
-            scope: "runtime",
+            scope: "host",
             blocking: "sometimes",
         },
     )

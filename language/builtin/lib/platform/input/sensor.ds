@@ -19,7 +19,7 @@ export enum InputSensorKind {
 }
 
 /// Sensor capability metadata.
-export struct InputSensorInfo {
+export struct InputSensorDescriptor {
     /// Sensor kind.
     kind: InputSensorKind;
     /// Minimum supported sample rate in hertz.
@@ -101,7 +101,7 @@ declare namespace input {
         scope: "host",
         blocking: "never",
     })
-    export function sensorList(handle: InputDeviceHandle): Result<Array<InputSensorInfo>, PlatformError>;
+    export function sensorList(handle: InputDeviceHandle): Result<Array<InputSensorDescriptor>, PlatformError>;
 
     /// Configure one sensor stream.
     ///

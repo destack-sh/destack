@@ -182,9 +182,9 @@ impl VmAggregateCodec for RandomStreamStateAbi<VmAbi> {
     }
 }
 
-/// ABI struct for SecureRandomInfo.
+/// ABI struct for SecureRandomMetadata.
 #[repr(C)]
-pub struct SecureRandomInfoAbi<A: BindingAbi> {
+pub struct SecureRandomMetadataAbi<A: BindingAbi> {
     /// The source field.
     pub source: SecureRandomSource,
     /// The backend_name field.
@@ -201,31 +201,31 @@ pub struct SecureRandomInfoAbi<A: BindingAbi> {
     pub entropy_bits_per_byte: f64,
 }
 
-pub type SecureRandomInfo = SecureRandomInfoAbi<NativeAbi>;
-pub type SecureRandomInfoVm = SecureRandomInfoAbi<VmAbi>;
+pub type SecureRandomMetadata = SecureRandomMetadataAbi<NativeAbi>;
+pub type SecureRandomMetadataVm = SecureRandomMetadataAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for SecureRandomInfoAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for SecureRandomMetadataAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("SecureRandomInfoAbi")
+            .debug_struct("SecureRandomMetadataAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for SecureRandomInfoAbi<NativeAbi> {}
-impl Clone for SecureRandomInfoAbi<NativeAbi> {
+impl Copy for SecureRandomMetadataAbi<NativeAbi> {}
+impl Clone for SecureRandomMetadataAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for SecureRandomInfoAbi<VmAbi> {}
-impl Clone for SecureRandomInfoAbi<VmAbi> {
+impl Copy for SecureRandomMetadataAbi<VmAbi> {}
+impl Clone for SecureRandomMetadataAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for SecureRandomInfoAbi<VmAbi> {
+impl VmAggregateCodec for SecureRandomMetadataAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -233,7 +233,7 @@ impl VmAggregateCodec for SecureRandomInfoAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "SecureRandomInfo",
+                "SecureRandomMetadata",
             ))
             .boxed());
         }
@@ -299,9 +299,9 @@ pub struct RandomStreamStateReplayRecord {
     pub bytes: Vec<u8>,
 }
 
-/// Replay struct for SecureRandomInfo.
+/// Replay struct for SecureRandomMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SecureRandomInfoReplayRecord {
+pub struct SecureRandomMetadataReplayRecord {
     /// The source field.
     pub source: SecureRandomSource,
     /// The backend_name field.

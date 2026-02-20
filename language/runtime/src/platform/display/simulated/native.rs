@@ -6,7 +6,7 @@ use crate::platform::{NativeSlice, NativeStringRef, PlatformError};
 
 use crate::runtime::RuntimeCallContext;
 
-use crate::platform::display::{DisplayInfo, DisplayMode, WindowEvent, WindowOptions};
+use crate::platform::display::{DisplayDescriptor, DisplayMode, WindowEvent, WindowOptions};
 use crate::platform::resource;
 
 /// Close one display endpoint.
@@ -58,7 +58,7 @@ pub(crate) unsafe fn destack_display_close(
 /// External, recordable.
 pub(crate) unsafe fn destack_display_list(
     context: &RuntimeCallContext,
-    out: *mut NativeSlice<DisplayInfo>,
+    out: *mut NativeSlice<DisplayDescriptor>,
 ) -> RuntimeResult<()> {
     let _ = context;
     let _ = out;

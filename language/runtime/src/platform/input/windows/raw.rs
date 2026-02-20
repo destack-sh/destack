@@ -48,14 +48,15 @@ use super::core as windows_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputAxisInfo, InputButtonInfo, InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin,
-    InputDeviceCapabilities, InputDeviceCapabilityKind, InputDeviceEventPayload, InputDeviceKind,
-    InputEvent, InputEventAction, InputEventKind, InputGamepadBatteryInfo,
-    InputGamepadBatteryState, InputGamepadButtonState, InputGamepadConnectionType,
-    InputGamepadMappingType, InputGamepadState, InputKeyEventPayload, InputMonitorEvent,
-    InputMonitorEventKind, InputPointerButtonEventPayload, InputPointerMotionEventPayload,
-    InputRawHidReport, InputScrollEventPayload, InputSensorInfo, InputSensorKind,
-    InputSensorSample, InputTouchContactPhase, InputTouchContactState, InputTouchState,
+    InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
+    InputCapabilityMetadataOrigin, InputDeviceCapabilities, InputDeviceCapabilityKind,
+    InputDeviceEventPayload, InputDeviceKind, InputEvent, InputEventAction, InputEventKind,
+    InputGamepadBatteryState, InputGamepadBatteryStatus, InputGamepadButtonState,
+    InputGamepadConnectionType, InputGamepadMappingType, InputGamepadState, InputKeyEventPayload,
+    InputMonitorEvent, InputMonitorEventKind, InputPointerButtonEventPayload,
+    InputPointerMotionEventPayload, InputRawHidReport, InputScrollEventPayload,
+    InputSensorDescriptor, InputSensorKind, InputSensorSample, InputTouchContactPhase,
+    InputTouchContactState, InputTouchState,
 };
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::RuntimeCallContext;
@@ -1425,12 +1426,12 @@ fn hid_button_code(usage_page: u16, usage: u16) -> u32 {
 fn axis_info_from_hid_value_capability(
     capability: &RawHidValueCapability,
     usage: u16,
-) -> InputAxisInfo {
+) -> InputAxisMetadata {
     let minimum = capability.logical_min as f64;
     let maximum = capability.logical_max as f64;
     let span = (maximum - minimum).abs();
     let resolution = if span > 0.0 { 1.0 / span } else { 0.0 };
-    InputAxisInfo {
+    InputAxisMetadata {
         code: hid_axis_code(capability.usage_page, usage),
         minimum,
         maximum,
@@ -1441,7 +1442,7 @@ fn axis_info_from_hid_value_capability(
 }
 
 /// Build axis capability rows from one raw-input descriptor.
-fn axis_infos_for_raw_input_device(device: &RawInputDeviceDescriptor) -> Vec<InputAxisInfo> {
+fn axis_infos_for_raw_input_device(device: &RawInputDeviceDescriptor) -> Vec<InputAxisMetadata> {
     // derive axis metadata from hid parser capabilities when available
     let mut axes = Vec::new();
     let mut seen_codes = HashSet::new();
@@ -1477,7 +1478,7 @@ fn axis_infos_for_raw_input_device(device: &RawInputDeviceDescriptor) -> Vec<Inp
     // fall back to count-derived axis rows when no hid parser metadata is available
     let mut fallback_axes = Vec::new();
     for code in 0..u32::from(device.axis_count) {
-        fallback_axes.push(InputAxisInfo {
+        fallback_axes.push(InputAxisMetadata {
             code,
             minimum: 0.0,
             maximum: 0.0,
@@ -1491,12 +1492,14 @@ fn axis_infos_for_raw_input_device(device: &RawInputDeviceDescriptor) -> Vec<Inp
 }
 
 /// Build button capability rows from one raw-input descriptor.
-fn button_infos_for_raw_input_device(device: &RawInputDeviceDescriptor) -> Vec<InputButtonInfo> {
+fn button_infos_for_raw_input_device(
+    device: &RawInputDeviceDescriptor,
+) -> Vec<InputButtonMetadata> {
     // keep keyboard button layout aligned to virtual-key code space
     if device.kind == InputDeviceKind::Keyboard {
         let mut buttons = Vec::new();
         for code in 0..u32::from(device.key_count) {
-            buttons.push(InputButtonInfo {
+            buttons.push(InputButtonMetadata {
                 code,
                 analog: false,
             });
@@ -1515,7 +1518,7 @@ fn button_infos_for_raw_input_device(device: &RawInputDeviceDescriptor) -> Vec<I
                 continue;
             }
 
-            buttons.push(InputButtonInfo {
+            buttons.push(InputButtonMetadata {
                 code,
                 analog: false,
             });
@@ -1528,7 +1531,7 @@ fn button_infos_for_raw_input_device(device: &RawInputDeviceDescriptor) -> Vec<I
     // fall back to count-derived button rows when hid parser metadata is unavailable
     let mut fallback_buttons = Vec::new();
     for code in 0..u32::from(device.button_count) {
-        fallback_buttons.push(InputButtonInfo {
+        fallback_buttons.push(InputButtonMetadata {
             code,
             analog: false,
         });
@@ -3235,7 +3238,9 @@ fn sensor_resolution_for_device(device: &RawInputDeviceDescriptor) -> f64 {
 }
 
 /// Build sensor-info payload rows from one raw-input descriptor.
-pub(super) fn sensor_infos_for_device(device: &RawInputDeviceDescriptor) -> Vec<InputSensorInfo> {
+pub(super) fn sensor_infos_for_device(
+    device: &RawInputDeviceDescriptor,
+) -> Vec<InputSensorDescriptor> {
     let kinds = sensor_kinds_for_device(device);
     if kinds.is_empty() {
         return Vec::new();
@@ -3244,7 +3249,7 @@ pub(super) fn sensor_infos_for_device(device: &RawInputDeviceDescriptor) -> Vec<
     let resolution = sensor_resolution_for_device(device);
     let mut infos = Vec::with_capacity(kinds.len());
     for kind in kinds {
-        infos.push(InputSensorInfo {
+        infos.push(InputSensorDescriptor {
             kind,
             min_sample_rate_hz: 0.0,
             max_sample_rate_hz: 0.0,
@@ -3803,12 +3808,12 @@ pub(super) fn gamepad_state_for_raw_input_device(
         decode_cached_raw_gamepad_state(device, latest_packet, operation)?;
 
     let battery = if device.supports_battery {
-        InputGamepadBatteryInfo {
+        InputGamepadBatteryStatus {
             state: InputGamepadBatteryState::Unknown,
             level: 0.0,
         }
     } else {
-        InputGamepadBatteryInfo {
+        InputGamepadBatteryStatus {
             state: InputGamepadBatteryState::NotPresent,
             level: 0.0,
         }

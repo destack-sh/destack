@@ -2,7 +2,7 @@
 mod abi_generated;
 #[path = "bindings.generated.rs"]
 mod bindings_generated;
-mod handles;
+mod handle;
 pub mod native;
 mod resolve;
 pub(crate) mod runtime;
@@ -13,7 +13,7 @@ mod tests;
 pub mod vm;
 
 pub use bindings_generated::*;
-pub use handles::*;
+pub use handle::*;
 pub use snapshot::{
     ResourceDescriptor, ResourceSnapshot, ResourceSnapshotAdapter, ResourceSnapshotPolicy,
 };

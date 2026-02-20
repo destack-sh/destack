@@ -11,7 +11,7 @@ use crate::platform::bindings::{
 };
 use crate::platform::os::{
     HostIdentity, HostIdentityReplayRecord, HostIdentityVm, LoadAverage, LoadAverageVm, MountEntry,
-    MountEntryReplayRecord, MountEntryVm, PowerState, SystemInfo, SystemInfoVm,
+    MountEntryReplayRecord, MountEntryVm, PowerState, SystemSnapshot, SystemSnapshotVm,
 };
 use crate::platform::{
     NativeArray, NativeStringRef, PlatformError, RuntimeStatus, VmArray, abi as platform_abi,
@@ -178,11 +178,11 @@ fn encode_destack_os_info_load_average_result(
     })
 }
 
-/// Encode the result for destack.os.info.systemInfo.
+/// Encode the result for destack.os.info.systemSnapshot.
 #[inline]
-fn encode_destack_os_info_system_info_result(
+fn encode_destack_os_info_system_snapshot_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<SystemInfoVm>,
+    result: RuntimeResult<SystemSnapshotVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
         let field_0 = vm::Value::uint(value.cpu_count as u64, 32);
@@ -426,11 +426,11 @@ struct OsInfoLoadAverageReplay {
     pub result: Result<LoadAverage, PlatformError>,
 }
 
-/// Replay payload for destack.os.info.systemInfo.
+/// Replay payload for destack.os.info.systemSnapshot.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OsInfoSystemInfoReplay {
+struct OsInfoSystemSnapshotReplay {
     /// Replay result payload.
-    pub result: Result<SystemInfo, PlatformError>,
+    pub result: Result<SystemSnapshot, PlatformError>,
 }
 
 /// Replay payload for destack.os.info.uptimeNs.
@@ -545,11 +545,11 @@ pub const OS_INFO_LOAD_AVERAGE: BindingDescriptor =
         "solaris",
     ]);
 
-/// Binding descriptor for destack.os.info.systemInfo.
-pub const OS_INFO_SYSTEM_INFO: BindingDescriptor =
+/// Binding descriptor for destack.os.info.systemSnapshot.
+pub const OS_INFO_SYSTEM_SNAPSHOT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.os.info.systemInfo",
-        "export function systemInfo(): Result<SystemInfo, PlatformError>",
+        "destack.os.info.systemSnapshot",
+        "export function systemSnapshot(): Result<SystemSnapshot, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.sysinfo"],
@@ -718,7 +718,7 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     OS_HOST_IDENTITY,
     OS_INFO_BOOT_TIME_UNIX_NS,
     OS_INFO_LOAD_AVERAGE,
-    OS_INFO_SYSTEM_INFO,
+    OS_INFO_SYSTEM_SNAPSHOT,
     OS_INFO_UPTIME_NS,
     OS_MOUNT_ADD,
     OS_MOUNT_LIST,
@@ -747,9 +747,9 @@ pub const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_os_info_load_average as *const (),
         ),
         NativeBinding::new(
-            OS_INFO_SYSTEM_INFO,
-            "destack.os.info.systemInfo",
-            destack_os_info_system_info as *const (),
+            OS_INFO_SYSTEM_SNAPSHOT,
+            "destack.os.info.systemSnapshot",
+            destack_os_info_system_snapshot as *const (),
         ),
         NativeBinding::new(
             OS_INFO_UPTIME_NS,
@@ -992,18 +992,20 @@ fn destack_os_info_load_average_replay(
 }
 
 #[inline]
-fn destack_os_info_system_info_replay(
+fn destack_os_info_system_snapshot_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    out: *mut SystemInfo,
+    out: *mut SystemSnapshot,
 ) -> RuntimeResult<()> {
     context.replay().run_binding_with_payload_policy(
-        OS_INFO_SYSTEM_INFO,
-        context.replay_payload_for(OS_INFO_SYSTEM_INFO)?,
+        OS_INFO_SYSTEM_SNAPSHOT,
+        context.replay_payload_for(OS_INFO_SYSTEM_SNAPSHOT)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_system_info(context, out) },
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_system_snapshot(context, out)
+            },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_os_system_info(context, out)
+                platform_simulated_native::destack_os_system_snapshot(context, out)
             },
         },
         |result| {
@@ -1018,13 +1020,13 @@ fn destack_os_info_system_info_replay(
                 let result_recorded_memory_total = result_value.memory_total;
                 let result_recorded_memory_available = result_value.memory_available;
                 let result_recorded_page_size = result_value.page_size;
-                let result_recorded = SystemInfo {
+                let result_recorded = SystemSnapshot {
                     cpu_count: result_recorded_cpu_count,
                     memory_total: result_recorded_memory_total,
                     memory_available: result_recorded_memory_available,
                     page_size: result_recorded_page_size,
                 };
-                let payload = OsInfoSystemInfoReplay {
+                let payload = OsInfoSystemSnapshotReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -1033,7 +1035,7 @@ fn destack_os_info_system_info_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    OsInfoSystemInfoReplay { result }
+                    OsInfoSystemSnapshotReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1048,7 +1050,7 @@ fn destack_os_info_system_info_replay(
                     let value_native_memory_total = value.memory_total;
                     let value_native_memory_available = value.memory_available;
                     let value_native_page_size = value.page_size;
-                    let value_native = SystemInfo {
+                    let value_native = SystemSnapshot {
                         cpu_count: value_native_cpu_count,
                         memory_total: value_native_memory_total,
                         memory_available: value_native_memory_available,
@@ -1484,17 +1486,19 @@ pub unsafe extern "C" fn destack_os_info_load_average(out: *mut LoadAverage) -> 
     })
 }
 
-#[unsafe(export_name = "destack.os.info.systemInfo")]
-pub unsafe extern "C" fn destack_os_info_system_info(out: *mut SystemInfo) -> RuntimeStatus {
+#[unsafe(export_name = "destack.os.info.systemSnapshot")]
+pub unsafe extern "C" fn destack_os_info_system_snapshot(
+    out: *mut SystemSnapshot,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = &out;
 
-        context.check_policy(OS_INFO_SYSTEM_INFO)?;
-        let world = context.check_and_resolve_world(OS_INFO_SYSTEM_INFO)?;
-        destack_os_info_system_info_replay(context, world, out)
+        context.check_policy(OS_INFO_SYSTEM_SNAPSHOT)?;
+        let world = context.check_and_resolve_world(OS_INFO_SYSTEM_SNAPSHOT)?;
+        destack_os_info_system_snapshot_replay(context, world, out)
     })
 }
 
@@ -1808,7 +1812,7 @@ fn destack_os_info_load_average_vm_replay(
 }
 
 #[inline]
-fn destack_os_info_system_info_vm_replay(
+fn destack_os_info_system_snapshot_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
@@ -1816,30 +1820,30 @@ fn destack_os_info_system_info_vm_replay(
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            OS_INFO_SYSTEM_INFO,
-            runtime.replay_payload_for(OS_INFO_SYSTEM_INFO)?,
+            OS_INFO_SYSTEM_SNAPSHOT,
+            runtime.replay_payload_for(OS_INFO_SYSTEM_SNAPSHOT)?,
             context,
             |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_os_system_info(runtime, context),
+                RuntimeWorld::Host => platform_vm::destack_os_system_snapshot(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_os_system_info(runtime, context)
+                    platform_simulated_vm::destack_os_system_snapshot(runtime, context)
                 }
             },
             |context, result| {
                 let _ = &context;
                 if let Ok(value) = result {
-                    let result_value: SystemInfoVm = value.clone();
+                    let result_value: SystemSnapshotVm = value.clone();
                     let result_recorded_cpu_count = result_value.cpu_count;
                     let result_recorded_memory_total = result_value.memory_total;
                     let result_recorded_memory_available = result_value.memory_available;
                     let result_recorded_page_size = result_value.page_size;
-                    let result_recorded = SystemInfo {
+                    let result_recorded = SystemSnapshot {
                         cpu_count: result_recorded_cpu_count,
                         memory_total: result_recorded_memory_total,
                         memory_available: result_recorded_memory_available,
                         page_size: result_recorded_page_size,
                     };
-                    let payload = OsInfoSystemInfoReplay {
+                    let payload = OsInfoSystemSnapshotReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -1848,7 +1852,7 @@ fn destack_os_info_system_info_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        OsInfoSystemInfoReplay { result }
+                        OsInfoSystemSnapshotReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -1864,7 +1868,7 @@ fn destack_os_info_system_info_vm_replay(
                         let vm_result_memory_total = value.memory_total;
                         let vm_result_memory_available = value.memory_available;
                         let vm_result_page_size = value.page_size;
-                        let vm_result = SystemInfoVm {
+                        let vm_result = SystemSnapshotVm {
                             cpu_count: vm_result_cpu_count,
                             memory_total: vm_result_memory_total,
                             memory_available: vm_result_memory_available,
@@ -1876,7 +1880,7 @@ fn destack_os_info_system_info_vm_replay(
                 }
             },
         );
-    let result = encode_destack_os_info_system_info_result(context, result)?;
+    let result = encode_destack_os_info_system_snapshot_result(context, result)?;
     Ok(result)
 }
 
@@ -2454,13 +2458,13 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         binding!(
             registry,
             isolate,
-            OS_INFO_SYSTEM_INFO,
+            OS_INFO_SYSTEM_SNAPSHOT,
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
-                    runtime.check_policy(OS_INFO_SYSTEM_INFO)?;
-                    let world = runtime.check_and_resolve_world(OS_INFO_SYSTEM_INFO)?;
-                    destack_os_info_system_info_vm_replay(runtime, context, world)
+                    runtime.check_policy(OS_INFO_SYSTEM_SNAPSHOT)?;
+                    let world = runtime.check_and_resolve_world(OS_INFO_SYSTEM_SNAPSHOT)?;
+                    destack_os_info_system_snapshot_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
             }

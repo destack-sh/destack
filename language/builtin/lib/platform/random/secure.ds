@@ -18,7 +18,7 @@ declare namespace random {
     }
 
     /// Host secure randomness source metadata.
-    export struct SecureRandomInfo {
+    export struct SecureRandomMetadata {
         /// Source kind for secure randomness.
         source: SecureRandomSource;
         /// Source backend label.
@@ -113,7 +113,7 @@ declare namespace random {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.random.secure.info",
+        "destack.random.secure.metadata",
         {
             effect: "external",
             replay: "recordable",
@@ -123,5 +123,5 @@ declare namespace random {
             blocking: "never",
         },
     )
-    export function secureInfo(): Result<SecureRandomInfo, PlatformError>;
+    export function secureMetadata(): Result<SecureRandomMetadata, PlatformError>;
 }

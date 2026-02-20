@@ -1,37 +1,6 @@
-import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import type { PlatformCapability } from "./capability.ds";
 import { SandboxHandle } from "../resource/index.ds";
-
-/// Host filter kind for sandbox enforcement.
-export enum SecurityFilterKind {
-    /// Linux seccomp BPF program.
-    SeccompBpf = 1,
-    /// Linux landlock ruleset payload.
-    Landlock = 2,
-    /// OpenBSD pledge policy payload.
-    Pledge = 3,
-    /// OpenBSD unveil policy payload.
-    Unveil = 4,
-    /// macOS seatbelt profile payload.
-    Seatbelt = 5,
-    /// Windows app container or token restriction payload.
-    WindowsToken = 6,
-    /// Runtime-defined custom filter payload.
-    Custom = 255,
-}
-
-/// Host filter descriptor for sandbox installation.
-export struct SecurityFilter {
-    /// Filter kind selector.
-    kind: SecurityFilterKind;
-    /// Filter payload bytes.
-    payload: Slice<uint8>;
-    /// Filter flags forwarded to host APIs.
-    flags: uint32;
-    /// Optional profile name for host-side lookup.
-    profileName: string;
-}
 
 /// Security enforcement bindings.
 declare namespace security {
@@ -98,36 +67,33 @@ declare namespace security {
         capabilities: Slice<PlatformCapability>,
     ): Result<void, PlatformError>;
 
-    /// Install one host filter for a sandbox scope.
+    /// Set runtime W^X policy.
     ///
-    /// Install one host-enforced filter descriptor for a sandbox scope.
-    /// Filter parsing and host mapping are selected by the filter kind.
+    /// Enable or disable runtime write-xor-execute policy enforcement.
+    /// Policy update affects subsequent executable-memory transitions.
     ///
     /// # Platform
-    /// Hybrid across runtime and host enforcement hooks.
-    /// Uses runtime-to-host policy adapters for seccomp, pledge, landlock, seatbelt, or token restrictions.
+    /// Runtime-managed on all targets.
+    /// Uses runtime memory policy controls layered over host page protections.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    /// Returns invalidArgument, ioPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `security.filter`.
+    /// Requires `security.restrict`.
     ///
     /// # Replay
-    /// External, nonrecordable.
+    /// Deterministic.
     @binding(
-        "destack.security.enforce.sandboxInstallFilter",
+        "destack.security.enforce.setWriteXorExecute",
         {
-            effect: "external",
+            effect: "deterministic",
             replay: "nonrecordable",
-            capabilities: ["security.filter"],
+            capabilities: ["security.restrict"],
             platforms: ["windows", "unix"],
-            scope: "host",
-            blocking: "sometimes",
+            scope: "runtime",
+            blocking: "never",
         },
     )
-    export function sandboxInstallFilter(
-        handle: SandboxHandle,
-        filter: SecurityFilter,
-    ): Result<void, PlatformError>;
+    export function setWriteXorExecute(enabled: boolean): Result<void, PlatformError>;
 }

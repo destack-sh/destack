@@ -31,9 +31,6 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::process::runtime::{
-    native as platform_runtime_native, vm as platform_runtime_vm,
-};
 use crate::platform::process::simulated::{
     native as platform_simulated_native, vm as platform_simulated_vm,
 };
@@ -3033,7 +3030,7 @@ pub const PROCESS_ARGS_LIST: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.run"],
-        BindingScope::Runtime,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3111,7 +3108,7 @@ pub const PROCESS_ENV_DELETE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["env.write"],
-        BindingScope::Runtime,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3137,7 +3134,7 @@ pub const PROCESS_ENV_DELETE_BYTES: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["env.write"],
-        BindingScope::Runtime,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3163,7 +3160,7 @@ pub const PROCESS_ENV_GET: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["env.read"],
-        BindingScope::Runtime,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3189,7 +3186,7 @@ pub const PROCESS_ENV_GET_BYTES: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["env.read"],
-        BindingScope::Runtime,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3215,7 +3212,7 @@ pub const PROCESS_ENV_SET: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["env.write"],
-        BindingScope::Runtime,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -3240,7 +3237,7 @@ pub const PROCESS_ENV_SET_BYTES: BindingDescriptor = BindingDescriptor::external
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["env.write"],
-    BindingScope::Runtime,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4439,7 +4436,7 @@ pub const PROCESS_SIGNALS_SIGNAL_RECEIVE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.signal.receive"],
-        BindingScope::Runtime,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -4465,7 +4462,7 @@ pub const PROCESS_SIGNALS_SIGNAL_SUBSCRIBE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.signal.receive"],
-        BindingScope::Runtime,
+        BindingScope::Host,
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
@@ -4490,7 +4487,7 @@ pub const PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE: BindingDescriptor = BindingDescrip
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["process.signal.receive"],
-    BindingScope::Runtime,
+    BindingScope::Host,
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -4529,7 +4526,7 @@ pub const PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["process.signal.receive"],
-        BindingScope::Runtime,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -5168,12 +5165,18 @@ pub const PROCESS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 #[inline]
 fn destack_process_args_list_replay(
     context: &RuntimeCallContext,
+    world: RuntimeWorld,
     out: *mut NativeStringSlice,
 ) -> RuntimeResult<()> {
     context.replay().run_binding_with_payload_policy(
         PROCESS_ARGS_LIST,
         context.replay_payload_for(PROCESS_ARGS_LIST)?,
-        || unsafe { platform_runtime_native::destack_process_args(context, out) },
+        || match world {
+            RuntimeWorld::Host => unsafe { platform_native::destack_process_args(context, out) },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_args(context, out)
+            },
+        },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -5375,6 +5378,7 @@ fn destack_process_cwd_get_replay(
 #[inline]
 fn destack_process_env_delete_replay(
     context: &RuntimeCallContext,
+    world: RuntimeWorld,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &name;
@@ -5382,7 +5386,14 @@ fn destack_process_env_delete_replay(
     context.replay().run_binding_with_payload_policy(
         PROCESS_ENV_DELETE,
         context.replay_payload_for(PROCESS_ENV_DELETE)?,
-        || unsafe { platform_runtime_native::destack_process_env_delete(context, name) },
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_env_delete(context, name)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_env_delete(context, name)
+            },
+        },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
@@ -5415,6 +5426,7 @@ fn destack_process_env_delete_replay(
 #[inline]
 fn destack_process_env_delete_bytes_replay(
     context: &RuntimeCallContext,
+    world: RuntimeWorld,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = &name;
@@ -5422,7 +5434,14 @@ fn destack_process_env_delete_bytes_replay(
     context.replay().run_binding_with_payload_policy(
         PROCESS_ENV_DELETE_BYTES,
         context.replay_payload_for(PROCESS_ENV_DELETE_BYTES)?,
-        || unsafe { platform_runtime_native::destack_process_env_delete_bytes(context, name) },
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_env_delete_bytes(context, name)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_env_delete_bytes(context, name)
+            },
+        },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
@@ -5455,6 +5474,7 @@ fn destack_process_env_delete_bytes_replay(
 #[inline]
 fn destack_process_env_get_replay(
     context: &RuntimeCallContext,
+    world: RuntimeWorld,
     out: *mut NativeStringRef,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -5463,7 +5483,14 @@ fn destack_process_env_get_replay(
     context.replay().run_binding_with_payload_policy(
         PROCESS_ENV_GET,
         context.replay_payload_for(PROCESS_ENV_GET)?,
-        || unsafe { platform_runtime_native::destack_process_env_get(context, out, name) },
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_env_get(context, out, name)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_env_get(context, out, name)
+            },
+        },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -5508,6 +5535,7 @@ fn destack_process_env_get_replay(
 #[inline]
 fn destack_process_env_get_bytes_replay(
     context: &RuntimeCallContext,
+    world: RuntimeWorld,
     out: *mut NativeArray<u8>,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -5516,7 +5544,14 @@ fn destack_process_env_get_bytes_replay(
     context.replay().run_binding_with_payload_policy(
         PROCESS_ENV_GET_BYTES,
         context.replay_payload_for(PROCESS_ENV_GET_BYTES)?,
-        || unsafe { platform_runtime_native::destack_process_env_get_bytes(context, out, name) },
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_env_get_bytes(context, out, name)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_env_get_bytes(context, out, name)
+            },
+        },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -5572,6 +5607,7 @@ fn destack_process_env_get_bytes_replay(
 #[inline]
 fn destack_process_env_set_replay(
     context: &RuntimeCallContext,
+    world: RuntimeWorld,
     name: NativeStringRef,
     argument_value: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -5580,8 +5616,13 @@ fn destack_process_env_set_replay(
     context.replay().run_binding_with_payload_policy(
         PROCESS_ENV_SET,
         context.replay_payload_for(PROCESS_ENV_SET)?,
-        || unsafe {
-            platform_runtime_native::destack_process_env_set(context, name, argument_value)
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_env_set(context, name, argument_value)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_env_set(context, name, argument_value)
+            },
         },
         |result| {
             if let Ok(()) = result {
@@ -5615,6 +5656,7 @@ fn destack_process_env_set_replay(
 #[inline]
 fn destack_process_env_set_bytes_replay(
     context: &RuntimeCallContext,
+    world: RuntimeWorld,
     name: NativeSlice<u8>,
     argument_value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -5623,8 +5665,17 @@ fn destack_process_env_set_bytes_replay(
     context.replay().run_binding_with_payload_policy(
         PROCESS_ENV_SET_BYTES,
         context.replay_payload_for(PROCESS_ENV_SET_BYTES)?,
-        || unsafe {
-            platform_runtime_native::destack_process_env_set_bytes(context, name, argument_value)
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_env_set_bytes(context, name, argument_value)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_env_set_bytes(
+                    context,
+                    name,
+                    argument_value,
+                )
+            },
         },
         |result| {
             if let Ok(()) = result {
@@ -8432,6 +8483,7 @@ fn destack_process_signals_signal_mask_update_replay(
 #[inline]
 fn destack_process_signals_signal_receive_replay(
     context: &RuntimeCallContext,
+    world: RuntimeWorld,
     out: *mut SignalEvent,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
@@ -8440,7 +8492,14 @@ fn destack_process_signals_signal_receive_replay(
     context.replay().run_binding_with_payload_policy(
         PROCESS_SIGNALS_SIGNAL_RECEIVE,
         context.replay_payload_for(PROCESS_SIGNALS_SIGNAL_RECEIVE)?,
-        || unsafe { platform_runtime_native::destack_process_signal_receive(context, out, handle) },
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_signal_receive(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_signal_receive(context, out, handle)
+            },
+        },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -8495,6 +8554,7 @@ fn destack_process_signals_signal_receive_replay(
 #[inline]
 fn destack_process_signals_signal_subscribe_replay(
     context: &RuntimeCallContext,
+    world: RuntimeWorld,
     out: *mut resource::SignalHandle,
     signal: Signal,
 ) -> RuntimeResult<()> {
@@ -8503,8 +8563,13 @@ fn destack_process_signals_signal_subscribe_replay(
     context.replay().run_binding_with_payload_policy(
         PROCESS_SIGNALS_SIGNAL_SUBSCRIBE,
         context.replay_payload_for(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?,
-        || unsafe {
-            platform_runtime_native::destack_process_signal_subscribe(context, out, signal)
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_signal_subscribe(context, out, signal)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_signal_subscribe(context, out, signal)
+            },
         },
         |result| {
             if let Ok(()) = result {
@@ -8550,6 +8615,7 @@ fn destack_process_signals_signal_subscribe_replay(
 #[inline]
 fn destack_process_signals_signal_try_receive_replay(
     context: &RuntimeCallContext,
+    world: RuntimeWorld,
     out: *mut SignalEvent,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
@@ -8558,8 +8624,13 @@ fn destack_process_signals_signal_try_receive_replay(
     context.replay().run_binding_with_payload_policy(
         PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE,
         context.replay_payload_for(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?,
-        || unsafe {
-            platform_runtime_native::destack_process_signal_try_receive(context, out, handle)
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_signal_try_receive(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_signal_try_receive(context, out, handle)
+            },
         },
         |result| {
             if let Ok(()) = result {
@@ -8686,6 +8757,7 @@ fn destack_process_signals_signal_try_wait_replay(
 #[inline]
 fn destack_process_signals_signal_unsubscribe_replay(
     context: &RuntimeCallContext,
+    world: RuntimeWorld,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
@@ -8693,7 +8765,14 @@ fn destack_process_signals_signal_unsubscribe_replay(
     context.replay().run_binding_with_payload_policy(
         PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE,
         context.replay_payload_for(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?,
-        || unsafe { platform_runtime_native::destack_process_signal_unsubscribe(context, handle) },
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_signal_unsubscribe(context, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_signal_unsubscribe(context, handle)
+            },
+        },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
@@ -9285,7 +9364,8 @@ pub unsafe extern "C" fn destack_process_args_list(out: *mut NativeStringSlice) 
         let _ = &out;
 
         context.check_policy(PROCESS_ARGS_LIST)?;
-        destack_process_args_list_replay(context, out)
+        let world = context.check_and_resolve_world(PROCESS_ARGS_LIST)?;
+        destack_process_args_list_replay(context, world, out)
     })
 }
 
@@ -9320,7 +9400,8 @@ pub unsafe extern "C" fn destack_process_env_delete(name: NativeStringRef) -> Ru
         let _ = &name;
 
         context.check_policy(PROCESS_ENV_DELETE)?;
-        destack_process_env_delete_replay(context, name)
+        let world = context.check_and_resolve_world(PROCESS_ENV_DELETE)?;
+        destack_process_env_delete_replay(context, world, name)
     })
 }
 
@@ -9330,7 +9411,8 @@ pub unsafe extern "C" fn destack_process_env_delete_bytes(name: NativeSlice<u8>)
         let _ = &name;
 
         context.check_policy(PROCESS_ENV_DELETE_BYTES)?;
-        destack_process_env_delete_bytes_replay(context, name)
+        let world = context.check_and_resolve_world(PROCESS_ENV_DELETE_BYTES)?;
+        destack_process_env_delete_bytes_replay(context, world, name)
     })
 }
 
@@ -9346,7 +9428,8 @@ pub unsafe extern "C" fn destack_process_env_get(
         let _ = (&out, &name);
 
         context.check_policy(PROCESS_ENV_GET)?;
-        destack_process_env_get_replay(context, out, name)
+        let world = context.check_and_resolve_world(PROCESS_ENV_GET)?;
+        destack_process_env_get_replay(context, world, out, name)
     })
 }
 
@@ -9362,7 +9445,8 @@ pub unsafe extern "C" fn destack_process_env_get_bytes(
         let _ = (&out, &name);
 
         context.check_policy(PROCESS_ENV_GET_BYTES)?;
-        destack_process_env_get_bytes_replay(context, out, name)
+        let world = context.check_and_resolve_world(PROCESS_ENV_GET_BYTES)?;
+        destack_process_env_get_bytes_replay(context, world, out, name)
     })
 }
 
@@ -9375,7 +9459,8 @@ pub unsafe extern "C" fn destack_process_env_set(
         let _ = (&name, &argument_value);
 
         context.check_policy(PROCESS_ENV_SET)?;
-        destack_process_env_set_replay(context, name, argument_value)
+        let world = context.check_and_resolve_world(PROCESS_ENV_SET)?;
+        destack_process_env_set_replay(context, world, name, argument_value)
     })
 }
 
@@ -9388,7 +9473,8 @@ pub unsafe extern "C" fn destack_process_env_set_bytes(
         let _ = (&name, &argument_value);
 
         context.check_policy(PROCESS_ENV_SET_BYTES)?;
-        destack_process_env_set_bytes_replay(context, name, argument_value)
+        let world = context.check_and_resolve_world(PROCESS_ENV_SET_BYTES)?;
+        destack_process_env_set_bytes_replay(context, world, name, argument_value)
     })
 }
 
@@ -10368,7 +10454,8 @@ pub unsafe extern "C" fn destack_process_signals_signal_receive(
         let _ = (&out, &handle);
 
         context.check_policy(PROCESS_SIGNALS_SIGNAL_RECEIVE)?;
-        destack_process_signals_signal_receive_replay(context, out, handle)
+        let world = context.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_RECEIVE)?;
+        destack_process_signals_signal_receive_replay(context, world, out, handle)
     })
 }
 
@@ -10384,7 +10471,8 @@ pub unsafe extern "C" fn destack_process_signals_signal_subscribe(
         let _ = (&out, &signal);
 
         context.check_policy(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?;
-        destack_process_signals_signal_subscribe_replay(context, out, signal)
+        let world = context.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?;
+        destack_process_signals_signal_subscribe_replay(context, world, out, signal)
     })
 }
 
@@ -10400,7 +10488,8 @@ pub unsafe extern "C" fn destack_process_signals_signal_try_receive(
         let _ = (&out, &handle);
 
         context.check_policy(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?;
-        destack_process_signals_signal_try_receive_replay(context, out, handle)
+        let world = context.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?;
+        destack_process_signals_signal_try_receive_replay(context, world, out, handle)
     })
 }
 
@@ -10429,7 +10518,8 @@ pub unsafe extern "C" fn destack_process_signals_signal_unsubscribe(
         let _ = &handle;
 
         context.check_policy(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?;
-        destack_process_signals_signal_unsubscribe_replay(context, handle)
+        let world = context.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?;
+        destack_process_signals_signal_unsubscribe_replay(context, world, handle)
     })
 }
 
@@ -10590,6 +10680,7 @@ pub unsafe extern "C" fn destack_process_wait_try_wait(
 fn destack_process_args_list_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -10597,7 +10688,12 @@ fn destack_process_args_list_vm_replay(
             PROCESS_ARGS_LIST,
             runtime.replay_payload_for(PROCESS_ARGS_LIST)?,
             context,
-            |context| platform_runtime_vm::destack_process_args(runtime, context),
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_process_args(runtime, context),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_process_args(runtime, context)
+                }
+            },
             |context, result| {
                 let _ = &context;
                 if let Ok(value) = result {
@@ -10811,6 +10907,7 @@ fn destack_process_cwd_get_vm_replay(
 fn destack_process_env_delete_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -10819,7 +10916,14 @@ fn destack_process_env_delete_vm_replay(
             PROCESS_ENV_DELETE,
             runtime.replay_payload_for(PROCESS_ENV_DELETE)?,
             context,
-            |context| platform_runtime_vm::destack_process_env_delete(runtime, context, name),
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_process_env_delete(runtime, context, name)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_process_env_delete(runtime, context, name)
+                }
+            },
             |context, result| {
                 let _ = &context;
                 if let Ok(()) = result {
@@ -10857,6 +10961,7 @@ fn destack_process_env_delete_vm_replay(
 fn destack_process_env_delete_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -10865,7 +10970,14 @@ fn destack_process_env_delete_bytes_vm_replay(
             PROCESS_ENV_DELETE_BYTES,
             runtime.replay_payload_for(PROCESS_ENV_DELETE_BYTES)?,
             context,
-            |context| platform_runtime_vm::destack_process_env_delete_bytes(runtime, context, name),
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_process_env_delete_bytes(runtime, context, name)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_process_env_delete_bytes(runtime, context, name)
+                }
+            },
             |context, result| {
                 let _ = &context;
                 if let Ok(()) = result {
@@ -10903,6 +11015,7 @@ fn destack_process_env_delete_bytes_vm_replay(
 fn destack_process_env_get_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -10911,7 +11024,12 @@ fn destack_process_env_get_vm_replay(
             PROCESS_ENV_GET,
             runtime.replay_payload_for(PROCESS_ENV_GET)?,
             context,
-            |context| platform_runtime_vm::destack_process_env_get(runtime, context, name),
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_process_env_get(runtime, context, name),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_process_env_get(runtime, context, name)
+                }
+            },
             |context, result| {
                 let _ = &context;
                 if let Ok(value) = result {
@@ -10959,6 +11077,7 @@ fn destack_process_env_get_vm_replay(
 fn destack_process_env_get_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -10967,7 +11086,14 @@ fn destack_process_env_get_bytes_vm_replay(
             PROCESS_ENV_GET_BYTES,
             runtime.replay_payload_for(PROCESS_ENV_GET_BYTES)?,
             context,
-            |context| platform_runtime_vm::destack_process_env_get_bytes(runtime, context, name),
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_process_env_get_bytes(runtime, context, name)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_process_env_get_bytes(runtime, context, name)
+                }
+            },
             |context, result| {
                 let _ = &context;
                 if let Ok(value) = result {
@@ -11009,6 +11135,7 @@ fn destack_process_env_get_bytes_vm_replay(
 fn destack_process_env_set_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
     name: vm::StringHandle,
     argument_value: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
@@ -11018,8 +11145,16 @@ fn destack_process_env_set_vm_replay(
             PROCESS_ENV_SET,
             runtime.replay_payload_for(PROCESS_ENV_SET)?,
             context,
-            |context| {
-                platform_runtime_vm::destack_process_env_set(runtime, context, name, argument_value)
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_process_env_set(runtime, context, name, argument_value)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_env_set(
+                    runtime,
+                    context,
+                    name,
+                    argument_value,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -11058,6 +11193,7 @@ fn destack_process_env_set_vm_replay(
 fn destack_process_env_set_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
     name: VmSlice<u8>,
     argument_value: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
@@ -11067,13 +11203,19 @@ fn destack_process_env_set_bytes_vm_replay(
             PROCESS_ENV_SET_BYTES,
             runtime.replay_payload_for(PROCESS_ENV_SET_BYTES)?,
             context,
-            |context| {
-                platform_runtime_vm::destack_process_env_set_bytes(
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_process_env_set_bytes(
                     runtime,
                     context,
                     name,
                     argument_value,
-                )
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_env_set_bytes(
+                    runtime,
+                    context,
+                    name,
+                    argument_value,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -13989,6 +14131,7 @@ fn destack_process_signals_signal_mask_update_vm_replay(
 fn destack_process_signals_signal_receive_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -13997,7 +14140,14 @@ fn destack_process_signals_signal_receive_vm_replay(
             PROCESS_SIGNALS_SIGNAL_RECEIVE,
             runtime.replay_payload_for(PROCESS_SIGNALS_SIGNAL_RECEIVE)?,
             context,
-            |context| platform_runtime_vm::destack_process_signal_receive(runtime, context, handle),
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_process_signal_receive(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_process_signal_receive(runtime, context, handle)
+                }
+            },
             |context, result| {
                 let _ = &context;
                 if let Ok(value) = result {
@@ -14049,6 +14199,7 @@ fn destack_process_signals_signal_receive_vm_replay(
 fn destack_process_signals_signal_subscribe_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
     signal: Signal,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -14057,8 +14208,13 @@ fn destack_process_signals_signal_subscribe_vm_replay(
             PROCESS_SIGNALS_SIGNAL_SUBSCRIBE,
             runtime.replay_payload_for(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?,
             context,
-            |context| {
-                platform_runtime_vm::destack_process_signal_subscribe(runtime, context, signal)
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_process_signal_subscribe(runtime, context, signal)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_signal_subscribe(
+                    runtime, context, signal,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -14101,6 +14257,7 @@ fn destack_process_signals_signal_subscribe_vm_replay(
 fn destack_process_signals_signal_try_receive_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -14109,8 +14266,15 @@ fn destack_process_signals_signal_try_receive_vm_replay(
             PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE,
             runtime.replay_payload_for(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?,
             context,
-            |context| {
-                platform_runtime_vm::destack_process_signal_try_receive(runtime, context, handle)
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_process_signal_try_receive(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_process_signal_try_receive(
+                        runtime, context, handle,
+                    )
+                }
             },
             |context, result| {
                 let _ = &context;
@@ -14231,6 +14395,7 @@ fn destack_process_signals_signal_try_wait_vm_replay(
 fn destack_process_signals_signal_unsubscribe_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -14239,8 +14404,15 @@ fn destack_process_signals_signal_unsubscribe_vm_replay(
             PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE,
             runtime.replay_payload_for(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?,
             context,
-            |context| {
-                platform_runtime_vm::destack_process_signal_unsubscribe(runtime, context, handle)
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_process_signal_unsubscribe(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_process_signal_unsubscribe(
+                        runtime, context, handle,
+                    )
+                }
             },
             |context, result| {
                 let _ = &context;
@@ -14802,7 +14974,8 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                 with_runtime_call_context(|runtime| {
                     // execute binding
                     runtime.check_policy(PROCESS_ARGS_LIST)?;
-                    destack_process_args_list_vm_replay(runtime, context)
+                    let world = runtime.check_and_resolve_world(PROCESS_ARGS_LIST)?;
+                    destack_process_args_list_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -14850,7 +15023,8 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     runtime.check_policy(PROCESS_ENV_DELETE)?;
-                    destack_process_env_delete_vm_replay(runtime, context, name)
+                    let world = runtime.check_and_resolve_world(PROCESS_ENV_DELETE)?;
+                    destack_process_env_delete_vm_replay(runtime, context, world, name)
                 })
                 .map_err(Into::into)
             }
@@ -14868,7 +15042,8 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     runtime.check_policy(PROCESS_ENV_DELETE_BYTES)?;
-                    destack_process_env_delete_bytes_vm_replay(runtime, context, name)
+                    let world = runtime.check_and_resolve_world(PROCESS_ENV_DELETE_BYTES)?;
+                    destack_process_env_delete_bytes_vm_replay(runtime, context, world, name)
                 })
                 .map_err(Into::into)
             }
@@ -14882,7 +15057,8 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                 // execute binding
                 runtime.check_policy(PROCESS_ENV_GET)?;
-                destack_process_env_get_vm_replay(runtime, context, name)
+                let world = runtime.check_and_resolve_world(PROCESS_ENV_GET)?;
+                destack_process_env_get_vm_replay(runtime, context, world, name)
             })
             .map_err(Into::into)
         });
@@ -14899,7 +15075,8 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     runtime.check_policy(PROCESS_ENV_GET_BYTES)?;
-                    destack_process_env_get_bytes_vm_replay(runtime, context, name)
+                    let world = runtime.check_and_resolve_world(PROCESS_ENV_GET_BYTES)?;
+                    destack_process_env_get_bytes_vm_replay(runtime, context, world, name)
                 })
                 .map_err(Into::into)
             }
@@ -14913,7 +15090,8 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                 // execute binding
                 runtime.check_policy(PROCESS_ENV_SET)?;
-                destack_process_env_set_vm_replay(runtime, context, name, argument_value)
+                let world = runtime.check_and_resolve_world(PROCESS_ENV_SET)?;
+                destack_process_env_set_vm_replay(runtime, context, world, name, argument_value)
             })
             .map_err(Into::into)
         });
@@ -14931,7 +15109,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     runtime.check_policy(PROCESS_ENV_SET_BYTES)?;
-                    destack_process_env_set_bytes_vm_replay(runtime, context, name, argument_value)
+                    let world = runtime.check_and_resolve_world(PROCESS_ENV_SET_BYTES)?;
+                    destack_process_env_set_bytes_vm_replay(
+                        runtime,
+                        context,
+                        world,
+                        name,
+                        argument_value,
+                    )
                 })
                 .map_err(Into::into)
             }
@@ -16222,7 +16407,10 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     runtime.check_policy(PROCESS_SIGNALS_SIGNAL_RECEIVE)?;
-                    destack_process_signals_signal_receive_vm_replay(runtime, context, handle)
+                    let world = runtime.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_RECEIVE)?;
+                    destack_process_signals_signal_receive_vm_replay(
+                        runtime, context, world, handle,
+                    )
                 })
                 .map_err(Into::into)
             }
@@ -16241,7 +16429,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     runtime.check_policy(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?;
-                    destack_process_signals_signal_subscribe_vm_replay(runtime, context, signal)
+                    let world =
+                        runtime.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?;
+                    destack_process_signals_signal_subscribe_vm_replay(
+                        runtime, context, world, signal,
+                    )
                 })
                 .map_err(Into::into)
             }
@@ -16260,7 +16452,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     runtime.check_policy(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?;
-                    destack_process_signals_signal_try_receive_vm_replay(runtime, context, handle)
+                    let world =
+                        runtime.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?;
+                    destack_process_signals_signal_try_receive_vm_replay(
+                        runtime, context, world, handle,
+                    )
                 })
                 .map_err(Into::into)
             }
@@ -16301,7 +16497,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     runtime.check_policy(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?;
-                    destack_process_signals_signal_unsubscribe_vm_replay(runtime, context, handle)
+                    let world =
+                        runtime.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?;
+                    destack_process_signals_signal_unsubscribe_vm_replay(
+                        runtime, context, world, handle,
+                    )
                 })
                 .map_err(Into::into)
             }

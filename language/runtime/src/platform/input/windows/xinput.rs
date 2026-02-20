@@ -20,11 +20,11 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputAxisInfo, InputButtonInfo, InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin,
-    InputDeviceCapabilities, InputDeviceCapabilityKind, InputDeviceInfo, InputDeviceKind,
-    InputGamepadBatteryInfo, InputGamepadBatteryState, InputGamepadButtonState,
-    InputGamepadConnectionType, InputGamepadMappingType, InputGamepadState,
-    InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult,
+    InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
+    InputCapabilityMetadataOrigin, InputDeviceCapabilities, InputDeviceCapabilityKind,
+    InputDeviceDescriptor, InputDeviceKind, InputGamepadBatteryState, InputGamepadBatteryStatus,
+    InputGamepadButtonState, InputGamepadConnectionType, InputGamepadMappingType,
+    InputGamepadState, InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult,
 };
 use crate::runtime::RuntimeCallContext;
 
@@ -149,7 +149,7 @@ fn query_xinput_capabilities(user_index: u8) -> Option<XINPUT_CAPABILITIES> {
 fn query_xinput_battery(
     user_index: u8,
     operation: &'static str,
-) -> RuntimeResult<InputGamepadBatteryInfo> {
+) -> RuntimeResult<InputGamepadBatteryStatus> {
     let mut battery = MaybeUninit::zeroed();
     let status = unsafe {
         XInputGetBatteryInformation(
@@ -159,7 +159,7 @@ fn query_xinput_battery(
         )
     };
     if status == ERROR_DEVICE_NOT_CONNECTED {
-        return Ok(InputGamepadBatteryInfo {
+        return Ok(InputGamepadBatteryStatus {
             state: InputGamepadBatteryState::NotPresent,
             level: 0.0,
         });
@@ -175,14 +175,14 @@ fn query_xinput_battery(
 
     let battery = unsafe { battery.assume_init() };
     if battery.BatteryType == BATTERY_TYPE_DISCONNECTED {
-        return Ok(InputGamepadBatteryInfo {
+        return Ok(InputGamepadBatteryStatus {
             state: InputGamepadBatteryState::NotPresent,
             level: 0.0,
         });
     }
 
     if battery.BatteryType == BATTERY_TYPE_WIRED {
-        return Ok(InputGamepadBatteryInfo {
+        return Ok(InputGamepadBatteryStatus {
             state: InputGamepadBatteryState::Full,
             level: 1.0,
         });
@@ -208,7 +208,7 @@ fn query_xinput_battery(
         InputGamepadBatteryState::Unknown
     };
 
-    Ok(InputGamepadBatteryInfo { state, level })
+    Ok(InputGamepadBatteryStatus { state, level })
 }
 
 /// Normalize one signed stick sample into a [-1, 1] axis value.
@@ -395,7 +395,7 @@ fn supports_rumble(capabilities: Option<XINPUT_CAPABILITIES>) -> bool {
 }
 
 /// Enumerate connected xinput gamepads.
-pub(super) fn list_xinput_devices(context: &RuntimeCallContext) -> Vec<InputDeviceInfo> {
+pub(super) fn list_xinput_devices(context: &RuntimeCallContext) -> Vec<InputDeviceDescriptor> {
     let mut devices = Vec::new();
 
     for user_index in 0..XINPUT_USER_SLOT_COUNT {
@@ -413,7 +413,7 @@ pub(super) fn list_xinput_devices(context: &RuntimeCallContext) -> Vec<InputDevi
         };
         let id = xinput_device_id(user_index);
 
-        devices.push(InputDeviceInfo {
+        devices.push(InputDeviceDescriptor {
             id: context.store_string(&id),
             instance_id: context.store_string(&id),
             hardware_id: context.store_string(&id),
@@ -462,7 +462,7 @@ pub(super) fn capabilities_for_xinput_device(
     }
 
     let axes = vec![
-        InputAxisInfo {
+        InputAxisMetadata {
             code: 0,
             minimum: -1.0,
             maximum: 1.0,
@@ -470,7 +470,7 @@ pub(super) fn capabilities_for_xinput_device(
             fuzz: 0.0,
             resolution: 0.0,
         },
-        InputAxisInfo {
+        InputAxisMetadata {
             code: 1,
             minimum: -1.0,
             maximum: 1.0,
@@ -478,7 +478,7 @@ pub(super) fn capabilities_for_xinput_device(
             fuzz: 0.0,
             resolution: 0.0,
         },
-        InputAxisInfo {
+        InputAxisMetadata {
             code: 2,
             minimum: -1.0,
             maximum: 1.0,
@@ -486,7 +486,7 @@ pub(super) fn capabilities_for_xinput_device(
             fuzz: 0.0,
             resolution: 0.0,
         },
-        InputAxisInfo {
+        InputAxisMetadata {
             code: 3,
             minimum: -1.0,
             maximum: 1.0,
@@ -499,7 +499,7 @@ pub(super) fn capabilities_for_xinput_device(
     let mut buttons = Vec::new();
     for code in 0..u32::from(XINPUT_STANDARD_BUTTON_COUNT) {
         let is_analog = code == 6 || code == 7;
-        buttons.push(InputButtonInfo {
+        buttons.push(InputButtonMetadata {
             code,
             analog: is_analog,
         });

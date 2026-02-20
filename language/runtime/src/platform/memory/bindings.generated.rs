@@ -23,9 +23,6 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 use serde::{Deserialize, Serialize};
 
 use crate::platform::memory as platform_memory;
-use crate::platform::memory::runtime::{
-    native as platform_runtime_native, vm as platform_runtime_vm,
-};
 use crate::platform::memory::simulated::{
     native as platform_simulated_native, vm as platform_simulated_vm,
 };
@@ -432,26 +429,6 @@ fn encode_destack_memory_protect_remap_result(
     })
 }
 
-/// Decode arguments for destack.memory.protect.setWriteXorExecute.
-#[inline]
-fn decode_destack_memory_protect_set_write_xor_execute_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(bool,)> {
-    let enabled_value = arg_value(args, 0, "enabled", "boolean")?;
-    let enabled = decode_bool(enabled_value, "enabled", "boolean")?;
-    Ok((enabled,))
-}
-
-/// Encode the result for destack.memory.protect.setWriteXorExecute.
-#[inline]
-fn encode_destack_memory_protect_set_write_xor_execute_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
 /// Replay payload for destack.memory.advise.adviseRange.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryAdviseAdviseRangeReplay {
@@ -788,30 +765,6 @@ pub const MEMORY_PROTECT_REMAP: BindingDescriptor = BindingDescriptor::external_
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.memory.protect.setWriteXorExecute.
-pub const MEMORY_PROTECT_SET_WRITE_XOR_EXECUTE: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
-        "destack.memory.protect.setWriteXorExecute",
-        "export function setWriteXorExecute(enabled: boolean): Result<void, PlatformError>",
-        &["memory.execute"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    )
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
 /// Binding descriptors for memory.
 pub const BINDINGS: &[BindingDescriptor] = &[
     MEMORY_ADVISE_ADVISE_RANGE,
@@ -828,7 +781,6 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE,
     MEMORY_PROTECT_PROTECT_RANGE,
     MEMORY_PROTECT_REMAP,
-    MEMORY_PROTECT_SET_WRITE_XOR_EXECUTE,
 ];
 
 /// Native binding set for memory.
@@ -904,11 +856,6 @@ pub const MEMORY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             MEMORY_PROTECT_REMAP,
             "destack.memory.protect.remap",
             destack_memory_protect_remap as *const (),
-        ),
-        NativeBinding::new(
-            MEMORY_PROTECT_SET_WRITE_XOR_EXECUTE,
-            "destack.memory.protect.setWriteXorExecute",
-            destack_memory_protect_set_write_xor_execute as *const (),
         ),
     ],
 };
@@ -1872,22 +1819,6 @@ pub unsafe extern "C" fn destack_memory_protect_remap(
         destack_memory_protect_remap_replay(
             context, world, out, address, oldlength, newlength, flags,
         )
-    })
-}
-
-#[unsafe(export_name = "destack.memory.protect.setWriteXorExecute")]
-pub unsafe extern "C" fn destack_memory_protect_set_write_xor_execute(
-    enabled: bool,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = &enabled;
-
-        {
-            context.check_policy(MEMORY_PROTECT_SET_WRITE_XOR_EXECUTE)?;
-            unsafe {
-                platform_runtime_native::destack_memory_set_write_xor_execute(context, enabled)
-            }
-        }
     })
 }
 
@@ -2995,30 +2926,6 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     destack_memory_protect_remap_vm_replay(
                         runtime, context, world, address, oldlength, newlength, flags,
                     )
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            MEMORY_PROTECT_SET_WRITE_XOR_EXECUTE,
-            move |context, args| {
-                with_runtime_call_context(|runtime| {
-                    // decode args
-                    let (enabled,) =
-                        decode_destack_memory_protect_set_write_xor_execute_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        runtime.check_policy(MEMORY_PROTECT_SET_WRITE_XOR_EXECUTE)?;
-                        platform_runtime_vm::destack_memory_set_write_xor_execute(
-                            runtime, context, enabled,
-                        )
-                    };
-                    encode_destack_memory_protect_set_write_xor_execute_result(context, result)
                 })
                 .map_err(Into::into)
             }

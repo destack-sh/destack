@@ -1,10 +1,11 @@
 #![allow(dead_code)]
-#![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+
+use crate::diagnostic::RuntimeResult;
+use crate::platform::VmSlice;
+use crate::platform::random::runtime::vm as runtime_random;
 use crate::platform::random::{
-    RandomStream, RandomStreamDomain, RandomStreamStateVm, SecureRandomInfoVm, SecureRandomSource,
+    RandomStream, RandomStreamDomain, RandomStreamStateVm, SecureRandomMetadataVm,
 };
-use crate::platform::{PlatformError, VmArray, VmSlice};
 use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
 
@@ -26,15 +27,11 @@ use destack_vm as vm;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_secure_bytes(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = buffer;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.random.secure.bytes is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_random::destack_random_secure_bytes(runtime, context, buffer)
 }
 
 /// Fill a slice with secure random bytes without blocking.
@@ -55,15 +52,11 @@ pub(crate) fn destack_random_secure_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_secure_bytes_try(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = buffer;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.random.secure.bytesTry is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_random::destack_random_secure_bytes_try(runtime, context, buffer)
 }
 
 /// Query secure randomness source metadata.
@@ -83,14 +76,11 @@ pub(crate) fn destack_random_secure_bytes_try(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_random_secure_info(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<SecureRandomInfoVm> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.random.secure.info is not available in the VM yet",
-    ))
-    .boxed())
+pub(crate) fn destack_random_secure_metadata(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<SecureRandomMetadataVm> {
+    runtime_random::destack_random_secure_metadata(runtime, context)
 }
 
 /// Export deterministic stream state.
@@ -111,15 +101,11 @@ pub(crate) fn destack_random_secure_info(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_stream_export(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     stream: RandomStream,
 ) -> RuntimeResult<RandomStreamStateVm> {
-    let _ = stream;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.random.stream.export is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_random::destack_random_stream_export(runtime, context, stream)
 }
 
 /// Fill a slice with deterministic random bytes from the default stream.
@@ -140,15 +126,11 @@ pub(crate) fn destack_random_stream_export(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_fill_bytes(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = buffer;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.random.stream.fillBytes is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_random::destack_random_fill_bytes(runtime, context, buffer)
 }
 
 /// Fill a slice with deterministic random bytes from a specific stream.
@@ -169,16 +151,12 @@ pub(crate) fn destack_random_fill_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_fill_bytes_from(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     stream: RandomStream,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (stream, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.random.stream.fillBytesFrom is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_random::destack_random_fill_bytes_from(runtime, context, stream, buffer)
 }
 
 /// Import deterministic stream state.
@@ -199,16 +177,12 @@ pub(crate) fn destack_random_fill_bytes_from(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_stream_import(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     stream: RandomStream,
     state: RandomStreamStateVm,
 ) -> RuntimeResult<()> {
-    let _ = (stream, state);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.random.stream.import is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_random::destack_random_stream_import(runtime, context, stream, state)
 }
 
 /// Allocate a deterministic random stream in one domain.
@@ -229,15 +203,11 @@ pub(crate) fn destack_random_stream_import(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_stream_in(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     domain: RandomStreamDomain,
 ) -> RuntimeResult<RandomStream> {
-    let _ = domain;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.random.stream.in is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_random::destack_random_stream_in(runtime, context, domain)
 }
 
 /// Advance a deterministic stream by one jump count.
@@ -258,16 +228,12 @@ pub(crate) fn destack_random_stream_in(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_stream_jump(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     stream: RandomStream,
     jump: u64,
 ) -> RuntimeResult<()> {
-    let _ = (stream, jump);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.random.stream.jump is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_random::destack_random_stream_jump(runtime, context, stream, jump)
 }
 
 /// Return a deterministic random uint64 from the default stream.
@@ -288,13 +254,10 @@ pub(crate) fn destack_random_stream_jump(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_next_u64(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.random.stream.nextU64 is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_random::destack_random_next_u64(runtime, context)
 }
 
 /// Return a deterministic random uint64 from a specific stream.
@@ -315,15 +278,11 @@ pub(crate) fn destack_random_next_u64(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_next_u64_from(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     stream: RandomStream,
 ) -> RuntimeResult<u64> {
-    let _ = stream;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.random.stream.nextU64From is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_random::destack_random_next_u64_from(runtime, context, stream)
 }
 
 /// Split a deterministic stream into one child stream.
@@ -344,15 +303,11 @@ pub(crate) fn destack_random_next_u64_from(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_stream_split(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     parent: RandomStream,
 ) -> RuntimeResult<RandomStream> {
-    let _ = parent;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.random.stream.split is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_random::destack_random_stream_split(runtime, context, parent)
 }
 
 /// Allocate a deterministic random stream identifier.
@@ -373,11 +328,8 @@ pub(crate) fn destack_random_stream_split(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_stream(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<RandomStream> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.random.stream.create is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_random::destack_random_stream(runtime, context)
 }

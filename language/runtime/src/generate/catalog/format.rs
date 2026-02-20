@@ -824,7 +824,10 @@ fn binding_type_from_struct(
                     types.get_declared_or_inferred_type_id(expr.into_global_any(module_id))
                 })
             })
-            .unwrap_or_else(|| unsupported_binding_type(&field_name, "missing struct field type"));
+            .unwrap_or_else(|| {
+                let field_path = format!("{name}.{field_name}");
+                unsupported_binding_type(&field_path, "missing struct field type")
+            });
         let field_binding = binding_type_from_type_id(
             field_type_id,
             types,
