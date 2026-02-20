@@ -5,9 +5,10 @@ use parking_lot::Mutex;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::time::{TimerClock, TimerOptions};
-use crate::platform::{PlatformError, resource};
+use crate::platform::{PlatformError, ResourceTable, resource};
 use crate::runtime::BindingCallContext;
 use crate::runtime::scheduler::Timer as EventLoopTimer;
+use crate::runtime::time::Clock;
 
 /// Runtime state for one scheduled timer handle.
 #[derive(Debug)]
@@ -61,16 +62,11 @@ fn now_for_clock(context: &BindingCallContext, clock: TimerClock) -> u64 {
     }
 }
 
-/// Convert one clock-domain deadline into one event loop wall-clock deadline.
-fn event_loop_deadline(context: &BindingCallContext, clock: TimerClock, deadline_ns: u64) -> u64 {
-    match clock {
-        TimerClock::Wall => deadline_ns,
-        TimerClock::Monotonic => {
-            let wall_now = context.runtime().time.wall_nanos();
-            let mono_now = context.runtime().time.mono_nanos();
-            let delta = deadline_ns.saturating_sub(mono_now);
-            wall_now.saturating_add(delta)
-        }
+/// Resolve one timer clock domain into one current nanosecond timestamp.
+fn now_for_timer_clock(clock: &Clock, timer_clock: TimerClock) -> u64 {
+    match timer_clock {
+        TimerClock::Wall => clock.wall_nanos(),
+        TimerClock::Monotonic => clock.mono_nanos(),
     }
 }
 
@@ -107,6 +103,71 @@ fn timer_state_for_handle(
     Ok(state)
 }
 
+/// Resolve one timer handle from one resource table.
+fn timer_state_for_resources(
+    resources: &ResourceTable,
+    handle: resource::TimerHandle,
+) -> Option<Arc<Mutex<TimerState>>> {
+    resources
+        .with_entry(handle.0, |entry| {
+            if entry.kind != ResourceKind::Timer {
+                return None;
+            }
+            entry
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<Arc<Mutex<TimerState>>>())
+                .map(Arc::clone)
+        })
+        .flatten()
+}
+
+/// Update one timer state when one event loop timer fires.
+pub(crate) fn on_event_loop_timer_fire(
+    resources: &ResourceTable,
+    clock: &Clock,
+    handle: resource::TimerHandle,
+) -> RuntimeResult<bool> {
+    // allow scheduler-managed timers that are not backed by one runtime resource entry
+    let Some(state) = timer_state_for_resources(resources, handle) else {
+        return Ok(true);
+    };
+
+    // update timer state according to one fired timer tick
+    let mut state = state.lock();
+    if !state.active || state.paused {
+        return Ok(false);
+    }
+
+    // complete one-shot timers on the first fire
+    if state.interval_ns.is_none() {
+        state.active = false;
+        state.paused = false;
+        state.paused_remaining_ns = 0;
+        return Ok(true);
+    }
+
+    // keep interval timers aligned to the next future deadline
+    let interval_nanos = state.interval_ns.unwrap_or(0);
+    if interval_nanos == 0 {
+        state.active = false;
+        state.paused = false;
+        state.paused_remaining_ns = 0;
+        return Ok(false);
+    }
+
+    state.next_deadline_ns = state.next_deadline_ns.saturating_add(interval_nanos);
+    let now_nanos = now_for_timer_clock(clock, state.clock);
+    if state.next_deadline_ns <= now_nanos {
+        let elapsed = now_nanos.saturating_sub(state.next_deadline_ns);
+        let skipped_periods = elapsed / interval_nanos + 1;
+        let skip_delta = interval_nanos.saturating_mul(skipped_periods);
+        state.next_deadline_ns = state.next_deadline_ns.saturating_add(skip_delta);
+    }
+
+    Ok(true)
+}
+
 /// Insert one timer state payload and return its handle.
 fn insert_timer_state(context: &BindingCallContext, state: TimerState) -> resource::TimerHandle {
     let entry = ResourceEntry::new(ResourceKind::Timer)
@@ -126,10 +187,10 @@ fn schedule_timer_state(
         return Ok(());
     }
 
-    let fire_at_nanos = event_loop_deadline(context, state.clock, state.next_deadline_ns);
     context.event_loop().schedule_timer(EventLoopTimer {
+        clock: state.clock,
         handle: handle.0,
-        fire_at_nanos,
+        fire_at_nanos: state.next_deadline_ns,
         interval_nanos: state.interval_ns,
     })
 }

@@ -1,10 +1,10 @@
-use crate::runtime::time::{HostClock, VirtualClock};
+use std::sync::Arc;
+
+use crate::runtime::time::{HostClock, HostClockSource, VirtualClock};
 use destack_workspace::{TimeMode, TimeOptions};
 
 /// Default virtual clock tick size in nanoseconds.
 const DEFAULT_VIRTUAL_TICK_NS: u64 = 1_000_000;
-
-// TODO #Incomplete: apply the time zone to wall clock formatting helpers
 
 /// Runtime clock sources and time policies.
 #[derive(Debug, Clone)]
@@ -36,6 +36,25 @@ impl Clock {
             mode,
             virtual_clock,
             host_clock: HostClock::new(),
+            time_zone: options.time_zone.clone(),
+        }
+    }
+
+    /// Create a clock from a mode, options, and one explicit host source.
+    pub(crate) fn from_mode_and_options_with_host_clock_source(
+        mode: TimeMode,
+        options: &TimeOptions,
+        host_clock_source: Arc<dyn HostClockSource>,
+    ) -> Self {
+        // resolve virtual clock configuration
+        let epoch_nanos = options.epoch_ns.unwrap_or(0);
+        let tick_nanos = options.tick_ns.unwrap_or(DEFAULT_VIRTUAL_TICK_NS).max(1);
+        let virtual_clock = VirtualClock::new(epoch_nanos, tick_nanos);
+
+        Self {
+            mode,
+            virtual_clock,
+            host_clock: HostClock::with_source(host_clock_source),
             time_zone: options.time_zone.clone(),
         }
     }

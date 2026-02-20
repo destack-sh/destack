@@ -1,5 +1,5 @@
 use super::{
-    assert_platform_error_code, assert_platform_error_codes, clock_info_from_value,
+    assert_platform_error_code, assert_platform_error_codes, clock_metadata_from_value,
     with_harness_context,
 };
 
@@ -32,16 +32,16 @@ fn test_time_wall_and_mono_samples() {
 /// Query clock metadata for wall and monotonic clocks.
 #[cfg(any(unix, windows))]
 #[test]
-fn test_time_clock_info_for_wall_and_monotonic() {
+fn test_time_clock_metadata_for_wall_and_monotonic() {
     with_harness_context(|mut context| {
         let wall_info = context.destack_time_clock_metadata(ClockId::Wall)?;
-        let wall_info = clock_info_from_value(wall_info);
+        let wall_info = clock_metadata_from_value(wall_info);
         assert_eq!(wall_info.id, ClockId::Wall);
         assert!(wall_info.resolution_ns > 0);
         assert!(!wall_info.is_monotonic);
 
         let mono_info = context.destack_time_clock_metadata(ClockId::Monotonic)?;
-        let mono_info = clock_info_from_value(mono_info);
+        let mono_info = clock_metadata_from_value(mono_info);
         assert_eq!(mono_info.id, ClockId::Monotonic);
         assert!(mono_info.resolution_ns > 0);
         assert!(mono_info.is_monotonic);
@@ -117,7 +117,7 @@ fn test_time_sleep_calls() {
 /// Query extended clock metadata and verify notSupported behavior on unsupported hosts.
 #[cfg(any(unix, windows))]
 #[test]
-fn test_time_extended_clock_info() {
+fn test_time_extended_clock_metadata() {
     with_harness_context(|mut context| {
         let boot_result = context.destack_time_clock_metadata(ClockId::Boot);
         if let Err(error) = boot_result {

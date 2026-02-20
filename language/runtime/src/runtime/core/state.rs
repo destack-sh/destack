@@ -1,10 +1,12 @@
+use std::sync::Arc;
+
 use crate::diagnostic::RuntimeErrorStore;
 use crate::platform::{PlatformContext, ResourceTable};
 use crate::runtime::RuntimeHooks;
 use crate::runtime::bindings::BindingReplayPayload;
 use crate::runtime::random::Random;
 use crate::runtime::replay::{ReplayController, ReplayHeader};
-use crate::runtime::time::Clock;
+use crate::runtime::time::{Clock, HostClockSource};
 use crate::simulation::{SharedSimulationState, SimulationState};
 use destack_workspace::{
     ExecutionMode, GcOptions, PlatformWindowsOptions, RandomMode, ReplayLogOptions,
@@ -48,7 +50,25 @@ impl RuntimeState {
     /// Create runtime state from runtime options.
     pub fn from_options(platform: PlatformContext, options: &RuntimeOptions) -> Self {
         let header = Self::replay_header_from_runtime_options(options);
-        Self::from_runtime_options_and_header(platform, options, header)
+        Self::from_runtime_options_and_header_with_host_clock_source(
+            platform, options, header, None,
+        )
+    }
+
+    /// Create runtime state from runtime options and one explicit host clock source.
+    #[cfg(test)]
+    pub(crate) fn from_options_with_host_clock_source(
+        platform: PlatformContext,
+        options: &RuntimeOptions,
+        host_clock_source: Arc<dyn HostClockSource>,
+    ) -> Self {
+        let header = Self::replay_header_from_runtime_options(options);
+        Self::from_runtime_options_and_header_with_host_clock_source(
+            platform,
+            options,
+            header,
+            Some(host_clock_source),
+        )
     }
 
     /// Create runtime state from an explicit replay header.
@@ -63,7 +83,9 @@ impl RuntimeState {
             ..RuntimeOptions::default()
         };
 
-        Self::from_runtime_options_and_header(platform, &options, header)
+        Self::from_runtime_options_and_header_with_host_clock_source(
+            platform, &options, header, None,
+        )
     }
 
     /// Create runtime state from runtime options and replay header.
@@ -71,6 +93,18 @@ impl RuntimeState {
         platform: PlatformContext,
         options: &RuntimeOptions,
         header: ReplayHeader,
+    ) -> Self {
+        Self::from_runtime_options_and_header_with_host_clock_source(
+            platform, options, header, None,
+        )
+    }
+
+    /// Create runtime state from options, header, and optional host clock source.
+    fn from_runtime_options_and_header_with_host_clock_source(
+        platform: PlatformContext,
+        options: &RuntimeOptions,
+        header: ReplayHeader,
+        host_clock_source: Option<Arc<dyn HostClockSource>>,
     ) -> Self {
         // build runtime subsystems from options
         let replay_mode = options.execution == ExecutionMode::Replay;
@@ -85,7 +119,15 @@ impl RuntimeState {
             options.random.mode
         };
 
-        let time = Clock::from_mode_and_options(resolved_time_mode, &options.time);
+        let time = if let Some(host_clock_source) = host_clock_source {
+            Clock::from_mode_and_options_with_host_clock_source(
+                resolved_time_mode,
+                &options.time,
+                host_clock_source,
+            )
+        } else {
+            Clock::from_mode_and_options(resolved_time_mode, &options.time)
+        };
         let random = Random::new(options.random.seed.unwrap_or(0), resolved_random_mode);
         let execution_mode = options.execution;
         let replay_payload = if replay_mode {

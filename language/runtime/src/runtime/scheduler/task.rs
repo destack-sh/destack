@@ -40,7 +40,6 @@ pub struct Task {
     pub resume_value: RuntimeValue,
     /// Current scheduling status.
     pub status: TaskStatus,
-    // NOTE #Incomplete: priority is not used by the event loop yet
-    /// Priority value for event loop ordering.
+    /// Priority value for event loop ordering, higher values run first.
     pub priority: u8,
 }

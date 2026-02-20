@@ -27,7 +27,7 @@ pub(crate) unsafe fn destack_time_clock_metadata(
     out: *mut ClockMetadata,
     clock: ClockId,
 ) -> RuntimeResult<()> {
-    unsafe { host_time::host_clock_info(context, out, clock) }
+    unsafe { host_time::host_clock_metadata(context, out, clock) }
 }
 
 /// Return monotonic time in nanoseconds.

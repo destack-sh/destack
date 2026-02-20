@@ -1,13 +1,86 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_vm as vm;
+use destack_workspace::{RuntimeOptions, SchedulerOptions};
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::PlatformContext;
+use crate::platform::poller::{PlatformEventPayload, PollerToken};
+use crate::platform::time::TimerClock;
+use crate::platform::{
+    PlatformContext, PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventSource,
+    ResourceId,
+};
 use crate::runtime::engine::{
     Engine, EngineContinuation, EngineOutcome, NativeContinuation, RuntimeOutput, RuntimeValue,
 };
+use crate::runtime::scheduler::{Microtask, MicrotaskId, Task, TaskId, TaskStatus, Timer};
+use crate::runtime::time::HostClockSource;
 use crate::runtime::{Runtime, RuntimeState};
+
+/// Scripted host clock source for deterministic host-time runtime tests.
+#[derive(Debug, Default)]
+pub(super) struct ScriptedHostClockSource {
+    /// Current scripted wall time in nanoseconds.
+    wall_nanos: AtomicU64,
+    /// Current scripted monotonic time in nanoseconds.
+    mono_nanos: AtomicU64,
+}
+
+impl ScriptedHostClockSource {
+    /// Create one scripted host clock source.
+    pub(super) fn new(wall_nanos: u64, mono_nanos: u64) -> Self {
+        Self {
+            wall_nanos: AtomicU64::new(wall_nanos),
+            mono_nanos: AtomicU64::new(mono_nanos),
+        }
+    }
+
+    /// Advance wall and monotonic time together by one duration.
+    pub(super) fn advance_both_nanos(&self, delta_nanos: u64) {
+        let _ = self.wall_nanos.fetch_add(delta_nanos, Ordering::Relaxed);
+        let _ = self.mono_nanos.fetch_add(delta_nanos, Ordering::Relaxed);
+    }
+
+    /// Advance only monotonic time by one duration.
+    pub(super) fn advance_mono_nanos(&self, delta_nanos: u64) {
+        let _ = self.mono_nanos.fetch_add(delta_nanos, Ordering::Relaxed);
+    }
+
+    /// Jump wall time by one signed delta.
+    pub(super) fn jump_wall_nanos(&self, delta_nanos: i64) {
+        let current = self.wall_nanos();
+        let next = current.saturating_add_signed(delta_nanos);
+        self.wall_nanos.store(next, Ordering::Relaxed);
+    }
+
+    /// Return one scripted wall time sample.
+    pub(super) fn wall_nanos(&self) -> u64 {
+        self.wall_nanos.load(Ordering::Relaxed)
+    }
+
+    /// Return one scripted monotonic time sample.
+    pub(super) fn mono_nanos(&self) -> u64 {
+        self.mono_nanos.load(Ordering::Relaxed)
+    }
+}
+
+impl HostClockSource for ScriptedHostClockSource {
+    /// Return one scripted wall-clock sample.
+    fn wall_nanos(&self) -> u64 {
+        self.wall_nanos()
+    }
+
+    /// Return one scripted monotonic-clock sample.
+    fn mono_nanos(&self) -> u64 {
+        self.mono_nanos()
+    }
+
+    /// Sleep by advancing scripted wall and monotonic time.
+    fn sleep_nanos(&self, duration_nanos: u64) {
+        self.advance_both_nanos(duration_nanos);
+    }
+}
 
 /// Test engine that yields once, then completes.
 #[derive(Debug, Default)]
@@ -58,10 +131,246 @@ impl Engine for TestEngine {
     }
 }
 
-/// Build one runtime for runtime tests.
-pub(super) fn test_runtime() -> Runtime {
-    let state = Arc::new(RuntimeState::new(PlatformContext::new(Vec::new())));
-    Runtime::new(state)
+/// Test harness for runtime scheduling tests.
+#[derive(Debug)]
+pub(super) struct TestRuntime {
+    /// Wrapped runtime under test.
+    runtime: Runtime,
+}
+
+impl TestRuntime {
+    /// Create one test runtime with default options.
+    pub(super) fn new() -> Self {
+        let runtime = runtime_for_options(&RuntimeOptions::default());
+
+        Self { runtime }
+    }
+
+    /// Create one test runtime with explicit runtime options.
+    pub(super) fn with_options(options: &RuntimeOptions) -> Self {
+        let runtime = runtime_for_options(options);
+
+        Self { runtime }
+    }
+
+    /// Create one test runtime with explicit options and one host clock source.
+    pub(super) fn with_options_and_host_clock_source(
+        options: &RuntimeOptions,
+        host_clock_source: Arc<dyn HostClockSource>,
+    ) -> Self {
+        let runtime = runtime_for_options_with_host_clock_source(options, Some(host_clock_source));
+
+        Self { runtime }
+    }
+
+    /// Enqueue one native task with explicit identifiers.
+    pub(super) fn enqueue_task_native(&mut self, task_id: u64, continuation_id: u64, priority: u8) {
+        self.runtime.event_loop.enqueue_task(Task {
+            id: TaskId::new(task_id),
+            runnable: EngineContinuation::Native(NativeContinuation::new(continuation_id)),
+            resume_value: RuntimeValue::VOID,
+            status: TaskStatus::Ready,
+            priority,
+        });
+    }
+
+    /// Enqueue one native microtask with explicit identifiers.
+    pub(super) fn enqueue_microtask_native(&mut self, microtask_id: u64, continuation_id: u64) {
+        self.runtime.event_loop.enqueue_microtask(Microtask {
+            id: MicrotaskId::new(microtask_id),
+            runnable: EngineContinuation::Native(NativeContinuation::new(continuation_id)),
+            resume_value: RuntimeValue::VOID,
+            status: TaskStatus::Ready,
+        });
+    }
+
+    /// Configure scheduler options and fail loudly in tests.
+    pub(super) fn configure_scheduler(&mut self, options: SchedulerOptions) {
+        self.runtime
+            .event_loop
+            .configure(options)
+            .expect("scheduler options should configure");
+    }
+
+    /// Register one native timer watch.
+    pub(super) fn watch_timer_native(&mut self, handle: u64, continuation_id: u64, priority: u8) {
+        self.runtime
+            .watch_timer(
+                ResourceId(handle),
+                EngineContinuation::Native(NativeContinuation::new(continuation_id)),
+                RuntimeValue::VOID,
+                priority,
+            )
+            .expect("timer watch should register");
+    }
+
+    /// Remove one timer watch and return whether one watch was present.
+    pub(super) fn unwatch_timer(&mut self, handle: u64) -> bool {
+        self.runtime.unwatch_timer(ResourceId(handle)).is_some()
+    }
+
+    /// Schedule one timer in the event loop.
+    pub(super) fn schedule_timer(
+        &mut self,
+        handle: u64,
+        fire_at_nanos: u64,
+        interval_nanos: Option<u64>,
+    ) {
+        self.schedule_timer_on(TimerClock::Wall, handle, fire_at_nanos, interval_nanos);
+    }
+
+    /// Schedule one timer in the event loop on one explicit clock domain.
+    pub(super) fn schedule_timer_on(
+        &mut self,
+        clock: TimerClock,
+        handle: u64,
+        fire_at_nanos: u64,
+        interval_nanos: Option<u64>,
+    ) {
+        self.runtime
+            .event_loop
+            .schedule_timer(Timer {
+                clock,
+                handle: ResourceId(handle),
+                fire_at_nanos,
+                interval_nanos,
+            })
+            .expect("timer should schedule");
+    }
+
+    /// Register one native event watch.
+    pub(super) fn watch_event_native(&mut self, token: u64, continuation_id: u64, priority: u8) {
+        self.runtime
+            .watch_event(
+                PollerToken(token),
+                EngineContinuation::Native(NativeContinuation::new(continuation_id)),
+                RuntimeValue::VOID,
+                priority,
+            )
+            .expect("event watch should register");
+    }
+
+    /// Enqueue one synthetic I/O event for dispatch tests.
+    pub(super) fn enqueue_io_event(&mut self, resource_id: u64, token: u64, data: u64) {
+        self.runtime.event_loop.enqueue_events(vec![PlatformEvent {
+            resource_id: ResourceId(resource_id),
+            source: PlatformEventSource::Io,
+            mask: PlatformEventMask::READABLE,
+            flags: PlatformEventFlags::NONE,
+            token: PollerToken(token),
+            payload: PlatformEventPayload::Io { data },
+        }]);
+    }
+
+    /// Tick once and fail loudly on runtime errors.
+    pub(super) fn tick_once<E: Engine<Output = RuntimeOutput, Value = RuntimeValue>>(
+        &mut self,
+        engine: &mut E,
+    ) -> bool {
+        self.runtime
+            .tick_once(engine)
+            .expect("tick should execute runtime work")
+    }
+
+    /// Tick until idle and fail loudly on runtime errors.
+    pub(super) fn tick_until_idle<E: Engine<Output = RuntimeOutput, Value = RuntimeValue>>(
+        &mut self,
+        engine: &mut E,
+    ) {
+        self.runtime
+            .tick_until_idle(engine)
+            .expect("tick until idle should complete");
+    }
+
+    /// Run until one task completes.
+    pub(super) fn run_loop_until_task_complete<
+        E: Engine<Output = RuntimeOutput, Value = RuntimeValue>,
+    >(
+        &mut self,
+        engine: &mut E,
+        task_id: u64,
+    ) -> RuntimeResult<RuntimeOutput> {
+        self.runtime
+            .run_loop_until_task_complete(engine, TaskId::new(task_id))
+    }
+
+    /// Run until one task completes or one timeout elapses.
+    pub(super) fn run_loop_until_task_complete_with_timeout<
+        E: Engine<Output = RuntimeOutput, Value = RuntimeValue>,
+    >(
+        &mut self,
+        engine: &mut E,
+        task_id: u64,
+        timeout_nanos: Option<u64>,
+    ) -> RuntimeResult<Option<RuntimeOutput>> {
+        self.runtime.run_loop_until_task_complete_with_timeout(
+            engine,
+            TaskId::new(task_id),
+            timeout_nanos,
+        )
+    }
+
+    /// Return whether the event loop has pending work.
+    pub(super) fn has_pending_work(&self) -> bool {
+        self.runtime.event_loop.has_pending_work()
+    }
+
+    /// Return whether the event loop has pending microtasks.
+    pub(super) fn has_microtasks(&self) -> bool {
+        self.runtime.event_loop.has_microtasks()
+    }
+
+    /// Return dropped external-event count.
+    pub(super) fn dropped_external_events(&self) -> u64 {
+        self.runtime.event_loop.dropped_external_events()
+    }
+
+    /// Return current runtime wall time in nanoseconds.
+    pub(super) fn wall_nanos(&self) -> u64 {
+        self.runtime.state.time.wall_nanos()
+    }
+
+    /// Return current runtime monotonic time in nanoseconds.
+    pub(super) fn mono_nanos(&self) -> u64 {
+        self.runtime.state.time.mono_nanos()
+    }
+}
+
+/// Build one runtime configured for runtime tests.
+fn runtime_for_options(options: &RuntimeOptions) -> Runtime {
+    runtime_for_options_with_host_clock_source(options, None)
+}
+
+/// Build one runtime configured for runtime tests and one optional host clock source.
+fn runtime_for_options_with_host_clock_source(
+    options: &RuntimeOptions,
+    host_clock_source: Option<Arc<dyn HostClockSource>>,
+) -> Runtime {
+    // construct runtime state from explicit options
+    let state = if let Some(host_clock_source) = host_clock_source {
+        Arc::new(RuntimeState::from_options_with_host_clock_source(
+            PlatformContext::new(Vec::new()),
+            options,
+            host_clock_source,
+        ))
+    } else {
+        Arc::new(RuntimeState::from_options(
+            PlatformContext::new(Vec::new()),
+            options,
+        ))
+    };
+    let mut runtime = Runtime::new(state);
+
+    // configure scheduler options for deterministic tests
+    runtime
+        .event_loop
+        .configure(options.scheduler.clone())
+        .expect("scheduler options should configure");
+
+    // apply runtime options to binding policy state
+    runtime.bindings.apply_runtime_options(options);
+
+    runtime
 }
 
 /// Build one void runtime output.
