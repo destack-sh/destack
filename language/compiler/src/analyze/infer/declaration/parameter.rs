@@ -468,7 +468,7 @@ impl Compiler {
         };
 
         // evaluate once without resolving static arguments to keep symbolic structure
-        let raw_evaluated = self.try_evaluate_expression_to_type_value(
+        let raw_evaluated = self.resolve_declared_type_expression_value(
             module,
             profile,
             expression_id,
@@ -498,7 +498,7 @@ impl Compiler {
         }
 
         // otherwise resolve static arguments now that the constraint is independent
-        let resolved = self.try_evaluate_expression_to_type_value(
+        let resolved = self.resolve_declared_type_expression_value(
             module,
             profile,
             expression_id,
@@ -691,7 +691,7 @@ impl Compiler {
                     remote_types.get_type(remote_declared_type_id),
                     Type::Unevaluated(_)
                 ) {
-                    let _ = self.evaluate_type(
+                    let _ = self.resolve_declared_type(
                         module,
                         profile,
                         remote_declared_type_id,

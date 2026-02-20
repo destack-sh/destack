@@ -451,7 +451,7 @@ impl Compiler {
     ) -> AnalyzeResult<Option<(LocalTypeId, LocalTypeId)>> {
         // evaluate unevaluated return types before inspecting
         if matches!(types.get_type(return_ty_id), Type::Unevaluated(_)) {
-            self.evaluate_type(module, profile, return_ty_id, tree, symbols, types)?;
+            self.resolve_declared_type(module, profile, return_ty_id, tree, symbols, types)?;
         }
 
         // skip when the branch type already errored
@@ -592,7 +592,7 @@ impl Compiler {
                 };
 
                 if matches!(types.get_type(alias_ty_id), Type::Unevaluated(_)) {
-                    self.evaluate_type(module, profile, alias_ty_id, tree, symbols, types)?;
+                    self.resolve_declared_type(module, profile, alias_ty_id, tree, symbols, types)?;
                 }
 
                 let alias_type = types.get_type(alias_ty_id).clone();
@@ -896,7 +896,7 @@ impl Compiler {
 
         // evaluate unevaluated return types before checking assignability
         if matches!(types.get_type(return_ty_id), Type::Unevaluated(_)) {
-            self.evaluate_type(module, profile, return_ty_id, tree, symbols, types)?;
+            self.resolve_declared_type(module, profile, return_ty_id, tree, symbols, types)?;
         }
 
         // skip additional diagnostics when the branch already errors

@@ -1,24 +1,21 @@
 use destack_dir::{
-    Asynchrony, BindingAnchor, BindingKind, BindingModifier, Block, Constraint, Declaration,
-    Declarator, DynamicKey, Export, Expression, Extension, ExtensionKind, FunctionCardinality,
-    FunctionMode, Generics, GlobalNodeIdAny, GlobalSymbolId, Heritage, InferOrigin, InferScope,
-    InferTable, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member,
-    Mutability, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, StaticArgument,
-    StaticExpression, StaticKey, SymbolSpace, SymbolTable, Timing, Type, TypeField,
-    TypeIndexSignature, TypeKind, TypeLiteral, TypeTable, walk_block, walk_declaration,
-    walk_expression,
+    Asynchrony, BindingAnchor, BindingKind, BindingModifier, Block, Declaration, DynamicKey,
+    Expression, Extension, ExtensionKind, FunctionCardinality, FunctionMode, Generics,
+    GlobalSymbolId, Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
+    Member, Mutability, NodeTree, NodeVisitor, NodeVisitorOptions, Parameter, StaticArgument,
+    StaticExpression, StaticKey, SymbolTable, Timing, Type, TypeField, TypeIndexSignature,
+    TypeKind, TypeLiteral, TypeTable, walk_block, walk_declaration, walk_expression,
 };
-use destack_source::ModuleId;
-use destack_workspace::{Module, ModuleSource, ProfileId};
-use std::collections::{HashMap, HashSet};
+use destack_workspace::{Module, ProfileId};
+use std::collections::HashMap;
 
-use crate::{AnalyzeError, AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
+use crate::{AnalyzeError, AnalyzeResult, Compiler};
 
-use super::super::common::{CanonicalSymbolMode, ConstContext, ObjectShape, ObjectShapeSet};
+use crate::analyze::common::{CanonicalSymbolMode, ObjectShape, ObjectShapeSet};
 
 /// Visitor used to declare type-level constructs across a module.
 #[derive(Debug)]
-struct DeclareVisitor<'a> {
+struct CollectVisitor<'a> {
     /// The compiler shared state.
     compiler: &'a Compiler,
     /// The module being declared.
@@ -35,7 +32,7 @@ struct DeclareVisitor<'a> {
     options: NodeVisitorOptions,
 }
 
-impl<'a> DeclareVisitor<'a> {
+impl<'a> CollectVisitor<'a> {
     /// Create a new declare visitor.
     fn new(
         compiler: &'a Compiler,
@@ -77,7 +74,7 @@ impl<'a> DeclareVisitor<'a> {
     }
 }
 
-impl NodeVisitor for DeclareVisitor<'_> {
+impl NodeVisitor for CollectVisitor<'_> {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
@@ -121,7 +118,7 @@ impl NodeVisitor for DeclareVisitor<'_> {
         }
 
         // declare this declaration before walking nested nodes
-        let result = self.compiler.declare_declaration(
+        let result = self.compiler.collect_declaration(
             self.module,
             self.profile,
             id,
@@ -141,84 +138,6 @@ impl NodeVisitor for DeclareVisitor<'_> {
     }
 }
 
-/// Track an exported declarator that needs surface inference.
-#[derive(Debug)]
-struct ExportInference {
-    /// The exported symbol to assign a value type.
-    export_symbol: GlobalSymbolId,
-    /// The declarator that owns the binding.
-    declarator_id: LocalNodeId<Declarator>,
-    /// The initializer expression when present.
-    value_id: Option<LocalNodeId<Expression>>,
-    /// The binding mutability when available.
-    binding_mutability: Option<Mutability>,
-    /// Whether the initializer is a const assertion.
-    is_const_asserted: bool,
-}
-
-/// Track a function declaration that needs return inference.
-#[derive(Debug)]
-struct ExportDeclarationInference {
-    /// The declaration id to infer.
-    declaration_id: LocalNodeId<Declaration>,
-}
-
-/// Collect remote references in exported initializers.
-#[derive(Debug)]
-struct ExportInferenceReferenceCollector<'a> {
-    /// The module being analyzed.
-    module: &'a Module,
-    /// The symbol table for the module.
-    symbols: &'a SymbolTable,
-    /// Remote symbols referenced by the export initializer.
-    references: Vec<GlobalSymbolId>,
-    /// Node visitor options.
-    options: NodeVisitorOptions,
-}
-
-impl<'a> ExportInferenceReferenceCollector<'a> {
-    /// Create a new export inference collector.
-    fn new(module: &'a Module, symbols: &'a SymbolTable) -> Self {
-        // initialize the collector state
-        Self {
-            module,
-            symbols,
-            references: Vec::new(),
-            options: NodeVisitorOptions::default(),
-        }
-    }
-}
-
-impl NodeVisitor for ExportInferenceReferenceCollector<'_> {
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
-    fn visit_expression(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Expression>,
-        expression: &Expression,
-    ) {
-        // collect remote references for export inference
-        if let Some(target_symbol) = expression.target_symbol() {
-            if target_symbol.module_id != self.module.id {
-                self.references.push(target_symbol);
-            } else if let Some(imported_symbol) = self
-                .symbols
-                .get_symbol(target_symbol.local_id)
-                .target_symbol
-            {
-                self.references.push(imported_symbol);
-            }
-        }
-
-        destack_base::ensure_sufficient_stack(|| {
-            walk_expression(self, tree, id, expression);
-        });
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Decide whether declared types should be deferred for a module.
@@ -232,7 +151,7 @@ impl Compiler {
     }
 
     /// Resolve or defer a type expression into a type id.
-    fn resolve_or_defer_type_expression(
+    pub(crate) fn collect_or_defer_type_expression(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -243,7 +162,7 @@ impl Compiler {
         defer_type_evaluation: bool,
     ) -> AnalyzeResult<LocalTypeId> {
         if !defer_type_evaluation {
-            return self.try_evaluate_expression_to_type(
+            return self.resolve_declared_type_expression(
                 module,
                 profile,
                 expression_id,
@@ -287,7 +206,7 @@ impl Compiler {
     }
 
     /// Declare all declarations reachable from the module roots.
-    pub(crate) fn declare_module_declarations(
+    pub(crate) fn collect_module_declarations(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -296,7 +215,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // prepare the declaration visitor
-        let mut visitor = DeclareVisitor::new(self, module, profile, symbols, types);
+        let mut visitor = CollectVisitor::new(self, module, profile, symbols, types);
 
         // walk each root expression to visit all declarations
         for root_id in module.dir(profile).roots.iter() {
@@ -315,7 +234,7 @@ impl Compiler {
     }
 
     /// Declare a single declaration node.
-    pub(super) fn declare_declaration(
+    pub(super) fn collect_declaration(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -332,7 +251,7 @@ impl Compiler {
             Declaration::Global { .. } => Ok(()),
             Declaration::Namespace { generics, .. } => {
                 // declare namespace generics
-                self.declare_generics(module, profile, generics, tree, symbols, types)?;
+                self.collect_generics(module, profile, generics, tree, symbols, types)?;
 
                 Ok(())
             }
@@ -349,7 +268,7 @@ impl Compiler {
                 // declare static parameters
                 if let Some(parameters) = static_parameters.as_ref() {
                     for parameter_id in parameters {
-                        self.declare_parameter(
+                        self.collect_parameter(
                             module,
                             profile,
                             *parameter_id,
@@ -384,7 +303,7 @@ impl Compiler {
 
                 // resolve the declared type eagerly for type-only parameters
                 let should_defer = defer_type_evaluation || has_comptime_parameters;
-                let declared_ty_id = self.resolve_or_defer_type_expression(
+                let declared_ty_id = self.collect_or_defer_type_expression(
                     module,
                     profile,
                     *value,
@@ -461,8 +380,8 @@ impl Compiler {
                     .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
 
                 // declare generics and heritage
-                self.declare_generics(module, profile, generics, tree, symbols, types)?;
-                self.declare_heritage(
+                self.collect_generics(module, profile, generics, tree, symbols, types)?;
+                self.collect_heritage(
                     module,
                     profile,
                     heritage,
@@ -491,7 +410,7 @@ impl Compiler {
                     types.insert_type_from(nominal_reference, declaration_id);
 
                 // build instance and value shapes from members
-                let shapes = self.declare_member_shapes(
+                let shapes = self.collect_member_shapes(
                     module,
                     profile,
                     members,
@@ -580,8 +499,8 @@ impl Compiler {
                     .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
 
                 // declare generics and heritage
-                self.declare_generics(module, profile, generics, tree, symbols, types)?;
-                self.declare_heritage(
+                self.collect_generics(module, profile, generics, tree, symbols, types)?;
+                self.collect_heritage(
                     module,
                     profile,
                     heritage,
@@ -616,7 +535,7 @@ impl Compiler {
                     types.insert_type_from(nominal_reference, declaration_id);
 
                 // build instance and value shapes from members
-                let shapes = self.declare_member_shapes(
+                let shapes = self.collect_member_shapes(
                     module,
                     profile,
                     members,
@@ -706,8 +625,8 @@ impl Compiler {
                     .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
 
                 // declare generics and heritage
-                self.declare_generics(module, profile, generics, tree, symbols, types)?;
-                self.declare_heritage(
+                self.collect_generics(module, profile, generics, tree, symbols, types)?;
+                self.collect_heritage(
                     module,
                     profile,
                     heritage,
@@ -736,7 +655,7 @@ impl Compiler {
                     types.insert_type_from(nominal_reference, declaration_id);
 
                 // build instance and value shapes from members
-                let shapes = self.declare_member_shapes(
+                let shapes = self.collect_member_shapes(
                     module,
                     profile,
                     members,
@@ -826,8 +745,8 @@ impl Compiler {
                     .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
 
                 // declare generics and heritage
-                self.declare_generics(module, profile, generics, tree, symbols, types)?;
-                self.declare_heritage(
+                self.collect_generics(module, profile, generics, tree, symbols, types)?;
+                self.collect_heritage(
                     module,
                     profile,
                     heritage,
@@ -839,7 +758,7 @@ impl Compiler {
 
                 // build instance shape from members
                 let shape = self
-                    .declare_member_shape(module, profile, members, None, tree, symbols, types)?;
+                    .collect_member_shape(module, profile, members, None, tree, symbols, types)?;
 
                 // merge instance shapes for merged declarations
                 self.merge_instance_shape_into_merge_group(
@@ -932,7 +851,7 @@ impl Compiler {
 
                 // declare generics for the signature
                 if let Some(generics) = signature.generics.as_ref() {
-                    self.declare_generics(module, profile, generics, tree, symbols, types)?;
+                    self.collect_generics(module, profile, generics, tree, symbols, types)?;
                 }
 
                 // load any previously cached signature for this declaration
@@ -940,7 +859,7 @@ impl Compiler {
                     types.get_signature_type_for_node(declaration_id.into_global_any(module.id));
 
                 // evaluate the function signature
-                let ty = self.evaluate_function_signature_to_type(
+                let ty = self.resolve_declared_function_signature_type(
                     module,
                     profile,
                     signature,
@@ -999,9 +918,9 @@ impl Compiler {
                 let defer_type_evaluation = self.should_defer_declaration_types(module);
 
                 // declare generics and heritage
-                self.declare_generics(module, profile, generics, tree, symbols, types)?;
+                self.collect_generics(module, profile, generics, tree, symbols, types)?;
                 if !defer_type_evaluation {
-                    self.try_evaluate_expression_to_type(
+                    self.resolve_declared_type_expression(
                         module,
                         profile,
                         *target_type,
@@ -1012,7 +931,7 @@ impl Compiler {
                         true,
                     )?;
                 }
-                self.declare_heritage(
+                self.collect_heritage(
                     module,
                     profile,
                     heritage,
@@ -1033,7 +952,7 @@ impl Compiler {
 
                 // build the extension instance shape
                 let extension_static_parameters = generics.static_parameters.as_deref();
-                let shape = self.declare_member_shape(
+                let shape = self.collect_member_shape(
                     module,
                     profile,
                     members,
@@ -1075,7 +994,7 @@ impl Compiler {
     }
 
     /// Declare generics by evaluating static parameter constraint types.
-    fn declare_generics(
+    pub(crate) fn collect_generics(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1092,7 +1011,7 @@ impl Compiler {
         // evaluate static parameter constraints
         if let Some(parameters) = generics.static_parameters.as_ref() {
             for parameter_id in parameters {
-                self.declare_parameter(module, profile, *parameter_id, tree, symbols, types)?;
+                self.collect_parameter(module, profile, *parameter_id, tree, symbols, types)?;
             }
         }
 
@@ -1100,7 +1019,7 @@ impl Compiler {
     }
 
     /// Declare a parameter by evaluating its declared type.
-    fn declare_parameter(
+    fn collect_parameter(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1121,13 +1040,13 @@ impl Compiler {
         };
 
         // evaluate the declared type
-        self.evaluate_type(module, profile, declared_type_id, tree, symbols, types)?;
+        self.resolve_declared_type(module, profile, declared_type_id, tree, symbols, types)?;
 
         Ok(())
     }
 
     /// Declare heritage lineages for a nominal type.
-    fn declare_heritage(
+    fn collect_heritage(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1146,7 +1065,7 @@ impl Compiler {
                               types: &mut TypeTable|
          -> AnalyzeResult<Option<GlobalSymbolId>> {
             if !defer_type_evaluation {
-                let ty_id = self.try_evaluate_expression_to_type(
+                let ty_id = self.resolve_declared_type_expression(
                     module,
                     profile,
                     expression_id,
@@ -1470,7 +1389,7 @@ impl Compiler {
     }
 
     /// Declare instance and value shapes for a list of members.
-    fn declare_member_shapes(
+    fn collect_member_shapes(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1543,7 +1462,7 @@ impl Compiler {
         let mut shapes = ObjectShapeSet::default();
 
         // predeclare associated type members so later member references can resolve by symbol
-        self.declare_associated_type_members(
+        self.collect_associated_type_members(
             module,
             profile,
             members,
@@ -1573,7 +1492,7 @@ impl Compiler {
                     // handle index signatures
                     if let Some(DynamicKey::NamedExpression { name, key }) = key {
                         // resolve index signature types
-                        let key_type = self.resolve_or_defer_type_expression(
+                        let key_type = self.collect_or_defer_type_expression(
                             module,
                             profile,
                             *key,
@@ -1583,7 +1502,7 @@ impl Compiler {
                             defer_type_evaluation,
                         )?;
                         let value_type = if let Some(value) = value {
-                            self.resolve_or_defer_type_expression(
+                            self.collect_or_defer_type_expression(
                                 module,
                                 profile,
                                 *value,
@@ -1620,7 +1539,7 @@ impl Compiler {
 
                     // resolve the field type
                     let value_ty_id = if let Some(value) = value {
-                        let value_ty_id = self.resolve_or_defer_type_expression(
+                        let value_ty_id = self.collect_or_defer_type_expression(
                             module,
                             profile,
                             *value,
@@ -1675,11 +1594,11 @@ impl Compiler {
                     {
                         // declare generics for the signature
                         if let Some(generics) = signature.generics.as_ref() {
-                            self.declare_generics(module, profile, generics, tree, symbols, types)?;
+                            self.collect_generics(module, profile, generics, tree, symbols, types)?;
                         }
 
                         // evaluate the signature type
-                        let ty = self.evaluate_function_signature_to_type(
+                        let ty = self.resolve_declared_function_signature_type(
                             module,
                             profile,
                             signature,
@@ -1768,11 +1687,11 @@ impl Compiler {
 
                     // declare generics for the signature
                     if let Some(generics) = signature.generics.as_ref() {
-                        self.declare_generics(module, profile, generics, tree, symbols, types)?;
+                        self.collect_generics(module, profile, generics, tree, symbols, types)?;
                     }
 
                     // build the method type
-                    let ty = self.evaluate_function_signature_to_type(
+                    let ty = self.resolve_declared_function_signature_type(
                         module,
                         profile,
                         signature,
@@ -1857,7 +1776,7 @@ impl Compiler {
     }
 
     /// Declare the instance shape for a list of members.
-    fn declare_member_shape(
+    fn collect_member_shape(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1872,7 +1791,7 @@ impl Compiler {
         let mut shape = ObjectShape::default();
 
         // predeclare associated type members so later member references can resolve by symbol
-        self.declare_associated_type_members(
+        self.collect_associated_type_members(
             module,
             profile,
             members,
@@ -1884,7 +1803,7 @@ impl Compiler {
 
         // collect member contributions
         for member_id in members {
-            let member_shape = self.declare_member(
+            let member_shape = self.collect_member(
                 module,
                 profile,
                 *member_id,
@@ -1901,7 +1820,7 @@ impl Compiler {
     }
 
     /// Declare a single member into an object shape.
-    fn declare_member(
+    fn collect_member(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1925,7 +1844,7 @@ impl Compiler {
             } => {
                 // handle index signatures
                 if let Some(DynamicKey::NamedExpression { name, key }) = key {
-                    let key_type = self.resolve_or_defer_type_expression(
+                    let key_type = self.collect_or_defer_type_expression(
                         module,
                         profile,
                         *key,
@@ -1935,7 +1854,7 @@ impl Compiler {
                         defer_type_evaluation,
                     )?;
                     let value_type = if let Some(value) = value {
-                        self.resolve_or_defer_type_expression(
+                        self.collect_or_defer_type_expression(
                             module,
                             profile,
                             *value,
@@ -1971,7 +1890,7 @@ impl Compiler {
 
                 // resolve the field type
                 let value_ty_id = if let Some(value) = value {
-                    let value_ty_id = self.resolve_or_defer_type_expression(
+                    let value_ty_id = self.collect_or_defer_type_expression(
                         module,
                         profile,
                         *value,
@@ -2017,7 +1936,7 @@ impl Compiler {
             } => {
                 // declare generics for the signature
                 if let Some(generics) = signature.generics.as_ref() {
-                    self.declare_generics(module, profile, generics, tree, symbols, types)?;
+                    self.collect_generics(module, profile, generics, tree, symbols, types)?;
                 }
 
                 // handle call or construct signatures
@@ -2030,7 +1949,7 @@ impl Compiler {
                             | Some(FunctionMode::Constructor)
                     )
                 {
-                    let ty = self.evaluate_function_signature_to_type(
+                    let ty = self.resolve_declared_function_signature_type(
                         module,
                         profile,
                         signature,
@@ -2077,7 +1996,7 @@ impl Compiler {
                 };
 
                 // build the method type
-                let ty = self.evaluate_function_signature_to_type(
+                let ty = self.resolve_declared_function_signature_type(
                     module,
                     profile,
                     signature,
@@ -2315,7 +2234,7 @@ impl Compiler {
                     .into_global_any(module.id)
                     .into_anchored(Some(profile)),
             })?;
-            let field_ty_id = self.resolve_or_defer_type_expression(
+            let field_ty_id = self.collect_or_defer_type_expression(
                 module,
                 profile,
                 value_id,
@@ -2343,578 +2262,5 @@ impl Compiler {
             return_type: Some(nominal_reference_id),
         };
         Ok(types.insert_type_from(signature, declaration_id))
-    }
-
-    /// Declare exported value types using local information only.
-    pub(crate) fn declare_exported_value_types(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        exported_symbols: &indexmap::IndexMap<(SymbolSpace, StaticKey), Export>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<()> {
-        // skip export inference for declaration modules
-        if module.language_type.is_declaration() {
-            for export in exported_symbols.values() {
-                let Some((export_symbol, value_symbol)) =
-                    self.export_inference_value_symbol(symbols, module.id, export)
-                else {
-                    continue;
-                };
-
-                if let Some(value_ty_id) = self.export_known_value_type_id(types, value_symbol) {
-                    types.set_value_type(export_symbol, value_ty_id);
-                    continue;
-                }
-
-                let Some(declarator_id) =
-                    self.direct_binding_declarator_for_symbol(module, value_symbol, tree, symbols)
-                else {
-                    continue;
-                };
-
-                if let Some(declared_type_id) =
-                    types.get_declared_type_id(declarator_id.into_global_any(module.id))
-                {
-                    types.set_value_type(export_symbol, declared_type_id);
-                }
-            }
-
-            return Ok(());
-        }
-
-        // prepare surface inference for exported values
-        let options = self.analyze_context_options_for_module(module.id);
-        let mut infer = InferTable::default();
-        let base_ctx = InferContext::new(profile, options).for_surface_inference();
-        let mut inferred_exports = Vec::new();
-        let mut export_inference = Vec::new();
-        let mut export_declarations = Vec::new();
-
-        // collect exported symbols that need value types
-        for export in exported_symbols.values() {
-            // resolve the local export symbol for value inference
-            let Some((export_symbol, value_symbol)) =
-                self.export_inference_value_symbol(symbols, module.id, export)
-            else {
-                continue;
-            };
-
-            // read the primary declaration for the export symbol
-            let symbol_entry = symbols.get_symbol(value_symbol.local_id);
-            let Some(primary_declaration) = symbol_entry.primary_declaration else {
-                continue;
-            };
-
-            // defer unannotated function returns to declaration inference
-            if let Some(declaration_id) =
-                self.export_inference_function_declaration(tree, primary_declaration)
-            {
-                export_declarations.push(ExportDeclarationInference { declaration_id });
-                continue;
-            }
-
-            // reuse known value types when already available
-            if let Some(value_ty_id) = self.export_known_value_type_id(types, value_symbol) {
-                types.set_value_type(export_symbol, value_ty_id);
-                continue;
-            }
-
-            // resolve the declarator that owns this binding
-            let Some(declarator_id) =
-                self.direct_binding_declarator_for_symbol(module, value_symbol, tree, symbols)
-            else {
-                continue;
-            };
-
-            // evaluate declared types when present
-            if let Some(declared_type_id) = self.export_declared_value_type_id(
-                module,
-                profile,
-                declarator_id,
-                tree,
-                symbols,
-                types,
-            )? {
-                types.set_value_type(export_symbol, declared_type_id);
-                continue;
-            }
-
-            // defer to surface inference for initializer-only exports
-            let declarator = tree.get(declarator_id);
-            let binding_mutability = symbols.get_symbol(value_symbol.local_id).binding_mutability;
-            let is_const_asserted = self.declarator_is_const_assertion(declarator_id, tree);
-            export_inference.push(ExportInference {
-                export_symbol,
-                declarator_id,
-                value_id: declarator.value,
-                binding_mutability,
-                is_const_asserted,
-            });
-        }
-
-        // seed inference variables for export symbols
-        for export in &export_inference {
-            // create an infer var for the exported value
-            let scope = InferScope {
-                owner: export.export_symbol,
-                function_id: None,
-            };
-            let origin = InferOrigin::Expression(export.declarator_id.into_global_any(module.id));
-            let symbol_ty_id = self.infer_var_type_for_symbol(
-                &mut infer,
-                types,
-                export.export_symbol,
-                export.declarator_id.into_any(),
-                origin,
-                scope,
-            );
-
-            // register the type id for this export
-            types.set_value_type(export.export_symbol, symbol_ty_id);
-            inferred_exports.push((
-                symbol_ty_id,
-                export.declarator_id.into_global_any(module.id),
-            ));
-        }
-
-        // infer unannotated exported function declarations
-        for export in &export_declarations {
-            // infer the declaration with an unconstrained expectation
-            let mut ctx = base_ctx.fork().with_expected_type(None);
-            self.infer_declaration(
-                module,
-                export.declaration_id,
-                tree,
-                symbols,
-                types,
-                &mut infer,
-                &mut ctx,
-            )?;
-        }
-
-        // infer initializer types and constrain export symbols
-        for export in export_inference {
-            // skip exports without initializers or symbols
-            let Some(value_id) = export.value_id else {
-                continue;
-            };
-            let Some(symbol_ty_id) = types.get_value_type_id(export.export_symbol) else {
-                continue;
-            };
-
-            // reject export inference cycles that lack explicit annotations
-            if self
-                .export_inference_requires_annotation(module, profile, tree, symbols, value_id)?
-            {
-                self.error(AnalyzeError::ExportInferenceRequiresAnnotation {
-                    node: value_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile)),
-                });
-                let error_ty_id = types.insert_type_from_any(Type::Error, value_id.into_any());
-                types.set_value_type(export.export_symbol, error_ty_id);
-                continue;
-            }
-
-            // infer the initializer with binding defaults and export expectations
-            let mut ctx = base_ctx.fork().with_expected_type(Some(symbol_ty_id));
-            if let Some(mutability) = export.binding_mutability {
-                ctx = ctx.with_binding_mutability(mutability);
-            } else {
-                ctx = ctx
-                    .with_const_context(ConstContext::None)
-                    .with_widening()
-                    .with_fresh_literals();
-            }
-            let inferred_ty_id = self
-                .infer_expression(module, value_id, tree, symbols, types, &mut infer, &mut ctx)?;
-            let committed_ty_id = self.commit_binding_type(
-                module,
-                &ctx,
-                inferred_ty_id,
-                types,
-                export.is_const_asserted,
-            );
-            infer.push_constraint(Constraint::Subtype {
-                sub_type: committed_ty_id,
-                super_type: symbol_ty_id,
-                variance: None,
-            });
-        }
-
-        // solve surface inference constraints before warning
-        if !infer.vars.is_empty() {
-            self.solve_infer_table(module, profile, symbols, &infer, types, &base_ctx.options);
-        }
-
-        // warn when exports remain unknown after surface inference
-        for (ty_id, node_id) in inferred_exports {
-            if matches!(
-                types.get_type(ty_id),
-                Type::TypeLiteral {
-                    value: TypeLiteral::Unknown
-                }
-            ) {
-                self.warning(AnalyzeWarning::ExportTypeUnknown {
-                    node: node_id.into_anchored(Some(profile)),
-                });
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Resolve the export symbol and its local target for value inference.
-    fn export_inference_value_symbol(
-        &self,
-        symbols: &SymbolTable,
-        module_id: ModuleId,
-        export: &Export,
-    ) -> Option<(GlobalSymbolId, GlobalSymbolId)> {
-        // skip exports that cannot produce local values
-        if export.space != SymbolSpace::Value {
-            return None;
-        }
-
-        // require resolved local exports
-        let export_symbol = export.target.resolved()?;
-        if export_symbol.module_id != module_id {
-            return None;
-        }
-
-        // follow local aliases to the concrete symbol
-        let value_symbol = self.local_export_target_symbol(symbols, module_id, export_symbol);
-        if value_symbol.module_id != module_id {
-            return None;
-        }
-
-        Some((export_symbol, value_symbol))
-    }
-
-    /// Return an exported function declaration that needs return inference.
-    fn export_inference_function_declaration(
-        &self,
-        tree: &NodeTree,
-        primary_declaration: GlobalNodeIdAny,
-    ) -> Option<LocalNodeId<Declaration>> {
-        // resolve the primary declaration node
-        let declaration_id = self.primary_declaration_id(tree, primary_declaration)?;
-
-        // require an unannotated function declaration with a body
-        let Declaration::Function {
-            signature, body, ..
-        } = tree.get(declaration_id)
-        else {
-            return None;
-        };
-        if signature.return_type.is_some() || body.is_none() {
-            return None;
-        }
-
-        Some(declaration_id)
-    }
-
-    /// Return a known value type id for an exported symbol.
-    fn export_known_value_type_id(
-        &self,
-        types: &TypeTable,
-        value_symbol: GlobalSymbolId,
-    ) -> Option<LocalTypeId> {
-        // reuse known value types when already available
-        let value_ty_id = types.get_value_type_id(value_symbol)?;
-        let value_ty = types.get_type(value_ty_id);
-        let is_unknown = matches!(
-            value_ty,
-            Type::TypeLiteral {
-                value: TypeLiteral::Unknown
-            } | Type::InferVar { .. }
-        );
-        if is_unknown {
-            return None;
-        }
-
-        Some(value_ty_id)
-    }
-
-    /// Resolve and evaluate the declared value type for an export.
-    fn export_declared_value_type_id(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        declarator_id: LocalNodeId<Declarator>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<Option<LocalTypeId>> {
-        // read the declared type when present
-        let declared_type_id = types.get_declared_type_id(declarator_id.into_global_any(module.id));
-        let Some(declared_type_id) = declared_type_id else {
-            return Ok(None);
-        };
-
-        // evaluate and return the declared type
-        self.evaluate_type(module, profile, declared_type_id, tree, symbols, types)?;
-        Ok(Some(declared_type_id))
-    }
-
-    /// Return true when an export initializer needs an explicit annotation.
-    fn export_inference_requires_annotation(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        value_id: LocalNodeId<Expression>,
-    ) -> AnalyzeResult<bool> {
-        // collect remote references used by the initializer
-        let references = self.export_inference_references(module, tree, symbols, value_id);
-
-        // check for cycles without declared annotations
-        for referenced in references {
-            let has_cycle =
-                self.export_inference_has_cycle(module.id, profile, referenced.module_id)?;
-            if has_cycle && !self.remote_symbol_has_declared_value_type(profile, referenced)? {
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
-    }
-
-    /// Collect remote references used by an export inference initializer.
-    fn export_inference_references(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        value_id: LocalNodeId<Expression>,
-    ) -> Vec<GlobalSymbolId> {
-        // walk the initializer and collect remote symbols
-        let mut collector = ExportInferenceReferenceCollector::new(module, symbols);
-        collector.visit_expression(tree, value_id, tree.get(value_id));
-        collector.references
-    }
-
-    /// Follow local export aliases to reach the concrete symbol.
-    fn local_export_target_symbol(
-        &self,
-        symbols: &SymbolTable,
-        module_id: ModuleId,
-        symbol: GlobalSymbolId,
-    ) -> GlobalSymbolId {
-        let mut current = symbol;
-        let mut visited = Vec::new();
-
-        loop {
-            if current.module_id != module_id {
-                return current;
-            }
-            if visited.contains(&current) {
-                return current;
-            }
-            visited.push(current);
-
-            let entry = symbols.get_symbol(current.local_id);
-            let Some(next) = entry.target_symbol else {
-                return current;
-            };
-            current = next;
-        }
-    }
-
-    /// Resolve a declaration id from a primary declaration node.
-    fn primary_declaration_id(
-        &self,
-        tree: &NodeTree,
-        primary_declaration: GlobalNodeIdAny,
-    ) -> Option<LocalNodeId<Declaration>> {
-        match primary_declaration.local_id.ty {
-            NodeType::Declaration => Some(primary_declaration.local_id.into_typed()),
-            NodeType::Expression => {
-                let expression_id = primary_declaration.local_id.into_typed::<Expression>();
-                match tree.get(expression_id) {
-                    Expression::Declaration { declaration } => Some(*declaration),
-                    _ => None,
-                }
-            }
-            _ => None,
-        }
-    }
-
-    /// Validate associated type contract presence for one declaration.
-    fn validate_associated_type_contract_presence(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        heritage: &Heritage,
-        members: &[LocalNodeId<Member>],
-        allows_deferred_associated_types: bool,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-    ) -> AnalyzeResult<()> {
-        // skip non-user modules
-        if !matches!(module.source, ModuleSource::User) {
-            return Ok(());
-        }
-
-        // collect declaration associated type names
-        let mut declared_associated_names = HashSet::new();
-        for member_id in members {
-            if let Member::Type { name, .. } = tree.get(*member_id) {
-                declared_associated_names.insert(*name);
-            }
-        }
-
-        // collect inherited contract expressions
-        let mut contract_expressions = Vec::new();
-        if let Some(extends_types) = heritage.extends_types.as_ref() {
-            contract_expressions.extend(extends_types.iter().copied());
-        }
-        if let Some(implements_types) = heritage.implements_types.as_ref() {
-            contract_expressions.extend(implements_types.iter().copied());
-        }
-        if contract_expressions.is_empty() {
-            return Ok(());
-        }
-
-        // report missing requirements once per associated name
-        let mut reported_missing_names = HashSet::new();
-        for expression_id in contract_expressions {
-            let Some(target_symbol) = tree.get(expression_id).target_symbol() else {
-                continue;
-            };
-            let requirements = self.collect_contract_associated_type_requirements(
-                module,
-                profile,
-                target_symbol,
-                tree,
-                symbols,
-            )?;
-
-            for requirement in requirements {
-                if !requirement.requires_implementation
-                    || declared_associated_names.contains(&requirement.name)
-                    || allows_deferred_associated_types
-                    || !reported_missing_names.insert(requirement.name)
-                {
-                    continue;
-                }
-
-                let node = expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile));
-                self.error(AnalyzeError::InvalidStaticArgument {
-                    node,
-                    message: "missing associated type implementation".to_string(),
-                });
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Declare a type member alias and its generics.
-    fn declare_associated_type_members(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        members: &[LocalNodeId<Member>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        defer_type_evaluation: bool,
-    ) -> AnalyzeResult<()> {
-        for member_id in members {
-            let Member::Type {
-                static_parameters,
-                where_clauses,
-                ty,
-                value,
-                ..
-            } = tree.get(*member_id)
-            else {
-                continue;
-            };
-
-            self.declare_associated_type_member(
-                module,
-                profile,
-                *member_id,
-                static_parameters.as_deref(),
-                where_clauses.as_deref(),
-                *ty,
-                *value,
-                tree,
-                symbols,
-                types,
-                defer_type_evaluation,
-            )?;
-        }
-
-        Ok(())
-    }
-
-    /// Declare a type member alias and its generics.
-    fn declare_associated_type_member(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        member_id: LocalNodeId<Member>,
-        static_parameters: Option<&[LocalNodeId<Parameter>]>,
-        where_clauses: Option<&[LocalNodeId<destack_dir::WhereClause>]>,
-        ty: Option<LocalNodeId<Expression>>,
-        value: Option<LocalNodeId<Expression>>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        defer_type_evaluation: bool,
-    ) -> AnalyzeResult<()> {
-        // declare associated type generics
-        let member_generics = Generics {
-            static_parameters: static_parameters
-                .map(|static_parameters| static_parameters.to_vec()),
-            where_clauses: where_clauses.map(|where_clauses| where_clauses.to_vec()),
-        };
-        self.declare_generics(module, profile, &member_generics, tree, symbols, types)?;
-
-        // resolve associated type bound
-        if let Some(ty) = ty {
-            let bound_ty_id = self.resolve_or_defer_type_expression(
-                module,
-                profile,
-                ty,
-                tree,
-                symbols,
-                types,
-                defer_type_evaluation,
-            )?;
-            types.set_declared_type(ty.into_global_any(module.id), bound_ty_id);
-        }
-
-        // resolve and register associated type default
-        if let Some(value) = value {
-            let value_ty_id = self.resolve_or_defer_type_expression(
-                module,
-                profile,
-                value,
-                tree,
-                symbols,
-                types,
-                defer_type_evaluation,
-            )?;
-            types.set_declared_type(value.into_global_any(module.id), value_ty_id);
-
-            let member_symbol = tree.get(member_id).symbol();
-            let member_symbol_entry = symbols.get_symbol(member_symbol);
-            let member_symbol =
-                GlobalSymbolId::new(module.id, member_symbol.with_type(member_symbol_entry.ty));
-            types.set_alias_target_type_id(member_symbol, value_ty_id);
-            types.set_instance_type(member_symbol, value_ty_id);
-        }
-
-        Ok(())
     }
 }

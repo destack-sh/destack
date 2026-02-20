@@ -486,7 +486,7 @@ impl Compiler {
 
         // resolve the predicate return type for the call
         let return_type_id = if let Some(return_type) = signature.return_type {
-            Some(self.try_evaluate_expression_to_type(
+            Some(self.resolve_declared_type_expression(
                 module,
                 context.profile,
                 return_type,
@@ -1263,7 +1263,7 @@ impl Compiler {
                     return Ok(Some(type_id));
                 }
 
-                let target_type = self.try_evaluate_expression_to_type_value(
+                let target_type = self.resolve_declared_type_expression_value(
                     module, profile, *value, tree, symbols, types, true, true, true, true,
                 )?;
                 if matches!(target_type, Type::Unevaluated(_)) {
@@ -1535,14 +1535,14 @@ impl Compiler {
         )?;
 
         // evaluate unevaluated types before applying typeof narrowing
-        self.evaluate_type(module, context.profile, base_type_id, tree, symbols, types)?;
+        self.resolve_declared_type(module, context.profile, base_type_id, tree, symbols, types)?;
         // clone union elements to avoid holding a borrow across evaluation
         let mut union_elements = Vec::new();
         if let Type::Union { elements } = types.get_type(base_type_id) {
             union_elements.extend(elements.iter().copied());
         }
         for element_id in union_elements {
-            self.evaluate_type(module, context.profile, element_id, tree, symbols, types)?;
+            self.resolve_declared_type(module, context.profile, element_id, tree, symbols, types)?;
         }
 
         // compute narrowed types for each branch
@@ -1619,14 +1619,14 @@ impl Compiler {
         )?;
 
         // evaluate unevaluated types before applying discriminant narrowing
-        self.evaluate_type(module, context.profile, base_type_id, tree, symbols, types)?;
+        self.resolve_declared_type(module, context.profile, base_type_id, tree, symbols, types)?;
         // clone union elements to avoid holding a borrow across evaluation
         let mut union_elements = Vec::new();
         if let Type::Union { elements } = types.get_type(base_type_id) {
             union_elements.extend(elements.iter().copied());
         }
         for element_id in union_elements {
-            self.evaluate_type(module, context.profile, element_id, tree, symbols, types)?;
+            self.resolve_declared_type(module, context.profile, element_id, tree, symbols, types)?;
         }
 
         // compute narrowed types for each branch
@@ -2080,7 +2080,7 @@ impl Compiler {
         }
 
         // fall back to evaluating the expression as a type
-        self.try_evaluate_expression_to_type(
+        self.resolve_declared_type_expression(
             module, profile, target_id, tree, symbols, types, true, true,
         )
     }

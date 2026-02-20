@@ -71,7 +71,7 @@ impl Compiler {
             // declare exported value types with local-only inference
             self.collect(
                 &mut collector,
-                self.declare_exported_value_types(
+                self.infer_exported_value_types(
                     &module,
                     profile,
                     &exported_symbols,
@@ -85,7 +85,7 @@ impl Compiler {
             for binding in binding_exports.values() {
                 self.collect(
                     &mut collector,
-                    self.declare_exported_value_types(
+                    self.infer_exported_value_types(
                         &module,
                         profile,
                         &binding.exports,
@@ -134,7 +134,7 @@ impl Compiler {
             // declare the module namespace value type from exports
             self.collect(
                 &mut collector,
-                self.declare_module_namespace_value_type(
+                self.collect_module_namespace_value_type(
                     &module,
                     profile,
                     &exported_symbols,

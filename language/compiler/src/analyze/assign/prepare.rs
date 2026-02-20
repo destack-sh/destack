@@ -431,7 +431,7 @@ impl Compiler {
                 profile,
                 symbol.module_id,
                 |owner_module, owner_tree, owner_symbols| {
-                    let _ = self.evaluate_type(
+                    let _ = self.resolve_declared_type(
                         owner_module,
                         profile,
                         alias_target_id,

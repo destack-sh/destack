@@ -504,7 +504,7 @@ impl Compiler {
             symbols,
             types,
         ) {
-            return self.try_evaluate_expression_to_type(
+            return self.resolve_declared_type_expression(
                 module,
                 ctx.profile,
                 receiver_id,

@@ -140,7 +140,7 @@ impl Compiler {
                     symbols,
                     types,
                 ) {
-                    self.try_evaluate_expression_to_type(
+                    self.resolve_declared_type_expression(
                         module,
                         ctx.profile,
                         left_id,

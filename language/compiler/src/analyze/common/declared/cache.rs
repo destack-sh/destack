@@ -11,7 +11,7 @@ use destack_dir::{
 
 /// Cache context for expression type evaluation.
 #[derive(Clone, Copy, Debug)]
-pub(super) struct EvaluateExpressionContext {
+pub(crate) struct DeclaredTypeResolutionContext {
     /// Whether static argument bounds must be validated.
     validate_static_argument_bounds: bool,
     /// Whether implicit managed semantics must be enforced.
@@ -20,9 +20,9 @@ pub(super) struct EvaluateExpressionContext {
     resolve_static_arguments: bool,
 }
 
-impl EvaluateExpressionContext {
+impl DeclaredTypeResolutionContext {
     /// Create a cache context for expression evaluation.
-    pub(super) fn new(
+    pub(crate) fn new(
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
         resolve_static_arguments: bool,
@@ -35,7 +35,7 @@ impl EvaluateExpressionContext {
     }
 
     /// Build a cache key for expression evaluation.
-    pub(super) fn cache_key(self, node_id: GlobalNodeIdAny) -> u64 {
+    pub(crate) fn cache_key(self, node_id: GlobalNodeIdAny) -> u64 {
         let mut hasher = FxHasher::default();
         node_id.hash(&mut hasher);
         self.validate_static_argument_bounds.hash(&mut hasher);
@@ -48,11 +48,11 @@ impl EvaluateExpressionContext {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Cache an expression type id and optional value for a cache context (if possible).
-    pub(super) fn cache_expression_type_maybe(
+    pub(crate) fn cache_expression_type_maybe(
         &self,
         module_id: destack_source::ModuleId,
         expression_id: LocalNodeId<Expression>,
-        cache_context: EvaluateExpressionContext,
+        cache_context: DeclaredTypeResolutionContext,
         cache_type_id: Option<LocalTypeId>,
         ty: Option<&Type>,
         is_reference_expression: bool,
@@ -71,7 +71,7 @@ impl Compiler {
     }
 
     /// Cache a resolved type reference when the key and type are stable.
-    pub(super) fn cache_type_reference_maybe(
+    pub(crate) fn cache_type_reference_maybe(
         &self,
         cache_key: Option<u64>,
         ty: &Type,

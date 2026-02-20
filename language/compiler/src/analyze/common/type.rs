@@ -995,7 +995,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         if matches!(types.get_type(type_id), Type::Unevaluated(_)) {
-            self.evaluate_type(module, profile, type_id, tree, symbols, types)?;
+            self.resolve_declared_type(module, profile, type_id, tree, symbols, types)?;
         }
         Ok(type_id)
     }
@@ -1027,7 +1027,7 @@ impl Compiler {
 
             // evaluate unevaluated types before walking children
             if matches!(types.get_type(current_id), Type::Unevaluated(_)) {
-                self.evaluate_type(module, profile, current_id, tree, symbols, types)?;
+                self.resolve_declared_type(module, profile, current_id, tree, symbols, types)?;
             }
 
             // keep walking the type graph to discover unevaluated types
@@ -1228,7 +1228,7 @@ impl Compiler {
                     if needs_evaluation {
                         let mut owner_types = owner_module.dir(profile).types.write();
                         if matches!(owner_types.get_type(remote_target_id), Type::Unevaluated(_))
-                            && let Err(error) = self.evaluate_type(
+                            && let Err(error) = self.resolve_declared_type(
                                 owner_module,
                                 profile,
                                 remote_target_id,

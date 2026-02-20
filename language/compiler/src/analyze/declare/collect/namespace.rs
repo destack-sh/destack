@@ -9,12 +9,12 @@ use destack_workspace::{Module, ProfileId};
 
 use crate::{AnalyzeResult, Compiler};
 
-use super::super::common::ObjectShape;
+use crate::analyze::common::ObjectShape;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Declare the module namespace value type from exported values.
-    pub(crate) fn declare_module_namespace_value_type(
+    pub(crate) fn collect_module_namespace_value_type(
         &self,
         module: &Module,
         profile: ProfileId,

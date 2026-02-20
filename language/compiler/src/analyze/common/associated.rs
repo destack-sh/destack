@@ -607,7 +607,7 @@ impl Compiler {
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Option<AssociatedProjectionSelection>> {
         // evaluate the receiver to a reference-like type
-        let left_ty_id = self.try_evaluate_expression_to_type(
+        let left_ty_id = self.resolve_declared_type_expression(
             module,
             profile,
             left,
@@ -1260,7 +1260,7 @@ impl Compiler {
                         {
                             type_id
                         } else {
-                            self.try_evaluate_expression_to_type(
+                            self.resolve_declared_type_expression(
                                 owner_module,
                                 profile,
                                 expression_id,
@@ -1301,7 +1301,7 @@ impl Compiler {
                                 .as_ref()
                                 .is_none_or(|arguments| arguments.is_empty())
                         {
-                            heritage_type_id = self.try_evaluate_expression_to_type(
+                            heritage_type_id = self.resolve_declared_type_expression(
                                 owner_module,
                                 profile,
                                 expression_id,
@@ -2984,7 +2984,7 @@ impl Compiler {
             if let Ok(alias_expression_id) = alias_source.try_into_typed::<Expression>()
                 && tree.has_node_id(alias_expression_id.id)
             {
-                alias_target_id = self.reevaluate_expression_to_type(
+                alias_target_id = self.resolve_declared_type_expression_fresh(
                     module,
                     profile,
                     alias_expression_id,
@@ -3026,7 +3026,7 @@ impl Compiler {
                         };
 
                         let mut owner_types = owner_module.dir(profile).types.write();
-                        let reevaluated_remote_id = self.reevaluate_expression_to_type(
+                        let reevaluated_remote_id = self.resolve_declared_type_expression_fresh(
                             owner_module,
                             profile,
                             *alias_value_expression,
