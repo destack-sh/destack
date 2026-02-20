@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    DestackFormatContext, FormatterCacheStatsSnapshot, FormatterCounterEntry, FormatterTimingEntry,
+    FormatterTimingScope, FormatterTimingTag,
+};
 
 impl<'a> DestackFormatContext<'a> {
     /// Start a formatter timing scope.

@@ -1,5 +1,10 @@
-use super::*;
+use crate::DestackFormatter;
+use crate::expression::{
+    DeclarationDescriptor, Declarator, DependencyKind, Expression, FormatError, FormatResult,
+    ImportSource, Keyword, LocalNodeId, NodeTree, Pattern, space, token,
+};
 use destack_ast::ImportTarget;
+use destack_fir::format::Buffer;
 use destack_fir::write;
 
 /// Format `export import ... = require(...)` when modeled as an export let.

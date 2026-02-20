@@ -1,6 +1,6 @@
-const value = source
-  .first /* first-boundary */
-  ?.second();
+const value =
+  source.first /* first-boundary */
+    ?.second();
 
 const result = cond
   ? left /* left-note */

@@ -1,4 +1,11 @@
-use super::*;
+use crate::call::format_call_arguments;
+use crate::chain::extract_parenthesized_index_chain;
+use crate::expression::{
+    Argument, DestackFormatter, Expression, FormatResult, LocalNodeId, ParenthesizedUnwrapPolicy,
+    format_static_argument_list, format_with, parenthesized_prefers_new_member_callee_parentheses,
+    parenthesized_should_unwrap, space, token,
+};
+use destack_fir::format::Buffer;
 use destack_fir::write;
 
 /// Format a `new` expression.

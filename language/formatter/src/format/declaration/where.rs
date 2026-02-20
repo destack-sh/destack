@@ -29,7 +29,7 @@ pub(crate) fn format_where_clause<'ast>(
     Ok(())
 }
 
-/// Format a where clause list with a break fallback.
+/// Format a where clause list in a soft break group.
 pub(crate) fn format_where_clause_with_break<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     clauses: &[LocalNodeId<WhereClause>],

@@ -4,13 +4,66 @@ use ast::{
 use destack_ast as ast;
 
 use super::owner::{
-    normalize_formatter_trivia_target_owner, promote_owner_by_shared_start,
-    promote_owner_to_satisfies_expression_ancestor,
+    find_smallest_owner_enclosing_token, normalize_formatter_trivia_target_owner,
+    promote_owner_by_shared_start, promote_owner_to_satisfies_expression_ancestor,
 };
 use super::seam::{
     CommentAttachmentDecision, CommentAttachmentOwners, CommentSeamContext, CommentSeamFacts,
     CommentSeamKeyword, CommentSeamOwnerCache, resolve_comment_seam_owner,
 };
+
+/// Promote one owner to the nearest elementwise binary expression ancestor.
+fn promote_owner_to_elementwise_binary_expression_ancestor(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_id: u32,
+) -> Option<u32> {
+    let mut current_id = Some(owner_id);
+    while let Some(node_id) = current_id {
+        if tree.get_node_type(node_id) == NodeType::Expression {
+            let expression_id = LocalNodeId::<Expression>::new(node_id);
+            if matches!(
+                tree.get(expression_id),
+                Expression::Binary {
+                    operator: ast::BinaryOperator::ElementwiseAnd
+                        | ast::BinaryOperator::ElementwiseOr
+                        | ast::BinaryOperator::ElementwiseXor,
+                    ..
+                }
+            ) {
+                return Some(node_id);
+            }
+        }
+
+        current_id = parents.get_by_id(node_id);
+    }
+
+    None
+}
+
+/// Descend transparent wrappers to the innermost owned expression.
+fn descend_owner_through_transparent_expression_wrappers(tree: &NodeTree, owner_id: u32) -> u32 {
+    let mut current_id = owner_id;
+
+    loop {
+        if tree.get_node_type(current_id) != NodeType::Expression {
+            return current_id;
+        }
+
+        let expression_id = LocalNodeId::<Expression>::new(current_id);
+        let next_id = match tree.get(expression_id) {
+            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+                Some(expression.id)
+            }
+            _ => None,
+        };
+
+        let Some(next_id) = next_id else {
+            return current_id;
+        };
+        current_id = next_id;
+    }
+}
 
 /// Resolve expression operator seam comment rules.
 pub(super) fn try_attach_comment_expression_operator(
@@ -37,6 +90,9 @@ pub(super) fn try_attach_comment_expression_operator(
         facts.token_after_type,
         Some(TokenType::ElementwiseAnd | TokenType::ElementwiseOr | TokenType::ElementwiseXor)
     );
+    let token_before_is_open_parenthesis = facts.token_before_is(TokenType::OpenParenthesis);
+    let token_before_is_assign = facts.token_before_is(TokenType::Assign);
+    let token_before_is_colon = facts.token_before_is(TokenType::Colon);
 
     let token_before_is_as = facts.token_before_is_keyword(CommentSeamKeyword::As);
     let token_before_is_satisfies = facts.token_before_is_keyword(CommentSeamKeyword::Satisfies);
@@ -48,6 +104,37 @@ pub(super) fn try_attach_comment_expression_operator(
     let token_before_is_elementwise_or =
         matches!(facts.token_before_type, Some(TokenType::ElementwiseOr));
     let seam_owner = resolve_comment_seam_owner(context, seam_owner_cache);
+    let starts_leading_type_grouping_operator =
+        token_before_is_open_parenthesis || token_before_is_assign || token_before_is_colon;
+
+    // leading type-grouping operator comments belong to the rhs type expression
+    if token_after_is_elementwise_operator
+        && starts_leading_type_grouping_operator
+        && (comment_is_star || comment_is_line)
+        && let Some(target_node) = context
+            .token_after_span
+            .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+            .or(right_owner)
+            .or(seam_owner)
+    {
+        let target_node = context
+            .token_after_span
+            .map(|token| {
+                promote_owner_by_shared_start(tree, parents, target_node, token.span.start)
+            })
+            .unwrap_or(target_node);
+        let target_node = descend_owner_through_transparent_expression_wrappers(tree, target_node);
+        let target_node =
+            promote_owner_to_elementwise_binary_expression_ancestor(tree, parents, target_node)
+                .unwrap_or(target_node);
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        let position = if has_leading_newline {
+            AnnotationPosition::BlockPrefix
+        } else {
+            AnnotationPosition::LinePrefix
+        };
+        return Some((Some(target_node), position));
+    }
 
     // seam comments before `as` and `satisfies` stay with the asserted left expression
     if !has_leading_newline
@@ -149,11 +236,10 @@ pub(super) fn try_attach_comment_expression_operator(
                 promote_owner_to_satisfies_expression_ancestor(tree, parents, target_node)
             })
             .is_some()
+        && let Some(right_target) = right_owner
     {
-        if let Some(right_target) = right_owner {
-            let right_target = normalize_formatter_trivia_target_owner(tree, right_target);
-            return Some((Some(right_target), AnnotationPosition::LinePrefix));
-        }
+        let right_target = normalize_formatter_trivia_target_owner(tree, right_target);
+        return Some((Some(right_target), AnnotationPosition::LinePrefix));
     }
 
     // line comments after type and bitwise operators should stay with the rhs operand

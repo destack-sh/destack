@@ -83,40 +83,13 @@ fn pattern_field_prefers_multiline(tree: &NodeTree, field_id: LocalNodeId<Patter
     }
 }
 
-/// Return whether source text between delimiters contains a newline.
-fn source_between_delimiters_has_newline(source: &str, open: char, close: char) -> bool {
-    let Some(open_index) = source.find(open) else {
-        return source.contains('\n');
-    };
-    let Some(close_index) = source.rfind(close) else {
-        return source.contains('\n');
-    };
-    if close_index <= open_index {
-        return source.contains('\n');
-    }
-
-    let content_start = open_index + open.len_utf8();
-    source[content_start..close_index].contains('\n')
-}
-
 /// Return whether a pattern source is multiline inside its delimiters.
 fn pattern_has_multiline_source(
     context: &DestackFormatContext<'_>,
     pattern_id: LocalNodeId<Pattern>,
 ) -> bool {
     let span = context.span(pattern_id);
-    let source = context.span_str(span);
-
-    match context.tree.get(pattern_id) {
-        Pattern::Object { .. } | Pattern::TaggedObject { .. } => {
-            source_between_delimiters_has_newline(source, '{', '}')
-        }
-        Pattern::Array { .. } => source_between_delimiters_has_newline(source, '[', ']'),
-        Pattern::Tuple { .. } | Pattern::TaggedTuple { .. } => {
-            source_between_delimiters_has_newline(source, '(', ')')
-        }
-        _ => context.has_newline(span),
-    }
+    context.has_newline(span)
 }
 
 /// Decide whether a pattern field default should force expanded formatting.

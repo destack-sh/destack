@@ -1,4 +1,11 @@
-use super::*;
+use super::{
+    ANNOTATION_STATE_NONE, ANNOTATION_STATE_PRESENT, AnnotationData, AnnotationPosition, Blank,
+    Cell, Comment, Decorator, DestackFormatOptions, Doc, File, FormatContext, Formatter,
+    FormatterCacheStatsCollector, FormatterCountersCollector, FormatterNodeCaches,
+    FormatterTimings, FxHashMap, GroupId, ImmutableStringPool, Keyword, LocalNodeId, MultiSpan,
+    Node, NodeParentIndex, NodeSourceMap, NodeTree, NodeType, OnceCell, Rc, RefCell, SmallVec,
+    Span, TokenSpan, TokenType, build_formatter_annotation_projection,
+};
 
 /// Formatter-owned annotation payload for semantic annotations and placed trivia.
 #[derive(Debug, Clone, Copy)]
@@ -95,6 +102,8 @@ pub struct DestackFormatContext<'a> {
     pub annotation_state_by_node_id: Vec<Cell<u8>>,
     /// Cached source slices for repeated span lookups.
     pub span_text_by_span: RefCell<FxHashMap<Span, &'a str>>,
+    /// Cached parsed identifier keywords by token span.
+    pub token_keyword_by_span: RefCell<FxHashMap<Span, Option<Keyword>>>,
     /// Cached char lengths for repeated span width checks.
     pub span_char_len_by_span: RefCell<FxHashMap<Span, usize>>,
     /// Whether the file text is fully ASCII.
@@ -169,6 +178,8 @@ impl<'a> DestackFormatContext<'a> {
             strings,
             parents,
         } = artifacts;
+        let token_keyword_by_span =
+            super::source::build_token_keyword_map(file, tokens, side_tokens);
         let (formatter_annotation_entries, formatter_annotation_ids_by_node_id) =
             build_formatter_annotation_projection(
                 file,
@@ -177,29 +188,45 @@ impl<'a> DestackFormatContext<'a> {
                 side_tokens,
                 side_span,
                 &parents,
+                &token_keyword_by_span,
             );
         let node_count = tree.next_id() as usize;
         let node_caches = FormatterNodeCaches::new(node_count);
-        let timings_enabled = timings_enabled || timings_enabled_from_env();
-        let file_text = file.text();
-        let has_ignore_directive_markers = file_text.contains("format-ignore")
-            || file_text.contains("fmt-ignore")
-            || file_text.contains("deno-fmt-ignore")
-            || file_text.contains("prettier-ignore")
-            || file_text.contains("biome-ignore format")
-            || file_text.contains("oxfmt-ignore");
-        let source_is_ascii = file_text.is_ascii();
-        let has_template_literal_markers = file_text.contains('`');
+        let source_is_ascii = file.text().is_ascii();
+        let mut has_ignore_directive_markers = false;
+        let mut has_template_literal_markers = false;
         let mut comment_spans = Vec::new();
         let mut line_comment_spans = Vec::new();
         for token in tokens.iter().chain(side_tokens.iter()) {
+            if matches!(
+                token.token.ty,
+                TokenType::TemplateStringStart
+                    | TokenType::TemplateStringMiddle
+                    | TokenType::TemplateStringEnd
+                    | TokenType::TemplateString
+            ) {
+                has_template_literal_markers = true;
+            }
+
             match token.token.ty {
                 TokenType::LineComment | TokenType::DocLineComment => {
                     comment_spans.push(token.span);
                     line_comment_spans.push(token.span);
+
+                    if !has_ignore_directive_markers {
+                        let raw = file.span_str(token.span);
+                        has_ignore_directive_markers =
+                            crate::directive::is_any_ignore_directive_comment(raw);
+                    }
                 }
                 TokenType::BlockComment | TokenType::DocBlockComment => {
                     comment_spans.push(token.span);
+
+                    if !has_ignore_directive_markers {
+                        let raw = file.span_str(token.span);
+                        has_ignore_directive_markers =
+                            crate::directive::is_any_ignore_directive_comment(raw);
+                    }
                 }
                 _ => {}
             }
@@ -234,6 +261,7 @@ impl<'a> DestackFormatContext<'a> {
             annotation_data_by_node_id: RefCell::new(vec![None; node_count]),
             annotation_state_by_node_id,
             span_text_by_span: RefCell::new(FxHashMap::default()),
+            token_keyword_by_span: RefCell::new(token_keyword_by_span),
             span_char_len_by_span: RefCell::new(FxHashMap::default()),
             source_is_ascii,
             newline_offsets: OnceCell::new(),

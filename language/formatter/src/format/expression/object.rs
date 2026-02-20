@@ -1,9 +1,17 @@
-use super::*;
+use crate::analysis::scan::first_non_trivia_token_in_span;
 use crate::collection::{collection_nodes_have_annotations, collection_nodes_have_newline};
 use crate::directive::any_ignore_range_for_nodes;
+use crate::expression::{
+    Argument, DestackFormatContext, DestackFormatter, Expression, FormatResult, LocalNodeId,
+    NodeType, Pattern, PatternField, Property, SmallVec, Span, TokenType, TrailingComma,
+    block_indent, format_block_of_properties, format_with, group, hard_line_break, if_group_breaks,
+    is_tree_attribute_expression, list_like, property_has_complex_type_value,
+    property_has_complex_value, soft_block_indent, space, span_has_comment, token,
+};
 use crate::operator::{
     is_parameter_type_annotation, is_static_type_argument_context, is_type_context,
 };
+use destack_fir::format::Buffer;
 use destack_fir::{format_args, write};
 
 // object literal shape thresholds
@@ -16,40 +24,29 @@ pub(super) fn format_boundary_comment_array<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     elements: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
-    let (Some(first_element), Some(last_element)) = (elements.first(), elements.last()) else {
+    if elements.is_empty() {
         write!(f, [token("[]")])?;
-        return Ok(());
-    };
-
-    let first_span = f.context().span(*first_element);
-    let last_span = f.context().span(*last_element);
-    if first_span.file != last_span.file || first_span.start >= last_span.end {
-        let fallback_elements = elements.to_vec();
-        write!(
-            f,
-            [list_like("[", "]", ",", &fallback_elements).as_collection()]
-        )?;
         return Ok(());
     }
 
-    let value_span = Span::new(first_span.file, first_span.start, last_span.end);
-    let value_source = f.context().span_str(value_span);
-    let value_source = value_source.trim();
-    let needs_trailing_comma = matches!(
-        f.context().options.trailing_comma,
-        TrailingComma::All | TrailingComma::Es5
-    );
-
-    let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write!(f, [f.context().any_prefix_annotations(*first_element)])?;
-        write!(f, [text(value_source)])?;
-        if needs_trailing_comma {
-            write!(f, [token(",")])?;
+    let should_add_trailing_separator = f.context().options.trailing_comma != TrailingComma::None;
+    let body = format_with(|f| {
+        let mut fill = f.fill();
+        for (index, element_id) in elements.iter().copied().enumerate() {
+            let separator = format_with(|f| {
+                if index == 0 {
+                    return Ok(());
+                }
+                write!(f, [token(","), space()])
+            });
+            fill.entry(&separator, &element_id);
         }
-        write!(
-            f,
-            [f.context().any_infix_or_postfix_annotations(*last_element)]
-        )?;
+        fill.finish()?;
+
+        if should_add_trailing_separator {
+            write!(f, [if_group_breaks(&token(","))])?;
+        }
+
         Ok(())
     });
 
@@ -57,9 +54,7 @@ pub(super) fn format_boundary_comment_array<'ast>(
         f,
         [group(&format_args![
             token("["),
-            hard_line_break(),
-            block_indent(&body),
-            hard_line_break(),
+            soft_block_indent(&body),
             token("]")
         ])]
     )
@@ -159,6 +154,34 @@ fn object_has_leading_newline_before_first_property(
     ))
 }
 
+/// Resolve the source separator style for type-literal object members.
+fn type_member_separator(
+    context: &DestackFormatContext<'_>,
+    properties_ids: &[LocalNodeId<Property>],
+) -> &'static str {
+    let mut saw_semicolon = false;
+    for pair in properties_ids.windows(2) {
+        let previous_span = context.span(pair[0]);
+        let next_span = context.span(pair[1]);
+        if previous_span.file != next_span.file || previous_span.end >= next_span.start {
+            continue;
+        }
+
+        let between_span = Span::new(previous_span.file, previous_span.end, next_span.start);
+        let Some(token) = first_non_trivia_token_in_span(context, between_span) else {
+            continue;
+        };
+
+        match token.token.ty {
+            TokenType::Comma => return ",",
+            TokenType::Semicolon => saw_semicolon = true,
+            _ => {}
+        }
+    }
+
+    if saw_semicolon { ";" } else { "," }
+}
+
 /// Format a struct literal.
 /// Format a struct literal expression.
 #[inline]
@@ -185,10 +208,9 @@ pub(crate) fn format_struct_literal<'ast>(
         || collection_nodes_have_annotations(f.context(), properties_ids);
     let span = f.context().span(expression_id);
     let has_newline_in_source = f.context().has_newline(span);
-    let is_typescript = f.context().options.language_type.is_typescript();
     let is_static_type_argument = is_static_type_argument_context(f.context(), expression_id);
-    let in_type_context =
-        is_typescript && (is_type_context(f.context(), expression_id) || is_static_type_argument);
+    let is_type_position = is_type_context(f.context(), expression_id);
+    let in_type_context = is_type_position || is_static_type_argument;
     let has_leading_newline_before_first_property =
         object_has_leading_newline_before_first_property(
             f.context(),
@@ -205,10 +227,9 @@ pub(crate) fn format_struct_literal<'ast>(
 
     // only force expand for methods, annotations, comments, or explicit newlines
     // otherwise let best_fitting decide based on line width
-    let has_comments = span_has_comment(f.context(), span)
-        || properties_ids
-            .iter()
-            .any(|property_id| span_has_comment(f.context(), f.context().span(*property_id)));
+    let has_comments = properties_ids
+        .iter()
+        .any(|property_id| span_has_comment(f.context(), f.context().span(*property_id)));
     let keep_single_inline_comment_object =
         has_comments && properties_ids.len() == SINGLE_PROPERTY_COUNT && !has_newline_in_source;
     let keep_single_inline_annotated_object =
@@ -254,7 +275,15 @@ pub(crate) fn format_struct_literal<'ast>(
         || has_complex_static_type_argument_property
         || should_preserve_tree_attribute_multiline
         || is_complex_assignment_target;
-    let separator = if in_type_context { ";" } else { "," };
+    let separator = if in_type_context {
+        if f.context().options.language_type.is_destack() {
+            type_member_separator(f.context(), properties_ids)
+        } else {
+            ";"
+        }
+    } else {
+        ","
+    };
 
     if has_ignore_ranges {
         write!(

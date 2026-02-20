@@ -1,6 +1,17 @@
-use super::*;
+use crate::analysis::scan::{previous_non_whitespace_token_before_span, token_is_keyword};
 use crate::declaration::r#match::{MatchCaseStyle, format_match_case_with_style};
+use crate::directive::{
+    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
+};
+use crate::empty_block_with_infix_annotations;
+use crate::expression::{
+    Annotation, AnnotationPosition, Block, DestackFormatContext, DestackFormatter, Expression,
+    FormatResult, IfCondition, Keyword, LetKind, LocalNodeId, MatchKind, Pattern, TokenType,
+    block_indent, format_declarator, format_expression, format_with, group, hard_line_break, space,
+    token,
+};
 use destack_ast::BlockFormat;
+use destack_fir::format::{Buffer, FormatError};
 use destack_fir::{format_args, write};
 
 /// Format a statement body block, preserving wrapper semantics.
@@ -22,14 +33,6 @@ pub(super) fn format_statement_body_block<'ast>(
     } else if block.expressions.len() == 1 {
         let expression_id = block.expressions[0];
         let has_expression_prefix_annotation = f.context().has_prefix_annotation(expression_id);
-        if std::env::var("DESTACK_DEBUG_TRIVIA").is_ok() {
-            eprintln!(
-                "statement-body: expression {} has_prefix={} expr={:?}",
-                expression_id.id,
-                has_expression_prefix_annotation,
-                f.context().tree.get(expression_id)
-            );
-        }
         if has_expression_prefix_annotation {
             write!(
                 f,
@@ -92,18 +95,20 @@ pub(super) fn detect_for_each_binding_keyword<'ast>(
     pattern_id: LocalNodeId<Pattern>,
 ) -> Option<Keyword> {
     let pattern_span = context.span(pattern_id);
-    let pattern_source = context.span_str(pattern_span);
-    let pattern_source = pattern_source.trim_start();
-    if pattern_source.starts_with("let ") {
-        return Some(Keyword::Let);
+    let keyword_token = previous_non_whitespace_token_before_span(context, pattern_span)?;
+    if keyword_token.token.ty != TokenType::Identifier {
+        return None;
     }
-    if pattern_source.starts_with("const ") {
-        return Some(Keyword::Const);
+
+    if token_is_keyword(context, keyword_token, Keyword::Let) {
+        Some(Keyword::Let)
+    } else if token_is_keyword(context, keyword_token, Keyword::Const) {
+        Some(Keyword::Const)
+    } else if token_is_keyword(context, keyword_token, Keyword::Var) {
+        Some(Keyword::Var)
+    } else {
+        None
     }
-    if pattern_source.starts_with("var ") {
-        return Some(Keyword::Var);
-    }
-    None
 }
 
 /// Format a for each binding pattern without repeating root mutability keywords.
@@ -284,23 +289,28 @@ pub(crate) fn format_if_else_chain<'ast>(
                     _ => write!(f, [*then_expression_id])?,
                 }
 
-                // postfix annotations
-                if else_expression_id.is_some() || next_if_id != node_id {
-                    write!(f, [f.context().any_postfix_annotations(next_if_id)])?;
-                }
-
                 // next node
                 if let Some(else_expression) = else_expression_id {
-                    // keep compact spacing when else prefixes do not force layout
                     let else_has_effective_prefix_annotation =
                         expression_has_effective_prefix_annotation(f.context(), *else_expression);
+
+                    // keep if-else seams tight: only non-blank postfix stays before else
+                    if else_has_effective_prefix_annotation
+                        || f.context().has_non_blank_postfix_annotation(next_if_id)
+                    {
+                        write!(f, [f.context().any_postfix_annotations(next_if_id)])?;
+                    }
+
+                    // keep compact spacing when else prefixes do not force layout
                     let if_has_postfix_annotation = f.context().has_postfix_annotation(next_if_id);
                     let then_has_postfix_annotation =
                         f.context().has_postfix_annotation(*then_expression_id);
-                    if !else_has_effective_prefix_annotation
-                        && !if_has_postfix_annotation
-                        && !then_has_postfix_annotation
+                    if else_has_effective_prefix_annotation
+                        || if_has_postfix_annotation
+                        || then_has_postfix_annotation
                     {
+                        write!(f, [hard_line_break()])?;
+                    } else {
                         write!(f, [space()])?;
                     }
                     match f.context().tree.get(*else_expression) {
@@ -316,7 +326,11 @@ pub(crate) fn format_if_else_chain<'ast>(
                             write!(f, [f.context().any_prefix_annotations(*else_expression)])?;
                             write!(f, [Keyword::Else, space()])?;
                             format_statement_body_block(f, *else_block_id)?;
-                            write!(f, [f.context().any_postfix_annotations(*else_expression)])?;
+                            if f.context()
+                                .has_non_blank_postfix_annotation(*else_expression)
+                            {
+                                write!(f, [f.context().any_postfix_annotations(*else_expression)])?;
+                            }
                             break;
                         }
                         // something else
@@ -348,6 +362,7 @@ pub(crate) fn format_if_else_chain<'ast>(
                     }
                 } else {
                     // bare if
+                    write!(f, [f.context().any_postfix_annotations(next_if_id)])?;
                     break;
                 }
             }

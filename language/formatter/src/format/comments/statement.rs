@@ -12,7 +12,7 @@ use super::owner::{
 use super::rule::normalize_owner_with_shared_end;
 use super::seam::{
     CommentAttachmentDecision, CommentAttachmentOwners, CommentSeamContext, CommentSeamFacts,
-    CommentSeamOwnerCache, resolve_comment_seam_owner,
+    CommentSeamKeyword, CommentSeamOwnerCache, resolve_comment_seam_owner,
 };
 
 /// Resolve statement-prefix seam comment rules.
@@ -27,22 +27,52 @@ pub(super) fn try_attach_comment_statement_prefix(
     let left_owner = owners.left;
     let right_owner = owners.right;
     let has_leading_newline = facts.has_leading_newline;
+    let comment_is_line = facts.comment_is_line;
     let token_after_is_case_or_default = facts.token_after_is_case_or_default();
+    let token_after_is_close_parenthesis = facts.token_after_is(TokenType::CloseParenthesis);
     let token_after_is_semicolon = facts.token_after_is(TokenType::Semicolon);
+    let token_before_is_comma = facts.token_before_is(TokenType::Comma);
     let token_after_span = context.token_after_span;
     let token_before_span = context.token_before_span.map(|token| token.span);
 
-    // own-line comments before semicolon guards stay with the previous statement seam
-    if has_leading_newline && token_after_is_semicolon {
-        if let Some(target_node) = left_owner {
-            let target_node =
-                normalize_owner_with_shared_end(tree, parents, target_node, token_before_span);
-            return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
-        }
+    // own-line trailing separator comments before `)` should stay on the container item
+    if has_leading_newline
+        && token_before_is_comma
+        && token_after_is_close_parenthesis
+        && comment_is_line
+        && let Some(target_node) = left_owner
+    {
+        let target_node =
+            promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Parameter)
+                .or_else(|| {
+                    promote_owner_to_node_type_ancestor(
+                        tree,
+                        parents,
+                        target_node,
+                        NodeType::Argument,
+                    )
+                })
+                .unwrap_or(target_node);
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
+    }
 
-        if let Some(mut target_node) = token_after_span
-            .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
-            .or(right_owner)
+    // own-line comments before semicolon guards stay with the guarded rhs expression
+    if has_leading_newline && token_after_is_semicolon {
+        let left_owner_is_statement_expression = left_owner.is_some_and(|owner| {
+            if tree.get_node_type(owner) != NodeType::Expression {
+                return false;
+            }
+
+            matches!(
+                tree.get(LocalNodeId::<Expression>::new(owner)),
+                Expression::Statement(_)
+            )
+        });
+        if (left_owner_is_statement_expression || left_owner.is_none())
+            && let Some(mut target_node) = token_after_span
+                .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+                .or(right_owner)
         {
             if tree.get_node_type(target_node) != NodeType::Expression
                 && let Some(expression_target) = promote_owner_to_node_type_ancestor(
@@ -56,6 +86,12 @@ pub(super) fn try_attach_comment_statement_prefix(
             }
 
             return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+        }
+
+        if let Some(target_node) = left_owner {
+            let target_node =
+                normalize_owner_with_shared_end(tree, parents, target_node, token_before_span);
+            return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
         }
     }
 
@@ -99,59 +135,74 @@ pub(super) fn try_attach_comment_statement_suffix(
     let has_leading_newline = facts.has_leading_newline;
     let has_trailing_newline = facts.has_trailing_newline;
     let comment_is_line = facts.comment_is_line;
+    let comment_is_star = facts.comment_is_star;
 
+    let token_before_is_else = facts.token_before_is_keyword(CommentSeamKeyword::Else);
     let token_after_is_case_or_default = facts.token_after_is_case_or_default();
+    let token_after_is_open_brace = facts.token_after_is(TokenType::OpenBrace);
     let token_after_is_close_parenthesis = facts.token_after_is(TokenType::CloseParenthesis);
+    let token_before_is_close_parenthesis = facts.token_before_is(TokenType::CloseParenthesis);
 
     let token_before_is_comma = facts.token_before_is(TokenType::Comma);
-    let token_before_is_control_head_close_paren = facts.token_before_is_control_head_close_paren;
     let token_before_is_return_type_colon = facts.token_before_is_return_type_colon;
+
+    // inline block comments between `else` and `{` stay with the else body block
+    if !has_leading_newline
+        && !has_trailing_newline
+        && comment_is_star
+        && token_before_is_else
+        && token_after_is_open_brace
+        && let Some(target_node) = right_owner
+    {
+        let target_node =
+            promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Block)
+                .unwrap_or(target_node);
+        if tree.get_node_type(target_node) == NodeType::Block {
+            return Some((Some(target_node), AnnotationPosition::LinePrefix));
+        }
+
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::LinePrefix));
+    }
 
     // trailing line comments after control heads should stay before the body statement
     if !has_leading_newline
         && has_trailing_newline
-        && token_before_is_control_head_close_paren
+        && token_before_is_close_parenthesis
         && !token_after_is_case_or_default
         && comment_is_line
+        && let (Some(left_owner), Some(right_owner)) = (left_owner, right_owner)
+        && let Some(shared_owner) =
+            lowest_common_owner_ancestor(tree, parents, left_owner, right_owner)
+        && tree.get_node_type(shared_owner) == NodeType::Expression
     {
-        if let (Some(left_owner), Some(right_owner)) = (left_owner, right_owner)
-            && let Some(shared_owner) =
-                lowest_common_owner_ancestor(tree, parents, left_owner, right_owner)
-            && tree.get_node_type(shared_owner) == NodeType::Expression
-        {
-            let shared_expression = LocalNodeId::<Expression>::new(shared_owner);
-            match tree.get(shared_expression) {
-                Expression::If {
-                    then_expression, ..
-                } => {
-                    if matches!(tree.get(*then_expression), Expression::Block(_)) {
-                        let then_block_expression = *then_expression;
-                        let block_id =
-                            if let Expression::Block(block_id) = tree.get(then_block_expression) {
-                                *block_id
-                            } else {
-                                unreachable!()
-                            };
-                        let (target_node, position) =
-                            resolve_block_leading_comment_target(tree, block_id);
-                        return Some((Some(target_node), position));
-                    }
-                    return Some((Some(then_expression.id), AnnotationPosition::BlockPrefix));
-                }
-                Expression::While { body, .. }
-                | Expression::ForEach { body, .. }
-                | Expression::For { body, .. }
-                | Expression::Loop { body } => {
-                    let (target_node, position) = resolve_block_leading_comment_target(tree, *body);
+        let shared_expression = LocalNodeId::<Expression>::new(shared_owner);
+        match tree.get(shared_expression) {
+            Expression::If {
+                then_expression, ..
+            } => {
+                if matches!(tree.get(*then_expression), Expression::Block(_)) {
+                    let then_block_expression = *then_expression;
+                    let block_id =
+                        if let Expression::Block(block_id) = tree.get(then_block_expression) {
+                            *block_id
+                        } else {
+                            unreachable!()
+                        };
+                    let (target_node, position) =
+                        resolve_block_leading_comment_target(tree, block_id);
                     return Some((Some(target_node), position));
                 }
-                _ => {}
+                return Some((Some(then_expression.id), AnnotationPosition::BlockPrefix));
             }
-        }
-
-        if let Some(target_node) = right_owner {
-            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-            return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+            Expression::While { body, .. }
+            | Expression::ForEach { body, .. }
+            | Expression::For { body, .. }
+            | Expression::Loop { body } => {
+                let (target_node, position) = resolve_block_leading_comment_target(tree, *body);
+                return Some((Some(target_node), position));
+            }
+            _ => {}
         }
     }
 
@@ -166,7 +217,7 @@ pub(super) fn try_attach_comment_statement_suffix(
         return Some((Some(target_node), AnnotationPosition::LinePrefix));
     }
 
-    // parameter trailing comments before `)` should stay attached to the parameter
+    // parameter and argument trailing comments before `)` should stay on the container item
     if !has_leading_newline
         && has_trailing_newline
         && token_before_is_comma
@@ -176,6 +227,14 @@ pub(super) fn try_attach_comment_statement_suffix(
     {
         let target_node =
             promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Parameter)
+                .or_else(|| {
+                    promote_owner_to_node_type_ancestor(
+                        tree,
+                        parents,
+                        target_node,
+                        NodeType::Argument,
+                    )
+                })
                 .unwrap_or(target_node);
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));

@@ -1,6 +1,7 @@
-use ast::{LocalNodeId, NodeParentIndex, NodeTree, TokenSpan};
+use ast::{Keyword, LocalNodeId, NodeParentIndex, NodeTree, TokenSpan};
 use destack_ast as ast;
-use destack_source::{File, MultiSpan};
+use destack_source::{File, MultiSpan, Span};
+use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
 use crate::format::context::{Annotation, FormatterAnnotationEntry};
@@ -15,6 +16,7 @@ pub(crate) fn build_formatter_annotation_projection(
     _side_tokens: &[TokenSpan],
     _side_span: &MultiSpan,
     parents: &NodeParentIndex,
+    token_keyword_by_span: &FxHashMap<Span, Option<Keyword>>,
 ) -> (
     Vec<FormatterAnnotationEntry>,
     Vec<SmallVec<[LocalNodeId<Annotation>; 4]>>,
@@ -57,8 +59,15 @@ pub(crate) fn build_formatter_annotation_projection(
 
     // add comment trivia with formatter-side placement resolution
     for trivia in tree.comment_trivia().iter().copied() {
-        let (target_id, position) =
-            resolve_comment_trivia_attachment(file, tree, tokens, trivia, &owner_index, parents);
+        let (target_id, position) = resolve_comment_trivia_attachment(
+            file,
+            tree,
+            tokens,
+            token_keyword_by_span,
+            trivia,
+            &owner_index,
+            parents,
+        );
 
         let Some(target_id) = target_id else {
             continue;
@@ -83,6 +92,7 @@ pub(crate) fn build_formatter_annotation_projection(
         let (target_id, position) = resolve_formatter_blank_trivia_attachment(
             tree,
             tokens,
+            token_keyword_by_span,
             trivia,
             &owner_index,
             &seam_index,

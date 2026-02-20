@@ -4,8 +4,8 @@ use crate::expression::{is_expression_breakable, is_trivial_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 
 use destack_ast::{
-    Argument, Expression, FloatType, IfKind, IntType, LocalNodeId, ScalarLiteral, TemplateLiteral,
-    TypeLiteral,
+    Argument, Expression, FloatType, IfKind, IntType, LiteralType, LocalNodeId, ScalarLiteral,
+    TemplateLiteral, TypeLiteral,
 };
 use destack_base::StringId;
 use destack_fir::format::{Format, FormatResult, text, token};
@@ -19,12 +19,45 @@ const TEMPLATE_COMPLEX_ARGUMENT_COUNT_THRESHOLD: usize = 2;
 const TEMPLATE_INTERPOLATION_DELIMITER_WIDTH: usize = 4;
 const TEMPLATE_COMPLEX_OBJECT_PROPERTY_THRESHOLD: usize = 2;
 
+/// One token-level source facts snapshot for scalar literal formatting.
+#[derive(Clone, Debug, Default)]
+struct ScalarLiteralSourceFacts {
+    source_lexeme: Option<String>,
+    literal_type: Option<LiteralType>,
+}
+
+/// Collect source facts for one scalar literal span.
+fn scalar_literal_source_facts(
+    context: &DestackFormatContext<'_>,
+    span: Span,
+) -> ScalarLiteralSourceFacts {
+    let token = context.first_non_trivia_token_in_span(span);
+
+    ScalarLiteralSourceFacts {
+        source_lexeme: context.literal_lexeme_in_span(span).map(ToOwned::to_owned),
+        literal_type: token.and_then(|token| token.token.literal),
+    }
+}
+
 /// Escape string content for one quote-delimited literal.
 fn escape_string_literal_content(content: &str, quote_char: char) -> String {
     let mut escaped = String::with_capacity(content.len());
-    for ch in content.chars() {
+    let mut characters = content.chars().peekable();
+
+    while let Some(ch) = characters.next() {
+        if ch == '\\' {
+            let Some(next) = characters.next() else {
+                escaped.push('\\');
+                escaped.push('\\');
+                break;
+            };
+
+            escaped.push('\\');
+            escaped.push(next);
+            continue;
+        }
+
         match ch {
-            '\\' => escaped.push_str("\\\\"),
             '\n' => escaped.push_str("\\n"),
             '\r' => escaped.push_str("\\r"),
             '\t' => escaped.push_str("\\t"),
@@ -37,46 +70,8 @@ fn escape_string_literal_content(content: &str, quote_char: char) -> String {
             _ => escaped.push(ch),
         }
     }
+
     escaped
-}
-
-/// Rewrite one raw quoted string body for a different delimiter while preserving escapes.
-fn rewrite_raw_string_literal_for_quote(
-    inner: &str,
-    source_quote: char,
-    target_quote: char,
-) -> String {
-    let mut rewritten = String::with_capacity(inner.len());
-    let mut chars = inner.chars();
-
-    while let Some(ch) = chars.next() {
-        if ch == '\\' {
-            let Some(next) = chars.next() else {
-                rewritten.push('\\');
-                break;
-            };
-
-            if source_quote != target_quote && next == source_quote {
-                rewritten.push(next);
-            } else if next == target_quote {
-                rewritten.push('\\');
-                rewritten.push(next);
-            } else {
-                rewritten.push('\\');
-                rewritten.push(next);
-            }
-            continue;
-        }
-
-        if ch == target_quote {
-            rewritten.push('\\');
-            rewritten.push(ch);
-        } else {
-            rewritten.push(ch);
-        }
-    }
-
-    rewritten
 }
 
 /// Format a scalar literal.
@@ -86,34 +81,35 @@ pub(crate) fn format_scalar_literal<'ast>(
     span: Span,
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
-    let span_str = f.context().file.get_span_str(span).unwrap_or_default();
+    let source_facts = scalar_literal_source_facts(f.context(), span);
+    let source_lexeme = source_facts.source_lexeme.unwrap_or_default();
+    let literal_type = source_facts.literal_type;
+    let is_tree_text = literal_type == Some(LiteralType::TreeString);
+
     match scalar {
         ScalarLiteral::Boolean(value) => token(if *value { "true" } else { "false" }).format(f)?,
         ScalarLiteral::Integer(value) => {
-            if span_str.is_empty() {
-                // fallback: no source span available, format from value
+            if source_lexeme.is_empty() {
                 text(&value.to_string()).format(f)?;
             } else {
-                let normalized_str = normalize_int(span_str, false);
-                text(&normalized_str).format(f)?;
+                let normalized = normalize_int(&source_lexeme, false);
+                text(normalized.as_ref()).format(f)?;
             }
         }
         ScalarLiteral::Bigint(value) => {
-            if span_str.is_empty() {
-                // fallback: no source span available, format from value
+            if source_lexeme.is_empty() {
                 text(&format!("{value}n")).format(f)?;
             } else {
-                let normalized_str = normalize_int(span_str, true);
-                text(&normalized_str).format(f)?;
+                let normalized = normalize_int(&source_lexeme, true);
+                text(normalized.as_ref()).format(f)?;
             }
         }
         ScalarLiteral::Float(value) => {
-            if span_str.is_empty() {
-                // fallback: no source span available, format from value
+            if source_lexeme.is_empty() {
                 text(&value.to_string()).format(f)?;
             } else {
-                let normalized_str = normalize_float(span_str);
-                text(&normalized_str).format(f)?;
+                let normalized = normalize_float(&source_lexeme);
+                text(normalized.as_ref()).format(f)?;
             }
         }
         ScalarLiteral::Character(value) => {
@@ -152,8 +148,32 @@ pub(crate) fn format_scalar_literal<'ast>(
             let quote_char = quote_style.char_for(content);
             let escaped_content = escape_string_literal_content(content, quote_char);
 
-            if span_str.is_empty() {
-                // fallback: no source span available, format from string pool
+            if is_tree_text {
+                // jsx text content: normalize whitespace based on parsed tree text payload
+                let has_newline = content.contains(['\n', '\r']);
+                let has_non_whitespace =
+                    content.chars().any(|character| !character.is_whitespace());
+                if !has_non_whitespace {
+                    if !has_newline {
+                        write!(f, [text(" ")])?;
+                    }
+                } else if let Some(multiline_lines) = normalize_jsx_text_multiline_lines(content) {
+                    let multiline = format_with(|f| {
+                        for (line_index, line) in multiline_lines.iter().enumerate() {
+                            if line_index > 0 {
+                                write!(f, [hard_line_break()])?;
+                            }
+                            write!(f, [text(line)])?;
+                        }
+
+                        Ok(())
+                    });
+                    write!(f, [multiline])?;
+                } else {
+                    let normalized = normalize_jsx_text(content);
+                    write!(f, [text(normalized.as_str())])?;
+                }
+            } else {
                 let quote_str = if quote_char == '"' { "\"" } else { "'" };
                 write!(
                     f,
@@ -163,49 +183,6 @@ pub(crate) fn format_scalar_literal<'ast>(
                         token(quote_str)
                     ]
                 )?;
-            } else if span_str.starts_with('"') || span_str.starts_with('\'') {
-                // quoted string: normalize to preferred quote style
-                let source_quote = span_str.chars().next().unwrap_or_default();
-                let has_matching_quote = span_str.len() >= 2 && span_str.ends_with(source_quote);
-                if has_matching_quote {
-                    let inner = &span_str[1..span_str.len() - 1];
-                    let normalized_inner = if source_quote == quote_char {
-                        inner.to_string()
-                    } else {
-                        rewrite_raw_string_literal_for_quote(inner, source_quote, quote_char)
-                    };
-                    let quote_str = if quote_char == '"' { "\"" } else { "'" };
-                    write!(
-                        f,
-                        [
-                            token(quote_str),
-                            text(normalized_inner.as_str()),
-                            token(quote_str)
-                        ]
-                    )?;
-                } else {
-                    let quote_str = if quote_char == '"' { "\"" } else { "'" };
-                    write!(
-                        f,
-                        [
-                            token(quote_str),
-                            text(escaped_content.as_str()),
-                            token(quote_str)
-                        ]
-                    )?;
-                }
-            } else {
-                // jsx text content (unquoted): normalize whitespace
-                let has_newline = span_str.contains(['\n', '\r']);
-                let has_non_whitespace = span_str.chars().any(|c| !c.is_whitespace());
-                if !has_non_whitespace {
-                    if !has_newline {
-                        write!(f, [text(" ")])?;
-                    }
-                } else {
-                    let normalized = normalize_jsx_text(span_str);
-                    write!(f, [text(normalized.as_str())])?;
-                }
             }
         }
         ScalarLiteral::RegexString { content, flags } => {
@@ -248,12 +225,10 @@ fn format_interpolated_template_literal<'ast>(
 
         if should_force_inline {
             let expression_id = template_argument_expression_id(f.context(), *argument);
-            let expression_span = f.context().span(expression_id);
-            let raw_expression = f.context().span_str(expression_span).trim();
             write!(
                 f,
                 [
-                    group(&format_args![token("${"), text(raw_expression), token("}")]),
+                    group(&format_args![token("${"), expression_id, token("}")]),
                     *segment,
                 ]
             )?;
@@ -313,9 +288,7 @@ fn template_argument_should_force_inline(
     let expression_id = template_argument_expression_id(context, argument_id);
 
     // keep multiline source interpolations expanded
-    let expression_span = context.span(expression_id);
-    let expression_source = context.span_str(expression_span);
-    if expression_source.contains(['\n', '\r']) {
+    if context.node_has_newline(expression_id) {
         return false;
     }
 
@@ -433,8 +406,7 @@ fn template_argument_should_expand(
         return false;
     }
 
-    let span_str = context.span_str(span);
-    let expression_len = span_str.chars().count();
+    let expression_len = context.node_span_char_len(expression_id);
     let line_width = usize::from(context.options.line_width);
 
     expression_len.saturating_add(TEMPLATE_INTERPOLATION_DELIMITER_WIDTH) > line_width
@@ -562,6 +534,48 @@ fn normalize_jsx_text(text: &str) -> String {
     normalized
 }
 
+/// Normalize multiline jsx text into line-preserving segments.
+fn normalize_jsx_text_multiline_lines(text: &str) -> Option<Vec<String>> {
+    if !text.contains(['\n', '\r']) {
+        return None;
+    }
+
+    let mut lines = text
+        .lines()
+        .filter_map(normalize_jsx_text_line)
+        .collect::<Vec<_>>();
+    if lines.len() <= 1 {
+        return None;
+    }
+
+    let (has_leading_space, has_trailing_space) = jsx_boundary_spaces(text);
+    if has_leading_space {
+        lines[0].insert(0, ' ');
+    }
+    if has_trailing_space {
+        lines
+            .last_mut()
+            .expect("multiline jsx text has at least one line")
+            .push(' ');
+    }
+
+    Some(lines)
+}
+
+/// Normalize one jsx text line by collapsing inner whitespace.
+fn normalize_jsx_text_line(line: &str) -> Option<String> {
+    let mut parts = line.split_whitespace();
+    let first = parts.next()?;
+
+    let mut normalized = String::from(first);
+    for part in parts {
+        normalized.push(' ');
+        normalized.push_str(part);
+    }
+
+    Some(normalized)
+}
+
 /// Check for inline boundary spaces in jsx text.
 fn jsx_boundary_spaces(text: &str) -> (bool, bool) {
     let leading_end = text
@@ -653,39 +667,30 @@ impl<'ast> Format<DestackFormatContext<'ast>> for FloatType {
     }
 }
 
-/// Normalize an integer string to canonical form.
-///
-/// Lowercases prefixes (0b, 0o, 0x) and uppercases hex digits.
+/// Normalize an integer literal lexeme without changing its base or bigint marker.
 fn normalize_int(input: &str, _is_bigint: bool) -> Cow<'_, str> {
-    // normalized string if input is not yet normalized
-    // output must remain empty if input is already normalized
     let mut output = String::new();
-    // tracks the last index of input that has been written to output
-    // if last_index is 0 at the end, then the input is already normalized and can be returned as is
     let mut last_index = 0;
     let mut is_hex = false;
-    let mut chars = input.char_indices();
+    let mut characters = input.char_indices();
 
-    // check if the input starts with a 0 and is followed by a B, O, or X
-    if let Some((_, '0')) = chars.next()
-        && let Some((index, c)) = chars.next()
+    if let Some((_, '0')) = characters.next()
+        && let Some((index, character)) = characters.next()
     {
-        is_hex = matches!(c, 'x' | 'X');
-        if matches!(c, 'B' | 'O' | 'X' | 'b' | 'o' | 'x') {
+        is_hex = matches!(character, 'x' | 'X');
+        if matches!(character, 'B' | 'O' | 'X' | 'b' | 'o' | 'x') {
             output.push('0');
-            output.push(c.to_ascii_lowercase());
-            last_index = index + c.len_utf8();
+            output.push(character.to_ascii_lowercase());
+            last_index = index + character.len_utf8();
         }
     }
 
-    // skip the rest if input is not a hex integer because there are only digits
     if is_hex {
-        for (index, c) in chars {
-            // uppercase hex digits
-            if matches!(c, 'a'..='f') {
+        for (index, character) in characters {
+            if matches!(character, 'a'..='f') {
                 output.push_str(&input[last_index..index]);
-                output.push(c.to_ascii_uppercase());
-                last_index = index + c.len_utf8();
+                output.push(character.to_ascii_uppercase());
+                last_index = index + character.len_utf8();
             }
         }
     }
@@ -698,19 +703,12 @@ fn normalize_int(input: &str, _is_bigint: bool) -> Cow<'_, str> {
     }
 }
 
-/// Normalize a floating point number string to canonical form.
-///
-/// Adds leading/trailing zeros where needed, lowercases exponent, removes plus sign.
+/// Normalize one float literal lexeme without dropping exponent intent.
 fn normalize_float(input: &str) -> Cow<'_, str> {
-    // normalized string if input is not yet normalized
-    // output must remain empty if input is already normalized
     let mut output = String::new();
-    // tracks the last index of input that has been written to output
-    // if last_index is 0 at the end, then the input is already normalized and can be returned as is
     let mut last_index = 0;
-    let mut chars = input.char_indices();
-    let mut prev_char_is_dot = if let Some((index, '.')) = chars.next() {
-        // add a leading 0 if input starts with .
+    let mut characters = input.char_indices();
+    let mut previous_character_is_dot = if let Some((index, '.')) = characters.next() {
         output.push('0');
         output.push('.');
         last_index = index + '.'.len_utf8();
@@ -720,37 +718,33 @@ fn normalize_float(input: &str) -> Cow<'_, str> {
     };
 
     loop {
-        match chars.next() {
-            Some((index, c @ ('e' | 'E'))) => {
-                // add 0 if the e immediately follows a . (e.g., 1.e1)
-                if prev_char_is_dot {
+        match characters.next() {
+            Some((index, character @ ('e' | 'E'))) => {
+                if previous_character_is_dot {
                     output.push_str(&input[last_index..index]);
                     output.push('0');
                     last_index = index;
                 }
 
-                // lowercase exponent part
-                if c == 'E' {
+                if character == 'E' {
                     output.push_str(&input[last_index..index]);
                     output.push('e');
                     last_index = index + 'E'.len_utf8();
                 }
 
-                // remove + in exponent part
-                if let Some((index, '+')) = chars.next() {
+                if let Some((index, '+')) = characters.next() {
                     output.push_str(&input[last_index..index]);
                     last_index = index + '+'.len_utf8();
                 }
 
                 break;
             }
-            Some((_index, c)) => {
-                prev_char_is_dot = c == '.';
+            Some((_index, character)) => {
+                previous_character_is_dot = character == '.';
                 continue;
             }
             None => {
-                if prev_char_is_dot {
-                    // add 0 if fraction part ends with .
+                if previous_character_is_dot {
                     output.push_str(&input[last_index..]);
                     output.push('0');
                     last_index = input.len();

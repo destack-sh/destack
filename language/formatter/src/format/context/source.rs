@@ -1,6 +1,137 @@
-use super::*;
+use super::{
+    Cell, Comment, Cow, DestackFormatContext, Expression, File, FxHashMap, Keyword, LocalNodeId,
+    NODE_BOOL_STATE_FALSE, NODE_BOOL_STATE_TRUE, NODE_SPAN_CHAR_LEN_UNKNOWN, Node, NodeTree,
+    NodeTreeImpl, NodeType, SmallVec, Span, TYPE_CONTEXT_STATE_FALSE, TYPE_CONTEXT_STATE_TRUE,
+    TYPE_CONTEXT_STATE_UNKNOWN, TokenSpan, TokenType, normalize_comment_payload,
+};
+
+/// Build one keyword map for identifier tokens across main and side streams.
+pub(super) fn build_token_keyword_map(
+    file: &File,
+    tokens: &[TokenSpan],
+    side_tokens: &[TokenSpan],
+) -> FxHashMap<Span, Option<Keyword>> {
+    let mut token_keyword_by_span = FxHashMap::default();
+
+    for token in tokens.iter().copied().chain(side_tokens.iter().copied()) {
+        if token.token.ty != TokenType::Identifier {
+            continue;
+        }
+
+        let keyword = file.span_str(token.span).parse::<Keyword>().ok();
+        token_keyword_by_span.insert(token.span, keyword);
+    }
+
+    token_keyword_by_span
+}
+
+/// Return whether a token contributes non-whitespace content.
+#[inline]
+fn token_has_non_whitespace_content(token_type: TokenType) -> bool {
+    !matches!(
+        token_type,
+        TokenType::Whitespace | TokenType::Newline | TokenType::End
+    )
+}
+
+/// Return whether one token stream contains non-whitespace content inside one span.
+fn token_stream_has_non_whitespace_content(tokens: &[TokenSpan], span: Span) -> bool {
+    if span.start >= span.end {
+        return false;
+    }
+
+    let mut index = tokens.partition_point(|token| token.span.end <= span.start);
+    while let Some(token) = tokens.get(index).copied() {
+        if token.span.start >= span.end {
+            break;
+        }
+
+        if token_has_non_whitespace_content(token.token.ty) {
+            return true;
+        }
+
+        index += 1;
+    }
+
+    false
+}
 
 impl<'a> DestackFormatContext<'a> {
+    /// Return the first non-trivia token that intersects one span.
+    #[inline]
+    pub fn first_non_trivia_token_in_span(&self, span: Span) -> Option<TokenSpan> {
+        let mut index = self
+            .tokens
+            .partition_point(|token| token.span.end <= span.start);
+
+        while let Some(token) = self.tokens.get(index).copied() {
+            if token.span.start >= span.end {
+                break;
+            }
+
+            index += 1;
+            if matches!(
+                token.token.ty,
+                TokenType::Whitespace
+                    | TokenType::Newline
+                    | TokenType::LineComment
+                    | TokenType::BlockComment
+                    | TokenType::DocLineComment
+                    | TokenType::DocBlockComment
+            ) {
+                continue;
+            }
+
+            return Some(token);
+        }
+
+        None
+    }
+
+    /// Return one literal token lexeme inside one span.
+    #[inline]
+    pub fn literal_lexeme_in_span(&self, span: Span) -> Option<&'a str> {
+        let token = self.first_non_trivia_token_in_span(span)?;
+        if token.token.ty != TokenType::Literal {
+            return None;
+        }
+
+        Some(self.token_str(token))
+    }
+
+    /// Return byte offsets of all newline characters in the source file.
+    #[inline]
+    fn newline_offsets(&self) -> &[u32] {
+        self.newline_offsets.get_or_init(|| {
+            self.file
+                .text()
+                .bytes()
+                .enumerate()
+                .filter_map(|(index, byte)| (byte == b'\n').then_some(index as u32))
+                .collect()
+        })
+    }
+
+    /// Return the source line count using cached newline offsets.
+    #[inline]
+    pub fn file_line_count(&self) -> usize {
+        let file_text = self.file.text();
+        if file_text.is_empty() {
+            return 0;
+        }
+
+        let newline_count = self.newline_offsets().len();
+        if file_text
+            .as_bytes()
+            .last()
+            .is_some_and(|byte| *byte == b'\n')
+        {
+            newline_count
+        } else {
+            newline_count + 1
+        }
+    }
+
     pub fn has_ignore_directive_markers(&self) -> bool {
         self.has_ignore_directive_markers
     }
@@ -58,11 +189,98 @@ impl<'a> DestackFormatContext<'a> {
         self.span_str(token.span)
     }
 
+    /// Parse one identifier token as a language keyword.
+    #[inline]
+    pub fn token_keyword(&self, token: TokenSpan) -> Option<Keyword> {
+        if token.token.ty != TokenType::Identifier {
+            return None;
+        }
+
+        {
+            let cache = self.token_keyword_by_span.borrow();
+            if let Some(keyword) = cache.get(&token.span) {
+                return *keyword;
+            }
+        }
+
+        let keyword = self.token_str(token).parse::<Keyword>().ok();
+        self.token_keyword_by_span
+            .borrow_mut()
+            .insert(token.span, keyword);
+        keyword
+    }
+
     /// Get one normalized comment payload string.
     #[inline]
     pub fn comment_text(&self, comment_id: LocalNodeId<Comment>) -> Cow<'a, str> {
-        let comment_source = self.span_str(self.span(comment_id));
+        let comment_source = self.comment_raw_text(comment_id);
         normalize_comment_payload(comment_source)
+    }
+
+    /// Get one raw comment text slice.
+    #[inline]
+    pub fn comment_raw_text(&self, comment_id: LocalNodeId<Comment>) -> &'a str {
+        self.span_str(self.span(comment_id))
+    }
+
+    /// Get the source position for one byte offset.
+    #[inline]
+    pub fn source_position(&self, offset: u32) -> Option<(u32, u32)> {
+        self.file.get_position(offset)
+    }
+
+    /// Get the source span for one line index.
+    #[inline]
+    pub fn source_line_span(&self, line_index: u32) -> Option<Span> {
+        self.file.get_line_span(line_index)
+    }
+
+    /// Return whether one line prefix has only whitespace trivia.
+    #[inline]
+    pub fn line_prefix_is_whitespace(&self, offset: u32) -> bool {
+        let Some((line_index, _)) = self.source_position(offset) else {
+            return false;
+        };
+        let Some(line_span) = self.source_line_span(line_index) else {
+            return false;
+        };
+        if line_span.start >= offset {
+            return true;
+        }
+
+        let prefix_span = Span::new(line_span.file, line_span.start, offset);
+        !self.has_non_whitespace_content(prefix_span)
+    }
+
+    /// Get the source line distance between two byte offsets.
+    #[inline]
+    pub fn source_line_distance(&self, start_offset: u32, end_offset: u32) -> Option<u32> {
+        let (start_line, _) = self.source_position(start_offset)?;
+        let (end_line, _) = self.source_position(end_offset)?;
+        end_line.checked_sub(start_line)
+    }
+
+    /// Get the raw line prefix string before one byte offset.
+    #[inline]
+    pub fn line_prefix_text(&self, offset: u32) -> Option<&'a str> {
+        let (line_index, column) = self.source_position(offset)?;
+        let line_span = self.source_line_span(line_index)?;
+        let line_text = self.span_str(line_span);
+        line_text.get(..column as usize)
+    }
+
+    /// Return whether one span ends with a newline byte.
+    #[inline]
+    pub fn span_ends_with_newline(&self, span: Span) -> bool {
+        if span.start >= span.end {
+            return false;
+        }
+
+        self.file
+            .text()
+            .as_bytes()
+            .get(span.end.saturating_sub(1) as usize)
+            .is_some_and(|byte| *byte == b'\n')
     }
 
     /// Get comment tokens sorted by source position.
@@ -521,14 +739,7 @@ impl<'a> DestackFormatContext<'a> {
                 .span_has_newline_misses
                 .set(self.cache_stats.span_has_newline_misses.get() + 1);
         }
-        let newline_offsets = self.newline_offsets.get_or_init(|| {
-            self.file
-                .text()
-                .bytes()
-                .enumerate()
-                .filter_map(|(index, byte)| (byte == b'\n').then_some(index as u32))
-                .collect()
-        });
+        let newline_offsets = self.newline_offsets();
         let newline_index = newline_offsets.partition_point(|offset| *offset < span.start);
         let has_newline = newline_offsets
             .get(newline_index)
@@ -537,6 +748,74 @@ impl<'a> DestackFormatContext<'a> {
             .borrow_mut()
             .insert(span, has_newline);
         has_newline
+    }
+
+    /// Whether the given span contains one explicit blank line in trivia.
+    #[inline]
+    pub fn has_blank_line(&self, span: Span) -> bool {
+        if span.start >= span.end || !self.has_newline(span) {
+            return false;
+        }
+
+        let newline_offsets = self.newline_offsets();
+        let mut newline_index = newline_offsets.partition_point(|offset| *offset < span.start);
+        let Some(mut previous_newline_offset) = newline_offsets.get(newline_index).copied() else {
+            return false;
+        };
+        if previous_newline_offset >= span.end {
+            return false;
+        }
+
+        newline_index += 1;
+        while let Some(newline_offset) = newline_offsets.get(newline_index).copied() {
+            if newline_offset >= span.end {
+                break;
+            }
+
+            let line_span = Span::new(
+                span.file,
+                previous_newline_offset.saturating_add(1),
+                newline_offset,
+            );
+            let line_has_content = token_stream_has_non_whitespace_content(self.tokens, line_span)
+                || token_stream_has_non_whitespace_content(self.side_tokens, line_span);
+            if !line_has_content {
+                return true;
+            }
+
+            previous_newline_offset = newline_offset;
+            newline_index += 1;
+        }
+
+        false
+    }
+
+    /// Whether the given span contains non-whitespace token content.
+    #[inline]
+    pub fn has_non_whitespace_content(&self, span: Span) -> bool {
+        token_stream_has_non_whitespace_content(self.tokens, span)
+            || token_stream_has_non_whitespace_content(self.side_tokens, span)
+    }
+
+    /// Whether the given span starts on a line with only leading whitespace.
+    #[inline]
+    pub fn span_starts_on_own_line(&self, span: Span) -> bool {
+        if span.start == 0 {
+            return true;
+        }
+
+        let newline_offsets = self.newline_offsets();
+        let newline_index = newline_offsets.partition_point(|offset| *offset < span.start);
+        let line_start = newline_index
+            .checked_sub(1)
+            .and_then(|index| newline_offsets.get(index).copied())
+            .map_or(0, |offset| offset.saturating_add(1));
+        if line_start >= span.start {
+            return true;
+        }
+
+        let prefix_span = Span::new(span.file, line_start, span.start);
+        !self.has_non_whitespace_content(prefix_span)
     }
 
     /// Whether the given span contains a comment token.
@@ -587,28 +866,34 @@ impl<'a> DestackFormatContext<'a> {
     pub fn is_at_line_start(&self, node_id: u32) -> bool {
         // find the token starting the node's span
         let span = self.span_by_id(node_id);
-        #[cfg(debug_assertions)]
-        let _span_str = self.span_str(span);
-        let Some(mut token_idx) = self
+        let Some(token_idx) = self
             .tokens
             .iter()
             .position(|token| token.span.start == span.start)
         else {
             return false; // not found
         };
-
-        // can we reach newline or start before hitting something not in side span
-        while let Some(prev_token) = self.tokens.get(token_idx) {
-            if token_idx == 0 || prev_token.token.ty == TokenType::Newline {
-                return true; // reached start
-            } else if self.side_span.contains(&prev_token.span) {
-                token_idx -= 1; // keep looking
-            } else {
-                return false; // hit something else
-            }
+        if token_idx == 0 {
+            return true;
         }
 
-        // reached start
-        true
+        // walk backward from the previous token:
+        // only side-span trivia is allowed before a newline / file start
+        let mut previous_token_idx = token_idx - 1;
+        loop {
+            let Some(previous_token) = self.tokens.get(previous_token_idx) else {
+                return true;
+            };
+            if previous_token.token.ty == TokenType::Newline {
+                return true;
+            }
+            if !self.side_span.contains(&previous_token.span) {
+                return false;
+            }
+            if previous_token_idx == 0 {
+                return true;
+            }
+            previous_token_idx -= 1;
+        }
     }
 }

@@ -1,4 +1,4 @@
-use super::*;
+use super::{DestackFormatContext, Expression, LocalNodeId, is_trivial_expression};
 
 /// Return whether an expression is trivial and inline-safe without annotations.
 pub(super) fn expression_is_trivial_inline_without_annotations(

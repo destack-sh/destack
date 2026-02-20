@@ -1,9 +1,10 @@
 use ast::{
-    AnnotationPosition, Expression, LocalNodeId, NodeParentIndex, NodeTree, NodeType, TokenSpan,
-    TokenType,
+    AnnotationPosition, Expression, Keyword, LocalNodeId, NodeParentIndex, NodeTree, NodeType,
+    TokenSpan, TokenType,
 };
 use destack_ast as ast;
-use destack_source::File;
+use destack_source::{File, Span};
+use rustc_hash::FxHashMap;
 
 use super::assignment::try_attach_comment_assignment;
 use super::context::build_comment_attachment_setup;
@@ -13,7 +14,7 @@ use super::expression::try_attach_comment_expression;
 use super::index::FormatterTriviaOwnerIndex;
 use super::owner::{
     find_smallest_owner_enclosing_range, lowest_common_owner_ancestor,
-    normalize_formatter_trivia_target_owner,
+    normalize_formatter_trivia_target_owner, promote_owner_to_node_type_ancestor,
 };
 use super::seam::{CommentAttachmentDecision, CommentSeamFacts, CommentSeamOwnerCache};
 use super::statement::{
@@ -75,16 +76,26 @@ fn try_attach_comment_parameter_type_boundary(
         return None;
     }
 
-    let (Some(left_owner), Some(right_owner)) = (owners.left, owners.right) else {
-        return None;
-    };
-    let owner = lowest_common_owner_ancestor(tree, parents, left_owner, right_owner)?;
-    if tree.get_node_type(owner) != NodeType::Parameter {
-        return None;
-    }
+    let owner_from_seam_tokens = context
+        .token_before_span
+        .zip(context.token_after_span)
+        .and_then(|(before, after)| {
+            find_smallest_owner_enclosing_range(tree, before.span.start, after.span.end)
+        });
+    let owner_from_owner_pair =
+        owners
+            .left
+            .zip(owners.right)
+            .and_then(|(left_owner, right_owner)| {
+                lowest_common_owner_ancestor(tree, parents, left_owner, right_owner)
+            });
+    let owner = owner_from_seam_tokens
+        .into_iter()
+        .chain(owner_from_owner_pair)
+        .find(|owner_id| tree.get_node_type(*owner_id) == NodeType::Parameter)?;
 
     let target_node = normalize_formatter_trivia_target_owner(tree, owner);
-    Some((Some(target_node), AnnotationPosition::LinePrefix))
+    Some((Some(target_node), AnnotationPosition::BlockInfix))
 }
 
 /// Try specialized seam attachment handlers in priority order.
@@ -138,17 +149,63 @@ fn try_attach_comment_with_specialized_handlers(
     None
 }
 
+/// Normalize line comments after object member trailing commas inside call arguments.
+fn normalize_trailing_object_member_comment_attachment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &super::seam::CommentSeamContext<'_>,
+    facts: &CommentSeamFacts,
+    decision: CommentAttachmentDecision,
+) -> CommentAttachmentDecision {
+    let (owner, position) = decision;
+    let Some(owner_id) = owner else {
+        return (owner, position);
+    };
+
+    if !facts.comment_is_line
+        || facts.has_leading_newline
+        || !facts.token_before_is(TokenType::Comma)
+        || !facts.token_after_is(TokenType::CloseBrace)
+        || tree.get_node_type(owner_id) != NodeType::Argument
+    {
+        return (owner, position);
+    }
+
+    let member_owner = context.token_before_span.and_then(|comma_token| {
+        let search_start = comma_token.span.start.saturating_sub(1);
+        (search_start < comma_token.span.start).then(|| {
+            find_smallest_owner_enclosing_range(tree, search_start, comma_token.span.start)
+        })?
+    });
+    let Some(member_owner) = member_owner.and_then(|candidate| {
+        promote_owner_to_node_type_ancestor(tree, parents, candidate, NodeType::Property)
+    }) else {
+        return (owner, position);
+    };
+
+    let member_owner = normalize_formatter_trivia_target_owner(tree, member_owner);
+    (Some(member_owner), AnnotationPosition::LinePostfixBoundary)
+}
+
 /// Resolve one comment trivia target owner and position from one token seam.
 pub(in super::super) fn resolve_comment_trivia_attachment(
     file: &File,
     tree: &NodeTree,
     semantic_tokens: &[TokenSpan],
+    token_keyword_by_span: &FxHashMap<Span, Option<Keyword>>,
     trivia: destack_ast::CommentTrivia,
     owner_index: &FormatterTriviaOwnerIndex,
     parents: &NodeParentIndex,
 ) -> CommentAttachmentDecision {
-    let setup =
-        build_comment_attachment_setup(file, tree, semantic_tokens, trivia, owner_index, parents);
+    let setup = build_comment_attachment_setup(
+        file,
+        tree,
+        semantic_tokens,
+        token_keyword_by_span,
+        trivia,
+        owner_index,
+        parents,
+    );
     let context = setup.context;
     let owners = setup.owners;
 
@@ -174,8 +231,11 @@ pub(in super::super) fn resolve_comment_trivia_attachment(
         &mut seam_owner_cache,
         owners,
     ) {
-        return decision;
+        return normalize_trailing_object_member_comment_attachment(
+            tree, parents, &context, &facts, decision,
+        );
     }
 
-    attach_comment_default(&context, &facts, &mut seam_owner_cache, owners)
+    let decision = attach_comment_default(&context, &facts, &mut seam_owner_cache, owners);
+    normalize_trailing_object_member_comment_attachment(tree, parents, &context, &facts, decision)
 }

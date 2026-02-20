@@ -525,7 +525,8 @@ const isValid = hasPermission && isActive && !isDisabled
 ```
 
 ```ds expected
-const isValid = hasPermission &&
+const isValid =
+    hasPermission &&
     isActive &&
     !isDisabled;
 ```

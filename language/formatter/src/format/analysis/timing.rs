@@ -105,21 +105,6 @@ impl Drop for FormatterTimingScope {
     }
 }
 
-/// Return whether formatter timings are enabled from environment variables.
-pub fn timings_enabled_from_env() -> bool {
-    std::env::var("DESTACK_FORMATTER_TIMINGS")
-        .ok()
-        .and_then(|value| value.parse::<u8>().ok())
-        .map(|value| value > 0)
-        .or_else(|| {
-            std::env::var("DESTACK_TIMINGS")
-                .ok()
-                .and_then(|value| value.parse::<u8>().ok())
-                .map(|value| value > 0)
-        })
-        .unwrap_or(false)
-}
-
 /// Return a node formatting timing tag for a node type.
 pub fn tag_for_node_type(node_type: NodeType) -> FormatterTimingTag {
     match node_type {

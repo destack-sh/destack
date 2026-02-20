@@ -1,3 +1,4 @@
+use crate::analysis::call_arguments_preserve_blank_line_between;
 use crate::analysis::scan::{
     next_non_whitespace_token_after_annotation, previous_non_whitespace_token_before_annotation,
 };
@@ -42,18 +43,8 @@ fn argument_should_emit_prefix_annotations(
     !argument_has_blank_prefix_annotation(context, argument_id)
 }
 
-/// Return one satisfies static seam line comment source for this argument when present.
-pub(in crate::format) fn argument_satisfies_static_seam_comment_source(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> Option<String> {
-    let seam_comment_id = argument_satisfies_static_seam_comment_id(context, argument_id)?;
-    let span = context.annotation_span(seam_comment_id);
-    Some(context.span_str(span).trim().to_string())
-}
-
 /// Return one satisfies static seam line comment annotation id for this argument when present.
-pub(super) fn argument_satisfies_static_seam_comment_id(
+pub(in crate::format) fn argument_satisfies_static_seam_comment_annotation_id(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Annotation>> {
@@ -168,7 +159,7 @@ fn argument_has_satisfies_static_seam_prefix_line_comment(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    argument_satisfies_static_seam_comment_id(context, argument_id).is_some()
+    argument_satisfies_static_seam_comment_annotation_id(context, argument_id).is_some()
 }
 
 /// Return whether an argument belongs to a call or new expression.
@@ -321,8 +312,8 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
         node_id: LocalNodeId<Argument>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        // fast path: annotation free positional and spread arguments dominate call sites
-        // and don't need the expensive prefix and trailing annotation checks
+        // short circuit: annotation free positional and spread arguments dominate call sites
+        // and do not need expensive prefix and trailing annotation checks
         let has_argument_annotation = f.context().has_annotation(node_id);
         if !has_argument_annotation {
             match self {
@@ -384,7 +375,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
             write!(f, [f.context().any_prefix_annotations(node_id)])?;
         } else if should_emit_prefix_annotations {
             if should_preserve_blank_line_before_prefix_comment && has_argument_prefix_comment {
-                write!(f, [hard_line_break()])?;
+                write!(f, [empty_line()])?;
             }
             write!(f, [f.context().any_prefix_annotations(node_id)])?;
         }
@@ -404,7 +395,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                 // value
                 if should_preserve_blank_line_before_prefix_comment && !has_argument_prefix_comment
                 {
-                    write!(f, [hard_line_break()])?;
+                    write!(f, [empty_line()])?;
                 }
                 write!(f, [token(":"), space(), value])?;
             }
@@ -422,7 +413,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                 // value
                 if should_preserve_blank_line_before_prefix_comment && !has_argument_prefix_comment
                 {
-                    write!(f, [hard_line_break()])?;
+                    write!(f, [empty_line()])?;
                 }
                 write!(f, [token(":"), space(), value])?;
             }
@@ -435,7 +426,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                 }
                 if should_preserve_blank_line_before_prefix_comment && !has_argument_prefix_comment
                 {
-                    write!(f, [hard_line_break()])?;
+                    write!(f, [empty_line()])?;
                 }
                 write!(f, [value])?;
                 // modifiers
@@ -456,7 +447,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                     if should_preserve_blank_line_before_prefix_comment
                         && !has_argument_prefix_comment
                     {
-                        write!(f, [hard_line_break()])?;
+                        write!(f, [empty_line()])?;
                     }
                     write!(f, [token(":"), space(), value])?;
                 } else {
@@ -466,7 +457,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                     if should_preserve_blank_line_before_prefix_comment
                         && !has_argument_prefix_comment
                     {
-                        write!(f, [hard_line_break()])?;
+                        write!(f, [empty_line()])?;
                     }
                     write!(f, [value])?;
                     format_binding_modifiers_postfix_maybe(f, *modifiers)?;
@@ -518,21 +509,17 @@ fn argument_prefix_comment_has_leading_blank_line_after_separator(
         return false;
     };
 
+    if call_arguments_preserve_blank_line_between(context, previous_argument_id, argument_id) {
+        return true;
+    }
+
     let previous_span = context.span(previous_argument_id);
     if previous_span.end >= prefix_comment_start {
         return false;
     }
 
-    let between = context.span_str(Span::new(
-        previous_span.file,
-        previous_span.end,
-        prefix_comment_start,
-    ));
-    between
-        .chars()
-        .filter(|character| *character == '\n')
-        .count()
-        >= 2
+    let between_span = Span::new(previous_span.file, previous_span.end, prefix_comment_start);
+    context.has_blank_line(between_span)
 }
 
 /// Return the start offset of the first prefix comment on an argument or its value.
@@ -641,7 +628,6 @@ fn argument_contains_lambda_value(context: &DestackFormatContext<'_>, argument: 
 
 #[cfg(test)]
 mod tests {
-    use crate::collection::list::{raw_ends_with_separator, strip_trailing_comments};
     use crate::{DestackFormatOptions, TestFormatter, assert_format};
 
     #[test]
@@ -672,25 +658,5 @@ mod tests {
             |p| p.eat_tree_argument(),
             DestackFormatOptions::default()
         );
-    }
-
-    #[test]
-    fn test_strip_trailing_comments_keeps_leading_ignore_block_comment() {
-        let raw = "/* biome-ignore format: keep */\nsomeProperty:    alias,";
-        let stripped = strip_trailing_comments(raw);
-
-        assert_eq!(stripped, raw);
-    }
-
-    #[test]
-    fn test_raw_ends_with_separator_for_ignored_field_with_leading_comment() {
-        let raw = "/* biome-ignore format: keep */\nsomeProperty:    alias,";
-        assert!(raw_ends_with_separator(raw, ","));
-    }
-
-    #[test]
-    fn test_raw_ends_with_separator_with_trailing_line_comment() {
-        let raw = "someProperty: alias, // keep";
-        assert!(raw_ends_with_separator(raw, ","));
     }
 }

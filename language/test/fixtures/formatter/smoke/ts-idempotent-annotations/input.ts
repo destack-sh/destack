@@ -1,8 +1,10 @@
-type Value = First | // union-line
-    Second | Third;
+type Value =
+  | First // union-line
+  | Second
+  | Third;
 
-const config = { retries: 3 } satisfies // sat-tail
-Record<string, number>;
+const config = {
+  retries: 3,
+} satisfies Record<string, number>; // sat-tail
 
-const value = source as // as-tail
-number;
+const value = source as number; // as-tail

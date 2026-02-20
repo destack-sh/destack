@@ -1,5 +1,11 @@
-use super::*;
-use crate::operator::expression_static_arguments;
+use crate::expression::{
+    Argument, AssignOperator, Asynchrony, BinaryOperator, DeclarationKind, Declarator,
+    DestackFormatContext, DestackFormatter, Expression, FormatError, FormatResult, LetKind,
+    LocalNodeId, NodeTree, NodeType, PostfixPosition, StringId, expression_inline_width_hint,
+    is_chain_expression, needs_parens_in_postfix_position, pattern_inline_width_hint, token,
+    write_postfix_base_expression,
+};
+use destack_fir::format::Buffer;
 use destack_fir::write;
 
 // assignment/declarator inline width constants
@@ -15,7 +21,6 @@ const USING_PREFIX_LEN: usize = 6;
 const LET_PREFIX_LEN: usize = 4;
 const VAR_PREFIX_LEN: usize = 4;
 const CONST_PREFIX_LEN: usize = 6;
-const HUG_STATIC_ARGUMENT_MAX_COUNT: usize = 3;
 
 /// Extract a parenthesized base with a direct index chain.
 pub(crate) fn extract_parenthesized_index_chain(
@@ -437,9 +442,7 @@ pub(crate) fn should_use_trailing_coalesce(
         return true;
     }
 
-    let line_width = usize::from(context.options.line_width);
-    let expression_len = expression_source_len(context, node_id);
-    expression_len > line_width
+    false
 }
 
 /// Estimate the remaining inline width for a rhs in an assignment-like parent.
@@ -450,72 +453,39 @@ pub(crate) fn assignment_like_remaining_width(
     let line_width = usize::from(context.options.line_width);
     let (parent_type, parent_id) = assignment_like_parent(context, node_id)?;
 
-    // compute remaining width based on the specific parent form
     match parent_type {
         NodeType::Expression => {
-            let parent_expr = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
-            let Expression::Assign { left, operator, .. } = parent_expr else {
-                return None;
+            let parent_expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
+            let Expression::Assign { left, operator, .. } = parent_expression else {
+                return Some(line_width);
             };
 
-            // account for `left <space> op <space>`
-            let left_source_len = expression_source_len(context, *left);
+            let left_len = expression_inline_width_hint(context, *left);
             let operator_len = assign_operator_len(operator);
-            let inline_overhead = left_source_len
+            let consumed_len = left_len
                 .saturating_add(operator_len)
                 .saturating_add(ASSIGNMENT_OPERATOR_PADDING_WIDTH);
 
-            Some(line_width.saturating_sub(inline_overhead))
+            Some(line_width.saturating_sub(consumed_len))
         }
         NodeType::Declarator => {
-            let declarator_id = LocalNodeId::<Declarator>::new(parent_id);
-            let declarator = context.tree.get(declarator_id);
-            let pattern_span = context.span(declarator.pattern);
-            let pattern_source_len = context.span_char_len(pattern_span);
-            let type_source_len = declarator
-                .ty
-                .map(|ty_id| expression_source_len(context, ty_id));
-            let header_source_len = type_source_len.map_or(pattern_source_len, |type_len| {
-                pattern_source_len
-                    .saturating_add(type_len)
+            let declarator = context.tree.get(LocalNodeId::<Declarator>::new(parent_id));
+            let prefix_len =
+                declarator_leading_prefix_len(context, LocalNodeId::<Declarator>::new(parent_id));
+            let pattern_len = pattern_inline_width_hint(context, declarator.pattern);
+            let type_len = declarator.ty.map_or(0usize, |type_id| {
+                expression_inline_width_hint(context, type_id)
                     .saturating_add(DECLARATOR_TYPE_SEPARATOR_INLINE_WIDTH)
             });
+            let consumed_len = prefix_len
+                .saturating_add(pattern_len)
+                .saturating_add(type_len)
+                .saturating_add(DECLARATOR_ASSIGNMENT_SEPARATOR_INLINE_WIDTH);
 
-            // account for `header <space> = <space>`
-            let remaining_width = line_width.saturating_sub(
-                header_source_len.saturating_add(DECLARATOR_ASSIGNMENT_SEPARATOR_INLINE_WIDTH),
-            );
-            let leading_prefix_len = declarator_leading_prefix_len(context, declarator_id);
-            Some(remaining_width.saturating_sub(leading_prefix_len))
+            Some(line_width.saturating_sub(consumed_len))
         }
-        _ => None,
+        _ => Some(line_width),
     }
-}
-
-/// Get the approximate rendered length of prefix annotations attached to an expression.
-pub(crate) fn expression_prefix_annotation_source_len(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> usize {
-    context
-        .visit_annotations(expression_id, |annotations| {
-            let mut total_len = 0usize;
-            for annotation_id in annotations {
-                let position = context.annotation(*annotation_id).position();
-                if !matches!(
-                    position,
-                    AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-                ) {
-                    continue;
-                }
-
-                let span = context.annotation_span(*annotation_id);
-                let annotation_len = context.span_char_len(span);
-                total_len = total_len.saturating_add(annotation_len);
-            }
-            total_len
-        })
-        .unwrap_or(0)
 }
 
 /// Estimate the leading declaration header width before a declarator.
@@ -586,159 +556,4 @@ pub(crate) fn declarator_leading_prefix_len(
         }
         _ => 0,
     }
-}
-
-/// Check whether source contains a newline between two expression nodes.
-pub(crate) fn has_newline_between_expressions(
-    context: &DestackFormatContext<'_>,
-    left_id: LocalNodeId<Expression>,
-    right_id: LocalNodeId<Expression>,
-) -> bool {
-    let left_span = context.span(left_id);
-    let right_span = context.span(right_id);
-    if left_span.file != right_span.file || left_span.end >= right_span.start {
-        return false;
-    }
-
-    context.has_newline(Span::new(left_span.file, left_span.end, right_span.start))
-}
-
-/// Check whether source contains a comment between two expression nodes.
-pub(crate) fn has_comment_between_expressions(
-    context: &DestackFormatContext<'_>,
-    left_id: LocalNodeId<Expression>,
-    right_id: LocalNodeId<Expression>,
-) -> bool {
-    let left_span = context.span(left_id);
-    let right_span = context.span(right_id);
-    if left_span.file != right_span.file || left_span.end >= right_span.start {
-        return false;
-    }
-
-    span_has_comment(
-        context,
-        Span::new(left_span.file, left_span.end, right_span.start),
-    )
-}
-
-/// Return the first `//` comment text between two expression nodes, if present.
-pub(crate) fn line_comment_between_expressions(
-    context: &DestackFormatContext<'_>,
-    left_id: LocalNodeId<Expression>,
-    right_id: LocalNodeId<Expression>,
-) -> Option<String> {
-    let left_span = context.span(left_id);
-    let right_span = context.span(right_id);
-    if left_span.file != right_span.file || left_span.end >= right_span.start {
-        return None;
-    }
-
-    let between = context.span_str(Span::new(left_span.file, left_span.end, right_span.start));
-    let comment_start = between.find("//")?;
-    let comment_tail = &between[comment_start..];
-    let comment_line_end = comment_tail.find('\n').unwrap_or(comment_tail.len());
-    let comment = comment_tail[..comment_line_end].trim();
-    if comment.starts_with("//") {
-        Some(comment.to_string())
-    } else {
-        None
-    }
-}
-
-/// Get the source length of an expression span.
-pub(crate) fn expression_source_len(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> usize {
-    context.node_span_char_len(expression_id)
-}
-
-/// Decide whether static argument lists should expand at the list level.
-pub(crate) fn should_expand_static_argument_list(
-    context: &DestackFormatContext<'_>,
-    static_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    if static_arguments.len() != 1 {
-        return false;
-    }
-
-    // keep single direct object-like type arguments hugged as `<{ ... }>`
-    let value_id = argument_value_id(context.tree, static_arguments[0]);
-    let value_id = transparent_inner_expression(context, value_id);
-    if matches!(
-        context.tree.get(value_id),
-        Expression::ObjectExpression { .. } | Expression::TypeMapped { .. }
-    ) {
-        return false;
-    }
-
-    // only expand list-level generic wrappers when source is already multiline and
-    // the nested type arguments include object-like forms
-    if !context.node_has_newline(value_id) {
-        return false;
-    }
-
-    expression_static_arguments(context.tree.get(value_id)).is_some_and(|nested_arguments| {
-        nested_arguments.iter().copied().any(|nested_argument_id| {
-            let nested_value_id = argument_value_id(context.tree, nested_argument_id);
-            let nested_value_id = transparent_inner_expression(context, nested_value_id);
-            matches!(
-                context.tree.get(nested_value_id),
-                Expression::ObjectExpression { .. } | Expression::TypeMapped { .. }
-            )
-        })
-    })
-}
-
-/// Decide whether static argument lists should stay inline regardless of line width.
-pub(crate) fn should_hug_static_argument_list(
-    context: &DestackFormatContext<'_>,
-    static_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    if static_arguments.is_empty() || static_arguments.len() > HUG_STATIC_ARGUMENT_MAX_COUNT {
-        return false;
-    }
-
-    static_arguments.iter().copied().all(|argument_id| {
-        if argument_has_non_blank_annotation(context, argument_id) {
-            return false;
-        }
-
-        let argument_span = context.span(argument_id);
-        let argument_source = context.span_str(argument_span).trim();
-        if argument_source.contains('\n') {
-            return false;
-        }
-
-        // avoid hugging static arguments with explicit type operators
-        // like `typeof Foo`, which should still wrap in constrained contexts
-        if argument_source.contains(char::is_whitespace) {
-            return false;
-        }
-
-        // avoid hugging object or array-like static arguments
-        if argument_source.contains('{') || argument_source.contains('[') {
-            return false;
-        }
-
-        true
-    })
-}
-
-/// Decide whether a mapped type should force multiline formatting.
-pub(crate) fn should_force_multiline_mapped_type(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    value_id: LocalNodeId<Expression>,
-) -> bool {
-    if context.has_annotation(node_id) {
-        return true;
-    }
-
-    let span = context.span(node_id);
-    if context.has_newline(span) {
-        return true;
-    }
-
-    is_expression_breakable(context.tree, context.tree.get(value_id))
 }

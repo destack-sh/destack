@@ -1,7 +1,22 @@
-use super::*;
+use super::dependency::{format_export_expression, format_import_expression};
+use super::sort::format_export_import_equals;
 use crate::analysis::timing::tags;
-use crate::declaration::imports::sort_dependency_items;
-use destack_ast::{Comment, CommentStyle, ImportTarget};
+use crate::directive::{
+    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
+};
+use crate::expression::{
+    Annotation, AnnotationPosition, Asynchrony, Block, DeclarationDescriptor, DeclarationKind,
+    Declarator, DestackFormatContext, DestackFormatter, Expression, ForEachBinding,
+    ForEachDeclarationKind, ForEachKind, FormatResult, IfKind, Keyword, LetKind, LocalNodeId,
+    Mutability, NodeType, Pattern, TypeUnaryOperator, WhileKind, YieldCardinality, block_indent,
+    detect_for_each_binding_keyword, format_declarator, format_expression,
+    format_for_each_binding_pattern, format_if_else_chain, format_match,
+    format_statement_body_block, format_ternary, format_with, group, hard_line_break,
+    is_empty_statement_block, space, token, tree_literal_should_break,
+    yield_value_has_leading_prefix_comment,
+};
+use destack_ast::{Comment, CommentStyle};
+use destack_fir::format::{Buffer, Format};
 use destack_fir::write;
 
 /// Return whether a statement wrapper should print a trailing semicolon.
@@ -65,9 +80,7 @@ fn expression_has_multiline_block_postfix_annotation(
             return false;
         }
 
-        context
-            .span_str(context.annotation_span(annotation_id))
-            .contains('\n')
+        context.has_newline(context.annotation_span(annotation_id))
     })
 }
 
@@ -100,14 +113,25 @@ fn format_statement_wrapped_expression<'ast>(
         write!(f, [token(";")])?;
     }
 
+    // regular if chains emit their own edge annotations in control formatter
+    let if_chain_handles_annotations = matches!(
+        expression,
+        Expression::If {
+            kind: IfKind::If,
+            ..
+        }
+    );
+
     // postfix and infix annotations
-    if !matches!(
-        directive,
-        Some(FormatterDirective {
-            kind: FormatterDirectiveKind::IgnoreFormat,
-            position: FormatterDirectivePosition::Postfix { .. },
-        })
-    ) {
+    if !if_chain_handles_annotations
+        && !matches!(
+            directive,
+            Some(FormatterDirective {
+                kind: FormatterDirectiveKind::IgnoreFormat,
+                position: FormatterDirectivePosition::Postfix { .. },
+            })
+        )
+    {
         let call_or_new_handles_empty_infix = matches!(
             expression,
             Expression::Call {
@@ -137,316 +161,6 @@ fn format_statement_wrapped_expression<'ast>(
 
     if semicolon_after_multiline_as_const_postfix {
         write!(f, [token(";")])?;
-    }
-
-    Ok(())
-}
-
-/// Format `with { ... }` arguments for import and export statements.
-fn format_dependency_with_arguments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    arguments: &[LocalNodeId<Argument>],
-) -> FormatResult<()> {
-    // source newlines inside `with` should expand the collection
-    let should_expand_with_arguments =
-        call_arguments_are_multiline_in_source(f.context(), arguments);
-    let mut with_arguments = list_like("{", "}", ",", arguments);
-    with_arguments
-        .as_collection()
-        .include_space()
-        .should_expand(should_expand_with_arguments);
-
-    write!(f, [space(), Keyword::With, space(), with_arguments])
-}
-
-/// Format an import expression.
-fn format_import_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    source: ImportSource,
-    kind: DependencyKind,
-    target: &ImportTarget,
-    items: &[LocalNodeId<DependencyItem>],
-    arguments: Option<&[LocalNodeId<Argument>]>,
-) -> FormatResult<()> {
-    let tree = f.context().tree;
-    let organize = f.context().options.organize_imports.is_enabled();
-    let sort_order = f.context().options.import_sort_order;
-    let items_have_annotations = items.iter().any(|item| f.context().has_annotation(*item));
-
-    // import call
-    if source == ImportSource::ImportCall {
-        write!(f, [Keyword::Import, token("(")])?;
-
-        let should_expand_import_call_arguments = match target {
-            ImportTarget::Expression { target } => {
-                f.context().has_annotation(*target) || f.context().node_has_newline(*target)
-            }
-            ImportTarget::String(_) => false,
-        };
-
-        if should_expand_import_call_arguments {
-            write!(f, [hard_line_break()])?;
-            write!(
-                f,
-                [group(&block_indent(&format_with(|f| {
-                    let arguments_len = arguments.map_or(0, |items| items.len());
-                    let total_items = 1usize + arguments_len;
-
-                    // target item
-                    match target {
-                        ImportTarget::String(target) => {
-                            write!(f, [token("\""), *target, token("\"")])?;
-                        }
-                        ImportTarget::Expression { target } => {
-                            write!(f, [*target])?;
-                        }
-                    }
-                    if total_items > 1 {
-                        write!(f, [token(",")])?;
-                    }
-
-                    // with-arguments items
-                    if let Some(arguments) = arguments {
-                        for (index, argument) in arguments.iter().enumerate() {
-                            write!(f, [hard_line_break(), *argument])?;
-                            if index + 1 < arguments.len() {
-                                write!(f, [token(",")])?;
-                            }
-                        }
-                    }
-
-                    Ok(())
-                })))]
-            )?;
-            write!(f, [hard_line_break(), token(")")])?;
-        } else {
-            match target {
-                ImportTarget::String(target) => {
-                    write!(f, [token("\""), *target, token("\"")])?;
-                }
-                ImportTarget::Expression { target } => {
-                    write!(f, [*target])?;
-                }
-            }
-
-            if let Some(arguments) = arguments {
-                for argument in arguments {
-                    write!(f, [token(","), space(), *argument])?;
-                }
-            }
-
-            write!(f, [token(")")])?;
-        }
-        return Ok(());
-    }
-
-    let target = match target {
-        ImportTarget::String(target) => *target,
-        ImportTarget::Expression { .. } => {
-            return Err(FormatError::SyntaxError {
-                message: "import declarations require string targets",
-            });
-        }
-    };
-
-    // keyword
-    write!(f, [Keyword::Import, space()])?;
-    if source == ImportSource::ImportEquals {
-        if kind == DependencyKind::Type {
-            write!(f, [Keyword::Type, space()])?;
-        }
-
-        // import equals requires a default alias
-        let alias = items.first().and_then(|item| tree.get(*item).alias).ok_or(
-            FormatError::SyntaxError {
-                message: "import equals requires an alias",
-            },
-        )?;
-        write!(
-            f,
-            [
-                alias,
-                space(),
-                token("="),
-                space(),
-                token("require"),
-                token("("),
-                token("\""),
-                target,
-                token("\""),
-                token(")")
-            ]
-        )?;
-        return Ok(());
-    }
-    if kind == DependencyKind::Type {
-        write!(f, [Keyword::Type, space()])?;
-    }
-
-    // items
-    let first_item = items.first().map(|item| tree.get(*item));
-
-    // namespace import
-    if items.len() == 1 && first_item.is_some_and(|item| item.mode == DependencyMode::Namespace) {
-        let Some(first_item) = first_item else {
-            return Err(FormatError::SyntaxError {
-                message: "namespace import requires at least one dependency item",
-            });
-        };
-
-        write!(
-            f,
-            [token("*"), space(), Keyword::As, space(), first_item.alias]
-        )?;
-    }
-    // default + named imports
-    else if let Some(first_item) = first_item
-        && first_item.mode == DependencyMode::Default
-    {
-        let rest_items = &items[1..];
-        write!(f, [first_item.alias])?;
-        if !rest_items.is_empty() {
-            // sort named imports when organize_imports is enabled
-            let sorted_rest = if organize && !items_have_annotations {
-                sort_dependency_items(rest_items, tree, f.context().strings, sort_order)
-            } else {
-                rest_items.to_vec()
-            };
-            write!(f, [token(","), space()])?;
-            let mut rest_list = list_like("{", "}", ",", &sorted_rest);
-            rest_list
-                .as_collection()
-                .include_space()
-                .should_expand(items_have_annotations);
-            write!(f, [rest_list])?;
-        }
-    }
-    // named imports
-    else if !items.is_empty() {
-        // sort named imports when organize_imports is enabled
-        let sorted_items = if organize && !items_have_annotations {
-            sort_dependency_items(items, tree, f.context().strings, sort_order)
-        } else {
-            items.to_vec()
-        };
-        let mut items_list = list_like("{", "}", ",", &sorted_items);
-        items_list
-            .as_collection()
-            .include_space()
-            .should_expand(items_have_annotations);
-        write!(f, [items_list])?;
-    }
-
-    // from clause
-    if !items.is_empty() {
-        write!(f, [space(), Keyword::From, space()])?;
-    }
-    write!(f, [token("\""), target, token("\"")])?;
-
-    // with clause
-    if let Some(arguments) = arguments {
-        format_dependency_with_arguments(f, arguments)?;
-    }
-
-    Ok(())
-}
-
-/// Format an export expression.
-fn format_export_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    kind: DependencyKind,
-    target: Option<StringId>,
-    items: &[LocalNodeId<DependencyItem>],
-    arguments: Option<&[LocalNodeId<Argument>]>,
-) -> FormatResult<()> {
-    let tree = f.context().tree;
-    let organize = f.context().options.organize_imports.is_enabled();
-    let sort_order = f.context().options.import_sort_order;
-    let items_have_annotations = items.iter().any(|item| f.context().has_annotation(*item));
-
-    // keyword
-    write!(f, [Keyword::Export, space()])?;
-    if kind == DependencyKind::Type {
-        write!(f, [Keyword::Type, space()])?;
-    }
-
-    // items
-    let first_item = items.first().map(|item| tree.get(*item));
-
-    // default export with value: export default <value>
-    if items.len() == 1
-        && first_item
-            .is_some_and(|item| item.mode == DependencyMode::Default && item.value.is_some())
-    {
-        let Some(first_item) = first_item else {
-            return Err(FormatError::SyntaxError {
-                message: "default export requires at least one dependency item",
-            });
-        };
-        let Some(value) = first_item.value else {
-            return Err(FormatError::SyntaxError {
-                message: "default export requires a dependency value",
-            });
-        };
-        write!(f, [Keyword::Default, space(), value])?;
-    }
-    // namespace export: export * as X, export = X
-    else if items.len() == 1
-        && first_item.is_some_and(|item| item.mode == DependencyMode::Namespace)
-    {
-        let Some(first_item) = first_item else {
-            return Err(FormatError::SyntaxError {
-                message: "namespace export requires at least one dependency item",
-            });
-        };
-        if first_item.value.is_some() && target.is_none() {
-            let Some(value) = first_item.value else {
-                return Err(FormatError::SyntaxError {
-                    message: "namespace export assignment requires a dependency value",
-                });
-            };
-            write!(f, [token("="), space(), value])?;
-        } else {
-            write!(f, [token("*")])?;
-            if let Some(alias) = first_item.alias {
-                write!(f, [space(), Keyword::As, space(), alias])?;
-            }
-        }
-    }
-    // named exports
-    else if !items.is_empty() {
-        // sort named exports when organize_imports is enabled
-        let sorted_items = if organize && !items_have_annotations {
-            sort_dependency_items(items, tree, f.context().strings, sort_order)
-        } else {
-            items.to_vec()
-        };
-        let mut items_list = list_like("{", "}", ",", &sorted_items);
-        items_list
-            .as_collection()
-            .include_space()
-            .should_expand(items_have_annotations);
-        write!(f, [items_list])?;
-    }
-
-    // target
-    if let Some(target) = target {
-        write!(
-            f,
-            [
-                space(),
-                Keyword::From,
-                space(),
-                token("\""),
-                target,
-                token("\"")
-            ]
-        )?;
-    }
-
-    // with clause
-    if let Some(arguments) = arguments {
-        format_dependency_with_arguments(f, arguments)?;
     }
 
     Ok(())
@@ -798,26 +512,11 @@ fn format_try_expression<'ast>(
     if let Some(catch_expression) = catch_expression {
         write!(f, [space(), Keyword::Catch, space()])?;
         if let Some(catch_pattern) = catch_pattern {
-            let trailing_boundary_comments =
-                collect_catch_pattern_trailing_boundary_comments(f.context(), catch_pattern);
-            let keep_pattern_node_formatting = trailing_boundary_comments.is_empty()
-                || catch_ty.is_some()
-                || f.context().has_prefix_annotation(catch_pattern);
-            if keep_pattern_node_formatting {
-                write!(f, [token("("), catch_pattern])?;
-                if let Some(catch_ty) = catch_ty {
-                    write!(f, [token(":"), space(), catch_ty])?;
-                }
-                write!(f, [token(")"), space()])?;
-            } else {
-                let pattern_source = f.context().span_str(f.context().span(catch_pattern));
-                let pattern_source = strip_one_wrapping_parentheses(pattern_source);
-                write!(f, [token("("), text(pattern_source), token(")")])?;
-                for comment in trailing_boundary_comments {
-                    write!(f, [space(), text(comment.as_str())])?;
-                }
-                write!(f, [space()])?;
+            write!(f, [token("("), catch_pattern])?;
+            if let Some(catch_ty) = catch_ty {
+                write!(f, [token(":"), space(), catch_ty])?;
             }
+            write!(f, [token(")"), space()])?;
         }
         write!(f, [catch_expression])?;
     }
@@ -850,11 +549,23 @@ fn format_return_expression<'ast>(
         let value_expr = tree.get(value_id);
 
         // jsx returns may need wrapping parens to keep multi line layout stable
-        if let Expression::TreeExpression { elements, .. } = value_expr {
+        if let Expression::TreeExpression {
+            arguments,
+            elements,
+            ..
+        } = value_expr
+        {
             let has_children = elements
                 .as_ref()
                 .is_some_and(|elements| !elements.is_empty());
-            if has_children {
+            let has_multiple_attributes = arguments
+                .as_ref()
+                .is_some_and(|arguments| arguments.len() > 1);
+            let should_wrap_tree_return = has_children
+                || has_multiple_attributes
+                || tree_literal_should_break(f.context(), arguments, elements);
+
+            if should_wrap_tree_return {
                 write!(
                     f,
                     [
@@ -866,22 +577,7 @@ fn format_return_expression<'ast>(
                     ]
                 )?;
             } else {
-                let line_width = usize::from(f.context().options.line_width);
-                let inline_width = "return ".len() + expression_source_len(f.context(), value_id);
-                if inline_width <= line_width {
-                    write!(f, [space(), value_id])?;
-                } else {
-                    write!(
-                        f,
-                        [
-                            space(),
-                            token("("),
-                            block_indent(&value_id),
-                            hard_line_break(),
-                            token(")")
-                        ]
-                    )?;
-                }
+                write!(f, [space(), value_id])?;
             }
         } else {
             write!(f, [space(), value_id])?;

@@ -120,11 +120,10 @@ fn format_name_with_quote_policy<'ast>(
         Name::String(string_id) => {
             let content = context.strings.get(string_id);
             let is_ident = is_identifier_for_quotes(content);
-            let should_quote = match quote_props {
-                QuoteProperty::Preserve => true,
-                QuoteProperty::AsNeeded => force_quote_keys || !is_ident,
-                QuoteProperty::Consistent => force_quote_keys || !is_ident,
-            };
+
+            // preserve cannot roundtrip source quote intent because keyword-like keys
+            // are normalized as string names in the parser model
+            let should_quote = force_quote_keys || !is_ident;
 
             if should_quote {
                 format_quoted_name(f, string_id)?;

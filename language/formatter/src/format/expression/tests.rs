@@ -659,12 +659,12 @@ fn test_format_chain_planner_promotes_head_in_call_like_argument() {
     );
 }
 
-/// Chain planner uses assignment rhs width when choosing chain layout.
+/// Chain planner may break after `=` when assignment lhs plus rhs head overflows width.
 #[test]
 fn test_format_chain_planner_respects_assignment_rhs_width() {
     assert_format!(
         "veryLongBindingName = source.alpha.beta.gamma().delta().epsilon()",
-        "veryLongBindingName = source.alpha.beta\n    .gamma()\n    .delta()\n    .epsilon()",
+        "veryLongBindingName =\n    source.alpha.beta\n    .gamma()\n    .delta()\n    .epsilon()",
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(40)
     );
@@ -795,21 +795,15 @@ fn test_format_expression_let_call() {
     configFile: false,
     babelrc: false,
 })"#;
-    let expected = r#"const ast = await parseAsync(
-    text,
-    {
-        sourceFileName: "file",
-        parserOpts: {
-            plugins: [
-                "typescript",
-                "jsx",
-            ],
-        },
-        sourceType: "module",
-        configFile: false,
-        babelrc: false,
+    let expected = r#"const ast = await parseAsync(text, {
+    sourceFileName: "file",
+    parserOpts: {
+        plugins: ["typescript", "jsx"],
     },
-)"#;
+    sourceType: "module",
+    configFile: false,
+    babelrc: false,
+})"#;
     assert_format!(
         input,
         expected,
@@ -828,7 +822,7 @@ fn test_format_call_single_lambda_argument_with_prefix_comment_breaks() {
 #[test]
 fn test_format_call_nested_arrow_boundary_comments() {
     let source = "call(\n  () /**/ => //\n    () /**/ => /**/\n      () /**/ => /**/ {\n        //\n      }\n)";
-    let expected = "call(() /**/ =>\n    //\n    () /**/ =>\n        /**/\n        () /**/ => /**/ {\n            //\n        })";
+    let expected = "call(() /**/ =>\n    //\n    () /**/ =>\n    /**/\n    () /**/ => /**/ {\n        //\n    })";
     assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
@@ -1052,8 +1046,7 @@ fn test_format_type_template_literal_multiple_spans() {
 #[test]
 fn test_format_type_template_literal_union_with_leading_pipe() {
     let source = "type T = `${\n  | 'W'\n  | 'I'\n  | 'L'\n  | 'L'\n  | 'B'\n  | 'R'\n  | 'E'\n  | 'A'\n  | 'K'\n}${'!' | '!!'}`";
-    let expected =
-        "type T = `${'W' | 'I' | 'L' | 'L' | 'B' | 'R' | 'E' | 'A' | 'K'}${'!' | \"!!\"}`;";
+    let expected = "type T = `${\n    | 'W'\n    | 'I'\n    | 'L'\n    | 'L'\n    | 'B'\n    | 'R'\n    | 'E'\n    | 'A'\n    | 'K'}${'!' | \"!!\"}`;";
     assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
@@ -1193,7 +1186,7 @@ fn test_format_return_jsx_multiline() {
 fn test_format_nested_ternary() {
     assert_format!(
         "const x = isFirst ? firstValue : isSecond ? secondValue : defaultValue",
-        "const x = isFirst\n    ? firstValue\n    : isSecond\n    ? secondValue\n    : defaultValue",
+        "const x = isFirst\n    ? firstValue\n    : isSecond\n        ? secondValue\n        : defaultValue",
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(50)
     );
@@ -1221,25 +1214,25 @@ fn test_format_export_const_chain_rhs_does_not_break_after_operator() {
     );
 }
 
-/// Breaks after `=` for long generic call rhs values.
+/// Keeps `=` inline for long generic call rhs values when the rhs head fits.
 #[test]
 fn test_format_const_generic_call_rhs_breaks_after_operator() {
     let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
     assert_format!(
         "const result = configurationService.getValue<Record<string, boolean>>(enalementSetting)",
-        "const result =\n  configurationService.getValue<Record<string, boolean>>(enalementSetting)",
+        "const result = configurationService.getValue<Record<string, boolean>>(enalementSetting)",
         |p| p.eat_expression(Default::default()),
         options
     );
 }
 
-/// Preserves break-after-operator for multiline generic call rhs values.
+/// Normalizes multiline generic call rhs values to inline `=` form.
 #[test]
 fn test_format_const_generic_call_rhs_preserves_source_operator_break() {
     let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
     assert_format!(
         "const result =\n  configurationService.getValue<Record<string, boolean>>(\n  enalementSetting\n)",
-        "const result =\n  configurationService.getValue<Record<string, boolean>>(enalementSetting)",
+        "const result = configurationService.getValue<Record<string, boolean>>(enalementSetting)",
         |p| p.eat_expression(Default::default()),
         options
     );

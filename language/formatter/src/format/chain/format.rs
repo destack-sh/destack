@@ -2,7 +2,18 @@ use super::normalize::{ChainLayoutPlan, plan_chain_layout};
 use super::policy::{
     ChainRenderDecision, ChainRenderInputOptions, build_chain_render_inputs, decide_chain_render,
 };
-use super::*;
+use super::{
+    ChainExpression, ChainExpressionBase, ChainExpressionBaseHead,
+    chain_line_starts_with_block_prefix_annotation, format_call_arguments, member_is_private_hash,
+    transparent_inner_expression,
+};
+use crate::expression::{
+    AnnotationPosition, Argument, DestackFormatContext, DestackFormatter, Expression, FormatResult,
+    LocalNodeId, PostfixPosition, SmallVec, expand_parent, format_static_argument_list,
+    format_static_argument_list_with_relational_spacing, format_with, group, hard_line_break,
+    indent, token, write_postfix_base_expression,
+};
+use destack_fir::format::{Buffer, Format};
 use destack_fir::write;
 
 /// Return whether one call operation should emit its prefix annotations.
@@ -152,38 +163,35 @@ pub(crate) fn format_expression_chain<'ast>(
     };
     let render_inputs = build_chain_render_inputs(f.context(), &base, &lines, render_options);
 
-    match decide_chain_render(&render_inputs, lines.len()) {
+    let decision = decide_chain_render(&render_inputs, lines.len());
+
+    match decision {
         ChainRenderDecision::InlineNoCounter => format_inline.format(f),
-        ChainRenderDecision::InlineFastPath => {
+        ChainRenderDecision::InlineShortCircuit => {
             f.context()
-                .increment_counter("profile.chain.inline.fast_path", 1);
+                .increment_counter("profile.chain.inline.short_circuit", 1);
             format_inline.format(f)
         }
         ChainRenderDecision::ForcedBreak => write!(f, [group(&format_chain).should_expand(true)]),
-        ChainRenderDecision::ConditionalInline => {
+        ChainRenderDecision::InlineConditional => {
             f.context()
                 .increment_counter("profile.chain.conditional.inline", 1);
             format_inline.format(f)
         }
-        ChainRenderDecision::MultilineCallArgumentInline => {
+        ChainRenderDecision::InlineMultilineCallArgument => {
             f.context()
                 .increment_counter("profile.chain.inline.multiline_call_argument", 1);
             format_inline.format(f)
         }
-        ChainRenderDecision::BreakForOverflow => {
+        ChainRenderDecision::BreakByBudget => {
             f.context()
-                .increment_counter("profile.chain.skip_probe_overflow", 1);
+                .increment_counter("profile.chain.break.by_budget", 1);
             format_chain.format(f)
         }
-        ChainRenderDecision::DeterministicInline => {
+        ChainRenderDecision::InlineByBudget => {
             f.context()
-                .increment_counter("profile.chain.deterministic.inline", 1);
+                .increment_counter("profile.chain.inline.by_budget", 1);
             format_inline.format(f)
-        }
-        ChainRenderDecision::DeterministicBreak => {
-            f.context()
-                .increment_counter("profile.chain.deterministic.chain", 1);
-            format_chain.format(f)
         }
     }
 }
