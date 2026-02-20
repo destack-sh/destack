@@ -224,7 +224,9 @@ type Value =
 ```
 
 ```ts expected
-type Value = First | Second; // second-tail
+type Value =
+    | First
+    | Second; // second-tail
 ```
 
 ### parenthesized union comment attachment
@@ -328,7 +330,7 @@ abstract class Foo {
 abstract class Foo {
     declare accessor prop7: number;
     private accessor #p: any;
-    accessor a!: any;
+    accessor a: any;
 }
 ```
 
@@ -879,7 +881,9 @@ type Value =
 ```
 
 ```ts expected
-type Value = A | B; // last-union
+type Value =
+    | A
+    | B; // last-union
 ```
 
 ## Mapped Type Conformance Permutations

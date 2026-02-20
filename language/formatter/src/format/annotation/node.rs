@@ -84,11 +84,13 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
                     let content = normalize_inline_block_comment_content(string);
                     if content.is_empty() {
                         write!(f, [token("/**/")])?;
-                    } else {
+                    } else if inline_block_comment_prefers_spaced_form(content) {
                         write!(
                             f,
                             [token("/**"), space(), text(content), space(), token("*/")]
                         )?;
+                    } else {
+                        write!(f, [token("/**"), text(content), token("*/")])?;
                     }
                 }
             }
@@ -111,14 +113,10 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
         match self.style {
             CommentStyle::Star => {
                 if is_multi_line {
+                    let raw_comment = f.context().comment_raw_text(node_id);
+                    let prefers_star_lines = block_comment_prefers_star_lines(raw_comment);
                     let lines: Vec<&str> = string.lines().collect();
-                    let aligns_with_stars = lines
-                        .iter()
-                        .skip(1)
-                        .filter(|line| !line.trim().is_empty())
-                        .all(|line| line.trim_start().starts_with('*'));
-
-                    if aligns_with_stars {
+                    if prefers_star_lines {
                         for (i, line) in lines.iter().enumerate() {
                             if i == 0 {
                                 write!(f, [token("/*")])?;
@@ -137,29 +135,37 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
                         }
                         write!(f, [token(" */")])?;
                     } else {
-                        let source = f.context().span_str(f.context().span(node_id));
-                        let source = source.replace("\r\n", "\n");
-                        write!(f, [text(source.trim_end_matches('\n'))])?;
+                        for (i, line) in lines.iter().enumerate() {
+                            if i == 0 {
+                                write!(f, [token("/*")])?;
+                            } else {
+                                write!(f, [hard_line_break()])?;
+                            }
+                            if !line.is_empty() {
+                                if i == 0 {
+                                    write!(f, [space(), text(line.trim_end_matches('\r'))])?;
+                                } else {
+                                    write!(f, [text(line.trim_end_matches('\r'))])?;
+                                }
+                            }
+                        }
+                        if string.ends_with('\n') {
+                            write!(f, [hard_line_break(), token("*/")])?;
+                        } else {
+                            write!(f, [space(), token("*/")])?;
+                        }
                     }
                 } else {
-                    let content = normalize_inline_block_comment_content(string.as_ref());
-                    if is_compact_hint_comment(content) {
-                        write!(f, [token("/*"), text(content), token("*/")])?;
-                    } else if is_all_asterisks_comment(content) {
-                        let source = f.context().span_str(f.context().span(node_id));
-                        write!(f, [text(source.trim())])?;
-                    } else if content.is_empty() {
-                        let source = f.context().span_str(f.context().span(node_id));
-                        if source.contains("/**/") {
-                            write!(f, [token("/**/")])?;
-                        } else {
-                            write!(f, [token("/* */")])?;
-                        }
-                    } else {
+                    let content = normalize_inline_block_comment_content(&string);
+                    if content.is_empty() {
+                        write!(f, [token("/**/")])?;
+                    } else if inline_block_comment_prefers_spaced_form(content) {
                         write!(
                             f,
                             [token("/*"), space(), text(content), space(), token("*/")]
                         )?;
+                    } else {
+                        write!(f, [token("/*"), text(content), token("*/")])?;
                     }
                 }
             }
@@ -224,17 +230,55 @@ fn normalize_inline_block_comment_content(content: &str) -> &str {
     content
 }
 
-/// Return whether a comment is a compact formatting hint.
-fn is_compact_hint_comment(content: &str) -> bool {
-    matches!(
-        content,
-        "#__PURE__" | "@__PURE__" | "#__NO_SIDE_EFFECTS__" | "@__NO_SIDE_EFFECTS__"
-    )
+/// Return whether one raw block comment uses `*`-prefixed continuation lines.
+fn block_comment_prefers_star_lines(raw: &str) -> bool {
+    let Some(inner) = raw
+        .strip_prefix("/*")
+        .and_then(|inner| inner.strip_suffix("*/"))
+    else {
+        return false;
+    };
+
+    let mut has_non_empty_continuation_line = false;
+    for line in inner.lines().skip(1) {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        has_non_empty_continuation_line = true;
+        if !line.trim_start().starts_with('*') {
+            return false;
+        }
+    }
+
+    has_non_empty_continuation_line
 }
 
-/// Return whether a block comment body is a run of asterisks.
-fn is_all_asterisks_comment(content: &str) -> bool {
-    !content.is_empty() && content.chars().all(|character| character == '*')
+/// Return whether one inline block comment should use surrounding spaces.
+fn inline_block_comment_prefers_spaced_form(content: &str) -> bool {
+    if content.starts_with("@__") || content.starts_with("#__") {
+        return false;
+    }
+
+    if content.starts_with('@')
+        && content
+            .chars()
+            .nth(1)
+            .is_some_and(|character| character.is_ascii_alphabetic())
+    {
+        return true;
+    }
+
+    let mut characters = content.chars();
+    let Some(first_character) = characters.next() else {
+        return false;
+    };
+    let Some(last_character) = content.chars().last() else {
+        return false;
+    };
+
+    first_character.is_ascii_alphanumeric() && last_character.is_ascii_alphanumeric()
 }
 
 impl<'ast> FormatNode<'ast, Decorator> for Decorator {
@@ -244,14 +288,6 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let tree = f.context().tree;
-        let expression_span = f.context().span(self.expression);
-        let expression_source = f.context().span_str(expression_span);
-        let expression_contains_inline_comment = f.context().has_comment(expression_span);
-        if expression_contains_inline_comment {
-            write!(f, [token("@"), text(expression_source.trim())])?;
-            return Ok(());
-        }
-
         let needs_parentheses = decorator_needs_parentheses(tree, self.expression);
         write!(f, [token("@")])?;
         if needs_parentheses {
@@ -306,7 +342,9 @@ mod tests {
         Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions,
         TestFormatter, assert_format,
     };
-    use destack_ast::{AnnotationPosition, DeclarationDescriptor, LocalNodeId, NodeParentIndex};
+    use destack_ast::{
+        AnnotationPosition, DeclarationDescriptor, LocalNodeId, NodeParentIndex, NodeType,
+    };
     use destack_source::FileType;
 
     /// Build a formatter context for annotation routing assertions.
@@ -330,15 +368,43 @@ mod tests {
         context: &DestackFormatContext<'_>,
         marker: &str,
     ) -> Option<LocalNodeId<Annotation>> {
-        for (entry_index, entry) in context.formatter_annotation_entries.iter().enumerate() {
+        let annotation_matches_marker =
+            |annotation_id: LocalNodeId<Annotation>, marker: &str| match context
+                .annotation(annotation_id)
+            {
+                Annotation::Comment { node, .. } => context.comment_text(node).trim() == marker,
+                Annotation::Doc { node, .. } => {
+                    let document = context.tree.get(node);
+                    context.strings.get(document.string).trim() == marker
+                }
+                Annotation::Blank { .. } | Annotation::Decorator { .. } => false,
+            };
+
+        for (entry_index, _) in context.formatter_annotation_entries.iter().enumerate() {
             let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
-            let annotation_source = context.span_str(entry.span);
-            if annotation_source.contains(marker) {
+            if annotation_matches_marker(annotation_id, marker) {
                 return Some(annotation_id);
             }
         }
 
         None
+    }
+
+    /// Find the target owner node for one annotation id.
+    fn find_annotation_target_owner_node(
+        context: &DestackFormatContext<'_>,
+        annotation_id: LocalNodeId<Annotation>,
+    ) -> Option<usize> {
+        context
+            .formatter_annotation_ids_by_node_id
+            .iter()
+            .enumerate()
+            .find_map(|(node_index, annotation_ids)| {
+                annotation_ids
+                    .iter()
+                    .any(|candidate| candidate.id == annotation_id.id)
+                    .then_some(node_index)
+            })
     }
 
     /// Single call argument trailing line comments stay discoverable with stable positions.
@@ -368,10 +434,106 @@ mod tests {
         ));
     }
 
+    /// Trailing `, // comment )` seams should attach to call arguments.
+    #[test]
+    fn test_annotation_call_trailing_separator_comment_attaches_to_argument_owner() {
+        let source = "{
+    call(
+        function () {
+            var a = 1;
+            // one
+        },
+        // trailing-separator-marker
+    );
+}";
+        let (formatter, _) = TestFormatter::parse(source, |p| {
+            p.eat_block(destack_ast::BlockContext::Expression)
+        })
+        .expect("parse call trailing separator marker source");
+        let context = context_from_formatter(&formatter);
+
+        let annotation_id = find_annotation_by_marker(&context, "trailing-separator-marker")
+            .expect("expected trailing separator marker annotation");
+        let position = context.annotation(annotation_id).position();
+        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+            .expect("expected annotation owner node");
+        let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+        assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+        assert_eq!(owner_node_type, NodeType::Argument);
+    }
+
+    /// Trailing `, // comment )` seams on multi-argument calls should attach to the last argument.
+    #[test]
+    fn test_annotation_call_trailing_separator_comment_multi_argument_attaches_to_argument_owner() {
+        let source = "{
+    call(
+        first,
+        function () {
+            var a = 1;
+            // one
+        },
+        // trailing-separator-multi-marker
+    );
+}";
+        let (formatter, _) = TestFormatter::parse(source, |p| {
+            p.eat_block(destack_ast::BlockContext::Expression)
+        })
+        .expect("parse call trailing separator marker source");
+        let context = context_from_formatter(&formatter);
+
+        let annotation_id = find_annotation_by_marker(&context, "trailing-separator-multi-marker")
+            .expect("expected trailing separator marker annotation");
+        let position = context.annotation(annotation_id).position();
+        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+            .expect("expected annotation owner node");
+        let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+        assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+        assert_eq!(owner_node_type, NodeType::Argument);
+    }
+
+    /// Inline block comments between call callees and `(` should stay on the call expression.
+    #[test]
+    fn test_annotation_call_callee_block_comment_stays_on_call_expression() {
+        let source = "{
+    call/* call-marker */();
+    call/* optional-marker */?.();
+}";
+        let expected = "{\n    call /* call-marker */();\n    call /* optional-marker */?.();\n}";
+        let (formatter, block_id) = TestFormatter::parse(source, |p| {
+            p.eat_block(destack_ast::BlockContext::Expression)
+        })
+        .expect("parse call callee block comment source");
+        let context = context_from_formatter(&formatter);
+
+        let first_annotation_id =
+            find_annotation_by_marker(&context, "call-marker").expect("expected call annotation");
+        let first_owner_node = find_annotation_target_owner_node(&context, first_annotation_id)
+            .expect("expected first annotation owner node");
+        let first_owner_node_type = context.tree.get_node_type(first_owner_node as u32);
+        let first_position = context.annotation(first_annotation_id).position();
+        assert_eq!(first_owner_node_type, NodeType::Expression);
+        assert_eq!(first_position, AnnotationPosition::LinePostfix);
+
+        let second_annotation_id = find_annotation_by_marker(&context, "optional-marker")
+            .expect("expected optional annotation");
+        let second_owner_node = find_annotation_target_owner_node(&context, second_annotation_id)
+            .expect("expected second annotation owner node");
+        let second_owner_node_type = context.tree.get_node_type(second_owner_node as u32);
+        let second_position = context.annotation(second_annotation_id).position();
+        assert_eq!(second_owner_node_type, NodeType::Expression);
+        assert_eq!(second_position, AnnotationPosition::LinePostfix);
+
+        let formatted = formatter.format(&block_id, DestackFormatOptions::default());
+        assert_eq!(formatted, expected);
+    }
+
     /// Type-binary block comments between operator and right type must stay attached and render.
     #[test]
     fn test_type_binary_block_comment_between_operator_and_right_type_renders() {
         let source = "{\n    const value = left as /* between */ Foo;\n}";
+        let expected = "{\n    const value = left as /* between */ Foo;\n}";
         let (formatter, block_id) =
             TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
                 p.eat_block(destack_ast::BlockContext::Expression)
@@ -384,16 +546,14 @@ mod tests {
         assert_eq!(annotation.position(), AnnotationPosition::LinePrefix);
 
         let formatted = formatter.format(&block_id, DestackFormatOptions::default());
-        assert!(
-            formatted.contains("as /* between */ Foo"),
-            "expected formatted output to preserve operator seam block comment, got:\n{formatted}"
-        );
+        assert_eq!(formatted, expected);
     }
 
     /// Type-binary block seam comments on expression statements must not be dropped.
     #[test]
     fn test_type_binary_block_comment_between_operator_and_right_type_expression_statement() {
         let source = "{\n    1 as /* between */ Foo;\n    1 satisfies /* sat-between */ Foo;\n}";
+        let expected = "{\n    1 as /* between */ Foo;\n    1 satisfies /* sat-between */ Foo;\n}";
         let (formatter, block_id) =
             TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
                 p.eat_block(destack_ast::BlockContext::Expression)
@@ -414,14 +574,7 @@ mod tests {
         );
 
         let formatted = formatter.format(&block_id, DestackFormatOptions::default());
-        assert!(
-            formatted.contains("1 as /* between */ Foo;"),
-            "expected formatted output to preserve as seam block comment, got:\n{formatted}"
-        );
-        assert!(
-            formatted.contains("1 satisfies /* sat-between */ Foo;"),
-            "expected formatted output to preserve satisfies seam block comment, got:\n{formatted}"
-        );
+        assert_eq!(formatted, expected);
     }
 
     /// Prefix cast comments before parenthesized values should keep one separating space.
@@ -529,6 +682,33 @@ mod tests {
         );
     }
 
+    /// Decorator call object member trailing comments should stay attached to the object member.
+    #[test]
+    fn test_annotation_decorator_call_object_member_trailing_comment_attachment() {
+        let source = "{
+    @Component({
+        selector: \"my-component\", // decorator-call-marker
+    })
+    class AppMyComponent {}
+}";
+        let (formatter, _) =
+            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+                p.eat_block(destack_ast::BlockContext::Expression)
+            })
+            .expect("parse decorator call trailing comment source");
+        let context = context_from_formatter(&formatter);
+
+        let annotation_id = find_annotation_by_marker(&context, "decorator-call-marker")
+            .expect("expected decorator call marker annotation");
+        let position = context.annotation(annotation_id).position();
+        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+            .expect("expected annotation owner node");
+        let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+        assert_eq!(owner_node_type, NodeType::Property);
+        assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+    }
+
     /// Multiple comments around an expression should retain their order.
     #[test]
     fn test_format_multiple_comments_around_expression() {
@@ -621,7 +801,7 @@ mod tests {
             "{
     const X = 1;
     /* some comment
-    * over multiple lines yo       */
+     * over multiple lines yo */
 }",
             |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()

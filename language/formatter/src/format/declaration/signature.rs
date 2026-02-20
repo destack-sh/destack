@@ -556,7 +556,18 @@ pub(crate) fn parameter_should_force_expand_in_signature(
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
     if context.node_has_newline(parameter_id) {
-        return true;
+        match context.tree.get(parameter_id) {
+            Parameter::Named { default, .. } => {
+                if default.is_some() {
+                    return true;
+                }
+            }
+            Parameter::VariadicNamed { .. }
+            | Parameter::Pattern { .. }
+            | Parameter::VariadicPattern { .. } => {
+                return true;
+            }
+        }
     }
 
     let pattern_id = match context.tree.get(parameter_id) {
@@ -624,6 +635,7 @@ pub(crate) fn signature_parameters_should_expand(
     include_parameter_shape_expansion: bool,
 ) -> bool {
     let should_expand_parameter_shapes = include_parameter_shape_expansion
+        && parameters.len() > 1
         && parameters
             .iter()
             .copied()
@@ -694,7 +706,7 @@ mod tests {
     fn test_format_parameter_comment_between_name_and_type() {
         assert_format!(
             "x /* a */ : number",
-            "/* a */ x: number",
+            "x /* a */ : number",
             |p| p.eat_parameter(),
             DestackFormatOptions::default()
         );
@@ -704,7 +716,7 @@ mod tests {
     fn test_format_optional_parameter_comment_between_name_and_type() {
         assert_format!(
             "x? /* a */ : number",
-            "/* a */ x?: number",
+            "x? /* a */ : number",
             |p| p.eat_parameter(),
             DestackFormatOptions::default()
         );

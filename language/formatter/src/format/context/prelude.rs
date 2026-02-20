@@ -4,9 +4,9 @@ pub(super) use std::rc::Rc;
 
 pub(super) use ast::{
     AnnotationPosition, Argument, Blank, Block, Comment, Declaration, Declarator, Decorator,
-    DependencyItem, Doc, EnumField, Expression, LocalNodeId, LocalNodeIdAny, MatchCase, Member,
-    Node, NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField,
-    Property, TokenSpan, TokenType, WhereClause, normalize_comment_payload,
+    DependencyItem, Doc, EnumField, Expression, Keyword, LocalNodeId, LocalNodeIdAny, MatchCase,
+    Member, Node, NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern,
+    PatternField, Property, TokenSpan, TokenType, WhereClause, normalize_comment_payload,
 };
 pub(super) use destack_ast as ast;
 pub(super) use destack_base::ImmutableStringPool;
@@ -17,7 +17,7 @@ pub(super) use smallvec::SmallVec;
 
 pub(super) use crate::format::analysis::timing::{
     FormatterTimingEntry, FormatterTimingScope, FormatterTimingTag, FormatterTimings,
-    tag_for_node_type, timings_enabled_from_env,
+    tag_for_node_type,
 };
 pub(super) use crate::format::comments::build_formatter_annotation_projection;
 

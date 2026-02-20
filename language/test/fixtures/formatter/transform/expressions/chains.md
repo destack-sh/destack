@@ -135,9 +135,10 @@ const value = api.getFactory<number>.create().build()
 ```
 
 ```ts expected
-const value = (api.getFactory<number>)
-    .create()
-    .build();
+const value =
+    (api.getFactory<number>)
+        .create()
+        .build();
 ```
 
 ### instantiation before index access stays inline

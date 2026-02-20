@@ -106,7 +106,7 @@ const node = (
 
 ### mixed text with spaced expressions
 
-Text nodes keep explicit space expressions on their own.
+Text nodes keep explicit space expression containers.
 
 ```tsx:main.tsx
 const node = <T>

@@ -4,9 +4,9 @@ use crate::collection::list_like;
 use crate::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
 };
-use crate::expression::{format_expression, is_expression_breakable, source_min_inline_char_len};
+use crate::expression::{format_expression, is_expression_breakable};
 use crate::operator::is_type_context;
-use crate::{Annotation, DestackFormatContext, DestackFormatter};
+use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     AnnotationPosition, Comment, CommentStyle, Declaration, DeclarationDescriptor, DeclarationKind,
     Expression, IfKind, Keyword, LocalNodeId, Mutability, Parameter, TypeKind,
@@ -23,6 +23,19 @@ struct InlineTypePrefixCommentCluster {
     expression_id: LocalNodeId<Expression>,
     /// The annotation ids in source order.
     annotation_ids: Vec<LocalNodeId<Annotation>>,
+    /// Whether each annotation starts after a source newline relative to the previous one.
+    annotation_breaks_before: Vec<bool>,
+}
+
+impl InlineTypePrefixCommentCluster {
+    /// Return whether the cluster contains source newline breaks between comments.
+    fn has_multiline_breaks(&self) -> bool {
+        self.annotation_breaks_before
+            .iter()
+            .copied()
+            .skip(1)
+            .any(|has_break| has_break)
+    }
 }
 
 /// Return inline prefix comment cluster metadata for type grouping expressions.
@@ -51,6 +64,7 @@ fn single_line_type_grouping_prefix_comment_cluster(
         };
 
         let mut cluster = Vec::new();
+        let mut annotation_breaks_before = Vec::new();
         for annotation_id in annotations {
             let annotation = context.annotation(annotation_id);
             let Annotation::Comment {
@@ -73,21 +87,22 @@ fn single_line_type_grouping_prefix_comment_cluster(
                 break;
             }
             let comment_span = context.annotation_span(annotation_id);
-            let comment_source = context.span_str(comment_span);
-            if comment_source.trim_start().starts_with("/**") || comment_source.contains('\n') {
+            if context.has_newline(comment_span) {
                 return None;
             }
 
-            if let Some(previous_annotation_id) = cluster.last().copied() {
+            let has_newline_before = if let Some(previous_annotation_id) = cluster.last().copied() {
                 let previous_span = context.annotation_span(previous_annotation_id);
                 let current_span = context.annotation_span(annotation_id);
                 let between_span =
                     Span::new(previous_span.file, previous_span.end, current_span.start);
-                if context.has_newline(between_span) {
-                    return None;
-                }
-            }
+                context.has_newline(between_span)
+            } else {
+                false
+            };
+
             cluster.push(annotation_id);
+            annotation_breaks_before.push(has_newline_before);
         }
 
         if cluster.is_empty() {
@@ -102,6 +117,7 @@ fn single_line_type_grouping_prefix_comment_cluster(
         return Some(InlineTypePrefixCommentCluster {
             expression_id: current_id,
             annotation_ids: cluster,
+            annotation_breaks_before,
         });
     }
 }
@@ -116,22 +132,13 @@ fn expression_has_doc_like_block_prefix_annotation(
     };
 
     annotation_ids.into_iter().any(|annotation_id| {
-        let annotation = context.annotation(annotation_id);
-        match annotation {
+        matches!(
+            context.annotation(annotation_id),
             Annotation::Doc {
                 position: AnnotationPosition::BlockPrefix,
                 ..
-            } => true,
-            Annotation::Comment {
-                position: AnnotationPosition::BlockPrefix,
-                ..
-            } => {
-                let annotation_span = context.annotation_span(annotation_id);
-                let annotation_source = context.span_str(annotation_span);
-                annotation_source.trim_start().starts_with("/**")
             }
-            _ => false,
-        }
+        )
     })
 }
 
@@ -237,19 +244,49 @@ pub(super) fn format_type_alias_declaration<'ast>(
 
     // prefer keeping the value on a single line
     let format_inline = format_with(|f| {
-        write!(f, [header, space(), token("="), space()])?;
+        write!(f, [header, space(), token("=")])?;
         if let Some(cluster) = inline_prefix_comment_cluster.as_ref() {
-            for (index, annotation_id) in cluster.annotation_ids.iter().copied().enumerate() {
-                if index > 0 {
-                    write!(f, [space()])?;
+            if cluster.has_multiline_breaks() {
+                write!(
+                    f,
+                    [indent(&format_with(
+                        |f: &mut DestackFormatter<'ast, '_>| {
+                            write!(f, [hard_line_break()])?;
+                            for (index, annotation_id) in
+                                cluster.annotation_ids.iter().copied().enumerate()
+                            {
+                                if index > 0 {
+                                    if cluster.annotation_breaks_before[index] {
+                                        write!(f, [hard_line_break()])?;
+                                    } else {
+                                        write!(f, [space()])?;
+                                    }
+                                }
+
+                                let annotation = f.context().annotation(annotation_id);
+                                annotation.format_node(annotation_id, f)?;
+                            }
+
+                            write!(f, [space()])?;
+                            format_expression_without_prefix_annotations(f, cluster.expression_id)?;
+                            Ok(())
+                        }
+                    ))]
+                )?;
+            } else {
+                write!(f, [space()])?;
+                for (index, annotation_id) in cluster.annotation_ids.iter().copied().enumerate() {
+                    if index > 0 {
+                        write!(f, [space()])?;
+                    }
+                    let annotation = f.context().annotation(annotation_id);
+                    annotation.format_node(annotation_id, f)?;
                 }
-                let annotation_span = f.context().annotation_span(annotation_id);
-                let annotation_source = f.context().span_str(annotation_span);
-                write!(f, [text(annotation_source.trim())])?;
+                write!(f, [space()])?;
+                format_expression_without_prefix_annotations(f, cluster.expression_id)?;
             }
-            write!(f, [space()])?;
-            format_expression_without_prefix_annotations(f, cluster.expression_id)?;
         } else {
+            write!(f, [space()])?;
             write!(f, [value_id])?;
         }
         Ok(())
@@ -304,13 +341,9 @@ pub(super) fn format_type_alias_declaration<'ast>(
     let inline_header_len = f.context().span_char_len(leading_value_span);
     let inline_value_len = f.context().span_char_len(value_span);
     let inline_total_len = inline_header_len.saturating_add(inline_value_len);
-    let inline_header_min_len =
-        source_min_inline_char_len(f.context().span_str(leading_value_span));
-    let inline_value_min_len = source_min_inline_char_len(f.context().span_str(value_span));
-    let inline_total_min_len = inline_header_min_len.saturating_add(inline_value_min_len);
     let line_width = usize::from(f.context().options.line_width);
     let value_has_newline = f.context().has_newline(value_span);
-    let inline_is_impossible = inline_total_min_len > line_width;
+    let inline_is_impossible = inline_total_len > line_width;
     let should_break_template_literal_type_after_equals = match value_expression {
         Expression::TypeTemplateLiteral { spans, .. } => {
             let has_conditional_interpolation = spans.iter().any(|span_id| {
@@ -361,7 +394,7 @@ pub(super) fn format_type_alias_declaration<'ast>(
                 }
             }
         } else if inline_is_impossible {
-            // long conditional-like type values can skip best fitting probes
+            // long conditional like type values can skip extra inline attempts
             format_inline_expanded.format(f)?;
         } else {
             let can_inline = !value_has_newline && inline_total_len <= line_width;

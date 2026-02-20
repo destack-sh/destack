@@ -21,7 +21,9 @@ pub(super) struct FormatterTriviaOwnerIndex {
 
 #[derive(Debug)]
 pub(super) struct FormatterTriviaSeamIndex {
+    pub(super) comment_seams: FxHashSet<u64>,
     pub(super) line_comment_seams: FxHashSet<u64>,
+    pub(super) first_comment_start_by_seam: FxHashMap<u64, u32>,
 }
 
 /// Return true when one semantic token can own trivia seams.
@@ -241,19 +243,32 @@ pub(super) fn encode_trivia_seam(token_before: u32, token_after: u32) -> u64 {
 
 /// Build formatter-side trivia seam indexes.
 pub(super) fn build_formatter_trivia_seam_index(tree: &NodeTree) -> FormatterTriviaSeamIndex {
+    let mut comment_seams = FxHashSet::default();
+    comment_seams.reserve(tree.comment_trivia().len());
     let mut line_comment_seams = FxHashSet::default();
     line_comment_seams.reserve(tree.comment_trivia().len());
+    let mut first_comment_start_by_seam = FxHashMap::default();
+    first_comment_start_by_seam.reserve(tree.comment_trivia().len());
 
-    // cache line-comment seam keys once for blank attachment checks
+    // cache comment seam keys once for blank attachment checks
     for trivia in tree.comment_trivia().iter().copied() {
+        let seam = encode_trivia_seam(trivia.boundary.token_before, trivia.boundary.token_after);
+        comment_seams.insert(seam);
+        first_comment_start_by_seam
+            .entry(seam)
+            .and_modify(|start: &mut u32| *start = (*start).min(trivia.span.start))
+            .or_insert(trivia.span.start);
+
         if tree.get(trivia.comment).style == ast::CommentStyle::Slash {
-            let seam =
-                encode_trivia_seam(trivia.boundary.token_before, trivia.boundary.token_after);
             line_comment_seams.insert(seam);
         }
     }
 
-    FormatterTriviaSeamIndex { line_comment_seams }
+    FormatterTriviaSeamIndex {
+        comment_seams,
+        line_comment_seams,
+        first_comment_start_by_seam,
+    }
 }
 
 /// Decode one compact token index with sentinel for none.

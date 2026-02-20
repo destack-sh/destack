@@ -1,145 +1,80 @@
-use super::common::expression_is_trivial_inline_without_annotations;
-use super::*;
-use crate::analysis::scan::{
-    previous_non_whitespace_token_before_annotation, previous_non_whitespace_token_before_span,
+use super::super::common::expression_is_trivial_inline_without_annotations;
+use super::analyze::{
+    assignment_seam_has_line_comment_between, expression_has_assignment_seam_inline_prefix_comment,
+    left_assignment_chain_root, right_assignment_chain_root, right_assignment_parent,
 };
-use destack_ast::{Comment, CommentStyle};
+use crate::chain::{
+    flattened_binary_operand_count, has_comment_between_expressions,
+    is_assignment_chain_tail_lambda, is_chain_root, is_expression_chain,
+};
+use crate::expression::{
+    AssignOperator, DestackFormatter, Expression, FormatResult, LocalNodeId, NodeTree, NodeType,
+    format_with, group, hard_line_break, indent, is_assignment_left_target, is_lambda_expression,
+    soft_line_break_or_space, space, transparent_inner_expression,
+};
+use destack_ast::{Declaration, ScalarLiteral};
+use destack_fir::format::{Buffer, Format};
+use destack_fir::prelude::dedent;
 use destack_fir::{format_args, write};
-
-// assignment inline width constants
-const ASSIGNMENT_OPERATOR_PADDING_WIDTH: usize = 2;
 
 // assignment shape thresholds
 const LONG_BINARY_OPERAND_COUNT_THRESHOLD: usize = 2;
 const EXPANDED_OBJECT_TARGET_PROPERTY_THRESHOLD: usize = 2;
 const SHORT_OBJECT_PROPERTY_MAX: usize = 3;
 
-/// Return whether one token is an assignment operator token.
-#[inline]
-fn is_assignment_operator_token(token_type: TokenType) -> bool {
-    AssignOperator::from_token(token_type).is_some()
-}
-
-/// Return whether the next non-whitespace token after one annotation starts on the same line.
-fn annotation_next_token_is_on_same_line(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> bool {
-    let span = context.annotation_span(annotation_id);
-    let tokens = context.tokens;
-    let mut index = tokens.partition_point(|token| token.span.start < span.end);
-
-    while let Some(token) = tokens.get(index).copied() {
-        match token.token.ty {
-            TokenType::Whitespace => {
-                index += 1;
-                continue;
-            }
-            TokenType::Newline => return false,
-            _ => return true,
+/// Return whether one chain expression contains any call operation.
+fn expression_chain_contains_call(tree: &NodeTree, expression_id: LocalNodeId<Expression>) -> bool {
+    match tree.get(expression_id) {
+        Expression::Call { .. } => true,
+        Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
+        | Expression::Index { left, .. }
+        | Expression::Maybe { left, .. }
+        | Expression::Must { left, .. } => expression_chain_contains_call(tree, *left),
+        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            expression_chain_contains_call(tree, *expression)
         }
+        _ => false,
     }
-
-    false
 }
 
-/// Return whether one span contains at least one assignment operator token.
-fn span_contains_assignment_operator_token(context: &DestackFormatContext<'_>, span: Span) -> bool {
-    for token in context.tokens {
-        if token.span.end <= span.start {
-            continue;
-        }
-        if token.span.start >= span.end {
-            break;
-        }
-        if is_assignment_operator_token(token.token.ty) {
-            return true;
-        }
-    }
-
-    false
-}
-
-/// Return whether one expression has an inline prefix comment on an assignment seam.
-fn expression_has_assignment_seam_inline_prefix_comment(
-    context: &DestackFormatContext<'_>,
+/// Return whether one expression chain starts with a keyword-prefixed expression.
+fn expression_chain_starts_with_keyword_prefix_expression(
+    tree: &NodeTree,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    context
-        .visit_annotations(expression_id, |annotation_ids| {
-            annotation_ids.iter().any(|annotation_id| {
-                let Annotation::Comment { node, position } = context.annotation(*annotation_id)
-                else {
-                    return false;
-                };
-                if position != AnnotationPosition::LinePrefix {
-                    return false;
-                }
-
-                let comment = context.tree.get::<Comment>(node);
-                if !previous_non_whitespace_token_before_annotation(context, *annotation_id)
-                    .is_some_and(|token| is_assignment_operator_token(token.token.ty))
-                {
-                    return false;
-                }
-
-                match comment.style {
-                    CommentStyle::Slash => true,
-                    CommentStyle::Star => {
-                        let annotation_span = context.annotation_span(*annotation_id);
-                        !context.has_newline(annotation_span)
-                            && annotation_next_token_is_on_same_line(context, *annotation_id)
-                    }
-                }
-            })
-        })
-        .unwrap_or(false)
-}
-
-/// Return whether one assignment seam has a slash line comment between left and right.
-fn assignment_seam_has_line_comment_between(
-    context: &DestackFormatContext<'_>,
-    left: LocalNodeId<Expression>,
-    right: LocalNodeId<Expression>,
-) -> bool {
-    let left_span = context.span(left);
-    let right_span = context.span(right);
-    if left_span.file != right_span.file || left_span.end >= right_span.start {
-        return false;
+    match tree.get(expression_id) {
+        Expression::Await { .. } | Expression::AwaitMaybe { .. } | Expression::Comptime { .. } => {
+            true
+        }
+        Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
+        | Expression::Index { left, .. }
+        | Expression::Call { left, .. }
+        | Expression::New { left, .. }
+        | Expression::Instantiation { left, .. }
+        | Expression::Maybe { left, .. }
+        | Expression::Must { left, .. } => {
+            expression_chain_starts_with_keyword_prefix_expression(tree, *left)
+        }
+        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            expression_chain_starts_with_keyword_prefix_expression(tree, *expression)
+        }
+        _ => false,
     }
-
-    let between_span = Span::new(left_span.file, left_span.end, right_span.start);
-    context
-        .comment_tokens()
-        .iter()
-        .copied()
-        .any(|comment_token| {
-            if !between_span.intersects(comment_token.span) {
-                return false;
-            }
-
-            if !matches!(
-                comment_token.token.ty,
-                TokenType::LineComment | TokenType::DocLineComment
-            ) {
-                return false;
-            }
-
-            previous_non_whitespace_token_before_span(context, comment_token.span)
-                .is_some_and(|token| is_assignment_operator_token(token.token.ty))
-        })
 }
 
 /// Format an assignment expression with shared rhs break policy.
-pub(super) fn format_assign_expression<'ast>(
+pub(in crate::format::operator) fn format_assign_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     left: LocalNodeId<Expression>,
     operator: &AssignOperator,
     right: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    // fast path: trivia free, short, simple assignments stay inline
-    let line_width = usize::from(f.context().options.line_width);
+    // short circuit: trivia free simple assignments stay inline
+    let inner_left_id = transparent_inner_expression(f.context(), left);
+    let inner_left_expr = f.context().tree.get(inner_left_id);
     let inner_right_id = transparent_inner_expression(f.context(), right);
     let inner_right_expr = f.context().tree.get(inner_right_id);
     let right_is_simple_expression = matches!(
@@ -150,6 +85,7 @@ pub(super) fn format_assign_expression<'ast>(
             | Expression::PrivateMember { .. }
             | Expression::Index { .. }
     );
+    let left_is_assign_expression = matches!(inner_left_expr, Expression::Assign { .. });
     let has_assignment_parent =
         f.context()
             .parent(node_id)
@@ -164,37 +100,48 @@ pub(super) fn format_assign_expression<'ast>(
                     Expression::Assign { .. }
                 )
             });
+    let has_left_assignment_parent =
+        f.context()
+            .parent(node_id)
+            .is_some_and(|(parent_id, parent_type)| {
+                if parent_type != NodeType::Expression {
+                    return false;
+                }
+                matches!(
+                    f.context()
+                        .tree
+                        .get(LocalNodeId::<Expression>::new(parent_id)),
+                    Expression::Assign { left, .. } if left.id == node_id.id
+                )
+            });
     let left_has_annotation = f.context().has_annotation(left);
     let right_has_annotation = f.context().has_annotation(right);
     let node_has_annotation = f.context().has_annotation(node_id);
+    let assignment_has_newline = f.context().node_has_newline(node_id);
+    let left_has_newline = f.context().node_has_newline(left);
+    let right_has_newline = f.context().node_has_newline(right);
+    let assignment_is_compact = !assignment_has_newline && !left_has_newline && !right_has_newline;
     if right_is_simple_expression
+        && !left_is_assign_expression
         && !has_assignment_parent
         && !left_has_annotation
         && !right_has_annotation
         && !node_has_annotation
+        && assignment_is_compact
     {
-        let left_source_len = expression_source_len(f.context(), left);
-        let operator_len = assign_operator_len(operator);
-        let right_source_len = expression_source_len(f.context(), inner_right_id);
-        let inline_len = left_source_len
-            .saturating_add(operator_len)
-            .saturating_add(right_source_len)
-            .saturating_add(ASSIGNMENT_OPERATOR_PADDING_WIDTH);
-        if inline_len <= line_width {
-            f.context()
-                .increment_counter("profile.assign.simple_inline.fast_path", 1);
-            write!(
-                f,
-                [group(&format_args![
-                    left,
-                    space(),
-                    operator,
-                    space(),
-                    right
-                ])]
-            )?;
-            return Ok(());
-        }
+        f.context()
+            .increment_counter("profile.assign.simple_inline.short_circuit", 1);
+        write!(
+            f,
+            [group(&format_args![
+                left,
+                space(),
+                operator,
+                space(),
+                right
+            ])]
+        )?;
+        return Ok(());
     }
 
     let has_postfix = f.context().has_postfix_annotation(left);
@@ -206,6 +153,13 @@ pub(super) fn format_assign_expression<'ast>(
     let right_is_chain_root = is_chain_root(f.context().tree, inner_right_id);
     let right_is_chain =
         is_expression_chain(f.context().tree, inner_right_id) || right_is_chain_root;
+    let right_chain_has_call_operation = if right_is_chain {
+        expression_chain_contains_call(f.context().tree, inner_right_id)
+    } else {
+        false
+    };
+    let right_chain_is_multiline =
+        right_is_chain && (right_has_newline || f.context().node_has_newline(inner_right_id));
     let right_is_chain_tail_lambda =
         is_assignment_chain_tail_lambda(f.context(), node_id, inner_right_id);
     let right_is_lambda = is_lambda_expression(f.context(), inner_right_id);
@@ -221,8 +175,6 @@ pub(super) fn format_assign_expression<'ast>(
             || assignment_seam_has_line_comment_between(f.context(), left, right);
     let right_has_prefix_annotation_that_forces_operator_break =
         right_has_prefix_annotation && !right_has_assignment_seam_inline_prefix_comment;
-    let left_has_newline = f.context().node_has_newline(left);
-    let right_has_newline = f.context().node_has_newline(right);
     let right_has_between_comment = has_comment_between_expressions(f.context(), left, right);
 
     // string literals are atomic: never break at `=`
@@ -230,37 +182,45 @@ pub(super) fn format_assign_expression<'ast>(
         inner_right_expr,
         Expression::ScalarLiteral(ScalarLiteral::String(_)) | Expression::TemplateExpression { .. }
     );
+    let right_is_keyword_prefixed_expression = matches!(
+        inner_right_expr,
+        Expression::Await { .. } | Expression::AwaitMaybe { .. } | Expression::Comptime { .. }
+    );
+    let right_chain_starts_with_keyword_prefixed_expression =
+        expression_chain_starts_with_keyword_prefix_expression(f.context().tree, inner_right_id);
 
-    // estimate remaining inline width for rhs
-    let left_source_len = source_min_inline_char_len(f.context().span_str(f.context().span(left)));
-    let operator_len = assign_operator_len(operator);
-    let inline_overhead = left_source_len
-        .saturating_add(operator_len)
-        .saturating_add(ASSIGNMENT_OPERATOR_PADDING_WIDTH);
-    let remaining_width = line_width.saturating_sub(inline_overhead);
-    let right_source_len = expression_source_len(f.context(), inner_right_id);
-    let right_annotation_len = expression_prefix_annotation_source_len(f.context(), right);
-    let right_source_len = right_source_len.saturating_add(right_annotation_len);
-    let right_is_long = right_source_len > remaining_width;
-    let right_span = f.context().span(inner_right_id);
-    let right_compact_source_len = source_min_inline_char_len(f.context().span_str(right_span))
-        .saturating_add(right_annotation_len);
-    let right_is_compact_long = right_compact_source_len > remaining_width;
+    // structural rhs break profile
+    let right_is_multiline = right_has_newline;
+    let right_is_compact_multiline = right_is_multiline;
+    let assignment_is_multiline = assignment_has_newline;
+    let chain_root_id = left_assignment_chain_root(f.context(), node_id);
+    let chain_root_is_current = chain_root_id.id == node_id.id;
+    let left_assignment_chain_is_multiline = has_left_assignment_parent
+        && !chain_root_is_current
+        && f.context().node_has_newline(chain_root_id);
+    let right_chain_root_id = right_assignment_chain_root(f.context(), node_id);
+    let right_assignment_chain_is_multiline = has_assignment_parent && {
+        let right_parent_is_long = right_assignment_parent(f.context(), node_id)
+            .is_some_and(|parent_id| f.context().node_has_newline(parent_id));
+        right_parent_is_long || f.context().node_has_newline(right_chain_root_id)
+    };
 
-    // prefer breaking after `=` for long binary rhs values
-    let right_is_long_binary = if right_is_binary {
+    // prefer breaking after `=` for multiline binary rhs values
+    let right_is_multiline_binary = if right_is_binary {
         let binary_operand_count = match inner_right_expr {
             Expression::Binary { operator, .. } => {
                 flattened_binary_operand_count(f.context().tree, inner_right_id, *operator)
             }
             _ => 0,
         };
-        right_source_len > remaining_width
-            && binary_operand_count > LONG_BINARY_OPERAND_COUNT_THRESHOLD
-            && binary_rhs_prefers_break_after_operator(right_source_len, line_width)
+        binary_operand_count > LONG_BINARY_OPERAND_COUNT_THRESHOLD
+            && (right_has_between_comment || right_has_newline)
     } else {
         false
     };
+    let node_is_call_argument = f
+        .context()
+        .any_ancestor(node_id, |_, parent_type| parent_type == NodeType::Argument);
 
     if is_string_literal {
         write!(
@@ -289,6 +249,24 @@ pub(super) fn format_assign_expression<'ast>(
         Ok(())
     });
 
+    // keep rhs keyword expressions (`await`, `await?`, `comptime`) attached to `=`
+    if (right_is_keyword_prefixed_expression || right_chain_starts_with_keyword_prefixed_expression)
+        && !right_has_prefix_annotation_that_forces_operator_break
+        && !right_has_between_comment
+    {
+        write!(
+            f,
+            [group(&format_args![
+                left,
+                space_before_operator,
+                operator,
+                space(),
+                right
+            ])]
+        )?;
+        return Ok(());
+    }
+
     // keep assignment seam inline prefix comments with the operator
     if right_has_assignment_seam_inline_prefix_comment {
         write!(
@@ -304,9 +282,45 @@ pub(super) fn format_assign_expression<'ast>(
         return Ok(());
     }
 
+    // left associative assignment chains: keep inner chain steps inline
+    if has_left_assignment_parent
+        && !right_has_prefix_annotation_that_forces_operator_break
+        && !right_has_between_comment
+        && !right_is_multiline
+        && !left_assignment_chain_is_multiline
+    {
+        write!(
+            f,
+            [group(&format_args![
+                left,
+                space_before_operator,
+                operator,
+                indent(&format_args![soft_line_break_or_space(), dedent(&right)])
+            ])]
+        )?;
+        return Ok(());
+    }
+
+    // expanded right-associative assignment chains should break on each seam
+    if right_assignment_chain_is_multiline
+        && !right_has_prefix_annotation_that_forces_operator_break
+        && !right_has_between_comment
+    {
+        write!(
+            f,
+            [group(&format_args![
+                left,
+                space_before_operator,
+                operator,
+                indent(&format_args![hard_line_break(), dedent(&right)])
+            ])]
+        )?;
+        return Ok(());
+    }
+
     // break long binary rhs values after the operator
-    if right_is_long_binary {
-        let format_break_after_operator = format_with(|f| {
+    if right_is_multiline_binary {
+        let format_break_after_operator = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             // avoid double indentation when the rhs breaks internally
             let dedented_right = dedent(&right);
             write!(
@@ -320,22 +334,7 @@ pub(super) fn format_assign_expression<'ast>(
             )
         });
 
-        let format_inline = format_with(|f| {
-            group(&format_args![
-                left,
-                space_before_operator,
-                operator,
-                space(),
-                right
-            ])
-            .format(f)
-        });
-
-        if right_is_long {
-            format_break_after_operator.format(f)?;
-        } else {
-            format_inline.format(f)?;
-        }
+        format_break_after_operator.format(f)?;
         return Ok(());
     }
 
@@ -357,6 +356,7 @@ pub(super) fn format_assign_expression<'ast>(
             )
     );
     if (right_is_collection_or_call_like || right_is_anonymous_class_declaration)
+        && !right_is_chain
         && !right_has_prefix_annotation
         && !right_has_between_comment
     {
@@ -375,21 +375,21 @@ pub(super) fn format_assign_expression<'ast>(
 
     if right_handles_its_own_breaking {
         let right_prefers_operator_break = if right_is_assign {
-            // nested assignment chains: break by stable shape signals only
-            !right_is_lambda
-                && (right_is_compact_long
-                    || right_has_prefix_annotation_that_forces_operator_break
-                    || right_has_between_comment)
+            // nested assignment chains: let the rhs chain decide width breaks internally
+            right_has_prefix_annotation_that_forces_operator_break
+                || right_has_between_comment
+                || node_is_call_argument
         } else if right_is_lambda {
             right_has_prefix_annotation_that_forces_operator_break
                 || right_has_between_comment
-                || right_is_compact_long
+                || right_is_compact_multiline
         } else if right_is_chain {
             !right_is_lambda
                 && (right_is_chain_tail_lambda
                     || right_has_prefix_annotation_that_forces_operator_break
-                    || (right_is_long
-                        && (remaining_width == 0 || left_has_newline || !right_has_newline))
+                    || right_chain_is_multiline
+                    || (assignment_is_multiline && !right_chain_has_call_operation)
+                    || (right_is_multiline && left_has_newline)
                     || right_has_between_comment)
         }
         // binary rhs values should not depend on source-only break signals, to keep idempotence stable
@@ -397,15 +397,16 @@ pub(super) fn format_assign_expression<'ast>(
             !right_is_lambda
                 && (right_is_chain_tail_lambda
                     || right_has_prefix_annotation_that_forces_operator_break
-                    || right_has_between_comment)
-                && (right_is_compact_long
+                    || right_has_between_comment
+                    || assignment_is_multiline
+                    || right_is_compact_multiline
                     || right_has_prefix_annotation_that_forces_operator_break
                     || right_has_between_comment)
         } else {
             !right_is_lambda
                 && (right_is_chain_tail_lambda
                     || right_has_prefix_annotation_that_forces_operator_break
-                    || right_is_compact_long
+                    || right_is_compact_multiline
                     || right_has_between_comment)
         };
 
@@ -442,8 +443,7 @@ pub(super) fn format_assign_expression<'ast>(
                 left,
                 space_before_operator,
                 operator,
-                space(),
-                right
+                indent(&format_args![soft_line_break_or_space(), dedent(&right)])
             ])
             .format(f)
         });
@@ -455,12 +455,6 @@ pub(super) fn format_assign_expression<'ast>(
         }
     } else {
         let left_inner_id = transparent_inner_expression(f.context(), left);
-        let left_is_assignment_chain = matches!(
-            f.context().tree.get(left_inner_id),
-            Expression::Assign { .. }
-        );
-        let left_source_has_assignment_operator =
-            span_contains_assignment_operator_token(f.context(), f.context().span(left));
         let left_is_expanded_object_target = matches!(
             f.context().tree.get(left_inner_id),
             Expression::ObjectExpression { properties, .. }
@@ -472,16 +466,11 @@ pub(super) fn format_assign_expression<'ast>(
             Expression::ObjectExpression { properties, .. } if properties.len() <= SHORT_OBJECT_PROPERTY_MAX
         );
         let right_is_inline_atomic =
-            expression_is_trivial_inline_without_annotations(f.context(), inner_right_id)
-                && right_source_len <= remaining_width;
-        let should_force_break_for_assignment_left_chain = (left_is_assignment_chain
-            || left_source_has_assignment_operator)
-            && right_is_compact_long
-            && !right_is_short_object;
+            expression_is_trivial_inline_without_annotations(f.context(), inner_right_id);
         let should_force_break_for_multiline_left =
             left_has_newline && !right_is_short_object && !right_is_inline_atomic;
 
-        if should_force_break_for_assignment_left_chain || should_force_break_for_multiline_left {
+        if should_force_break_for_multiline_left {
             write!(
                 f,
                 [group(&format_args![

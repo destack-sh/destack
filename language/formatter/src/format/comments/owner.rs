@@ -51,6 +51,22 @@ pub(super) fn normalize_formatter_trivia_target_owner(tree: &NodeTree, owner_id:
     }
 }
 
+/// Return whether one owner is one block node or block expression wrapper.
+pub(super) fn is_block_like_owner(tree: &NodeTree, owner_id: u32) -> bool {
+    if tree.get_node_type(owner_id) == NodeType::Block {
+        return true;
+    }
+
+    if tree.get_node_type(owner_id) != NodeType::Expression {
+        return false;
+    }
+
+    matches!(
+        tree.get(LocalNodeId::<Expression>::new(owner_id)),
+        Expression::Block(_)
+    )
+}
+
 /// Return one preferred owner that starts at one token span.
 pub(super) fn find_preferred_owner_starting_at(tree: &NodeTree, span: Span) -> Option<u32> {
     let mut best_owner: Option<EnclosingSpan> = None;

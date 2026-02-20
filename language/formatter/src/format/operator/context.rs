@@ -1,5 +1,19 @@
-use super::*;
-use crate::analysis::scan::previous_non_whitespace_before_span;
+use crate::analysis::scan::{
+    first_non_trivia_token_in_span, nth_non_trivia_token_in_span,
+    previous_non_whitespace_token_before_span,
+};
+use crate::directive::{
+    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
+};
+use crate::expression::{
+    Annotation, AnnotationPosition, Argument, BinaryOperand, BinaryOperator, Declaration,
+    Declarator, DependencyKind, DestackFormatContext, DestackFormatter, Expression, FormatResult,
+    ImportAliasTarget, LocalNodeId, Member, NodeTree, NodeType, Parameter, Property, TokenType,
+    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, WhereClause, expression_precedence,
+    format_expression, has_comment_between_expressions, parenthesized_has_leading_inner_trivia,
+    parenthesized_leading_type_grouping_operator, token, transparent_inner_expression,
+};
+use destack_fir::format::Buffer;
 use destack_fir::write;
 
 /// Return whether an expression is a type-grammar variant.
@@ -180,8 +194,10 @@ fn is_type_context_uncached(
                 let property = context.tree.get(LocalNodeId::<Property>::new(parent_id));
                 if let Property::Field { value, .. } = property
                     && value.is_some_and(|value| value.id == current_id)
+                    && let Some((expression_id, expression_type)) = context.parent_by_id(parent_id)
+                    && expression_type == NodeType::Expression
                 {
-                    return true;
+                    return is_type_context(context, LocalNodeId::<Expression>::new(expression_id));
                 }
             }
 
@@ -450,10 +466,19 @@ pub(crate) fn union_source_has_leading_pipe(
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let span = context.span(node_id);
-    let source = context.span_str(span);
-    if source.trim_start().starts_with('|')
-        || previous_non_whitespace_before_span(context, span) == Some('|')
-    {
+    let leading_token_is_pipe = first_non_trivia_token_in_span(context, span)
+        .is_some_and(|token| token.token.ty == TokenType::ElementwiseOr);
+    let template_placeholder_has_leading_pipe =
+        first_non_trivia_token_in_span(context, span).is_some_and(|token| {
+            matches!(
+                token.token.ty,
+                TokenType::TemplateStringStart | TokenType::TemplateStringMiddle
+            )
+        }) && nth_non_trivia_token_in_span(context, span, 1)
+            .is_some_and(|token| token.token.ty == TokenType::ElementwiseOr);
+    let previous_token_is_pipe = previous_non_whitespace_token_before_span(context, span)
+        .is_some_and(|token| token.token.ty == TokenType::ElementwiseOr);
+    if leading_token_is_pipe || template_placeholder_has_leading_pipe || previous_token_is_pipe {
         return true;
     }
 
@@ -472,9 +497,8 @@ pub(crate) fn union_source_has_leading_pipe(
             break;
         }
 
-        let parent_span = context.span(parent_expression_id);
-        let parent_source = context.span_str(parent_span);
-        let leading_operator = parenthesized_source_leading_type_grouping_operator(parent_source);
+        let leading_operator =
+            parenthesized_leading_type_grouping_operator(context, parent_expression_id);
         if leading_operator == Some(BinaryOperator::ElementwiseOr) {
             return true;
         }
@@ -491,14 +515,6 @@ pub(crate) fn is_type_grouping_binary_operator(operator: BinaryOperator) -> bool
         operator,
         BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
     )
-}
-
-/// Return whether a long binary rhs should break immediately after an assignment operator.
-pub(crate) fn binary_rhs_prefers_break_after_operator(
-    value_source_len: usize,
-    line_width: usize,
-) -> bool {
-    value_source_len > line_width
 }
 
 /// Return whether a type binary operand needs grouping parentheses.
@@ -620,6 +636,65 @@ fn format_expression_without_prefix_annotations<'ast>(
             f,
             [f.context().any_infix_or_postfix_annotations(expression_id)]
         )?;
+    }
+
+    Ok(())
+}
+
+/// Format a binary operand with grouping parentheses while omitting prefix annotations.
+pub(crate) fn format_binary_operand_without_prefix_annotations_with_grouping_parentheses<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    parent_operator: BinaryOperator,
+    operand_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let mut operand_id = operand_id;
+    if let Expression::Parenthesized {
+        expression: inner_expression_id,
+    } = f.context().tree.get(operand_id)
+    {
+        let can_drop_for_binary = redundant_parenthesized_binary_operand_can_drop(
+            f.context(),
+            parent_operator,
+            operand_id,
+            *inner_expression_id,
+        );
+        let can_drop_for_closure_cast = redundant_parenthesized_closure_cast_operand_can_drop(
+            f.context(),
+            operand_id,
+            *inner_expression_id,
+        );
+        if can_drop_for_binary || can_drop_for_closure_cast {
+            operand_id = *inner_expression_id;
+        }
+    }
+
+    let expression = f.context().tree.get(operand_id);
+    let needs_type_grouping_parentheses =
+        type_binary_operand_needs_grouping_parentheses(f.context(), parent_operator, operand_id);
+    let suppress_precedence_parentheses_for_type_binary = matches!(
+        (expression, parent_operator),
+        (
+            Expression::TypeBinary {
+                operator: TypeBinaryOperator::Is
+                    | TypeBinaryOperator::In
+                    | TypeBinaryOperator::InstanceOf,
+                ..
+            },
+            BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce,
+        )
+    );
+    let needs_precedence_parentheses = !matches!(expression, Expression::Parenthesized { .. })
+        && expression_precedence(expression) < parent_operator.precedence()
+        && !suppress_precedence_parentheses_for_type_binary;
+    let needs_grouping_parentheses =
+        needs_type_grouping_parentheses || needs_precedence_parentheses;
+
+    if needs_grouping_parentheses {
+        write!(f, [token("(")])?;
+        format_expression_without_prefix_annotations(f, operand_id)?;
+        write!(f, [token(")")])?;
+    } else {
+        format_expression_without_prefix_annotations(f, operand_id)?;
     }
 
     Ok(())

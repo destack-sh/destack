@@ -1,7 +1,26 @@
-use super::classify::*;
-use super::layout::*;
-use crate::expression::*;
-use crate::{CallArgumentExpansionProfileFacts, CallArgumentExpansionProfilesFacts};
+use super::call::{
+    call_argument_layout_facts_are_simple_multi_unannotated, resolve_call_argument_layout_facts,
+};
+use super::classify::{
+    argument_has_non_blank_annotation, argument_is_collection_literal,
+    argument_is_interpolated_template_literal, argument_is_reference_like,
+    call_has_leading_block_callback_with_simple_tail, call_has_non_blank_infix_annotation,
+    call_has_static_arguments, call_like_has_type_binary_callee,
+};
+use crate::expression::{
+    argument_is_function_expression, argument_is_lambda_expression, argument_value_id,
+    expression_inline_width_hint, is_expression_chain, token, transparent_inner_expression,
+};
+use crate::tree::{
+    argument_is_block_callback, argument_is_template_literal, has_multiline_jsx_argument,
+};
+use crate::{
+    CallArgumentExpansionProfileFacts, CallArgumentExpansionProfilesFacts, DestackFormatContext,
+    DestackFormatter,
+};
+use destack_ast::{Argument, Expression, LocalNodeId};
+use destack_fir::format::Buffer;
+use destack_fir::prelude::{FormatResult, space};
 use destack_fir::write;
 
 // call argument layout thresholds
@@ -9,8 +28,7 @@ const NON_LAST_BLOCK_CALLBACK_COUNT_TARGET: usize = 1;
 const NON_LAST_BLOCK_CALLBACK_MIN_INDEX: usize = 1;
 const FIRST_BLOCK_CALLBACK_COLLECTION_TAIL_ARGUMENT_COUNT: usize = 2;
 const MULTIPLE_FUNCTION_ARGUMENT_MIN_COUNT: usize = 2;
-const MULTILINE_FUNCTION_COMPOSITION_MIN_ARGUMENTS: usize = 3;
-const CALL_ARGUMENT_DELIMITER_WIDTH: usize = 2;
+const FUNCTION_COMPOSITION_MIN_ARGUMENTS: usize = 3;
 
 /// Store derived call argument expansion flags.
 #[derive(Clone, Copy)]
@@ -139,8 +157,8 @@ pub(crate) fn argument_has_callback_blocking_comment_annotation(
         || (context.node_has_newline(argument_id) && profile.has_prefix_annotation)
 }
 
-/// Return whether a single static argument call should expand.
-pub(crate) fn call_force_expand_single_long_with_static_arguments(
+/// Return whether a single static argument call should force expansion.
+pub(crate) fn call_force_expand_single_multiline_with_static_arguments(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
@@ -159,9 +177,7 @@ pub(crate) fn call_force_expand_single_long_with_static_arguments(
         return false;
     }
 
-    let line_width = usize::from(context.options.line_width);
-    let call_len = expression_source_len(context, call_node_id);
-    call_len > line_width
+    is_expression_chain(context.tree, call_node_id)
 }
 
 /// Return whether a single collection argument should expand for type binary callees.
@@ -191,11 +207,7 @@ pub(crate) fn single_argument_requires_expanded_list(
         return false;
     }
 
-    let value_span = context.span(value_id);
-    let compact_value_len = source_min_inline_char_len(context.span_str(value_span));
-    let line_width = usize::from(context.options.line_width);
-
-    compact_value_len > line_width
+    context.node_has_newline(value_id)
 }
 
 /// Build regular and chain call expansion profiles for one call expression.
@@ -245,8 +257,8 @@ pub(crate) fn build_call_argument_expansion_profiles(
                 && !argument_value_is_tree_expression
                 && (!argument_is_template_literal(context, argument_id)
                     || argument_is_interpolated_template_literal(context, argument_id));
-        let force_expand_single_long_with_static_arguments =
-            call_force_expand_single_long_with_static_arguments(
+        let force_expand_single_multiline_with_static_arguments =
+            call_force_expand_single_multiline_with_static_arguments(
                 context,
                 call_node_id,
                 dynamic_arguments,
@@ -266,7 +278,7 @@ pub(crate) fn build_call_argument_expansion_profiles(
             || has_line_comment_annotations
             || force_expand_single_commented_callback
             || force_expand_single_multiline_argument
-            || force_expand_single_long_with_static_arguments
+            || force_expand_single_multiline_with_static_arguments
             || force_expand_single_chain_argument
             || force_expand_single_collection_for_type_binary_callee
             || force_expand_single_prefix_line_commented_argument
@@ -275,7 +287,7 @@ pub(crate) fn build_call_argument_expansion_profiles(
             || has_line_comment_annotations
             || force_expand_single_commented_callback
             || force_expand_single_chain_argument
-            || force_expand_single_long_with_static_arguments;
+            || force_expand_single_multiline_with_static_arguments;
 
         return CallArgumentExpansionProfiles {
             regular: CallArgumentExpansionProfile {
@@ -290,10 +302,10 @@ pub(crate) fn build_call_argument_expansion_profiles(
     let layout_class = resolve_call_argument_layout_facts(context, call_node_id, dynamic_arguments);
 
     // compact unannotated argument lists do not require full expansion profiling
-    let can_use_simple_multi_argument_fast_path =
+    let can_use_simple_multi_argument_short_circuit =
         call_argument_layout_facts_are_simple_multi_unannotated(layout_class);
-    if can_use_simple_multi_argument_fast_path {
-        context.increment_counter("call.arguments.layout.simple_fast_path", 1);
+    if can_use_simple_multi_argument_short_circuit {
+        context.increment_counter("call.arguments.layout.simple_short_circuit", 1);
         return CallArgumentExpansionProfiles {
             regular: CallArgumentExpansionProfile {
                 force_expand: false,
@@ -339,7 +351,7 @@ pub(crate) fn build_call_argument_expansion_profiles(
         >= MULTIPLE_FUNCTION_ARGUMENT_MIN_COUNT
         || function_argument_count >= MULTIPLE_FUNCTION_ARGUMENT_MIN_COUNT;
     if has_multiple_function_arguments {
-        context.increment_counter("call.arguments.layout.fast_path.multiple_function", 1);
+        context.increment_counter("call.arguments.layout.multiple_function_short_circuit", 1);
         return CallArgumentExpansionProfiles {
             regular: CallArgumentExpansionProfile {
                 force_expand: true,
@@ -351,14 +363,14 @@ pub(crate) fn build_call_argument_expansion_profiles(
     }
 
     let has_spread_argument = layout_class.has_spread_argument;
-    let force_expand_multiline_function_composition = context.node_has_newline(call_node_id)
-        && dynamic_arguments.len() >= MULTILINE_FUNCTION_COMPOSITION_MIN_ARGUMENTS
+    let force_expand_function_composition = dynamic_arguments.len()
+        >= FUNCTION_COMPOSITION_MIN_ARGUMENTS
         && has_any_function_argument
         && !has_spread_argument;
     let has_non_complex_force_expand_signal = force_expand_jsx
         || has_line_comment_annotations
         || should_expand_for_block_callback
-        || force_expand_multiline_function_composition
+        || force_expand_function_composition
         || has_call_infix_annotations;
     let force_expand_complex = if has_non_complex_force_expand_signal {
         false
@@ -371,7 +383,7 @@ pub(crate) fn build_call_argument_expansion_profiles(
         || has_line_comment_annotations
         || should_expand_for_block_callback
         || has_multiple_function_arguments
-        || force_expand_multiline_function_composition
+        || force_expand_function_composition
         || has_call_infix_annotations;
     let chain_force_expand = force_expand_jsx
         || force_expand_complex
@@ -474,27 +486,21 @@ pub(crate) fn call_should_force_hugged_expand(
     force_expand_single_collection_for_type_binary_callee
 }
 
-/// Estimate one-line `callee(arg1, arg2)` length for plain call expressions.
-pub(crate) fn call_inline_len_without_static_arguments(
+/// Return one-line `callee(arg1, arg2)` inline width hint for plain call expressions.
+pub(crate) fn call_inline_width_hint_without_static_arguments(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     call_has_static_arguments: bool,
-    dynamic_arguments: &[LocalNodeId<Argument>],
 ) -> Option<usize> {
-    let Expression::Call { left, .. } = context.tree.get(call_node_id) else {
+    let Expression::Call { .. } = context.tree.get(call_node_id) else {
         return None;
     };
+
     if call_has_static_arguments {
         return None;
     }
 
-    let callee_len = expression_source_len(context, *left);
-    let arguments_len = arguments_rendered_len(context, dynamic_arguments);
-    Some(
-        callee_len
-            .saturating_add(arguments_len)
-            .saturating_add(CALL_ARGUMENT_DELIMITER_WIDTH),
-    )
+    Some(expression_inline_width_hint(context, call_node_id))
 }
 
 /// Write an inline comma-separated call argument list.
@@ -588,7 +594,7 @@ pub(crate) fn write_plain_call_argument<'ast>(
     Ok(())
 }
 
-/// Write one call argument with a plain fast path and a safe fallback.
+/// Write one call argument with a plain short-circuit and a safe default branch.
 pub(crate) fn write_plain_call_argument_or_node<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     argument_id: LocalNodeId<Argument>,

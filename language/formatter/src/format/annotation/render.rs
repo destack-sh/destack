@@ -1,16 +1,17 @@
 use destack_fir::format::{Format, FormatResult, hard_line_break};
 use destack_fir::prelude::*;
-use destack_fir::write;
+use destack_fir::{format_args, write};
 use destack_source::Span;
 
 use crate::analysis::scan::{
-    next_non_whitespace_after_span, previous_non_whitespace_before_annotation,
+    next_non_whitespace_after_span, next_non_whitespace_token_after_span,
+    previous_non_whitespace_before_annotation, token_is_keyword,
 };
-use crate::directive::{is_any_ignore_directive_comment, is_ignore_directive_comment};
+use crate::directive::{comment_node_is_any_ignore_directive, comment_node_is_ignore_directive};
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, Comment, CommentStyle, Declaration, Doc, DocStyle, LocalNodeId, Node,
-    NodeTree, NodeTreeImpl, NodeType,
+    AnnotationPosition, Comment, CommentStyle, Declaration, Doc, DocStyle, Keyword, LocalNodeId,
+    Node, NodeTree, NodeTreeImpl, NodeType,
 };
 
 /// Return the concrete content span for an annotation node.
@@ -193,27 +194,27 @@ fn annotation_next_token_is_on_same_line(
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
     let span = annotation_content_span(context, annotation_id);
-    if span.end >= context.file.len {
-        return false;
-    }
-
-    let tail_span = Span::new(span.file, span.end, context.file.len);
-    let Some(tail_source) = context.file.get_span_str(tail_span) else {
+    let Some(next_token) = next_non_whitespace_token_after_span(context, span) else {
         return false;
     };
 
-    for character in tail_source.chars() {
-        if character.is_whitespace() {
-            if character == '\n' {
-                return false;
-            }
-            continue;
-        }
+    let anchor_offset = span.end.saturating_sub(1);
+    context
+        .file
+        .is_same_line(anchor_offset, next_token.span.start)
+}
 
-        return true;
-    }
+/// Return whether one annotation is followed by an `else` keyword token.
+fn annotation_next_token_is_else_keyword(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let span = annotation_content_span(context, annotation_id);
+    let Some(next_token) = next_non_whitespace_token_after_span(context, span) else {
+        return false;
+    };
 
-    false
+    token_is_keyword(context, next_token, Keyword::Else)
 }
 
 /// Return whether an annotation directly follows a colon in source.
@@ -251,12 +252,7 @@ pub(super) fn annotation_starts_on_own_line<'ast>(
     context: &DestackFormatContext<'ast>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    let span = annotation_content_span(context, annotation_id);
-    let head_span = Span::new(span.file, 0, span.start);
-    let head_source = context.file.get_span_str(head_span).unwrap_or_default();
-    let line_start = head_source.rfind('\n').map(|index| index + 1).unwrap_or(0);
-    let line_prefix = &head_source[line_start..];
-    line_prefix.trim().is_empty()
+    context.span_starts_on_own_line(annotation_content_span(context, annotation_id))
 }
 
 /// Return whether annotation source begins after at least one newline.
@@ -265,11 +261,7 @@ fn annotation_has_leading_newline<'ast>(
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
     let span = annotation_content_span(context, annotation_id);
-    let source = context.span_str(span);
-    source
-        .chars()
-        .take_while(|character| character.is_whitespace())
-        .any(|character| character == '\n')
+    context.has_newline(span)
 }
 
 /// Return whether an annotation is slash-style.
@@ -441,32 +433,6 @@ fn declaration_has_export_modifier(
     }
 }
 
-/// Return whether one declaration has static parameters.
-fn declaration_has_static_parameters(
-    context: &DestackFormatContext<'_>,
-    declaration_id: LocalNodeId<Declaration>,
-) -> bool {
-    match context.tree.get(declaration_id) {
-        Declaration::Global { .. }
-        | Declaration::ImportAlias { .. }
-        | Declaration::Function { .. } => false,
-        Declaration::Type {
-            static_parameters, ..
-        } => static_parameters
-            .as_ref()
-            .is_some_and(|parameters| !parameters.is_empty()),
-        Declaration::Namespace { generics, .. }
-        | Declaration::Struct { generics, .. }
-        | Declaration::Class { generics, .. }
-        | Declaration::Enum { generics, .. }
-        | Declaration::Interface { generics, .. }
-        | Declaration::Extension { generics, .. } => generics
-            .static_parameters
-            .as_ref()
-            .is_some_and(|parameters| !parameters.is_empty()),
-    }
-}
-
 /// Return whether one annotation is an export-head seam comment for a declaration.
 fn annotation_is_declaration_export_head_comment<T: Node>(
     context: &DestackFormatContext<'_>,
@@ -516,16 +482,11 @@ fn annotation_is_declaration_export_head_comment<T: Node>(
 /// Return whether one annotation is a generic-head seam comment for a declaration.
 fn annotation_is_declaration_generic_head_comment<T: Node>(
     context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<T>,
+    _node_id: LocalNodeId<T>,
     annotation: Annotation,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
     if T::TYPE != NodeType::Declaration {
-        return false;
-    }
-
-    let declaration_id = LocalNodeId::<Declaration>::new(node_id.id);
-    if !declaration_has_static_parameters(context, declaration_id) {
         return false;
     }
 
@@ -542,19 +503,6 @@ fn annotation_is_declaration_generic_head_comment<T: Node>(
     }
 
     let annotation_span = context.annotation_span(annotation_id);
-    let declaration_span = context.span_by_id(node_id.id);
-    if annotation_span.start <= declaration_span.start || annotation_span.end > declaration_span.end
-    {
-        return false;
-    }
-
-    if !matches!(
-        previous_non_whitespace_before_annotation(context, annotation_id),
-        Some(character) if character.is_ascii_alphanumeric() || character == '_'
-    ) {
-        return false;
-    }
-
     matches!(
         next_non_whitespace_after_span(context, annotation_span),
         Some('<')
@@ -572,7 +520,7 @@ where
         };
         let mut first_node_type: Option<NodeType> = None;
         let mut previous_was_blank_annotation = false;
-        for annotation_id in annotations {
+        for (annotation_index, annotation_id) in annotations.iter().copied().enumerate() {
             // read annotation
             let annotation = f.context().annotation(annotation_id);
             let (node_type, position) = match annotation {
@@ -630,6 +578,29 @@ where
             // collect annotation-specific rendering facts
             let render_facts = annotation_render_facts(f.context(), &annotation, annotation_id);
             let starts_on_own_line = annotation_starts_on_own_line(f.context(), annotation_id);
+            let next_annotation_is_inline_star_comment = annotations
+                .get(annotation_index + 1)
+                .copied()
+                .is_some_and(|next_annotation_id| {
+                    let next_annotation = f.context().annotation(next_annotation_id);
+                    if !annotation_capture_includes_position(
+                        self.position,
+                        next_annotation.position(),
+                    ) {
+                        return false;
+                    }
+
+                    if annotation_starts_on_own_line(f.context(), next_annotation_id) {
+                        return false;
+                    }
+
+                    let Annotation::Comment { node, .. } = next_annotation else {
+                        return false;
+                    };
+
+                    let comment = f.context().tree.get::<Comment>(node);
+                    comment.style == CommentStyle::Star
+                });
             let is_ignore_directive_postfix_comment = render_facts.is_slash_comment
                 && matches!(
                     position,
@@ -638,22 +609,15 @@ where
                         | AnnotationPosition::BlockPostfix
                 )
                 && {
-                    let annotation_span = f.context().annotation_span(annotation_id);
-                    let annotation_source = f.context().span_str(annotation_span);
-                    let comment_source = if let Annotation::Comment {
-                        node: comment_id, ..
-                    } = annotation
-                    {
-                        f.context().comment_text(comment_id)
-                    } else {
-                        "".into()
-                    };
-
                     if annotation_starts_on_own_line(f.context(), annotation_id)
                         || annotation_has_leading_newline(f.context(), annotation_id)
                     {
-                        is_ignore_directive_comment(annotation_source)
-                            || is_ignore_directive_comment(comment_source.as_ref())
+                        match annotation {
+                            Annotation::Comment { node, .. } => {
+                                comment_node_is_ignore_directive(f.context(), node)
+                            }
+                            _ => false,
+                        }
                     } else {
                         false
                     }
@@ -691,25 +655,62 @@ where
                 && position == AnnotationPosition::LinePostfixBoundary
                 && starts_on_own_line
             {
-                let comment = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    annotation.format_node(annotation_id, f)
-                });
-                let indented_comment = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    write!(f, [hard_line_break(), comment])
-                });
-                write!(f, [indent(&indented_comment), hard_line_break()])?;
-                continue;
+                let separator_starts_expression =
+                    matches!(render_facts.next_character, Some('(' | '[' | '{' | '<'));
+                let separator_requires_boundary_continuation = matches!(
+                    render_facts.next_character,
+                    Some(',' | ';' | ':' | '=' | '?' | '.')
+                );
+                // separator-leading boundary markers keep one continuation indentation level
+                if separator_requires_boundary_continuation {
+                    write!(
+                        f,
+                        [
+                            indent(&format_args![
+                                hard_line_break(),
+                                format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                    annotation.format_node(annotation_id, f)
+                                })
+                            ]),
+                            hard_line_break()
+                        ]
+                    )?;
+                    continue;
+                }
+
+                // expression-leading boundary comments should stay flush with the current indent
+                // and avoid line-postfix indentation carry-over
+                if separator_starts_expression {
+                    write!(
+                        f,
+                        [
+                            hard_line_break(),
+                            format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                annotation.format_node(annotation_id, f)
+                            }),
+                            hard_line_break()
+                        ]
+                    )?;
+                    continue;
+                }
+                // non-separator own-line boundary comments flow through line_postfix handling
+                else {
+                    // fall through
+                }
             }
 
             let can_render_inline_slash_line_postfix = render_facts.is_slash_comment
                 && matches!(
                     position,
                     AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
-                )
-                && !(position == AnnotationPosition::LinePostfixBoundary && starts_on_own_line);
+                );
             if can_render_inline_slash_line_postfix {
                 let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    write!(f, [space()])?;
+                    if position == AnnotationPosition::LinePostfixBoundary && starts_on_own_line {
+                        write!(f, [hard_line_break()])?;
+                    } else {
+                        write!(f, [space()])?;
+                    }
                     annotation.format_node(annotation_id, f)
                 });
                 write!(f, [line_postfix(&content, 0)])?;
@@ -717,23 +718,23 @@ where
             }
 
             if render_facts.is_slash_comment && position == AnnotationPosition::LinePrefix {
-                let annotation_span = f.context().annotation_span(annotation_id);
-                let annotation_source = f.context().span_str(annotation_span);
-
                 // keep formatter directives on own lines but let formatter manage indentation
-                let comment_source = if let Annotation::Comment {
-                    node: comment_id, ..
-                } = annotation
-                {
-                    f.context().comment_text(comment_id)
-                } else {
-                    "".into()
+                let is_ignore_directive_comment = match annotation {
+                    Annotation::Comment { node, .. } => {
+                        comment_node_is_any_ignore_directive(f.context(), node)
+                    }
+                    _ => false,
                 };
-                let is_ignore_directive_comment =
-                    is_any_ignore_directive_comment(annotation_source)
-                        || is_any_ignore_directive_comment(comment_source.as_ref());
-                if is_ignore_directive_comment && !annotation_source.trim().is_empty() {
-                    write!(f, [hard_line_break(), text(annotation_source.trim())])?;
+                if is_ignore_directive_comment {
+                    write!(
+                        f,
+                        [
+                            hard_line_break(),
+                            format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                annotation.format_node(annotation_id, f)
+                            })
+                        ]
+                    )?;
                     write!(f, [hard_line_break()])?;
                     continue;
                 }
@@ -807,12 +808,6 @@ where
                 == AnnotationPosition::BlockPrefix
                 && T::TYPE == NodeType::Expression
                 && matches!(annotation, Annotation::Comment { .. })
-                && {
-                    let annotation_span = f.context().annotation_span(annotation_id);
-                    let annotation_source = f.context().span_str(annotation_span);
-                    let trimmed = annotation_source.trim_start();
-                    !trimmed.starts_with("/**")
-                }
                 && matches!(render_facts.next_character, Some('|' | '&'));
             // format annotation itself
             annotation.format_node(annotation_id, f)?;
@@ -822,12 +817,16 @@ where
                 AnnotationPosition::LinePrefix => {
                     let next_token_is_on_same_line =
                         annotation_next_token_is_on_same_line(f.context(), annotation_id);
+                    let next_token_is_else =
+                        annotation_next_token_is_else_keyword(f.context(), annotation_id);
                     if render_facts.is_slash_comment {
                         if next_token_is_on_same_line {
                             write!(f, [space()])?;
                         } else {
                             write!(f, [hard_line_break()])?;
                         }
+                    } else if render_facts.is_star_comment && next_token_is_else {
+                        write!(f, [space()])?;
                     } else if next_token_is_on_same_line {
                         write!(f, [space()])?;
                     } else {
@@ -840,11 +839,19 @@ where
                     }
                 }
                 AnnotationPosition::BlockInfix => {
+                    let should_keep_space_before_adjacent_block_comment =
+                        next_annotation_is_inline_star_comment
+                            || (render_facts.next_character == Some('/')
+                                && annotation_next_token_is_on_same_line(
+                                    f.context(),
+                                    annotation_id,
+                                ));
                     if is_inline_block_star_comment {
                         if !render_facts.precedes_separator
                             || !inline_block_comment_allows_tight_separator(
                                 render_facts.next_character,
                             )
+                            || should_keep_space_before_adjacent_block_comment
                         {
                             write!(f, [space()])?;
                         }
@@ -853,11 +860,19 @@ where
                     }
                 }
                 AnnotationPosition::BlockPostfix => {
+                    let should_keep_space_before_adjacent_block_comment =
+                        next_annotation_is_inline_star_comment
+                            || (render_facts.next_character == Some('/')
+                                && annotation_next_token_is_on_same_line(
+                                    f.context(),
+                                    annotation_id,
+                                ));
                     if is_inline_delimited_block_postfix_star_comment {
                         if !render_facts.precedes_separator
                             || !inline_block_comment_allows_tight_separator(
                                 render_facts.next_character,
                             )
+                            || should_keep_space_before_adjacent_block_comment
                         {
                             write!(f, [space()])?;
                         }
@@ -866,11 +881,19 @@ where
                     }
                 }
                 AnnotationPosition::BlockPrefix => {
+                    let should_keep_space_before_adjacent_block_comment =
+                        next_annotation_is_inline_star_comment
+                            || (render_facts.next_character == Some('/')
+                                && annotation_next_token_is_on_same_line(
+                                    f.context(),
+                                    annotation_id,
+                                ));
                     if is_inline_block_star_comment {
                         if !render_facts.precedes_separator
                             || !inline_block_comment_allows_tight_separator(
                                 render_facts.next_character,
                             )
+                            || should_keep_space_before_adjacent_block_comment
                         {
                             write!(f, [space()])?;
                         }
@@ -891,8 +914,12 @@ where
                     } else if render_facts.is_star_comment && !starts_on_own_line {
                         // keep block boundary comments adjacent to list separators
                         // but avoid collapsing adjacent block comments
-                        if render_facts.next_character == Some('/')
-                            && annotation_next_token_is_on_same_line(f.context(), annotation_id)
+                        if next_annotation_is_inline_star_comment
+                            || (render_facts.next_character == Some('/')
+                                && annotation_next_token_is_on_same_line(
+                                    f.context(),
+                                    annotation_id,
+                                ))
                         {
                             write!(f, [space()])?;
                         }

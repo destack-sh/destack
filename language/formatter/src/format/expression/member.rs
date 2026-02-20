@@ -1,4 +1,12 @@
-use super::*;
+use crate::expression::{
+    BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult, IfKind,
+    LocalNodeId, NodeTree, NodeType, OperatorPrecedence, ParenthesizedUnwrapPolicy,
+    PostfixPosition, ScalarLiteral, Span, StringId, TypeBinaryOperator, block_indent,
+    format_static_argument_list, format_with, group, hard_line_break, indent,
+    parenthesized_should_unwrap, should_parenthesize_index_expression, soft_line_break,
+    span_has_comment, token,
+};
+use destack_fir::format::Buffer;
 use destack_fir::{format_args, write};
 use smallvec::SmallVec;
 
@@ -598,12 +606,8 @@ pub(crate) fn write_postfix_base_expression<'ast>(
     let needs_parentheses = needs_parens_in_postfix_position(f.context().tree, expression_id)
         || needs_integer_member_parentheses;
     if needs_parentheses {
-        let line_width = usize::from(f.context().options.line_width);
-        let parenthesized_chain_overflows = parent_expression_id.is_some_and(|parent_id| {
-            let available_width =
-                assignment_like_remaining_width(f.context(), parent_id).unwrap_or(line_width);
-            expression_source_len(f.context(), parent_id) > available_width
-        });
+        let parenthesized_chain_overflows =
+            parent_expression_id.is_some_and(|parent_id| f.context().node_has_newline(parent_id));
 
         if parenthesized_chain_overflows {
             write!(

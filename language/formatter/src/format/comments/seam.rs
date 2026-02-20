@@ -1,11 +1,11 @@
-use ast::{AnnotationPosition, NodeParentIndex, NodeTree, TokenSpan, TokenType};
+use ast::{AnnotationPosition, Keyword, NodeParentIndex, NodeTree, TokenSpan, TokenType};
 use destack_ast as ast;
-use destack_source::File;
+use destack_source::{File, Span};
+use rustc_hash::FxHashMap;
 
 use super::owner::find_smallest_owner_enclosing_range;
 use super::token::{
     is_open_delimiter_token, previous_non_newline_token_index, token_after_prefers_left_ownership,
-    token_is_control_head_close_paren,
 };
 
 /// One normalized identifier keyword used in comment seam rules.
@@ -33,7 +33,10 @@ pub(super) enum CommentSeamKeyword {
 
 /// Classify one identifier token into one seam keyword family.
 #[inline]
-fn classify_comment_seam_keyword(file: &File, token: Option<TokenSpan>) -> CommentSeamKeyword {
+pub(super) fn classify_comment_seam_keyword(
+    token_keyword_by_span: &FxHashMap<Span, Option<Keyword>>,
+    token: Option<TokenSpan>,
+) -> CommentSeamKeyword {
     let Some(token) = token else {
         return CommentSeamKeyword::None;
     };
@@ -42,15 +45,20 @@ fn classify_comment_seam_keyword(file: &File, token: Option<TokenSpan>) -> Comme
         return CommentSeamKeyword::None;
     }
 
-    match file.span_str(token.span) {
-        "as" => CommentSeamKeyword::As,
-        "satisfies" => CommentSeamKeyword::Satisfies,
-        "export" => CommentSeamKeyword::Export,
-        "implements" => CommentSeamKeyword::Implements,
-        "else" => CommentSeamKeyword::Else,
-        "case" => CommentSeamKeyword::Case,
-        "default" => CommentSeamKeyword::Default,
-        "const" => CommentSeamKeyword::Const,
+    let keyword = token_keyword_by_span.get(&token.span).copied().flatten();
+    let Some(keyword) = keyword else {
+        return CommentSeamKeyword::None;
+    };
+
+    match keyword {
+        Keyword::As => CommentSeamKeyword::As,
+        Keyword::Satisfies => CommentSeamKeyword::Satisfies,
+        Keyword::Export => CommentSeamKeyword::Export,
+        Keyword::Implements => CommentSeamKeyword::Implements,
+        Keyword::Else => CommentSeamKeyword::Else,
+        Keyword::Case => CommentSeamKeyword::Case,
+        Keyword::Default => CommentSeamKeyword::Default,
+        Keyword::Const => CommentSeamKeyword::Const,
         _ => CommentSeamKeyword::None,
     }
 }
@@ -64,6 +72,8 @@ pub(super) struct CommentSeamContext<'a> {
     pub(super) tree: &'a NodeTree,
     /// The semantic token stream.
     pub(super) semantic_tokens: &'a [TokenSpan],
+    /// Parsed identifier keywords by token span.
+    pub(super) token_keyword_by_span: &'a FxHashMap<Span, Option<Keyword>>,
     /// The comment trivia payload.
     pub(super) trivia: destack_ast::CommentTrivia,
     /// Parent links for owner promotion.
@@ -101,8 +111,6 @@ pub(super) struct CommentSeamFacts {
     pub(super) token_after_keyword: CommentSeamKeyword,
     /// Whether token after seam structurally prefers left ownership.
     pub(super) token_after_prefers_left: bool,
-    /// Whether token before seam closes one control-flow head.
-    pub(super) token_before_is_control_head_close_paren: bool,
     /// Whether seam is one return type boundary after `):`.
     pub(super) token_before_is_return_type_colon: bool,
     /// Whether default trailing behavior should prefer right binding.
@@ -115,21 +123,24 @@ impl CommentSeamFacts {
         let token_before_type = context.token_before_span.map(|token| token.token.ty);
         let token_after_type = context.token_after_span.map(|token| token.token.ty);
         let token_before_keyword =
-            classify_comment_seam_keyword(context.file, context.token_before_span);
+            classify_comment_seam_keyword(context.token_keyword_by_span, context.token_before_span);
         let token_after_keyword =
-            classify_comment_seam_keyword(context.file, context.token_after_span);
+            classify_comment_seam_keyword(context.token_keyword_by_span, context.token_after_span);
         let has_leading_newline = context.trivia.boundary.newlines.has_leading_newline();
         let has_trailing_newline = context.trivia.boundary.newlines.has_trailing_newline();
         let comment_style = context.tree.get(context.trivia.comment).style;
         let comment_is_line = comment_style == ast::CommentStyle::Slash;
         let comment_is_star = comment_style == ast::CommentStyle::Star;
-        let comment_is_multiline_star =
-            comment_is_star && context.file.span_str(context.trivia.span).contains('\n');
+        let comment_is_multiline_star = if comment_is_star {
+            let comment_end = context.trivia.span.end.saturating_sub(1);
+            !context
+                .file
+                .is_same_line(context.trivia.span.start, comment_end)
+        } else {
+            false
+        };
         let token_after_prefers_left =
             token_after_type.is_some_and(token_after_prefers_left_ownership);
-        let token_before_is_control_head_close_paren = context.token_before.is_some_and(|index| {
-            token_is_control_head_close_paren(context.file, context.semantic_tokens, index)
-        });
         let token_before_is_return_type_colon = context
             .token_before
             .and_then(|index| previous_non_newline_token_index(context.semantic_tokens, index))
@@ -142,6 +153,7 @@ impl CommentSeamFacts {
                 token_before_type,
                 Some(TokenType::Arrow | TokenType::ArrowWide)
             )
+            || token_before_type == Some(TokenType::Colon)
             || token_before_keyword == CommentSeamKeyword::Export
             || token_before_keyword == CommentSeamKeyword::Satisfies
             || token_before_keyword == CommentSeamKeyword::As
@@ -158,7 +170,6 @@ impl CommentSeamFacts {
             token_before_keyword,
             token_after_keyword,
             token_after_prefers_left,
-            token_before_is_control_head_close_paren,
             token_before_is_return_type_colon,
             seam_binds_right,
         }

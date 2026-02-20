@@ -1,14 +1,26 @@
 use ast::{
-    AnnotationPosition, Expression, LocalNodeId, NodeParentIndex, NodeTree, NodeType, TokenSpan,
-    TokenType,
+    AnnotationPosition, Expression, Keyword, LocalNodeId, NodeParentIndex, NodeTree, NodeType,
+    TokenSpan, TokenType,
 };
 use destack_ast as ast;
+use destack_source::Span;
+use rustc_hash::FxHashMap;
 
-use super::index::*;
-use super::owner::*;
+use super::index::{
+    FormatterTriviaOwnerIndex, FormatterTriviaSeamIndex, decode_token_index, encode_trivia_seam,
+};
+use super::owner::{
+    find_next_declaration_owner_from_token, find_next_member_owner_from_token,
+    find_smallest_owner_enclosing_token, lowest_common_owner_ancestor,
+    normalize_formatter_trivia_target_owner, promote_owner_by_shared_start,
+    promote_owner_to_declaration_ancestor, promote_owner_to_node_type_ancestor,
+};
+use super::seam::{CommentSeamKeyword, classify_comment_seam_keyword};
+
 pub(super) fn resolve_formatter_blank_trivia_attachment(
     tree: &NodeTree,
     semantic_tokens: &[TokenSpan],
+    token_keyword_by_span: &FxHashMap<Span, Option<Keyword>>,
     trivia: destack_ast::BlankTrivia,
     owner_index: &FormatterTriviaOwnerIndex,
     seam_index: &FormatterTriviaSeamIndex,
@@ -22,10 +34,9 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
     let token_after_span = token_after
         .and_then(|index| semantic_tokens.get(index))
         .copied();
-    let seam_has_line_comment = seam_index.line_comment_seams.contains(&encode_trivia_seam(
-        trivia.boundary.token_before,
-        trivia.boundary.token_after,
-    ));
+    let seam = encode_trivia_seam(trivia.boundary.token_before, trivia.boundary.token_after);
+    let seam_has_comment = seam_index.comment_seams.contains(&seam);
+    let seam_has_line_comment = seam_index.line_comment_seams.contains(&seam);
 
     let right_owner = token_after
         .and_then(|index| {
@@ -58,6 +69,27 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
             })
         });
 
+    // blank trivia at file start should not produce leading empty lines
+    if token_before.is_none() {
+        if seam_has_comment && let Some(mut target_node) = right_owner {
+            if tree.get_node_type(target_node) != NodeType::Expression
+                && let Some(expression_target) = promote_owner_to_node_type_ancestor(
+                    tree,
+                    parents,
+                    target_node,
+                    NodeType::Expression,
+                )
+            {
+                target_node = expression_target;
+            }
+
+            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+            return (Some(target_node), AnnotationPosition::BlockPrefix);
+        }
+
+        return (None, AnnotationPosition::BlockInfix);
+    }
+
     let token_after_is_at = token_after_span.is_some_and(|token| token.token.ty == TokenType::At);
     let token_after_is_semicolon =
         token_after_span.is_some_and(|token| token.token.ty == TokenType::Semicolon);
@@ -65,8 +97,18 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
         token_after_span.is_some_and(|token| token.token.ty == TokenType::CloseBrace);
     let token_after_is_open_parenthesis =
         token_after_span.is_some_and(|token| token.token.ty == TokenType::OpenParenthesis);
+    let token_after_is_chain_or_index_boundary = token_after_span
+        .is_some_and(|token| matches!(token.token.ty, TokenType::Dot | TokenType::OpenBracket));
+    let token_after_is_else =
+        classify_comment_seam_keyword(token_keyword_by_span, token_after_span)
+            == CommentSeamKeyword::Else;
+    let token_before_is_else =
+        classify_comment_seam_keyword(token_keyword_by_span, token_before_span)
+            == CommentSeamKeyword::Else;
     let token_before_is_open_parenthesis =
         token_before_span.is_some_and(|token| token.token.ty == TokenType::OpenParenthesis);
+    let token_before_is_comma =
+        token_before_span.is_some_and(|token| token.token.ty == TokenType::Comma);
     let token_before_is_statement_end = token_before_span.is_some_and(|token| {
         matches!(
             token.token.ty,
@@ -81,11 +123,67 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
     });
     let right_owner_is_argument =
         right_owner.is_some_and(|owner| tree.get_node_type(owner) == NodeType::Argument);
+    let shared_expression_owner = left_owner
+        .zip(right_owner)
+        .and_then(|(left_owner, right_owner)| {
+            lowest_common_owner_ancestor(tree, parents, left_owner, right_owner)
+        })
+        .and_then(|owner| (tree.get_node_type(owner) == NodeType::Expression).then_some(owner));
+    let seam_has_shared_expression_owner = shared_expression_owner.is_some();
+    let blank_before_first_comment = seam_index
+        .first_comment_start_by_seam
+        .get(&seam)
+        .copied()
+        .is_some_and(|start| trivia.span.end <= start);
+
+    // blank seams around comments before `else` are asymmetric:
+    // keep true pre-comment blank lines, drop post-comment blanks
+    if seam_has_comment && token_after_is_else {
+        if blank_before_first_comment && let Some(target_node) = shared_expression_owner {
+            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+            return (Some(target_node), AnnotationPosition::BlockPostfix);
+        }
+
+        if blank_before_first_comment && let Some(mut target_node) = right_owner {
+            if tree.get_node_type(target_node) != NodeType::Expression
+                && let Some(expression_target) = promote_owner_to_node_type_ancestor(
+                    tree,
+                    parents,
+                    target_node,
+                    NodeType::Expression,
+                )
+            {
+                target_node = expression_target;
+            }
+
+            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+            return (Some(target_node), AnnotationPosition::BlockPrefix);
+        }
+
+        return (None, AnnotationPosition::BlockInfix);
+    }
+
+    // blank seams around chain-boundary comments should preserve pre and post comment spacing
+    if seam_has_comment && token_after_is_chain_or_index_boundary {
+        if blank_before_first_comment && let Some(target_node) = left_owner {
+            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+            return (Some(target_node), AnnotationPosition::BlockPostfix);
+        }
+
+        if let Some(token) = token_after_span
+            && let Some(target_node) = find_smallest_owner_enclosing_token(tree, token.span)
+        {
+            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+            return (Some(target_node), AnnotationPosition::BlockPrefix);
+        }
+    }
 
     // blank seams that already contain line comments should not add extra spacing
     if seam_has_line_comment
         && !token_before_span.is_some_and(|token| token.token.ty == TokenType::CloseBrace)
         && !token_after_span.is_some_and(|token| token.token.ty == TokenType::Identifier)
+        && !token_after_span
+            .is_some_and(|token| matches!(token.token.ty, TokenType::Dot | TokenType::OpenBracket))
         && !token_before_span.is_some_and(|token| token.token.ty == TokenType::Assign)
     {
         return (None, AnnotationPosition::BlockInfix);
@@ -93,6 +191,11 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
 
     // blank seams before semicolons or closing braces are formatting noise
     if token_after_is_semicolon || token_after_is_close_brace {
+        return (None, AnnotationPosition::BlockInfix);
+    }
+
+    // blank seams between `else` and branch bodies are formatting noise
+    if token_before_is_else {
         return (None, AnnotationPosition::BlockInfix);
     }
 
@@ -148,6 +251,7 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
     // top-level expression seams already carry spacing in statement-list formatting
     if token_before_is_statement_end
         && token_after_starts_statement
+        && !seam_has_line_comment
         && let (Some(left_owner), Some(right_owner)) = (left_owner, right_owner)
         && tree.get_node_type(left_owner) == NodeType::Expression
         && tree.get_node_type(right_owner) == NodeType::Expression
@@ -159,6 +263,7 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
 
     // top-level expression-to-declaration seams already carry spacing in statement-list formatting
     if token_before_span.is_some_and(|token| token.token.ty == TokenType::Semicolon)
+        && !seam_has_line_comment
         && let (Some(left_owner), Some(right_owner)) = (left_owner, right_owner)
         && tree.get_node_type(left_owner) == NodeType::Expression
         && tree.get_node_type(right_owner) == NodeType::Declaration
@@ -170,6 +275,7 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
 
     // top-level declaration-to-expression seams after close braces don't need blank trivia
     if token_before_span.is_some_and(|token| token.token.ty == TokenType::CloseBrace)
+        && !seam_has_line_comment
         && let (Some(left_owner), Some(right_owner)) = (left_owner, right_owner)
         && tree.get_node_type(left_owner) == NodeType::Declaration
         && tree.get_node_type(right_owner) == NodeType::Expression
@@ -181,6 +287,7 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
 
     // block-local seams before await expressions don't need extra blank trivia
     if token_before_span.is_some_and(|token| token.token.ty == TokenType::Semicolon)
+        && !seam_has_line_comment
         && let (Some(left_owner), Some(right_owner)) = (left_owner, right_owner)
         && tree.get_node_type(left_owner) == NodeType::Expression
         && tree.get_node_type(right_owner) == NodeType::Expression
@@ -195,6 +302,7 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
 
     // semicolon seams before block-local member-path expressions don't carry independent blank trivia
     if token_before_span.is_some_and(|token| token.token.ty == TokenType::Semicolon)
+        && !seam_has_line_comment
         && let Some(right_owner) = right_owner
         && tree.get_node_type(right_owner) == NodeType::Expression
         && promote_owner_to_node_type_ancestor(tree, parents, right_owner, NodeType::Block)
@@ -210,6 +318,7 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
 
     // top-level seams after declaration close braces and before plain expressions
     if token_before_span.is_some_and(|token| token.token.ty == TokenType::CloseBrace)
+        && !seam_has_line_comment
         && let (Some(left_owner), Some(right_owner)) = (left_owner, right_owner)
         && tree.get_node_type(right_owner) == NodeType::Expression
         && promote_owner_to_node_type_ancestor(tree, parents, right_owner, NodeType::Block)
@@ -249,6 +358,16 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
     // blank seams right after `(` before first arguments are formatting noise
     if right_owner_is_argument && token_before_is_open_parenthesis {
         return (None, AnnotationPosition::BlockInfix);
+    }
+
+    // blank seams before chain and index operators stay with the left segment
+    if token_after_is_chain_or_index_boundary
+        && seam_has_shared_expression_owner
+        && !token_before_is_comma
+        && let Some(target_node) = left_owner
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return (Some(target_node), AnnotationPosition::BlockPostfix);
     }
 
     if let Some(target_node) = right_owner {

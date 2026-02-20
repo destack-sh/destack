@@ -1,11 +1,23 @@
 use super::analyze::{
-    CallArgumentCommentProfile, argument_has_callback_blocking_comment_annotation,
-    argument_is_plain_call_argument, call_force_expand_single_collection_for_type_binary_callee,
-    call_inline_len_without_static_arguments,
+    argument_has_callback_blocking_comment_annotation, argument_is_plain_call_argument,
+    call_force_expand_single_collection_for_type_binary_callee,
+    call_inline_width_hint_without_static_arguments,
 };
-use super::classify::*;
+use super::classify::{
+    ArgumentSimplicityOptions, argument_has_leading_prefix_annotation_outside_span,
+    argument_has_non_blank_annotation, argument_is_collection_literal, argument_is_reference_like,
+    argument_is_simple_with_options, call_arguments_are_multiline_in_source,
+    call_has_non_blank_infix_annotation, call_has_static_arguments,
+    call_should_force_hug_test_like_callback,
+};
 use crate::CallArgumentLayoutFacts;
-use crate::expression::*;
+use crate::expression::{
+    Argument, CallArgumentCommentProfile, Declaration, DestackFormatContext, Expression,
+    FunctionKind, GroupId, LocalNodeId, NodeTree, NodeType, argument_is_array_literal,
+    argument_is_function_expression, argument_is_lambda_expression, argument_is_object_literal,
+    argument_value_id, is_block_lambda_argument, is_complex_argument, is_trivial_argument,
+    is_trivial_expression, transparent_inner_expression,
+};
 
 /// Return whether one argument is compact, unannotated, and simple.
 pub(crate) fn argument_is_compact_simple_unannotated(
@@ -62,9 +74,9 @@ pub(crate) fn call_has_call_chain_parent(
     }
 }
 
-/// Return whether a call can use the single-argument fast path before heavy profiling.
+/// Return whether a call can short-circuit to single-argument inline layout.
 #[derive(Clone, Copy)]
-pub(crate) struct SingleSimpleArgumentFastPathOptions {
+pub(crate) struct SingleSimpleArgumentShortCircuitOptions {
     /// The line width budget.
     pub(crate) line_width: usize,
     /// Whether the call has static type arguments.
@@ -97,34 +109,184 @@ pub(crate) fn call_argument_shape_from_layout_facts(
     }
 }
 
-/// Store incremental layout facts collected while scanning dynamic arguments.
+/// Store annotation-shape facts collected while scanning dynamic arguments.
 #[derive(Default)]
-struct CallArgumentLayoutScanState {
+struct CallArgumentAnnotationScanState {
     has_any_argument_annotation: bool,
+    has_line_comment_annotations: bool,
     all_single_line_and_unannotated: bool,
     all_compact_simple_unannotated: bool,
-    all_plain_call_arguments: bool,
-    has_line_comment_annotations: bool,
-    trailing_collection_argument: bool,
-    has_block_callback_argument: bool,
-    first_argument_is_block_callback: bool,
-    last_argument_is_block_callback: bool,
-    has_non_trivial_non_callback_argument: bool,
-    non_last_block_callback_count: usize,
-    non_last_block_callback_index: Option<usize>,
-    arrow_argument_count: usize,
-    function_argument_count: usize,
-    has_spread_argument: bool,
-    has_complex_non_callback_argument: bool,
 }
 
-impl CallArgumentLayoutScanState {
-    /// Create a layout scan state with default optimistic flags.
+impl CallArgumentAnnotationScanState {
+    /// Create an annotation scan state with optimistic defaults.
     fn new() -> Self {
         Self {
             all_single_line_and_unannotated: true,
             all_compact_simple_unannotated: true,
+            ..Self::default()
+        }
+    }
+
+    /// Observe one argument's annotation and newline surface.
+    fn observe_argument_surface(
+        &mut self,
+        context: &DestackFormatContext<'_>,
+        argument_id: LocalNodeId<Argument>,
+        has_annotation: bool,
+        has_newline: bool,
+    ) {
+        if has_annotation {
+            self.has_any_argument_annotation = true;
+            if !self.has_line_comment_annotations
+                && context
+                    .ensure_argument_annotation_facts(argument_id)
+                    .has_line_comment
+            {
+                self.has_line_comment_annotations = true;
+            }
+        }
+
+        let is_single_line_and_unannotated = !has_annotation && !has_newline;
+        self.all_single_line_and_unannotated &= is_single_line_and_unannotated;
+        if self.all_compact_simple_unannotated {
+            self.all_compact_simple_unannotated = if is_single_line_and_unannotated {
+                argument_is_compact_simple_unannotated(context, argument_id)
+            } else {
+                false
+            };
+        }
+    }
+}
+
+/// Store callback-shape facts collected while scanning dynamic arguments.
+#[derive(Default)]
+struct CallArgumentCallbackScanState {
+    has_block_callback_argument: bool,
+    first_argument_is_block_callback: bool,
+    last_argument_is_block_callback: bool,
+    non_last_block_callback_count: usize,
+    non_last_block_callback_index: Option<usize>,
+    arrow_argument_count: usize,
+    function_argument_count: usize,
+}
+
+impl CallArgumentCallbackScanState {
+    /// Observe callback flags for one argument position.
+    fn observe_argument_callback_flags(
+        &mut self,
+        argument_index: usize,
+        is_last_argument: bool,
+        flags: CallArgumentCallbackFlags,
+    ) {
+        if flags.is_lambda_argument {
+            self.arrow_argument_count += 1;
+        }
+        if flags.is_function_argument {
+            self.function_argument_count += 1;
+        }
+
+        if argument_index == 0 {
+            self.first_argument_is_block_callback = flags.is_block_callback;
+        }
+        if is_last_argument {
+            self.last_argument_is_block_callback = flags.is_block_callback;
+        }
+
+        if flags.is_block_callback {
+            self.has_block_callback_argument = true;
+            if !is_last_argument {
+                self.non_last_block_callback_count += 1;
+                if self.non_last_block_callback_index.is_none() {
+                    self.non_last_block_callback_index = Some(argument_index);
+                }
+            }
+        }
+    }
+}
+
+/// Store non-callback and argument-shape facts collected while scanning dynamic arguments.
+#[derive(Default)]
+struct CallArgumentComplexityScanState {
+    all_plain_call_arguments: bool,
+    trailing_collection_argument: bool,
+    has_non_trivial_non_callback_argument: bool,
+    has_spread_argument: bool,
+    has_complex_non_callback_argument: bool,
+}
+
+impl CallArgumentComplexityScanState {
+    /// Create a complexity scan state with optimistic defaults.
+    fn new() -> Self {
+        Self {
             all_plain_call_arguments: true,
+            ..Self::default()
+        }
+    }
+
+    /// Observe argument-level shape for one argument.
+    fn observe_argument_shape(
+        &mut self,
+        context: &DestackFormatContext<'_>,
+        argument_id: LocalNodeId<Argument>,
+        argument: &Argument,
+        argument_value: &Expression,
+        is_last_argument: bool,
+    ) {
+        if self.all_plain_call_arguments {
+            self.all_plain_call_arguments &= argument_is_plain_call_argument(context, argument_id);
+        }
+
+        if matches!(argument, Argument::Spread { .. }) {
+            self.has_spread_argument = true;
+        }
+
+        if is_last_argument {
+            self.trailing_collection_argument = matches!(
+                argument_value,
+                Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
+            );
+        }
+    }
+
+    /// Observe non-callback complexity for one argument.
+    fn observe_non_callback_complexity(
+        &mut self,
+        tree: &NodeTree,
+        argument: &Argument,
+        argument_value: &Expression,
+        is_last_argument: bool,
+    ) {
+        if !self.has_complex_non_callback_argument
+            && !matches!(argument_value, Expression::TreeExpression { .. })
+            && is_complex_argument(tree, argument)
+        {
+            self.has_complex_non_callback_argument = true;
+        }
+
+        if !self.has_non_trivial_non_callback_argument
+            && !is_last_argument
+            && !is_trivial_argument(tree, argument)
+        {
+            self.has_non_trivial_non_callback_argument = true;
+        }
+    }
+}
+
+/// Store incremental layout facts collected while scanning dynamic arguments.
+#[derive(Default)]
+struct CallArgumentLayoutScanState {
+    annotation: CallArgumentAnnotationScanState,
+    callback: CallArgumentCallbackScanState,
+    complexity: CallArgumentComplexityScanState,
+}
+
+impl CallArgumentLayoutScanState {
+    /// Create a layout scan state with optimistic defaults.
+    fn new() -> Self {
+        Self {
+            annotation: CallArgumentAnnotationScanState::new(),
+            complexity: CallArgumentComplexityScanState::new(),
             ..Self::default()
         }
     }
@@ -145,11 +307,19 @@ fn build_empty_call_argument_layout_facts(
     }
 }
 
+/// Store callback flags for one argument value.
+#[derive(Clone, Copy, Debug, Default)]
+struct CallArgumentCallbackFlags {
+    is_lambda_argument: bool,
+    is_function_argument: bool,
+    is_block_callback: bool,
+}
+
 /// Return callback flags for one argument value.
 fn call_argument_callback_flags(
     context: &DestackFormatContext<'_>,
     value: &Expression,
-) -> (bool, bool, bool) {
+) -> CallArgumentCallbackFlags {
     match value {
         Expression::Declaration(declaration_id) => match context.tree.get(*declaration_id) {
             Declaration::Function {
@@ -163,11 +333,15 @@ fn call_argument_callback_flags(
                         matches!(context.tree.get(body_id), Expression::Block(_))
                     });
 
-                (is_lambda_argument, is_function_argument, is_block_callback)
+                CallArgumentCallbackFlags {
+                    is_lambda_argument,
+                    is_function_argument,
+                    is_block_callback,
+                }
             }
-            _ => (false, false, false),
+            _ => CallArgumentCallbackFlags::default(),
         },
-        _ => (false, false, false),
+        _ => CallArgumentCallbackFlags::default(),
     }
 }
 
@@ -181,90 +355,36 @@ fn scan_call_argument_layout_argument(
 ) {
     let has_annotation = context.has_annotation(argument_id);
     let has_newline = context.node_has_newline(argument_id);
+    state
+        .annotation
+        .observe_argument_surface(context, argument_id, has_annotation, has_newline);
 
-    // annotation and single-line shape flags
-    if has_annotation {
-        state.has_any_argument_annotation = true;
-        if !state.has_line_comment_annotations
-            && context
-                .ensure_argument_annotation_facts(argument_id)
-                .has_line_comment
-        {
-            state.has_line_comment_annotations = true;
-        }
-    }
-
-    let is_single_line_and_unannotated = !has_annotation && !has_newline;
-    state.all_single_line_and_unannotated &= is_single_line_and_unannotated;
-    if state.all_compact_simple_unannotated {
-        state.all_compact_simple_unannotated = if is_single_line_and_unannotated {
-            argument_is_compact_simple_unannotated(context, argument_id)
-        } else {
-            false
-        };
-    }
-
-    if state.all_plain_call_arguments {
-        state.all_plain_call_arguments &= argument_is_plain_call_argument(context, argument_id);
-    }
-
-    // argument and value shape flags
     let argument = context.tree.get(argument_id);
-    if matches!(argument, Argument::Spread { .. }) {
-        state.has_spread_argument = true;
-    }
-
     let value_id = argument_value_id(context.tree, argument_id);
     let value_id = transparent_inner_expression(context, value_id);
     let value = context.tree.get(value_id);
-    let (is_lambda_argument, is_function_argument, is_block_callback) =
-        call_argument_callback_flags(context, value);
-    if is_lambda_argument {
-        state.arrow_argument_count += 1;
-    }
-    if is_function_argument {
-        state.function_argument_count += 1;
-    }
-
-    // first and last argument role flags
     let is_last_argument = index == last_argument_index;
-    if index == 0 {
-        state.first_argument_is_block_callback = is_block_callback;
-    }
-    if is_last_argument {
-        state.trailing_collection_argument = matches!(
-            value,
-            Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
-        );
-        state.last_argument_is_block_callback = is_block_callback;
-    }
-
-    // callback-tail counters for non-last callback arguments
-    if is_block_callback {
-        state.has_block_callback_argument = true;
-        if !is_last_argument {
-            state.non_last_block_callback_count += 1;
-            if state.non_last_block_callback_index.is_none() {
-                state.non_last_block_callback_index = Some(index);
-            }
-        }
+    let callback_flags = call_argument_callback_flags(context, value);
+    state
+        .callback
+        .observe_argument_callback_flags(index, is_last_argument, callback_flags);
+    state.complexity.observe_argument_shape(
+        context,
+        argument_id,
+        argument,
+        value,
+        is_last_argument,
+    );
+    if callback_flags.is_block_callback {
         return;
     }
 
-    // complexity flags for non-callback arguments
-    if !state.has_complex_non_callback_argument
-        && !matches!(value, Expression::TreeExpression { .. })
-        && is_complex_argument(context.tree, argument)
-    {
-        state.has_complex_non_callback_argument = true;
-    }
-
-    if !state.has_non_trivial_non_callback_argument
-        && !is_last_argument
-        && !is_trivial_argument(context.tree, argument)
-    {
-        state.has_non_trivial_non_callback_argument = true;
-    }
+    state.complexity.observe_non_callback_complexity(
+        context.tree,
+        argument,
+        value,
+        is_last_argument,
+    );
 }
 
 /// Scan dynamic arguments and collect one-pass layout facts.
@@ -304,36 +424,38 @@ fn build_scanned_call_argument_layout_facts(
 ) -> CallArgumentLayoutFacts {
     let force_hug_last_inline = dynamic_arguments.len() > 1
         && !has_call_infix_annotations
-        && !state.has_any_argument_annotation
-        && state.all_single_line_and_unannotated
+        && !state.annotation.has_any_argument_annotation
+        && state.annotation.all_single_line_and_unannotated
         && call_arguments_force_hug_last_inline(
             context,
             call_node_id,
             dynamic_arguments,
-            state.trailing_collection_argument,
+            state.complexity.trailing_collection_argument,
         );
     let is_multiline_in_source = call_arguments_are_multiline_in_source(context, dynamic_arguments);
 
     CallArgumentLayoutFacts {
         has_call_infix_annotations,
-        has_any_argument_annotation: state.has_any_argument_annotation,
+        has_any_argument_annotation: state.annotation.has_any_argument_annotation,
         is_multiline_in_source,
-        all_single_line_and_unannotated: state.all_single_line_and_unannotated,
-        all_compact_simple_unannotated: state.all_compact_simple_unannotated,
-        all_plain_call_arguments: state.all_plain_call_arguments,
-        has_line_comment_annotations: state.has_line_comment_annotations,
-        has_block_callback_argument: state.has_block_callback_argument,
-        first_argument_is_block_callback: state.first_argument_is_block_callback,
-        last_argument_is_block_callback: state.last_argument_is_block_callback,
-        has_non_trivial_non_callback_argument: state.has_non_trivial_non_callback_argument,
-        non_last_block_callback_count: state.non_last_block_callback_count,
-        non_last_block_callback_index: state.non_last_block_callback_index,
-        arrow_argument_count: state.arrow_argument_count,
-        function_argument_count: state.function_argument_count,
-        has_spread_argument: state.has_spread_argument,
-        has_complex_non_callback_argument: state.has_complex_non_callback_argument,
+        all_single_line_and_unannotated: state.annotation.all_single_line_and_unannotated,
+        all_compact_simple_unannotated: state.annotation.all_compact_simple_unannotated,
+        all_plain_call_arguments: state.complexity.all_plain_call_arguments,
+        has_line_comment_annotations: state.annotation.has_line_comment_annotations,
+        has_block_callback_argument: state.callback.has_block_callback_argument,
+        first_argument_is_block_callback: state.callback.first_argument_is_block_callback,
+        last_argument_is_block_callback: state.callback.last_argument_is_block_callback,
+        has_non_trivial_non_callback_argument: state
+            .complexity
+            .has_non_trivial_non_callback_argument,
+        non_last_block_callback_count: state.callback.non_last_block_callback_count,
+        non_last_block_callback_index: state.callback.non_last_block_callback_index,
+        arrow_argument_count: state.callback.arrow_argument_count,
+        function_argument_count: state.callback.function_argument_count,
+        has_spread_argument: state.complexity.has_spread_argument,
+        has_complex_non_callback_argument: state.complexity.has_complex_non_callback_argument,
         has_call_chain_parent,
-        trailing_collection_argument: state.trailing_collection_argument,
+        trailing_collection_argument: state.complexity.trailing_collection_argument,
         force_hug_last_inline,
     }
 }
@@ -430,13 +552,13 @@ pub(crate) fn leading_arguments_are_compact_callback_tail_candidates(
         })
 }
 
-/// Return whether a call can use the single-argument fast path before heavy profiling.
-pub(crate) fn call_arguments_use_single_simple_argument_fast_path(
+/// Return whether a call can short-circuit to single-argument inline layout.
+pub(crate) fn call_arguments_use_single_simple_argument_short_circuit(
     context: &DestackFormatContext<'_>,
     dynamic_arguments: &[LocalNodeId<Argument>],
-    options: SingleSimpleArgumentFastPathOptions,
+    options: SingleSimpleArgumentShortCircuitOptions,
     shape: CallArgumentShape,
-    inline_call_len_without_static_arguments: Option<usize>,
+    inline_call_width_hint_without_static_arguments: Option<usize>,
 ) -> bool {
     if dynamic_arguments.len() != 1
         || options.call_has_static_arguments
@@ -447,8 +569,8 @@ pub(crate) fn call_arguments_use_single_simple_argument_fast_path(
         return false;
     }
 
-    if inline_call_len_without_static_arguments
-        .is_none_or(|inline_len| inline_len > options.line_width)
+    if inline_call_width_hint_without_static_arguments
+        .is_none_or(|inline_width_hint| inline_width_hint > options.line_width)
     {
         return false;
     }
@@ -500,8 +622,6 @@ pub(crate) fn call_arguments_use_single_callback_argument_inline(
 /// Return whether a single simple argument can stay inline.
 #[derive(Clone, Copy)]
 pub(crate) struct SingleSimpleArgumentInlineOptions {
-    /// The call expression node id.
-    pub(crate) call_node_id: LocalNodeId<Expression>,
     /// The line width budget.
     pub(crate) line_width: usize,
     /// Whether the call has static type arguments.
@@ -520,14 +640,17 @@ pub(crate) fn call_arguments_use_single_simple_argument_inline(
     dynamic_arguments: &[LocalNodeId<Argument>],
     options: SingleSimpleArgumentInlineOptions,
     shape: CallArgumentShape,
-    inline_call_len_without_static_arguments: Option<usize>,
+    inline_call_width_hint_without_static_arguments: Option<usize>,
 ) -> bool {
     if dynamic_arguments.len() != 1
         || options.force_expand_single_long_with_static_arguments
         || options.force_expand_single_collection_for_type_binary_callee
         || options.single_argument_force_expand
-        || !shape.all_single_line_and_unannotated
     {
+        return false;
+    }
+
+    if shape.has_any_argument_annotation {
         return false;
     }
 
@@ -539,13 +662,14 @@ pub(crate) fn call_arguments_use_single_simple_argument_inline(
     let value_id = argument_value_id(context.tree, argument_id);
     let value_id = transparent_inner_expression(context, value_id);
     let value = context.tree.get(value_id);
-    let inline_len = if options.call_has_static_arguments {
-        expression_source_len(context, options.call_node_id)
+    let can_stay_inline = if options.call_has_static_arguments {
+        true
     } else {
-        inline_call_len_without_static_arguments.unwrap_or(usize::MAX)
+        inline_call_width_hint_without_static_arguments
+            .is_none_or(|inline_width_hint| inline_width_hint <= options.line_width)
     };
 
-    is_trivial_expression(context.tree, value) && inline_len <= options.line_width
+    is_trivial_expression(context.tree, value) && can_stay_inline
 }
 
 /// Store shared call argument planning inputs.
@@ -576,45 +700,42 @@ pub(crate) struct CallArgumentPlannerState {
     pub(crate) force_expand_single_long_with_static_arguments: bool,
     /// Whether one single collection argument in type-binary callee should force expansion.
     pub(crate) force_expand_single_collection_for_type_binary_callee: bool,
-    /// Estimated one-line call length for plain dynamic calls.
-    pub(crate) inline_call_len_without_static_arguments: Option<usize>,
+    /// Estimated inline call width hint for plain dynamic calls.
+    pub(crate) inline_call_width_hint_without_static_arguments: Option<usize>,
     /// One-pass argument shape facts.
     pub(crate) argument_shape: CallArgumentShape,
 }
 
-/// Resolve and cache the inline call length estimate for dynamic-only calls.
-pub(crate) fn resolve_inline_call_len_without_static_arguments(
+/// Resolve and cache the inline call width hint for dynamic-only calls.
+pub(crate) fn resolve_inline_call_width_hint_without_static_arguments(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
     call_has_static_arguments: bool,
 ) -> Option<usize> {
-    if let Some(cached) = context.lookup_call_inline_len_without_static_arguments(call_node_id) {
-        context.increment_counter("call.arguments.inline_len.cache.hits", 1);
+    if let Some(cached) =
+        context.lookup_call_inline_width_hint_without_static_arguments(call_node_id)
+    {
+        context.increment_counter("call.arguments.inline_width_hint.cache.hits", 1);
         return cached;
     }
-    context.increment_counter("call.arguments.inline_len.cache.misses", 1);
+    context.increment_counter("call.arguments.inline_width_hint.cache.misses", 1);
 
-    let inline_call_len_without_static_arguments = call_inline_len_without_static_arguments(
-        context,
+    let inline_call_width_hint_without_static_arguments =
+        call_inline_width_hint_without_static_arguments(
+            context,
+            call_node_id,
+            call_has_static_arguments,
+        );
+    context.store_call_inline_width_hint_without_static_arguments(
         call_node_id,
-        call_has_static_arguments,
-        dynamic_arguments,
-    );
-    context.store_call_inline_len_without_static_arguments(
-        call_node_id,
-        inline_call_len_without_static_arguments,
+        inline_call_width_hint_without_static_arguments,
     );
 
-    inline_call_len_without_static_arguments
+    inline_call_width_hint_without_static_arguments
 }
-
-/// Store hug-last call argument layout outcomes.
 pub(crate) enum HugLastCallArgumentLayout {
     /// Keep the argument list inline.
     Inline,
-    /// Keep the default list-like layout.
-    ListDefault,
 }
 
 /// Return whether call arguments can use the hug-last policy.
@@ -649,8 +770,7 @@ pub(crate) fn call_arguments_force_hug_last_inline(
     let can_force_hug_simple_block_lambda_tail = dynamic_arguments.len() <= 3
         && dynamic_arguments
             .last()
-            .is_some_and(|argument_id| is_block_lambda_argument(context, *argument_id))
-        && !context.node_has_newline(call_node_id);
+            .is_some_and(|argument_id| is_block_lambda_argument(context, *argument_id));
 
     let force_hug_test_like_callback = can_force_hug_test_like_callback
         && call_should_force_hug_test_like_callback(context, call_node_id, dynamic_arguments);
@@ -694,10 +814,11 @@ fn hug_last_tail_flags(
 /// Return whether hug-last can inline by fitting within the configured line width.
 fn hug_last_can_inline_by_width(
     force_expand: bool,
-    inline_call_len: Option<usize>,
+    inline_call_width_hint: Option<usize>,
     line_width: usize,
 ) -> bool {
-    !force_expand && inline_call_len.is_some_and(|inline_len| inline_len <= line_width)
+    !force_expand
+        && inline_call_width_hint.is_some_and(|inline_width_hint| inline_width_hint <= line_width)
 }
 
 /// Return whether hug-last can inline callback tails with compact leading arguments.
@@ -712,29 +833,6 @@ fn hug_last_can_inline_callback_tail(
         && leading_arguments_are_compact_callback_tail_candidates(context, dynamic_arguments)
 }
 
-/// Return whether hug-last can inline overflowing tails when the tail is callback-like or collection-like.
-fn hug_last_can_inline_overflow_tail(
-    force_expand: bool,
-    inline_call_len: Option<usize>,
-    line_width: usize,
-    last_argument_is_collection_literal: bool,
-    last_argument_is_callback_like: bool,
-) -> bool {
-    !force_expand
-        && inline_call_len.is_some_and(|inline_len| inline_len > line_width)
-        && (last_argument_is_collection_literal || last_argument_is_callback_like)
-}
-
-/// Return whether hug-last should skip probing and keep default list layout for collection tails.
-fn hug_last_should_skip_probe_collection(
-    context: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-    trailing_collection_argument: bool,
-) -> bool {
-    trailing_collection_argument
-        && leading_arguments_are_compact_simple_unannotated(context, dynamic_arguments)
-}
-
 /// Resolve hug-last call argument layout.
 pub(crate) fn resolve_hug_last_call_argument_layout(
     context: &DestackFormatContext<'_>,
@@ -745,23 +843,22 @@ pub(crate) fn resolve_hug_last_call_argument_layout(
     trailing_collection_argument: bool,
 ) -> Option<HugLastCallArgumentLayout> {
     // keep cached inline length and lazily resolve when needed
-    let mut inline_call_len_without_static_arguments =
-        planner_state.inline_call_len_without_static_arguments;
+    let mut inline_call_width_hint_without_static_arguments =
+        planner_state.inline_call_width_hint_without_static_arguments;
 
     let mut resolve_inline_call_len = || {
-        if inline_call_len_without_static_arguments.is_none()
+        if inline_call_width_hint_without_static_arguments.is_none()
             && !planner_state.call_has_static_arguments
         {
-            inline_call_len_without_static_arguments =
-                resolve_inline_call_len_without_static_arguments(
+            inline_call_width_hint_without_static_arguments =
+                resolve_inline_call_width_hint_without_static_arguments(
                     context,
                     call_node_id,
-                    dynamic_arguments,
                     planner_state.call_has_static_arguments,
                 );
         }
 
-        inline_call_len_without_static_arguments
+        inline_call_width_hint_without_static_arguments
     };
 
     // apply forced hug-last policy first
@@ -775,50 +872,33 @@ pub(crate) fn resolve_hug_last_call_argument_layout(
         return Some(HugLastCallArgumentLayout::Inline);
     }
 
-    // prefer deterministic inline when line fit is known
+    // prefer explicit width-fit inline when line fit is known
     if hug_last_can_inline_by_width(
         force_expand,
         resolve_inline_call_len(),
         planner_state.line_width,
     ) {
-        context.increment_counter("call.arguments.hug_last.fast_path", 1);
-        context.increment_counter("call.arguments.path.hug_last_fast", 1);
+        context.increment_counter("call.arguments.hug_last.width_inline", 1);
+        context.increment_counter("call.arguments.path.hug_last.width_inline", 1);
         return Some(HugLastCallArgumentLayout::Inline);
     }
 
-    // compute tail shape and try callback-tail inline fallback
-    let (last_argument_is_collection_literal, last_argument_is_callback_like) =
-        hug_last_tail_flags(context, dynamic_arguments);
+    // allow callback-tail inline when leading arguments stay compact
+    let (_, last_argument_is_callback_like) = hug_last_tail_flags(context, dynamic_arguments);
     if hug_last_can_inline_callback_tail(
         context,
         dynamic_arguments,
         force_expand,
         last_argument_is_callback_like,
     ) {
-        context.increment_counter("call.arguments.hug_last.fallback_inline", 1);
+        context.increment_counter("call.arguments.hug_last.callback_tail_inline", 1);
         return Some(HugLastCallArgumentLayout::Inline);
     }
 
-    // allow overflow inline when tail shape is explicitly hug-last-friendly
-    if hug_last_can_inline_overflow_tail(
-        force_expand,
-        resolve_inline_call_len(),
-        planner_state.line_width,
-        last_argument_is_collection_literal,
-        last_argument_is_callback_like,
-    ) {
-        context.increment_counter("call.arguments.hug_last.overflow_inline", 1);
+    // keep collection-tail hugging for eligible hug-last calls
+    if !force_expand && trailing_collection_argument {
+        context.increment_counter("call.arguments.hug_last.collection_tail_inline", 1);
         return Some(HugLastCallArgumentLayout::Inline);
-    }
-
-    // keep list-default when collection tails should skip additional probing
-    if hug_last_should_skip_probe_collection(
-        context,
-        dynamic_arguments,
-        trailing_collection_argument,
-    ) {
-        context.increment_counter("call.arguments.hug_last.skip_probe.collection", 1);
-        return Some(HugLastCallArgumentLayout::ListDefault);
     }
 
     None
@@ -829,6 +909,8 @@ pub(crate) enum CallArgumentLayoutDecision {
     InlineAll,
     /// Keep one argument wrapped inline.
     InlineSingle,
+    /// Keep compact leading arguments inline and expand the trailing collection argument.
+    TrailingCollectionExpanded,
     /// Render with explicit comment-expanded multiline argument layout.
     CommentExpanded(CallArgumentCommentProfile),
     /// Render with the default list formatter.
@@ -843,6 +925,8 @@ pub(crate) enum CallArgumentLayoutDecision {
 /// Store shared state for rendering a decided call argument layout.
 #[derive(Clone, Copy)]
 pub(crate) struct CallArgumentLayoutRenderState {
+    /// The call expression node id.
+    pub(crate) call_node_id: LocalNodeId<Expression>,
     /// The active list group id.
     pub(crate) group_id: GroupId,
     /// Whether any argument has annotations.
@@ -892,7 +976,7 @@ pub(crate) fn build_call_argument_planner_state(
     base_state: CallArgumentPlannerBaseState,
     single_argument_force_expand: bool,
     force_expand_single_long_with_static_arguments: bool,
-    inline_call_len_without_static_arguments: Option<usize>,
+    inline_call_width_hint_without_static_arguments: Option<usize>,
 ) -> CallArgumentPlannerState {
     // single collection arguments in type-binary calls may need forced expansion
     let force_expand_single_collection_for_type_binary_callee =
@@ -910,7 +994,7 @@ pub(crate) fn build_call_argument_planner_state(
         single_argument_force_expand,
         force_expand_single_long_with_static_arguments,
         force_expand_single_collection_for_type_binary_callee,
-        inline_call_len_without_static_arguments,
+        inline_call_width_hint_without_static_arguments,
         argument_shape: base_state.argument_shape,
     }
 }

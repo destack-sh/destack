@@ -10,5 +10,6 @@ mod block_policy;
 mod dispatch;
 mod function;
 mod module;
+mod statement_list;
 mod r#type;
 mod type_alias;

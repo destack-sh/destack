@@ -1,4 +1,12 @@
-use super::*;
+use super::{
+    Annotation, AnnotationPosition, Argument, ArgumentSimplicityOptions, ChainExpression,
+    Declaration, DestackFormatContext, Expression, FunctionKind, LocalNodeId, NodeTree, NodeType,
+    ScalarLiteral, Span, TokenType, argument_is_simple_with_options,
+    call_arguments_force_expand_for_chain, call_has_non_blank_infix_annotation,
+    chain_node_has_non_inline_annotation, chain_node_left_id, expression_inline_width_hint,
+    is_chain_expression, is_chain_root, is_expression_chain, is_trivial_expression,
+    should_break_chain, span_has_comment, transparent_inner_expression, tree_literal_should_break,
+};
 use destack_ast::{Comment, CommentStyle};
 
 /// Get the root head expression of a chain.
@@ -490,28 +498,15 @@ pub(crate) fn is_simple_chain_argument(
     )
 }
 
-/// Sum the source lengths of argument values.
+/// Sum structural argument value lengths.
 pub(crate) fn arguments_total_len(
     context: &DestackFormatContext<'_>,
     arguments: &[LocalNodeId<Argument>],
 ) -> usize {
-    // accumulate argument value lengths
-    let mut total_len = 0usize;
-
-    for argument_id in arguments {
+    arguments.iter().fold(0usize, |total_len, argument_id| {
         let value_id = argument_value_id(context.tree, *argument_id);
-
-        // keep inline width estimation stable across source-only line wraps
-        let value_span = context.span(value_id);
-        let value_len = if context.has_newline(value_span) {
-            source_min_inline_char_len(context.span_str(value_span))
-        } else {
-            expression_source_len(context, value_id)
-        };
-        total_len = total_len.saturating_add(value_len);
-    }
-
-    total_len
+        total_len.saturating_add(expression_inline_width_hint(context, value_id))
+    })
 }
 
 /// Estimate the rendered length of arguments when printed inline.
@@ -733,12 +728,26 @@ fn path_has_newline_before_first_separator(
     }
 
     let span = context.span(node_id);
-    let source = context.span_str(span);
-    let Some(first_separator_index) = source.find('.') else {
-        return false;
-    };
+    let tokens = context.tokens;
+    let mut index = tokens.partition_point(|token| token.span.end <= span.start);
+    let mut has_newline_before_separator = false;
 
-    source[..first_separator_index].contains('\n')
+    while let Some(token) = tokens.get(index).copied() {
+        if token.span.start >= span.end {
+            break;
+        }
+
+        index += 1;
+        if token.token.ty == TokenType::Dot {
+            return has_newline_before_separator;
+        }
+
+        if token.token.ty == TokenType::Newline {
+            has_newline_before_separator = true;
+        }
+    }
+
+    false
 }
 
 /// Check if a member access has an intervening comment between receiver and property.

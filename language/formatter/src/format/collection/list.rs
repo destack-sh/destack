@@ -4,9 +4,12 @@ use std::marker::PhantomData;
 use destack_fir::format::{FormatResult, GroupId};
 use destack_workspace::TrailingComma;
 
-use crate::directive::{collect_ignore_ranges_for_nodes, ignored_span_source, write_ignored_span};
+use crate::analysis::scan::{first_non_trivia_token_in_span, last_non_trivia_token_in_span};
+use crate::directive::{collect_ignore_ranges_for_nodes, write_ignored_span};
 use crate::{DestackFormatContext, FormatNode};
-use destack_ast::{Declaration, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType};
+use destack_ast::{
+    Declaration, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType, TokenType,
+};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::Span;
@@ -110,7 +113,7 @@ where
         // empty lists do not need any layout planning
         if !has_elements {
             f.context()
-                .increment_counter("profile.list_like.empty.fast_path", 1);
+                .increment_counter("profile.list_like.empty.short_circuit", 1);
             write!(f, [token(self.start_token), token(self.end_token)])?;
             return Ok(());
         }
@@ -215,15 +218,15 @@ where
             .format(f)
         });
 
-        // small annotation free lists almost always fit inline, skip best fitting probing
-        let can_use_single_element_inline_fast_path = !self.force_expand
+        // small annotation free lists almost always fit inline, skip extra fitting checks
+        let can_use_single_element_inline_short_circuit = !self.force_expand
             && !has_ignore_ranges
             && self.group_id.is_some()
             && self.elements.len() == 1;
-        if can_use_single_element_inline_fast_path {
+        if can_use_single_element_inline_short_circuit {
             let element_id = self.elements[0];
             let element_span = f.context().span(element_id);
-            let element_source_len = f.context().span_char_len(element_span);
+            let element_span_len = f.context().span_char_len(element_span);
             let compact_single_element_limit = usize::from(options.line_width).min(28);
             let inline_call_parent_fits = if self.start_token == "(" && self.end_token == ")" {
                 f.context()
@@ -244,10 +247,10 @@ where
             let can_keep_single_element_inline = !f.context().has_newline(element_span)
                 && !f.context().has_annotation(element_id)
                 && inline_call_parent_fits
-                && element_source_len <= compact_single_element_limit;
+                && element_span_len <= compact_single_element_limit;
             if can_keep_single_element_inline {
                 f.context()
-                    .increment_counter("profile.list_like.single_inline.fast_path", 1);
+                    .increment_counter("profile.list_like.single_inline.short_circuit", 1);
                 format_inline.format(f)?;
                 return Ok(());
             }
@@ -362,9 +365,10 @@ where
         }
 
         if let Some(range_span) = ignore_ranges.get(&element_id.id) {
-            let raw = ignored_span_source(f.context(), *range_span);
-            let starts_with_separator = raw.trim_start().starts_with(separator);
-            let ends_with_separator = raw_ends_with_separator(&raw, separator);
+            let starts_with_separator =
+                ignored_range_starts_with_separator(f.context(), *range_span, separator);
+            let ends_with_separator =
+                ignored_range_ends_with_separator(f.context(), *range_span, separator);
 
             if needs_separator && !starts_with_separator {
                 write!(f, [token(separator), soft_line_break_or_space()])?;
@@ -387,38 +391,44 @@ where
     Ok(needs_separator)
 }
 
-/// Check whether a raw range ends with the separator after trimming comments.
-pub(crate) fn raw_ends_with_separator(raw: &str, separator: &str) -> bool {
-    let trimmed = strip_trailing_comments(raw);
-    trimmed.trim_end().ends_with(separator)
+/// Return the token type used for one list separator string.
+fn separator_token_type(separator: &str) -> Option<TokenType> {
+    match separator {
+        "," => Some(TokenType::Comma),
+        ";" => Some(TokenType::Semicolon),
+        ":" => Some(TokenType::Colon),
+        "|" => Some(TokenType::ElementwiseOr),
+        "&" => Some(TokenType::ElementwiseAnd),
+        _ => None,
+    }
 }
 
-/// Strip trailing line and block comments from a raw string.
-pub(crate) fn strip_trailing_comments(raw: &str) -> &str {
-    let mut text = raw.trim_end_matches(|ch: char| ch.is_whitespace());
-    loop {
-        if text.is_empty() {
-            return text;
-        }
+/// Return whether one ignored range starts with a separator token.
+fn ignored_range_starts_with_separator(
+    context: &DestackFormatContext<'_>,
+    range_span: Span,
+    separator: &str,
+) -> bool {
+    let Some(separator_token) = separator_token_type(separator) else {
+        return false;
+    };
 
-        // strip trailing block comments only when they are truly at the end
-        if text.ends_with("*/")
-            && let Some(block_start) = text[..text.len().saturating_sub(2)].rfind("/*")
-        {
-            text = text[..block_start].trim_end_matches(|ch: char| ch.is_whitespace());
-            continue;
-        }
+    first_non_trivia_token_in_span(context, range_span)
+        .is_some_and(|token| token.token.ty == separator_token)
+}
 
-        // strip trailing line comments from the last line
-        let line_start = text.rfind('\n').map(|idx| idx + 1).unwrap_or(0);
-        let line = &text[line_start..];
-        if let Some(idx) = line.find("//") {
-            text = text[..line_start + idx].trim_end_matches(|ch: char| ch.is_whitespace());
-            continue;
-        }
+/// Return whether one ignored range ends with a separator token.
+fn ignored_range_ends_with_separator(
+    context: &DestackFormatContext<'_>,
+    range_span: Span,
+    separator: &str,
+) -> bool {
+    let Some(separator_token) = separator_token_type(separator) else {
+        return false;
+    };
 
-        return text;
-    }
+    last_non_trivia_token_in_span(context, range_span)
+        .is_some_and(|token| token.token.ty == separator_token)
 }
 
 /// Format a list-like group for `elements`.

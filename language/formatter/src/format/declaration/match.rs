@@ -208,7 +208,7 @@ mod tests {
     fn test_format_switch_case_implicit_block_without_extra_braces() {
         assert_format!(
             "switch (state) { case \"ready\": start() // ready-tail\nbreak\n default: stop() // default-tail\n }",
-            "switch (state) {\n\tcase \"ready\":\n\t\tstart() // ready-tail\n\t\tbreak\n\tdefault:\n\t\tstop() // default-tail\n}",
+            "switch (state) {\n\tcase \"ready\":\n\t\tstart(); // ready-tail\n\t\tbreak\n\tdefault:\n\t\tstop() // default-tail\n}",
             |p| p.eat_match(),
             DestackFormatOptions::default_tab()
         );

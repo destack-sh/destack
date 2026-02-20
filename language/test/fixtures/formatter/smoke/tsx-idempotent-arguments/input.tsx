@@ -5,7 +5,8 @@ send(
 
 const node = (
   <div>
-    {ready && <Body /> // logical-tail
+    {
+      ready && <Body /> // logical-tail
     }
   </div>
 );

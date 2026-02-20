@@ -1,4 +1,7 @@
-use destack_ast::{Block, BlockContext, Expression, IfCondition, LocalNodeId, NodeType};
+use destack_ast::{
+    Block, BlockContext, Declaration, Expression, FunctionMode, IfCondition, LocalNodeId, Member,
+    NodeType, Property,
+};
 
 use crate::DestackFormatContext;
 
@@ -101,6 +104,21 @@ fn expression_is_in_statement_position(
             LocalNodeId::<Block>::new(parent_id),
             expression_id,
         ),
+        NodeType::Declaration => expression_is_in_statement_position_inside_parent_declaration(
+            context,
+            LocalNodeId::<Declaration>::new(parent_id),
+            expression_id,
+        ),
+        NodeType::Member => expression_is_in_statement_position_inside_parent_member(
+            context,
+            LocalNodeId::<Member>::new(parent_id),
+            expression_id,
+        ),
+        NodeType::Property => expression_is_in_statement_position_inside_parent_property(
+            context,
+            LocalNodeId::<Property>::new(parent_id),
+            expression_id,
+        ),
         _ => false,
     }
 }
@@ -141,4 +159,102 @@ fn expression_is_in_statement_position_inside_parent_block(
     }
 
     !block_allows_value_tail(context, parent_block_id)
+}
+
+/// Return true when one child expression is statement-position inside one parent declaration.
+fn expression_is_in_statement_position_inside_parent_declaration(
+    context: &DestackFormatContext<'_>,
+    parent_declaration_id: LocalNodeId<Declaration>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let parent_declaration = context.tree.get(parent_declaration_id);
+
+    match parent_declaration {
+        Declaration::Function {
+            body, signature, ..
+        } => body.as_ref().is_some_and(|body_expression_id| {
+            if body_expression_id.id != expression_id.id {
+                return false;
+            }
+
+            function_body_is_statement_position(signature.mode)
+                && !function_has_self_return_type(context, signature.return_type)
+        }),
+        Declaration::Global { expressions, .. } | Declaration::Namespace { expressions, .. } => {
+            expressions.contains(&expression_id)
+        }
+        _ => false,
+    }
+}
+
+/// Return true when one child expression is statement-position inside one parent member.
+fn expression_is_in_statement_position_inside_parent_member(
+    context: &DestackFormatContext<'_>,
+    parent_member_id: LocalNodeId<Member>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let parent_member = context.tree.get(parent_member_id);
+
+    match parent_member {
+        Member::Method { body, .. } => body
+            .as_ref()
+            .is_some_and(|body_expression_id| body_expression_id.id == expression_id.id),
+        Member::StaticBlock { body, .. } | Member::ComptimeBlock { body, .. } => {
+            body.id == expression_id.id
+        }
+        _ => false,
+    }
+}
+
+/// Return true when one child expression is statement-position inside one parent property method.
+fn expression_is_in_statement_position_inside_parent_property(
+    context: &DestackFormatContext<'_>,
+    parent_property_id: LocalNodeId<Property>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let parent_property = context.tree.get(parent_property_id);
+
+    match parent_property {
+        Property::Method { body, .. } => body
+            .as_ref()
+            .is_some_and(|body_expression_id| body_expression_id.id == expression_id.id),
+        _ => false,
+    }
+}
+
+/// Return true when one function-like body should be statement-position.
+fn function_body_is_statement_position(mode: Option<FunctionMode>) -> bool {
+    if matches!(mode, Some(FunctionMode::Constructor | FunctionMode::Setter)) {
+        return true;
+    }
+
+    true
+}
+
+/// Return true when one function return type is exactly `Self`.
+fn function_has_self_return_type(
+    context: &DestackFormatContext<'_>,
+    return_type: Option<LocalNodeId<Expression>>,
+) -> bool {
+    let Some(return_type_id) = return_type else {
+        return false;
+    };
+
+    expression_is_self_type_path(context, return_type_id)
+}
+
+/// Return true when one expression is a simple `Self` type path.
+fn expression_is_self_type_path(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    match context.tree.get(expression_id) {
+        Expression::Path { path, .. } => {
+            path.segments.len() == 1 && context.strings.get(path.segments[0]) == "Self"
+        }
+        Expression::Parenthesized { expression } => {
+            expression_is_self_type_path(context, *expression)
+        }
+        _ => false,
+    }
 }

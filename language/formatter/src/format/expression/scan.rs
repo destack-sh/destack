@@ -1,19 +1,10 @@
-use super::*;
-use crate::analysis::scan::previous_non_whitespace_before_span as previous_non_whitespace_before_source_span;
-use crate::directive::is_ignore_directive_comment;
-
-/// Return a compact lower bound for one-line width from source text.
-#[inline]
-pub(crate) fn source_min_inline_char_len(source: &str) -> usize {
-    if source.is_ascii() {
-        source
-            .bytes()
-            .filter(|byte| !byte.is_ascii_whitespace())
-            .count()
-    } else {
-        source.chars().filter(|ch| !ch.is_whitespace()).count()
-    }
-}
+use super::{
+    Annotation, AnnotationPosition, Argument, DestackFormatContext, Expression, IfCondition,
+    IfKind, LocalNodeId, NodeType, Span, TokenType, parenthesized_has_leading_inner_trivia,
+    transparent_inner_expression,
+};
+use crate::analysis::scan::{first_non_trivia_token_in_span, last_non_trivia_token_in_span};
+use crate::directive::comment_node_is_ignore_directive;
 
 /// Return whether an expression tree contains static type arguments.
 pub(crate) fn expression_has_static_type_arguments(
@@ -69,6 +60,69 @@ pub(crate) fn expression_has_static_type_arguments(
     }
 }
 
+/// Return whether an expression tree contains multiline static type arguments.
+pub(crate) fn expression_has_multiline_static_type_argument(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
+    let static_arguments_have_newline = |arguments: &[LocalNodeId<Argument>]| {
+        arguments
+            .iter()
+            .copied()
+            .any(|argument_id| context.node_has_newline(argument_id))
+    };
+
+    match context.tree.get(expression_id) {
+        Expression::Path {
+            static_arguments, ..
+        } => static_arguments
+            .as_ref()
+            .is_some_and(|arguments| static_arguments_have_newline(arguments)),
+        Expression::Member {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::PrivateMember {
+            left,
+            static_arguments,
+            ..
+        } => {
+            static_arguments
+                .as_ref()
+                .is_some_and(|arguments| static_arguments_have_newline(arguments))
+                || expression_has_multiline_static_type_argument(context, *left)
+        }
+        Expression::Call {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::New {
+            left,
+            static_arguments,
+            ..
+        } => {
+            static_arguments
+                .as_ref()
+                .is_some_and(|arguments| static_arguments_have_newline(arguments))
+                || expression_has_multiline_static_type_argument(context, *left)
+        }
+        Expression::Instantiation {
+            left,
+            static_arguments,
+        } => {
+            static_arguments_have_newline(static_arguments)
+                || expression_has_multiline_static_type_argument(context, *left)
+        }
+        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            expression_has_multiline_static_type_argument(context, *expression)
+        }
+        _ => false,
+    }
+}
+
 /// Return whether an expression has a non-doc multiline block prefix comment annotation.
 pub(crate) fn expression_has_non_doc_multiline_block_prefix_comment_annotation(
     context: &DestackFormatContext<'_>,
@@ -85,10 +139,7 @@ pub(crate) fn expression_has_non_doc_multiline_block_prefix_comment_annotation(
                 }
 
                 let annotation_span = context.annotation_span(*annotation_id);
-                let annotation_source = context.span_str(annotation_span);
-                let trimmed = annotation_source.trim_start();
-
-                annotation_source.contains('\n') && !trimmed.starts_with("/**")
+                context.has_newline(annotation_span)
             })
         })
         .unwrap_or(false)
@@ -100,18 +151,8 @@ pub(crate) fn span_inline_char_bounds(
     context: &DestackFormatContext<'_>,
     span: Span,
 ) -> (usize, usize) {
-    let source = context.span_str(span);
-    let min_len = source_min_inline_char_len(source);
-    let max_len = context.span_char_len(span);
-    (min_len, max_len)
-}
-
-/// Return the previous non-whitespace character before a span.
-pub(super) fn previous_non_whitespace_before_span(
-    context: &DestackFormatContext<'_>,
-    span: Span,
-) -> Option<char> {
-    previous_non_whitespace_before_source_span(context, span)
+    let span_len = context.span_char_len(span);
+    (span_len, span_len)
 }
 
 /// Return whether expression source is wrapped in a top-level parenthesis pair.
@@ -119,9 +160,16 @@ pub(super) fn expression_source_has_outer_parentheses(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let source = context.span_str(context.span(node_id));
-    let source = source.trim();
-    source.starts_with('(') && source.ends_with(')')
+    let span = context.span(node_id);
+    let Some(first_token) = first_non_trivia_token_in_span(context, span) else {
+        return false;
+    };
+    let Some(last_token) = last_non_trivia_token_in_span(context, span) else {
+        return false;
+    };
+
+    first_token.token.ty == TokenType::OpenParenthesis
+        && last_token.token.ty == TokenType::CloseParenthesis
 }
 
 /// Return whether an expression has a prefix comment annotation.
@@ -135,6 +183,9 @@ pub(super) fn expression_has_prefix_comment_annotation(
                 matches!(
                     context.annotation(*annotation_id),
                     Annotation::Comment {
+                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                        ..
+                    } | Annotation::Doc {
                         position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
                         ..
                     }
@@ -164,8 +215,7 @@ pub(super) fn expression_has_prefix_ignore_directive_comment_annotation(
                     return false;
                 }
 
-                let comment_source = context.comment_text(node);
-                if is_ignore_directive_comment(comment_source.as_ref()) {
+                if comment_node_is_ignore_directive(context, node) {
                     return true;
                 }
                 false

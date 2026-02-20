@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    Annotation, AnnotationPosition, Cell, Expression, FxHashMap, LocalNodeId,
+    NODE_BOOL_STATE_UNKNOWN, NODE_SPAN_CHAR_LEN_UNKNOWN, RefCell, TYPE_CONTEXT_STATE_UNKNOWN,
+};
 
 /// Snapshot of formatter cache behavior counters.
 #[derive(Debug, Clone, Copy, Default)]
@@ -96,6 +99,8 @@ pub struct AnnotationData {
     pub has_non_blank_infix: bool,
     /// Whether any annotation is a postfix annotation.
     pub has_postfix: bool,
+    /// Whether any annotation is a non-blank postfix annotation.
+    pub has_non_blank_postfix: bool,
     /// Whether any annotation is a blank prefix annotation.
     pub has_blank_prefix: bool,
     /// Whether the first annotation is a blank prefix annotation.
@@ -113,6 +118,7 @@ impl AnnotationData {
         let mut has_infix = false;
         let mut has_non_blank_infix = false;
         let mut has_postfix = false;
+        let mut has_non_blank_postfix = false;
         let mut has_blank_prefix = false;
         let mut has_blank_prefix_first = false;
 
@@ -144,6 +150,9 @@ impl AnnotationData {
                 || position == AnnotationPosition::LinePostfixBoundary
             {
                 has_postfix = true;
+                if is_non_blank {
+                    has_non_blank_postfix = true;
+                }
             }
 
             // blank prefix flags
@@ -165,6 +174,7 @@ impl AnnotationData {
             has_infix,
             has_non_blank_infix,
             has_postfix,
+            has_non_blank_postfix,
             has_blank_prefix,
             has_blank_prefix_first,
         }
@@ -259,8 +269,8 @@ pub(super) struct FormatterNodeCaches {
     /// Cached call argument expansion profiles for regular and chain modes keyed by call node id.
     pub(super) call_argument_expansion_profiles:
         Vec<Cell<Option<CallArgumentExpansionProfilesFacts>>>,
-    /// Cached inline call length estimates without static arguments keyed by call expression id.
-    pub(super) call_inline_len_without_static_arguments: Vec<Cell<Option<Option<usize>>>>,
+    /// Cached inline call width hints without static arguments keyed by call expression id.
+    pub(super) call_inline_width_hint_without_static_arguments: Vec<Cell<Option<Option<usize>>>>,
     /// Cached call argument annotation profiles keyed by argument node id.
     pub(super) argument_annotation_facts: Vec<Cell<Option<ArgumentAnnotationFacts>>>,
     /// Cached compact simple unannotated argument predicate keyed by argument node id.
@@ -290,7 +300,7 @@ impl FormatterNodeCaches {
             node_span_char_len: vec![Cell::new(NODE_SPAN_CHAR_LEN_UNKNOWN); node_count],
             node_has_newline: vec![Cell::new(NODE_BOOL_STATE_UNKNOWN); node_count],
             call_argument_expansion_profiles: vec![Cell::new(None); node_count],
-            call_inline_len_without_static_arguments: vec![Cell::new(None); node_count],
+            call_inline_width_hint_without_static_arguments: vec![Cell::new(None); node_count],
             argument_annotation_facts: vec![Cell::new(None); node_count],
             argument_compact_simple_unannotated: vec![Cell::new(None); node_count],
             argument_plain_call_argument: vec![Cell::new(None); node_count],

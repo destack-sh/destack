@@ -1,6 +1,7 @@
-use ast::{NodeParentIndex, NodeTree, TokenSpan};
+use ast::{Keyword, NodeParentIndex, NodeTree, TokenSpan};
 use destack_ast as ast;
-use destack_source::File;
+use destack_source::{File, Span};
+use rustc_hash::FxHashMap;
 
 use super::index::{FormatterTriviaOwnerIndex, decode_token_index};
 use super::owner::{find_preferred_owner_starting_at, find_smallest_owner_enclosing_token};
@@ -20,6 +21,7 @@ pub(super) fn build_comment_attachment_setup<'a>(
     file: &'a File,
     tree: &'a NodeTree,
     semantic_tokens: &'a [TokenSpan],
+    token_keyword_by_span: &'a FxHashMap<Span, Option<Keyword>>,
     trivia: ast::CommentTrivia,
     owner_index: &'a FormatterTriviaOwnerIndex,
     parents: &'a NodeParentIndex,
@@ -82,6 +84,7 @@ pub(super) fn build_comment_attachment_setup<'a>(
         file,
         tree,
         semantic_tokens,
+        token_keyword_by_span,
         trivia,
         parents,
         token_before,

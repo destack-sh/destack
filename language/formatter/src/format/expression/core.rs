@@ -1,6 +1,13 @@
-use super::*;
 use crate::analysis::timing::tags;
+use crate::directive::{
+    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
+    write_ignored_node,
+};
+use crate::expression::{format_primary_expression, format_statement_expression};
 use crate::operator::format_operator_expression;
+use crate::{DestackFormatter, FormatNode};
+use destack_ast::{Expression, IfKind, LocalNodeId, TypeUnaryOperator};
+use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::write;
 
 enum ExpressionFormatRoute {
@@ -91,8 +98,7 @@ pub(crate) fn format_expression<'ast>(
     if let Some(directive) = directive
         && directive.kind == FormatterDirectiveKind::IgnoreFormat
     {
-        let raw_expression = ignored_node_source(f.context(), node_id, directive);
-        write!(f, [text(&raw_expression)])?;
+        write_ignored_node(f, node_id, directive)?;
         return Ok(());
     }
 
@@ -137,13 +143,24 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
         format_expression(f, node_id, self, directive)?;
 
-        if !matches!(
-            directive,
-            Some(FormatterDirective {
-                kind: FormatterDirectiveKind::IgnoreFormat,
-                position: FormatterDirectivePosition::Postfix { .. },
-            })
-        ) {
+        // regular if chains emit their own edge annotations in control formatter
+        let if_chain_handles_annotations = matches!(
+            self,
+            Expression::If {
+                kind: IfKind::If,
+                ..
+            }
+        );
+
+        if !if_chain_handles_annotations
+            && !matches!(
+                directive,
+                Some(FormatterDirective {
+                    kind: FormatterDirectiveKind::IgnoreFormat,
+                    position: FormatterDirectivePosition::Postfix { .. },
+                })
+            )
+        {
             let call_or_new_handles_empty_infix = matches!(
                 self,
                 Expression::Call {

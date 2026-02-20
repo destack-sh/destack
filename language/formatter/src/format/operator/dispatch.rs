@@ -1,16 +1,26 @@
 use super::assign::format_assign_expression;
 use super::binary::{format_binary_expression, format_type_binary_expression};
 use super::r#new::format_new_expression;
-use super::*;
+use crate::analysis::scan::first_non_trivia_token_in_span;
 use crate::analysis::timing::tags;
-use destack_ast::CommentStyle;
+use crate::chain::{
+    format_call_expression, format_expression_chain, format_index_expression,
+    format_instantiation_expression, format_maybe_expression, format_member_expression,
+    has_chain_parent, is_expression_chain, needs_parens_in_postfix_position,
+};
+use crate::expression::{
+    Annotation, AnnotationPosition, DestackFormatContext, DestackFormatter, Expression,
+    FormatResult, LocalNodeId, TypeUnaryOperator, UnaryOperator, hard_line_break, space, token,
+};
+use destack_ast::{Comment, CommentStyle, Mutability, PostfixPosition, TokenType};
+use destack_fir::format::{Buffer, Format};
 use destack_fir::write;
 
-/// Collect block infix comment sources for one type unary expression node.
+/// Collect block infix comment nodes for one type unary expression node.
 fn collect_type_unary_infix_comment_sources(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
-) -> Vec<(CommentStyle, String)> {
+) -> Vec<(CommentStyle, bool, LocalNodeId<Comment>)> {
     let Some(annotation_ids) = context.annotations(node_id) else {
         return Vec::new();
     };
@@ -26,11 +36,7 @@ fn collect_type_unary_infix_comment_sources(
 
         let comment = context.tree.get::<destack_ast::Comment>(node);
         let annotation_span = context.annotation_span(annotation_id);
-        let source = context.span_str(annotation_span).trim().to_string();
-        if source.is_empty() {
-            continue;
-        }
-        comments.push((comment.style, source));
+        comments.push((comment.style, context.has_newline(annotation_span), node));
     }
 
     comments
@@ -50,13 +56,13 @@ fn write_type_unary_as_keyword_with_infix_comments<'ast>(
 
     if infix_comments.len() == 1
         && infix_comments[0].0 == CommentStyle::Slash
-        && !infix_comments[0].1.contains('\n')
+        && !infix_comments[0].1
     {
         write!(
             f,
             [
                 space(),
-                text(infix_comments[0].1.as_str()),
+                infix_comments[0].2,
                 hard_line_break(),
                 token(keyword)
             ]
@@ -66,29 +72,37 @@ fn write_type_unary_as_keyword_with_infix_comments<'ast>(
 
     if infix_comments.len() == 1
         && infix_comments[0].0 == CommentStyle::Star
-        && !infix_comments[0].1.contains('\n')
+        && !infix_comments[0].1
     {
-        write!(
-            f,
-            [
-                space(),
-                text(infix_comments[0].1.as_str()),
-                space(),
-                token(keyword)
-            ]
-        )?;
+        write!(f, [space(), infix_comments[0].2, space(), token(keyword)])?;
         return Ok(());
     }
 
     write!(f, [hard_line_break()])?;
-    for (comment_index, (_, comment_source)) in infix_comments.iter().enumerate() {
+    for (comment_index, (_, _, comment_id)) in infix_comments.iter().enumerate() {
         if comment_index > 0 {
             write!(f, [hard_line_break()])?;
         }
-        let comment_source = comment_source.as_str();
-        write!(f, [text(comment_source)])?;
+        write!(f, [*comment_id])?;
     }
     write!(f, [hard_line_break(), token(keyword)])
+}
+
+/// Return whether this type-unary node should keep TypeScript angle assertion syntax.
+fn type_unary_prefers_angle_assertion_syntax(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    if context.options.language_type.supports_jsx() {
+        return false;
+    }
+
+    let Some(main_span) = context.tree.get_main_span(node_id) else {
+        return false;
+    };
+
+    first_non_trivia_token_in_span(context, main_span)
+        .is_some_and(|token| token.token.ty == TokenType::LessThan)
 }
 
 /// Format operator and chain expression variants.
@@ -142,6 +156,11 @@ pub(crate) fn format_operator_expression<'ast>(
                 write!(f, [operator, space(), right])?;
             }
             TypeUnaryOperator::AsConst => {
+                if type_unary_prefers_angle_assertion_syntax(f.context(), node_id) {
+                    write!(f, [token("<const>"), right])?;
+                    return Ok(true);
+                }
+
                 let right_has_postfix = f.context().has_postfix_annotation(*right);
                 write!(f, [right])?;
                 if right_has_postfix {

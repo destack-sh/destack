@@ -262,6 +262,34 @@ else {
     }
 
     #[test]
+    fn test_format_if_else_chain_blank_comment_else_layout() {
+        let source = r"if (true) {}
+
+// comment1
+else if (false) {}
+
+// comment2
+
+else {}";
+        let expected = r"if (true) {
+}
+
+// comment1
+else if (false) {
+}
+
+// comment2
+else {
+}";
+        assert_format!(
+            source,
+            expected,
+            |p| p.eat_if(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
     fn test_format_if_empty_blocks_stay_expanded() {
         assert_format!(
             "if (true) {} else {}",
@@ -402,7 +430,7 @@ mod let_declaration {
     fn test_format_let_breaks_if_too_long() {
         assert_format!(
             "const veryLongIdentifierName = veryLongIdentifierNameWithManyWords\n",
-            "const veryLongIdentifierName =\n\tveryLongIdentifierNameWithManyWords\n",
+            "const veryLongIdentifierName =\n\tveryLongIdentifierNameWithManyWords",
             |p| p.eat_let(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab().with_line_width(40)
         );
@@ -596,7 +624,7 @@ mod try_expression {
         assert_format!(
             source,
             r"try {
-    foo()
+    foo();
 } catch match (e) {
     Error(err) => err
 }",
@@ -617,11 +645,11 @@ mod try_expression {
         assert_format!(
             source,
             r"try {
-    foo()
+    foo();
 } catch (e) {
-    bar()
+    bar();
 } finally {
-    baz()
+    baz();
 }",
             |p| p.eat_try(),
             DestackFormatOptions::default()

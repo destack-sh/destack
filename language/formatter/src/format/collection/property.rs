@@ -1,4 +1,4 @@
-use crate::collection::key::{format_key_with_quote_policy, is_identifier_for_quotes};
+use crate::collection::key::format_key_with_quote_policy;
 use crate::collection::list_like;
 use crate::declaration::signature::{
     FunctionHeaderStyle, signature_parameters_should_expand,
@@ -9,16 +9,16 @@ use crate::declaration::signature::{
 use crate::declaration::r#where::format_where_clause_with_break;
 use crate::directive::{
     FormatterDirectiveKind, FormatterDirectivePosition, collect_ignore_ranges_for_nodes,
-    directive_for_node, ignored_node_source, write_ignored_span,
+    directive_for_node, write_ignored_node, write_ignored_span,
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     AbstractionModifier, AccessorKind, BindingAnchor, BindingKind, BindingModifier,
     BindingOperator, Comment, Declaration, DeclarationKind, Expression, FunctionSignature, Key,
-    Keyword, LocalNodeId, Member, Mutability, Name, Node, NodeTree, NodeTreeImpl, NodeType,
-    Property, Timing, VarianceModifier,
+    Keyword, LocalNodeId, Member, Mutability, Node, NodeTree, NodeTreeImpl, NodeType, Property,
+    Timing, VarianceModifier,
 };
-use destack_fir::format::{FormatResult, text};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::Span;
@@ -100,16 +100,10 @@ pub(crate) fn format_binding_modifiers_postfix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     modifiers: BindingModifier,
 ) -> FormatResult<()> {
-    if std::env::var("DESTACK_DEBUG_TRIVIA").is_ok() {
-        eprintln!("format-binding-postfix: kind={:?}", modifiers.kind);
-    }
     // kind
     if modifiers.kind == Some(BindingKind::Must) {
         write!(f, [token("!")])?;
     } else if modifiers.kind == Some(BindingKind::Maybe) {
-        if std::env::var("DESTACK_DEBUG_TRIVIA").is_ok() {
-            eprintln!("format-binding-postfix: writing ?");
-        }
         write!(f, [token("?")])?;
     }
     Ok(())
@@ -220,81 +214,11 @@ where
     Ok(())
 }
 
-/// Return whether a key requires quoting.
-#[inline]
-fn key_requires_quotes<'ast>(f: &DestackFormatter<'ast, '_>, key: Key) -> bool {
-    let strings = f.context().strings;
-    match key {
-        Key::Name(Name::String(string_id)) => {
-            let content = strings.get(string_id);
-            !is_identifier_for_quotes(content)
-        }
-        _ => false,
-    }
-}
-
-/// Return whether object properties should force quoted keys.
-#[inline]
-fn force_quote_keys_for_object<'ast>(
-    f: &DestackFormatter<'ast, '_>,
-    properties: &[LocalNodeId<Property>],
-) -> bool {
-    properties.iter().any(|property_id| {
-        let property = f.context().tree.get(*property_id);
-        match property {
-            Property::Field { key, .. } | Property::Method { key, .. } => {
-                key.is_some_and(|key| key_requires_quotes(f, key))
-            }
-            Property::Spread { .. } => false,
-        }
-    })
-}
-
-/// Return whether members should force quoted keys.
-#[inline]
-fn force_quote_keys_for_members<'ast>(
-    f: &DestackFormatter<'ast, '_>,
-    members: &[LocalNodeId<Member>],
-) -> bool {
-    members.iter().any(|member_id| {
-        let member = f.context().tree.get(*member_id);
-        match member {
-            Member::Field { key, .. } | Member::Method { key, .. } => {
-                key.is_some_and(|key| key_requires_quotes(f, key))
-            }
-            _ => false,
-        }
-    })
-}
-
 /// Return whether one property should force quoted keys.
 #[inline]
-fn should_force_quote_keys_for_property<'ast>(
-    f: &DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Property>,
-) -> bool {
-    if f.context().options.quote_props != QuoteProperty::Consistent {
-        return false;
-    }
-
-    if f.context().options.language_type.is_destack() {
-        return false;
-    }
-
-    let Some((parent_id, parent_type)) = f.context().parent(node_id) else {
-        return false;
-    };
-
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
-    let Expression::ObjectExpression { properties, .. } = f.context().tree.get(parent_id) else {
-        return false;
-    };
-
-    force_quote_keys_for_object(f, properties)
+fn should_force_quote_keys_for_property() -> bool {
+    // object fields follow identifier quoting rules, even in consistent mode
+    false
 }
 
 /// Return whether one member should force quoted keys.
@@ -314,17 +238,17 @@ fn should_force_quote_keys_for_member<'ast>(
     let Some((parent_id, parent_type)) = f.context().parent(node_id) else {
         return false;
     };
-
     if parent_type != NodeType::Declaration {
         return false;
     }
 
     let parent_id = LocalNodeId::<Declaration>::new(parent_id);
-    let Declaration::Class { members, .. } = f.context().tree.get(parent_id) else {
+    if !matches!(f.context().tree.get(parent_id), Declaration::Class { .. }) {
         return false;
-    };
+    }
 
-    force_quote_keys_for_members(f, members)
+    // class members follow identifier quoting rules even in quote-props consistent mode
+    false
 }
 
 /// Decide whether a field default should stay inline after `=`.
@@ -374,6 +298,15 @@ fn format_field_like<'ast>(
     default: Option<LocalNodeId<Expression>>,
     force_quote_keys: bool,
 ) -> FormatResult<()> {
+    let modifiers_for_postfix = modifiers.map(|mut modifiers| {
+        if modifiers.accessor == Some(AccessorKind::Accessor)
+            && modifiers.kind == Some(BindingKind::Must)
+        {
+            modifiers.kind = None;
+        }
+        modifiers
+    });
+
     // modifiers
     format_binding_modifiers_prefix_maybe(f, modifiers)?;
     // key
@@ -382,7 +315,7 @@ fn format_field_like<'ast>(
     }
 
     // modifiers
-    format_binding_modifiers_postfix_maybe(f, modifiers)?;
+    format_binding_modifiers_postfix_maybe(f, modifiers_for_postfix)?;
     // value
     if let Some(value) = value {
         write_field_type_annotation(f, value)?;
@@ -419,9 +352,6 @@ fn format_method_like<'ast>(
     force_quote_keys: bool,
     signature_source_is_multiline: bool,
 ) -> FormatResult<()> {
-    if std::env::var("DESTACK_DEBUG_TRIVIA").is_ok() {
-        eprintln!("format-method-like: modifiers={modifiers:?}");
-    }
     let generics = signature.generics.as_ref();
 
     // modifiers
@@ -516,8 +446,7 @@ where
     if let Some(directive) = directive
         && directive.kind == FormatterDirectiveKind::IgnoreFormat
     {
-        let raw = ignored_node_source(f.context(), node_id, directive);
-        write!(f, [text(&raw)])?;
+        write_ignored_node(f, node_id, directive)?;
 
         if !matches!(
             directive.position,
@@ -549,7 +478,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                     value,
                     default,
                 } => {
-                    let force_quote_keys = should_force_quote_keys_for_property(f, node_id);
+                    let force_quote_keys = should_force_quote_keys_for_property();
                     format_field_like(f, *modifiers, *key, *value, *default, force_quote_keys)?;
                 }
                 Property::Method {
@@ -558,7 +487,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                     signature,
                     body,
                 } => {
-                    let force_quote_keys = should_force_quote_keys_for_property(f, node_id);
+                    let force_quote_keys = should_force_quote_keys_for_property();
                     let signature_source_is_multiline = method_signature_source_is_multiline(
                         f.context(),
                         f.context().span(node_id),

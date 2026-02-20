@@ -1,4 +1,8 @@
-use super::*;
+use super::{should_expand_static_argument_list, should_hug_static_argument_list};
+use crate::expression::{
+    Argument, DestackFormatter, FormatResult, LocalNodeId, list_like, space, token,
+};
+use destack_fir::format::Buffer;
 use destack_fir::write;
 
 /// Format static type arguments without multiline trailing commas.

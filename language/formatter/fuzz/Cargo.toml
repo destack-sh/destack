@@ -19,7 +19,9 @@ destack_formatter = { path = ".." }
 destack_parser = { path = "../../parser" }
 destack_source = { path = "../../source" }
 
-arbitrary = { version = "1.4.2", features = ["derive"] }
+arbitrary = { version = "1.4.2", features = [
+  "derive",
+] }
 libfuzzer-sys = "0.4.10"
 
 [[bin]]

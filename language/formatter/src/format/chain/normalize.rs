@@ -1,4 +1,14 @@
-use super::*;
+use super::{
+    Annotation, AnnotationPosition, ChainBreakAnalysis, ChainExpression, ChainExpressionBase,
+    ChainExpressionBaseHead, DestackFormatContext, Expression, FormatError, FormatResult,
+    LocalNodeId, NodeTree, NodeType, ParenthesizedUnwrapPolicy, PostfixPosition, SmallVec,
+    analyze_chain_break, assignment_like_remaining_width, chain_base_len,
+    chain_expression_from_node, chain_has_nonhead_nonlambda_function_call_argument,
+    chain_node_has_breaking_annotation, chain_node_has_non_inline_annotation, collect_chain_nodes,
+    expression_is_in_conditional_branch, expression_is_in_template_literal_interpolation,
+    is_call_like_argument, parenthesized_should_unwrap, path_postfix_annotations_emit_on_tail,
+    should_split_chain_root_path_segments, split_chain_head_operations,
+};
 use destack_ast::{Comment, CommentStyle, Doc, DocStyle};
 
 use super::line_group::{
@@ -772,6 +782,7 @@ pub(super) fn plan_chain_layout(
             has_multiline_nonhead_call,
             has_chain_intervening_trivia,
         );
+
     promote_chain_head_operations(
         context,
         node_id,

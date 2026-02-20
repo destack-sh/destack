@@ -1,4 +1,8 @@
-use super::*;
+use super::{
+    ChainExpression, ChainExpressionBase, DestackFormatContext, Expression, LocalNodeId, SmallVec,
+    assignment_like_remaining_width, chain_base_len, chain_operation_len,
+    expression_is_in_conditional_branch, is_call_like_argument,
+};
 
 /// Store one-pass operation facts used by chain render decisions.
 #[derive(Default)]
@@ -20,20 +24,18 @@ pub(super) struct ChainRenderInputs {
     chain_has_source_newline: bool,
     first_line_has_non_empty_dynamic_call: bool,
     inline_budget: usize,
-    compact_chain_len: usize,
     operation_facts: ChainOperationFacts,
 }
 
-/// Store deterministic chain render decisions.
+/// Store chain render decisions.
 pub(super) enum ChainRenderDecision {
     InlineNoCounter,
-    InlineFastPath,
+    InlineShortCircuit,
     ForcedBreak,
-    ConditionalInline,
-    MultilineCallArgumentInline,
-    BreakForOverflow,
-    DeterministicInline,
-    DeterministicBreak,
+    InlineConditional,
+    InlineMultilineCallArgument,
+    InlineByBudget,
+    BreakByBudget,
 }
 
 /// Visit all chain operations in base and grouped line order.
@@ -151,8 +153,10 @@ pub(super) fn build_chain_render_inputs(
         || is_chain_conditional_branch
     {
         line_width
-    } else {
+    } else if options.chain_has_calls {
         assignment_like_width.unwrap_or(line_width)
+    } else {
+        line_width
     };
     let first_line_has_non_empty_dynamic_call = lines.first().is_some_and(|line| {
         line.iter().any(|operation| {
@@ -173,11 +177,10 @@ pub(super) fn build_chain_render_inputs(
         in_template_literal_interpolation: options.in_template_literal_interpolation,
         is_chain_call_like_argument,
         is_chain_conditional_branch,
-        is_assignment_like_rhs: assignment_like_width.is_some(),
+        is_assignment_like_rhs: options.chain_has_calls && assignment_like_width.is_some(),
         chain_has_source_newline: context.has_newline(chain_span),
         first_line_has_non_empty_dynamic_call,
         inline_budget,
-        compact_chain_len: source_min_inline_char_len(context.span_str(chain_span)),
         operation_facts,
     }
 }
@@ -191,12 +194,12 @@ pub(super) fn decide_chain_render(
         return ChainRenderDecision::InlineNoCounter;
     }
 
-    let can_use_inline_fast_path = !inputs.chain_should_break
+    let can_use_inline_short_circuit = !inputs.chain_should_break
         && !inputs.chain_has_source_newline
         && lines_len <= 2
         && inputs.operation_facts.inline_chain_len <= inputs.inline_budget;
-    if can_use_inline_fast_path {
-        return ChainRenderDecision::InlineFastPath;
+    if can_use_inline_short_circuit {
+        return ChainRenderDecision::InlineShortCircuit;
     }
 
     if inputs.chain_should_break {
@@ -206,7 +209,7 @@ pub(super) fn decide_chain_render(
     let prefer_conditional_inline_chain =
         inputs.is_chain_conditional_branch && inputs.first_line_has_non_empty_dynamic_call;
     if prefer_conditional_inline_chain {
-        return ChainRenderDecision::ConditionalInline;
+        return ChainRenderDecision::InlineConditional;
     }
 
     let should_avoid_inline_optional_call_chain =
@@ -221,30 +224,15 @@ pub(super) fn decide_chain_render(
             || inputs.is_assignment_like_rhs)
         && inputs.operation_facts.has_multiline_dynamic_call_argument;
     if can_inline_multiline_call_argument_chain {
-        return ChainRenderDecision::MultilineCallArgumentInline;
-    }
-
-    let should_probe_dynamic_call_overflow = inputs.operation_facts.has_call_with_dynamic_arguments
-        && (inputs.is_chain_call_like_argument
-            || inputs.in_template_literal_interpolation
-            || inputs.is_chain_conditional_branch);
-    let source_overflow_without_operation_overflow = inputs.compact_chain_len
-        > inputs.inline_budget
-        && inputs.operation_facts.inline_chain_len <= inputs.inline_budget
-        && !inputs.operation_facts.has_call_with_dynamic_arguments;
-    if inputs.compact_chain_len > inputs.inline_budget
-        && !should_probe_dynamic_call_overflow
-        && !source_overflow_without_operation_overflow
-    {
-        return ChainRenderDecision::BreakForOverflow;
+        return ChainRenderDecision::InlineMultilineCallArgument;
     }
 
     let should_inline = !inputs.chain_should_break
         && !should_avoid_inline_optional_call_chain
         && inputs.operation_facts.inline_chain_len <= inputs.inline_budget;
     if should_inline {
-        ChainRenderDecision::DeterministicInline
+        ChainRenderDecision::InlineByBudget
     } else {
-        ChainRenderDecision::DeterministicBreak
+        ChainRenderDecision::BreakByBudget
     }
 }

@@ -1,4 +1,11 @@
-use super::*;
+use super::{
+    Annotation, AnnotationPosition, Argument, ChainExpression, ChainExpressionBase,
+    ChainExpressionBaseHead, DestackFormatContext, Expression, LocalNodeId, PostfixPosition, Span,
+    TokenType, argument_has_non_blank_annotation, arguments_rendered_len,
+    call_arguments_force_expand_for_chain, call_has_non_blank_infix_annotation,
+    chain_node_has_non_inline_annotation, expression_inline_width_hint,
+    is_simple_chain_static_arguments,
+};
 
 /// Return the concrete span that corresponds to one annotation node.
 fn annotation_content_span(
@@ -188,7 +195,7 @@ pub(crate) fn chain_operation_len(
 
             // measure the index expression if it exists
             let index_len = match index {
-                Some(index_id) => expression_source_len(context, *index_id),
+                Some(index_id) => expression_inline_width_hint(context, *index_id),
                 None => 0,
             };
 
@@ -277,7 +284,9 @@ pub(crate) fn chain_base_len(
             let static_len = static_arguments_len(context, static_arguments);
             segment_len.saturating_add(static_len)
         }
-        ChainExpressionBaseHead::Expression(node_id) => expression_source_len(context, *node_id),
+        ChainExpressionBaseHead::Expression(node_id) => {
+            expression_inline_width_hint(context, *node_id)
+        }
     };
 
     // add any base operations

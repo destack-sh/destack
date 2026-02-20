@@ -1,6 +1,5 @@
 use ast::{TokenSpan, TokenType};
 use destack_ast as ast;
-use destack_source::File;
 
 /// Return whether one token kind is an opening delimiter.
 #[inline]
@@ -93,61 +92,4 @@ pub(super) fn previous_non_newline_token_index(
     }
 
     None
-}
-
-/// Return whether one close parenthesis token ends a control-flow head.
-pub(super) fn token_is_control_head_close_paren(
-    file: &File,
-    semantic_tokens: &[TokenSpan],
-    close_paren_index: usize,
-) -> bool {
-    if semantic_tokens
-        .get(close_paren_index)
-        .is_none_or(|token| token.token.ty != TokenType::CloseParenthesis)
-    {
-        return false;
-    }
-
-    let mut depth = 1usize;
-    let mut cursor = close_paren_index;
-    let mut open_paren_index = None;
-    while cursor > 0 {
-        cursor -= 1;
-        let token = semantic_tokens[cursor];
-        match token.token.ty {
-            TokenType::CloseParenthesis => depth += 1,
-            TokenType::OpenParenthesis => {
-                depth -= 1;
-                if depth == 0 {
-                    open_paren_index = Some(cursor);
-                    break;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let Some(open_paren_index) = open_paren_index else {
-        return false;
-    };
-    if open_paren_index == 0 {
-        return false;
-    }
-
-    let mut keyword_cursor = open_paren_index;
-    while keyword_cursor > 0 {
-        keyword_cursor -= 1;
-        let token = semantic_tokens[keyword_cursor];
-        if token.token.ty == TokenType::Newline {
-            continue;
-        }
-
-        return token.token.ty == TokenType::Identifier
-            && matches!(
-                file.span_str(token.span),
-                "if" | "for" | "while" | "catch" | "with"
-            );
-    }
-
-    false
 }

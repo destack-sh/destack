@@ -1,5 +1,11 @@
 use crate::analysis::scan::previous_non_whitespace_token_before_annotation;
-use crate::expression::*;
+use crate::expression::{
+    Annotation, AnnotationPosition, Argument, Declaration, DestackFormatContext, Expression,
+    FunctionKind, LocalNodeId, NodeType, ScalarLiteral, Span, TokenType, TypeBinaryOperator,
+    argument_is_array_literal, argument_is_block_callback, argument_is_function_expression,
+    argument_is_lambda_expression, argument_is_object_literal, argument_value_id,
+    is_trivial_argument, is_trivial_expression, transparent_inner_expression,
+};
 use destack_ast::{Comment, CommentStyle, TemplateLiteral};
 
 /// Store shared argument simplicity checks for call and chain classifiers.
@@ -310,6 +316,24 @@ fn span_has_line_comment_token(context: &DestackFormatContext<'_>, span: Span) -
     false
 }
 
+/// Return the next close parenthesis token start after one source offset.
+fn next_close_parenthesis_start_after(
+    context: &DestackFormatContext<'_>,
+    start: u32,
+) -> Option<u32> {
+    let tokens = context.tokens;
+    let mut index = tokens.partition_point(|token| token.span.start < start);
+
+    while let Some(token) = tokens.get(index) {
+        if token.token.ty == TokenType::CloseParenthesis {
+            return Some(token.span.start);
+        }
+        index += 1;
+    }
+
+    None
+}
+
 /// Return whether source text around call argument boundaries contains line comments.
 pub(crate) fn call_arguments_have_boundary_comments(
     context: &DestackFormatContext<'_>,
@@ -373,14 +397,16 @@ pub(crate) fn call_arguments_have_boundary_comments(
         return false;
     }
 
-    let has_boundary_comments = span_has_line_comment_token(
-        context,
-        Span::new(
-            last_argument_span.file,
-            last_argument_span.end,
-            call_span.end,
-        ),
+    let close_parenthesis_start =
+        next_close_parenthesis_start_after(context, last_argument_span.end)
+            .unwrap_or(call_span.end);
+    let boundary_end = close_parenthesis_start.min(call_span.end);
+    let boundary_span = Span::new(
+        last_argument_span.file,
+        last_argument_span.end,
+        boundary_end,
     );
+    let has_boundary_comments = span_has_line_comment_token(context, boundary_span);
     context.store_call_argument_boundary_comments(call_node_id, has_boundary_comments);
     has_boundary_comments
 }
@@ -397,30 +423,34 @@ pub(crate) fn call_arguments_preserve_blank_line_between(
         return false;
     }
 
-    let between = context.span_str(Span::new(left_span.file, left_span.end, right_span.start));
-    let mut has_first_newline = false;
-    let mut current_line_has_content = false;
-
-    for character in between.chars() {
-        match character {
-            '\r' => {}
-            '\n' => {
-                if has_first_newline && !current_line_has_content {
-                    return true;
-                }
-                has_first_newline = true;
-                current_line_has_content = false;
+    let right_value_id = argument_value_id(context.tree, right_argument_id);
+    let has_blank_prefix_between = |annotation_id: LocalNodeId<Annotation>| {
+        if !matches!(
+            context.annotation(annotation_id),
+            Annotation::Blank {
+                position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
+                ..
             }
-            c if c.is_whitespace() => {}
-            _ => {
-                if has_first_newline {
-                    current_line_has_content = true;
-                }
-            }
+        ) {
+            return false;
         }
+
+        let annotation_span = context.annotation_span(annotation_id);
+        annotation_span.file == left_span.file
+            && annotation_span.start >= left_span.end
+            && annotation_span.end <= right_span.start
+    };
+
+    let right_argument_has_blank_prefix = context
+        .annotations(right_argument_id)
+        .is_some_and(|annotations| annotations.iter().copied().any(has_blank_prefix_between));
+    if right_argument_has_blank_prefix {
+        return true;
     }
 
-    false
+    context
+        .annotations(right_value_id)
+        .is_some_and(|annotations| annotations.iter().copied().any(has_blank_prefix_between))
 }
 
 /// Return whether a call has a non-blank block infix annotation.

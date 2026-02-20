@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    Annotation, AnnotationPosition, ChainExpression, DestackFormatContext, Expression, LocalNodeId,
+    PostfixPosition, SmallVec, argument_is_template_literal, chain_node_has_non_inline_annotation,
+};
 use smallvec::smallvec;
 
 /// Return whether an expression has a line postfix boundary comment annotation.

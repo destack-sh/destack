@@ -1,4 +1,9 @@
-use super::*;
+use super::{
+    ANNOTATION_STATE_CACHED, ANNOTATION_STATE_NONE, ANNOTATION_STATE_PRESENT, Annotation,
+    AnnotationData, AnnotationPosition, Argument, ArgumentAnnotationFacts,
+    CallArgumentExpansionProfilesFacts, CallArgumentLayoutFacts, Cell, Comment,
+    DestackFormatContext, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, Ref, Span, ast,
+};
 
 impl<'a> DestackFormatContext<'a> {
     /// Get one formatter-owned annotation by id.
@@ -184,6 +189,17 @@ impl<'a> DestackFormatContext<'a> {
     {
         self.annotation_data_for_node(node_id)
             .is_some_and(|annotation_data| annotation_data.has_postfix)
+    }
+
+    /// Check if a node has a non-blank postfix annotation.
+    #[inline]
+    pub fn has_non_blank_postfix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        self.annotation_data_for_node(node_id)
+            .is_some_and(|annotation_data| annotation_data.has_non_blank_postfix)
     }
 
     /// Check if a node has a blank block prefix annotation.
@@ -388,29 +404,33 @@ impl<'a> DestackFormatContext<'a> {
         );
     }
 
-    /// Return cached inline call length estimate for one call node.
+    /// Return a cached inline call width hint for one call node.
     #[inline]
-    pub fn lookup_call_inline_len_without_static_arguments(
+    pub fn lookup_call_inline_width_hint_without_static_arguments(
         &self,
         call_node_id: LocalNodeId<Expression>,
     ) -> Option<Option<usize>> {
         self.lookup_node_cache_value(
-            &self.node_caches.call_inline_len_without_static_arguments,
+            &self
+                .node_caches
+                .call_inline_width_hint_without_static_arguments,
             call_node_id.id,
         )
     }
 
-    /// Store inline call length estimate for one call node.
+    /// Store an inline call width hint for one call node.
     #[inline]
-    pub fn store_call_inline_len_without_static_arguments(
+    pub fn store_call_inline_width_hint_without_static_arguments(
         &self,
         call_node_id: LocalNodeId<Expression>,
-        inline_len_without_static_arguments: Option<usize>,
+        inline_width_hint_without_static_arguments: Option<usize>,
     ) {
         self.store_node_cache_value(
-            &self.node_caches.call_inline_len_without_static_arguments,
+            &self
+                .node_caches
+                .call_inline_width_hint_without_static_arguments,
             call_node_id.id,
-            inline_len_without_static_arguments,
+            inline_width_hint_without_static_arguments,
         );
     }
 
