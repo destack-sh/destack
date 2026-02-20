@@ -6,9 +6,8 @@ mod bindings_generated;
 pub use abi_generated::*;
 #[allow(unused_imports, unreachable_pub)]
 pub use bindings_generated::*;
-mod host;
 pub mod native;
-pub(crate) mod simulated;
+pub(crate) mod runtime;
 #[cfg(test)]
 mod tests;
 pub mod vm;

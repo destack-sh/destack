@@ -31,7 +31,7 @@ declare namespace time {
     }
 
     /// Runtime clock metadata.
-    export struct ClockInfo {
+    export struct ClockMetadata {
         /// Clock identifier.
         id: ClockId;
         /// Host clock source kind.
@@ -126,7 +126,7 @@ declare namespace time {
             replay: "recordable",
             capabilities: ["time.monotonic.read"],
             platforms: ["windows", "unix"],
-            scope: "host",
+            scope: "runtime",
             blocking: "never",
         },
     )
@@ -156,7 +156,7 @@ declare namespace time {
             replay: "recordable",
             capabilities: ["time.monotonic.read"],
             platforms: ["windows", "unix"],
-            scope: "host",
+            scope: "runtime",
             blocking: "never",
         },
     )
@@ -210,7 +210,7 @@ declare namespace time {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.time.clock.info",
+        "destack.time.clock.metadata",
         {
             effect: "external",
             replay: "recordable",
@@ -220,5 +220,5 @@ declare namespace time {
             blocking: "never",
         },
     )
-    export function clockInfo(clock: ClockId): Result<ClockInfo, PlatformError>;
+    export function clockMetadata(clock: ClockId): Result<ClockMetadata, PlatformError>;
 }

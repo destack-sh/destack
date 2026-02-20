@@ -27,7 +27,7 @@ use std::ffi::CStr;
 /// Missing keys are handled according to host environment semantics.
 ///
 /// # Platform
-/// Runtime-level operation available on all native runtime targets.
+/// Unix and Windows.
 /// Uses unsetenv(3) on Unix and SetEnvironmentVariableW with null value on Windows.
 ///
 /// # Errors
@@ -61,7 +61,7 @@ pub(crate) unsafe fn destack_process_env_delete(
 /// This is intended for byte-level Unix-style environment access.
 ///
 /// # Platform
-/// Runtime-level operation available on all native runtime targets.
+/// Unix and Windows.
 /// Uses unsetenv(3)-style byte keys on Unix and runtime transcoding on Windows.
 ///
 /// # Errors
@@ -95,7 +95,7 @@ pub(crate) unsafe fn destack_process_env_delete_bytes(
 /// Missing keys and invalid entries are surfaced as platform errors.
 ///
 /// # Platform
-/// Runtime-level operation available on all native runtime targets.
+/// Unix and Windows.
 /// Uses getenv(3) on Unix and GetEnvironmentVariableW on Windows.
 ///
 /// # Errors
@@ -143,7 +143,7 @@ pub(crate) unsafe fn destack_process_env_get(
 /// This is intended for byte-level Unix-style environment access.
 ///
 /// # Platform
-/// Runtime-level operation available on all native runtime targets.
+/// Unix and Windows.
 /// Uses getenv(3)-style byte keys on Unix and runtime transcoding on Windows.
 ///
 /// # Errors
@@ -193,7 +193,7 @@ pub(crate) unsafe fn destack_process_env_get_bytes(
 /// Persistence and inheritance semantics follow host process-spawn rules.
 ///
 /// # Platform
-/// Runtime-level operation available on all native runtime targets.
+/// Unix and Windows.
 /// Uses setenv(3) on Unix and SetEnvironmentVariableW on Windows.
 ///
 /// # Errors
@@ -231,7 +231,7 @@ pub(crate) unsafe fn destack_process_env_set(
 /// This is intended for byte-level Unix-style environment access.
 ///
 /// # Platform
-/// Runtime-level operation available on all native runtime targets.
+/// Unix and Windows.
 /// Uses setenv(3)-style byte keys on Unix and runtime transcoding on Windows.
 ///
 /// # Errors

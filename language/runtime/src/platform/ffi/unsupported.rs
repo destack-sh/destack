@@ -17,8 +17,8 @@ use crate::platform::{fs, resource};
 /// ABI packing, alignment, and calling convention semantics are runtime-defined and backend-specific.
 ///
 /// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime ABI trampolines over host process calling conventions.
+/// Unix and Windows.
+/// Uses host ABI trampolines over process calling conventions.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -108,8 +108,8 @@ pub(crate) unsafe fn destack_ffi_open(
 /// Address interpretation depends on caller ABI and target architecture.
 ///
 /// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime pointer wrapper logic only.
+/// Unix and Windows.
+/// Uses host-process pointer wrapper logic.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -138,8 +138,8 @@ pub(crate) unsafe fn destack_ffi_address(
 /// Pointer validity and lifetime are controlled by caller and host ABI contracts.
 ///
 /// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime pointer wrapper logic only.
+/// Unix and Windows.
+/// Uses host-process pointer wrapper logic.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.

@@ -8,13 +8,13 @@ use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{
     AudioBackend, AudioChannelLayout, AudioClockDomain, AudioClockSnapshot, AudioClockSnapshotVm,
-    AudioDeviceDirection, AudioDeviceEvent, AudioDeviceEventKind, AudioDeviceEventVm,
-    AudioDeviceInfo, AudioDeviceInfoVm, AudioDeviceListRequest, AudioDeviceListRequestVm,
+    AudioDeviceDescriptor, AudioDeviceDescriptorVm, AudioDeviceDirection, AudioDeviceEvent,
+    AudioDeviceEventKind, AudioDeviceEventVm, AudioDeviceListRequest, AudioDeviceListRequestVm,
     AudioDeviceOpenOptions, AudioDeviceOpenOptionsVm, AudioSampleFormat, AudioShareMode,
     AudioStreamAvailability, AudioStreamAvailabilityVm, AudioStreamConfig, AudioStreamConfigVm,
-    AudioStreamInfo, AudioStreamInfoVm, AudioStreamState, AudioStreamStateKind, AudioStreamStateVm,
-    AudioStreamTiming, AudioStreamTimingVm, AudioStreamTransferMode, native as audio_native,
-    vm as audio_vm,
+    AudioStreamSnapshot, AudioStreamSnapshotVm, AudioStreamState, AudioStreamStateKind,
+    AudioStreamStateVm, AudioStreamTiming, AudioStreamTimingVm, AudioStreamTransferMode,
+    native as audio_native, vm as audio_vm,
 };
 use crate::platform::{
     NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmSlice, resource,
@@ -216,19 +216,20 @@ impl<'call> AudioHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_audio_device_info(
+    pub(crate) fn destack_audio_device_descriptor(
         &mut self,
         handle: resource::AudioDeviceHandle,
-    ) -> RuntimeResult<HarnessValue<AudioDeviceInfo, AudioDeviceInfoVm>> {
+    ) -> RuntimeResult<HarnessValue<AudioDeviceDescriptor, AudioDeviceDescriptorVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = audio_vm::destack_audio_device_info(self.call_context, context, handle)?;
+                let out =
+                    audio_vm::destack_audio_device_descriptor(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<AudioDeviceInfo>::uninit();
+                let mut out = std::mem::MaybeUninit::<AudioDeviceDescriptor>::uninit();
                 unsafe {
-                    audio_native::destack_audio_device_info(
+                    audio_native::destack_audio_device_descriptor(
                         self.call_context,
                         out.as_mut_ptr(),
                         handle,
@@ -260,7 +261,9 @@ impl<'call> AudioHarnessContext<'call> {
     pub(crate) fn destack_audio_device_list(
         &mut self,
         request: HarnessValue<AudioDeviceListRequest, AudioDeviceListRequestVm>,
-    ) -> RuntimeResult<HarnessValue<NativeSlice<AudioDeviceInfo>, VmSlice<AudioDeviceInfoVm>>> {
+    ) -> RuntimeResult<
+        HarnessValue<NativeSlice<AudioDeviceDescriptor>, VmSlice<AudioDeviceDescriptorVm>>,
+    > {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let request = request.into_vm("request")?;
@@ -269,7 +272,7 @@ impl<'call> AudioHarnessContext<'call> {
             }
             None => {
                 let request = request.into_native("request")?;
-                let mut out = std::mem::MaybeUninit::<NativeSlice<AudioDeviceInfo>>::uninit();
+                let mut out = std::mem::MaybeUninit::<NativeSlice<AudioDeviceDescriptor>>::uninit();
                 unsafe {
                     audio_native::destack_audio_device_list(
                         self.call_context,
@@ -619,47 +622,6 @@ impl<'call> AudioHarnessContext<'call> {
         }
     }
 
-    /// Read one stream negotiated configuration snapshot.
-    ///
-    /// Read one normalized snapshot of negotiated stream parameters and backend mode.
-    /// Values reflect backend negotiation outcomes and can differ from open-time requests.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-parameter query operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `audio.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_audio_stream_info(
-        &mut self,
-        handle: resource::AudioStreamHandle,
-    ) -> RuntimeResult<HarnessValue<AudioStreamInfo, AudioStreamInfoVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = audio_vm::destack_audio_stream_info(self.call_context, context, handle)?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<AudioStreamInfo>::uninit();
-                unsafe {
-                    audio_native::destack_audio_stream_info(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
     /// Open one audio stream on one device.
     ///
     /// Create one host audio stream with explicit sample format, channel, and period configuration.
@@ -822,6 +784,48 @@ impl<'call> AudioHarnessContext<'call> {
             None => unsafe {
                 audio_native::destack_audio_stream_set_volume(self.call_context, handle, lineargain)
             },
+        }
+    }
+
+    /// Read one stream negotiated configuration snapshot.
+    ///
+    /// Read one normalized snapshot of negotiated stream parameters and backend mode.
+    /// Values reflect backend negotiation outcomes and can differ from open-time requests.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-parameter query operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_stream_snapshot(
+        &mut self,
+        handle: resource::AudioStreamHandle,
+    ) -> RuntimeResult<HarnessValue<AudioStreamSnapshot, AudioStreamSnapshotVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    audio_vm::destack_audio_stream_snapshot(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<AudioStreamSnapshot>::uninit();
+                unsafe {
+                    audio_native::destack_audio_stream_snapshot(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
         }
     }
 

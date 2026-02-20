@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(windows)]
+use crate::diagnostic::{RuntimeErrorId, RuntimeStatus};
 
 #[path = "harness.generated.rs"]
 mod generated;
@@ -144,13 +146,9 @@ impl<'call> NetHarnessContext<'call> {
 
     /// Convert a native status into a runtime result.
     #[cfg(windows)]
-    pub(crate) fn status_result(
-        &self,
-        status: crate::diagnostic::RuntimeStatus,
-        label: &str,
-    ) -> RuntimeResult<()> {
+    pub(crate) fn status_result(&self, status: RuntimeStatus, label: &str) -> RuntimeResult<()> {
         // fast path: success
-        if status == crate::diagnostic::RuntimeStatus::OK {
+        if status == RuntimeStatus::OK {
             return Ok(());
         }
 
@@ -172,7 +170,7 @@ impl<'call> NetHarnessContext<'call> {
             .runtime
             .context
             .errors()
-            .take(crate::diagnostic::RuntimeErrorId::from_raw(status.error_id))
+            .take(RuntimeErrorId::from_raw(status.error_id))
             .unwrap_or_else(|| {
                 RuntimeError::from(PlatformError::io(format!(
                     "{label} failed with missing runtime error",
@@ -185,32 +183,20 @@ impl<'call> NetHarnessContext<'call> {
 
     /// Convert a native status into a test-friendly result.
     #[cfg(windows)]
-    pub(crate) fn status_ok(
-        &self,
-        status: crate::diagnostic::RuntimeStatus,
-        label: &str,
-    ) -> RuntimeResult<()> {
+    pub(crate) fn status_ok(&self, status: RuntimeStatus, label: &str) -> RuntimeResult<()> {
         self.status_result(status, label)
     }
 
     /// Write bytes to one socket handle.
     #[cfg(windows)]
-    pub(crate) fn write(
-        &mut self,
-        handle: crate::platform::resource::SocketHandle,
-        buffer: &[u8],
-    ) -> RuntimeResult<u64> {
+    pub(crate) fn write(&mut self, handle: SocketHandle, buffer: &[u8]) -> RuntimeResult<u64> {
         let buffer = self.bytes_slice_value(buffer)?;
         self.destack_net_write(handle, buffer)
     }
 
     /// Read bytes from one socket handle into one mutable buffer.
     #[cfg(windows)]
-    pub(crate) fn read(
-        &mut self,
-        handle: crate::platform::resource::SocketHandle,
-        buffer: &mut [u8],
-    ) -> RuntimeResult<u64> {
+    pub(crate) fn read(&mut self, handle: SocketHandle, buffer: &mut [u8]) -> RuntimeResult<u64> {
         // allocate one backend-specific mutable slice for socket reads
         let output = self.zeroed_bytes_slice_value(buffer.len())?;
         let (read_input, read_output) = self.duplicate_value(output);

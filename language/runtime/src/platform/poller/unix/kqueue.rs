@@ -629,10 +629,9 @@ fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
 
 #[cfg(test)]
 mod tests {
-    use super::KqueuePoller;
-    use crate::platform::{
-        PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags, PollerToken,
-        ResourceId,
+    use super::{
+        KqueuePoller, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
+        PollerToken, ResourceId,
     };
 
     /// Ensures kqueue emits a readable event when data is available.

@@ -3,15 +3,15 @@ use destack_vm as vm;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
     InputCompositionEvent, InputCompositionEventPayloadVm, InputCompositionEventVm,
-    InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceInfo, InputDeviceInfoVm,
-    InputEvent, InputEventKind, InputEventPayloadVm, InputEventVm, InputGamepadState,
-    InputGamepadStateVm, InputHapticEffectParametersVm, InputHapticEffectType, InputHapticsResult,
-    InputKeyboardState, InputKeyboardStateVm, InputMonitorEvent, InputMonitorEventVm,
-    InputPointerGrabMode, InputPointerStateVm, InputRawHidReport, InputRawHidReportVm,
-    InputReadMode, InputSensorConfigVm, InputSensorEffectiveConfigVm, InputSensorInfoVm,
-    InputSensorKind, InputSensorSampleVm, InputTextEventPayloadVm, InputTextInputAreaVm,
-    InputTextInputType, InputTouchState, InputTouchStateVm, InputWindowTargetVm,
-    host as host_input,
+    InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceDescriptor,
+    InputDeviceDescriptorVm, InputEvent, InputEventKind, InputEventPayloadVm, InputEventVm,
+    InputGamepadState, InputGamepadStateVm, InputHapticEffectParametersVm, InputHapticEffectType,
+    InputHapticsResult, InputKeyboardState, InputKeyboardStateVm, InputMonitorEvent,
+    InputMonitorEventVm, InputPointerGrabMode, InputPointerStateVm, InputRawHidReport,
+    InputRawHidReportVm, InputReadMode, InputSensorConfigVm, InputSensorDescriptorVm,
+    InputSensorEffectiveConfigVm, InputSensorKind, InputSensorSampleVm, InputTextEventPayloadVm,
+    InputTextInputAreaVm, InputTextInputType, InputTouchState, InputTouchStateVm,
+    InputWindowTargetVm, host as host_input,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, VmAggregateCodec, VmArray, VmSlice, resource,
@@ -44,8 +44,8 @@ fn string_from_vm(
 /// Convert one native device-info payload into its VM shape.
 fn device_info_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
-    value: InputDeviceInfo,
-) -> RuntimeResult<InputDeviceInfoVm> {
+    value: InputDeviceDescriptor,
+) -> RuntimeResult<InputDeviceDescriptorVm> {
     // decode borrowed native strings for vm interning
     let id = unsafe { value.id.as_str()? };
     let instance_id = unsafe { value.instance_id.as_str()? };
@@ -54,7 +54,7 @@ fn device_info_to_vm(
     let transport = unsafe { value.transport.as_str()? };
 
     // build one vm device-info record
-    Ok(InputDeviceInfoVm {
+    Ok(InputDeviceDescriptorVm {
         id: vm::StringHandle::new(context.intern_string(id)),
         instance_id: vm::StringHandle::new(context.intern_string(instance_id)),
         hardware_id: vm::StringHandle::new(context.intern_string(hardware_id)),
@@ -183,8 +183,8 @@ fn capabilities_to_vm(
 /// Convert one native device-info slice into one VM slice.
 fn list_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
-    values: NativeSlice<InputDeviceInfo>,
-) -> RuntimeResult<VmSlice<InputDeviceInfoVm>> {
+    values: NativeSlice<InputDeviceDescriptor>,
+) -> RuntimeResult<VmSlice<InputDeviceDescriptorVm>> {
     // decode native slice and convert each item
     let values = unsafe { values.as_slice()? };
     let mut vm_values = Vec::with_capacity(values.len());
@@ -397,7 +397,7 @@ pub(crate) fn destack_input_close(
 pub(crate) fn destack_input_list(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<VmSlice<InputDeviceInfoVm>> {
+) -> RuntimeResult<VmSlice<InputDeviceDescriptorVm>> {
     let values = call_out(|out| unsafe { host_input::destack_input_list(runtime, out) })?;
     list_to_vm(context, values)
 }
@@ -1270,7 +1270,7 @@ pub(crate) fn destack_input_sensor_list(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
-) -> RuntimeResult<VmArray<InputSensorInfoVm>> {
+) -> RuntimeResult<VmArray<InputSensorDescriptorVm>> {
     let values =
         call_out(|out| unsafe { host_input::destack_input_sensor_list(runtime, out, handle) })?;
     array_to_vm(context, values)

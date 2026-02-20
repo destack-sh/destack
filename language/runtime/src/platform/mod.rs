@@ -56,8 +56,6 @@ pub mod security;
 pub mod thread;
 /// Time bindings.
 pub mod time;
-/// Timer bindings.
-pub mod timer;
 /// TLS bindings.
 pub mod tls;
 /// TTY bindings.

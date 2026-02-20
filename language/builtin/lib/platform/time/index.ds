@@ -2,3 +2,4 @@ export declare namespace time {}
 
 export * from "./clock.ds";
 export * from "./sleep.ds";
+export * from "./timer.ds";

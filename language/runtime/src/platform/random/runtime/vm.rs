@@ -1,8 +1,11 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::random::{RandomStream, RandomStreamDomain, RandomStreamStateVm};
+use crate::platform::random::{
+    RandomStream, RandomStreamDomain, RandomStreamStateVm, SecureRandomMetadataVm,
+    SecureRandomSource,
+};
 use crate::platform::{PlatformError, VmSlice};
-use crate::random::RandomStreamId;
 use crate::runtime::RuntimeCallContext;
+use crate::runtime::random::RandomStreamId;
 use destack_vm as vm;
 
 /// Convert a platform stream handle into a runtime stream id.
@@ -13,6 +16,118 @@ fn stream_id(stream: RandomStream) -> RandomStreamId {
 /// Convert a runtime stream id into a platform stream handle.
 fn stream_handle(stream_id: RandomStreamId) -> RandomStream {
     RandomStream(stream_id.get())
+}
+
+/// Fill a slice with cryptographically secure random bytes.
+///
+/// Read entropy from host cryptographic RNG facilities.
+/// Entropy quality and blocking behavior follow host kernel guarantees.
+///
+/// # Platform
+/// Unix and Windows where host entropy APIs are available.
+/// Uses getrandom(2) or getentropy on Unix and BCryptGenRandom on Windows.
+///
+/// # Errors
+/// Returns randomUnavailable, notSupported.
+///
+/// # Security
+/// Requires `random.secure`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_random_secure_bytes(
+    _runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    buffer: VmSlice<u8>,
+) -> RuntimeResult<()> {
+    // resolve VM bytes into host memory
+    let mut bytes = buffer.read_bytes(context)?;
+
+    // fill secure bytes from the host entropy backend
+    getrandom::fill(&mut bytes).map_err(|error| {
+        RuntimeError::from(PlatformError::random(
+            None,
+            format!("destack.random.secure.bytes failed: {error}"),
+        ))
+        .boxed()
+    })?;
+
+    // write secure bytes back into VM memory
+    buffer.write_bytes(context, &bytes)
+}
+
+/// Fill a slice with secure random bytes without blocking.
+///
+/// Try to read secure entropy without blocking the current execution context.
+/// Fails with `ioWouldBlock` when the host source requires blocking.
+///
+/// # Platform
+/// Unix and Windows where host entropy APIs are available.
+/// Uses nonblocking host entropy APIs when available and runtime fallbacks otherwise.
+///
+/// # Errors
+/// Returns randomUnavailable, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `random.secure`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_random_secure_bytes_try(
+    _runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    buffer: VmSlice<u8>,
+) -> RuntimeResult<()> {
+    // resolve VM bytes into host memory
+    let mut bytes = buffer.read_bytes(context)?;
+
+    // fill secure bytes and surface backend errors to callers
+    getrandom::fill(&mut bytes).map_err(|error| {
+        RuntimeError::from(PlatformError::random(
+            None,
+            format!("destack.random.secure.bytesTry failed: {error}"),
+        ))
+        .boxed()
+    })?;
+
+    // write secure bytes back into VM memory
+    buffer.write_bytes(context, &bytes)
+}
+
+/// Query secure randomness source metadata.
+///
+/// Return source metadata for the secure random backend selected by the runtime.
+/// Metadata values are normalized across host operating systems.
+///
+/// # Platform
+/// Unix and Windows where host entropy APIs are available.
+/// Uses runtime source selection metadata.
+///
+/// # Errors
+/// Returns randomUnavailable, notSupported.
+///
+/// # Security
+/// Requires `random.secure`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_random_secure_metadata(
+    _runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<SecureRandomMetadataVm> {
+    // allocate stable backend label for VM payload
+    let backend_name = vm::StringHandle::new(context.intern_string("getrandom"));
+
+    // return secure backend metadata for VM callers
+    Ok(SecureRandomMetadataVm {
+        source: SecureRandomSource::Kernel,
+        backend_name,
+        may_block: true,
+        is_cryptographic: true,
+        is_seeded: true,
+        is_fips_approved: false,
+        entropy_bits_per_byte: 8.0,
+    })
 }
 
 /// Export deterministic stream state.

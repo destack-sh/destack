@@ -46,8 +46,8 @@ impl<'call> ProcessHarnessContext<'call> {
     /// Argument decoding and quoting semantics follow the host process loader.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
-    /// Uses startup argument capture, not a dedicated syscall.
+    /// Unix and Windows.
+    /// Uses startup argument capture from the host process loader.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -151,7 +151,7 @@ impl<'call> ProcessHarnessContext<'call> {
     /// Missing keys are handled according to host environment semantics.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
+    /// Unix and Windows.
     /// Uses unsetenv(3) on Unix and SetEnvironmentVariableW with null value on Windows.
     ///
     /// # Errors
@@ -184,7 +184,7 @@ impl<'call> ProcessHarnessContext<'call> {
     /// This is intended for byte-level Unix-style environment access.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
+    /// Unix and Windows.
     /// Uses unsetenv(3)-style byte keys on Unix and runtime transcoding on Windows.
     ///
     /// # Errors
@@ -217,7 +217,7 @@ impl<'call> ProcessHarnessContext<'call> {
     /// Missing keys and invalid entries are surfaced as platform errors.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
+    /// Unix and Windows.
     /// Uses getenv(3) on Unix and GetEnvironmentVariableW on Windows.
     ///
     /// # Errors
@@ -260,7 +260,7 @@ impl<'call> ProcessHarnessContext<'call> {
     /// This is intended for byte-level Unix-style environment access.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
+    /// Unix and Windows.
     /// Uses getenv(3)-style byte keys on Unix and runtime transcoding on Windows.
     ///
     /// # Errors
@@ -304,7 +304,7 @@ impl<'call> ProcessHarnessContext<'call> {
     /// Persistence and inheritance semantics follow host process-spawn rules.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
+    /// Unix and Windows.
     /// Uses setenv(3) on Unix and SetEnvironmentVariableW on Windows.
     ///
     /// # Errors
@@ -347,7 +347,7 @@ impl<'call> ProcessHarnessContext<'call> {
     /// This is intended for byte-level Unix-style environment access.
     ///
     /// # Platform
-    /// Runtime-level operation available on all native runtime targets.
+    /// Unix and Windows.
     /// Uses setenv(3)-style byte keys on Unix and runtime transcoding on Windows.
     ///
     /// # Errors
@@ -2602,8 +2602,8 @@ impl<'call> ProcessHarnessContext<'call> {
     /// Delivery ordering and batching follow runtime and host signal queue semantics.
     ///
     /// # Platform
-    /// Runtime-integrated on Unix and Windows targets.
-    /// Uses runtime subscription delivery with host signal waiting primitives.
+    /// Unix and Windows.
+    /// Uses host signal delivery queues and wait primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -2644,8 +2644,8 @@ impl<'call> ProcessHarnessContext<'call> {
     /// Subscription mode and coalescing behavior follow runtime and host integration rules.
     ///
     /// # Platform
-    /// Runtime-integrated on Unix and Windows targets.
-    /// Uses runtime subscription state with host signal integration.
+    /// Unix and Windows.
+    /// Uses host signal subscription state and queue integration.
     ///
     /// # Errors
     /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -2689,8 +2689,8 @@ impl<'call> ProcessHarnessContext<'call> {
     /// Empty queue behavior is reported through host-specific not-ready errors.
     ///
     /// # Platform
-    /// Runtime-integrated on Unix and Windows targets.
-    /// Uses runtime subscription polling with nonblocking host signal probes.
+    /// Unix and Windows.
+    /// Uses host signal queue polling with nonblocking probes.
     ///
     /// # Errors
     /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
@@ -2781,8 +2781,8 @@ impl<'call> ProcessHarnessContext<'call> {
     /// Pending events may still be readable depending on host queueing behavior.
     ///
     /// # Platform
-    /// Runtime-integrated on Unix and Windows targets.
-    /// Uses runtime subscription teardown with host signal integration.
+    /// Unix and Windows.
+    /// Uses host signal subscription teardown semantics.
     ///
     /// # Errors
     /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.

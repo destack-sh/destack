@@ -255,3 +255,27 @@ pub(crate) unsafe fn destack_security_sandbox_set_capabilities(
         security_native::destack_security_sandbox_set_capabilities(context, handle, capabilities)
     }
 }
+
+/// Set runtime W^X policy.
+///
+/// Enable or disable runtime write-xor-execute policy enforcement.
+/// Policy update affects subsequent executable-memory transitions.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime memory policy controls layered over host page protections.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `security.restrict`.
+///
+/// # Replay
+/// Deterministic.
+pub(crate) unsafe fn destack_security_set_write_xor_execute(
+    context: &RuntimeCallContext,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    unsafe { security_native::destack_security_set_write_xor_execute(context, enabled) }
+}

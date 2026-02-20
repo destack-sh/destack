@@ -11,13 +11,14 @@ use crate::platform::bindings::{
 };
 use crate::platform::random::{
     RandomStream, RandomStreamDomain, RandomStreamState, RandomStreamStateReplayRecord,
-    RandomStreamStateVm, SecureRandomInfo, SecureRandomInfoReplayRecord, SecureRandomInfoVm,
+    RandomStreamStateVm, SecureRandomMetadata, SecureRandomMetadataReplayRecord,
+    SecureRandomMetadataVm,
 };
 use crate::platform::{
     NativeSlice, PlatformError, RuntimeStatus, VmArray, VmSlice, abi as platform_abi,
 };
-use crate::random::RandomStreamId;
-use crate::replay::RandomEventKind;
+use crate::runtime::random::RandomStreamId;
+use crate::runtime::replay::RandomEventKind;
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
@@ -194,11 +195,11 @@ fn encode_destack_random_secure_bytes_try_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Encode the result for destack.random.secure.info.
+/// Encode the result for destack.random.secure.metadata.
 #[inline]
-fn encode_destack_random_secure_info_result(
+fn encode_destack_random_secure_metadata_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<SecureRandomInfoVm>,
+    result: RuntimeResult<SecureRandomMetadataVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
         let field_0 = vm::Value::uint(value.source as u8 as u64, 8);
@@ -450,11 +451,11 @@ struct RandomSecureBytesTryReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.random.secure.info.
+/// Replay payload for destack.random.secure.metadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct RandomSecureInfoReplay {
+struct RandomSecureMetadataReplay {
     /// Replay result payload.
-    pub result: Result<SecureRandomInfoReplayRecord, PlatformError>,
+    pub result: Result<SecureRandomMetadataReplayRecord, PlatformError>,
 }
 
 /// Replay payload for destack.random.stream.create.
@@ -551,11 +552,11 @@ pub const RANDOM_SECURE_BYTES_TRY: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.random.secure.info.
-pub const RANDOM_SECURE_INFO: BindingDescriptor =
+/// Binding descriptor for destack.random.secure.metadata.
+pub const RANDOM_SECURE_METADATA: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.random.secure.info",
-        "export function secureInfo(): Result<SecureRandomInfo, PlatformError>",
+        "destack.random.secure.metadata",
+        "export function secureMetadata(): Result<SecureRandomMetadata, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["random.secure"],
@@ -785,7 +786,7 @@ pub const RANDOM_STREAM_SPLIT: BindingDescriptor =
 pub const BINDINGS: &[BindingDescriptor] = &[
     RANDOM_SECURE_BYTES,
     RANDOM_SECURE_BYTES_TRY,
-    RANDOM_SECURE_INFO,
+    RANDOM_SECURE_METADATA,
     RANDOM_STREAM_CREATE,
     RANDOM_STREAM_EXPORT,
     RANDOM_STREAM_FILL_BYTES,
@@ -813,9 +814,9 @@ pub const RANDOM_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_random_secure_bytes_try as *const (),
         ),
         NativeBinding::new(
-            RANDOM_SECURE_INFO,
-            "destack.random.secure.info",
-            destack_random_secure_info as *const (),
+            RANDOM_SECURE_METADATA,
+            "destack.random.secure.metadata",
+            destack_random_secure_metadata as *const (),
         ),
         NativeBinding::new(
             RANDOM_STREAM_CREATE,
@@ -912,14 +913,14 @@ fn destack_random_secure_bytes_try_replay(
 }
 
 #[inline]
-fn destack_random_secure_info_replay(
+fn destack_random_secure_metadata_replay(
     context: &RuntimeCallContext,
-    out: *mut SecureRandomInfo,
+    out: *mut SecureRandomMetadata,
 ) -> RuntimeResult<()> {
     context.replay().run_binding_with_payload_policy(
-        RANDOM_SECURE_INFO,
-        context.replay_payload_for(RANDOM_SECURE_INFO)?,
-        || unsafe { platform_runtime_native::destack_random_secure_info(context, out) },
+        RANDOM_SECURE_METADATA,
+        context.replay_payload_for(RANDOM_SECURE_METADATA)?,
+        || unsafe { platform_runtime_native::destack_random_secure_metadata(context, out) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -936,7 +937,7 @@ fn destack_random_secure_info_replay(
                 let result_recorded_is_seeded = result_value.is_seeded;
                 let result_recorded_is_fips_approved = result_value.is_fips_approved;
                 let result_recorded_entropy_bits_per_byte = result_value.entropy_bits_per_byte;
-                let result_recorded = SecureRandomInfoReplayRecord {
+                let result_recorded = SecureRandomMetadataReplayRecord {
                     source: result_recorded_source,
                     backend_name: result_recorded_backend_name,
                     may_block: result_recorded_may_block,
@@ -945,7 +946,7 @@ fn destack_random_secure_info_replay(
                     is_fips_approved: result_recorded_is_fips_approved,
                     entropy_bits_per_byte: result_recorded_entropy_bits_per_byte,
                 };
-                let payload = RandomSecureInfoReplay {
+                let payload = RandomSecureMetadataReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -954,7 +955,7 @@ fn destack_random_secure_info_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RandomSecureInfoReplay { result }
+                    RandomSecureMetadataReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -972,7 +973,7 @@ fn destack_random_secure_info_replay(
                     let value_native_is_seeded = value.is_seeded;
                     let value_native_is_fips_approved = value.is_fips_approved;
                     let value_native_entropy_bits_per_byte = value.entropy_bits_per_byte;
-                    let value_native = SecureRandomInfo {
+                    let value_native = SecureRandomMetadata {
                         source: value_native_source,
                         backend_name: value_native_backend_name,
                         may_block: value_native_may_block,
@@ -1346,16 +1347,18 @@ pub unsafe extern "C" fn destack_random_secure_bytes_try(buffer: NativeSlice<u8>
     })
 }
 
-#[unsafe(export_name = "destack.random.secure.info")]
-pub unsafe extern "C" fn destack_random_secure_info(out: *mut SecureRandomInfo) -> RuntimeStatus {
+#[unsafe(export_name = "destack.random.secure.metadata")]
+pub unsafe extern "C" fn destack_random_secure_metadata(
+    out: *mut SecureRandomMetadata,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = &out;
 
-        context.check_policy(RANDOM_SECURE_INFO)?;
-        destack_random_secure_info_replay(context, out)
+        context.check_policy(RANDOM_SECURE_METADATA)?;
+        destack_random_secure_metadata_replay(context, out)
     })
 }
 
@@ -1618,21 +1621,21 @@ fn destack_random_secure_bytes_try_vm_replay(
 }
 
 #[inline]
-fn destack_random_secure_info_vm_replay(
+fn destack_random_secure_metadata_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
         .run_binding_with_context_and_payload_policy(
-            RANDOM_SECURE_INFO,
-            runtime.replay_payload_for(RANDOM_SECURE_INFO)?,
+            RANDOM_SECURE_METADATA,
+            runtime.replay_payload_for(RANDOM_SECURE_METADATA)?,
             context,
-            |context| platform_runtime_vm::destack_random_secure_info(runtime, context),
+            |context| platform_runtime_vm::destack_random_secure_metadata(runtime, context),
             |context, result| {
                 let _ = &context;
                 if let Ok(value) = result {
-                    let result_value: SecureRandomInfoVm = value.clone();
+                    let result_value: SecureRandomMetadataVm = value.clone();
                     let result_recorded_source = result_value.source;
                     let result_recorded_backend_name = {
                         let result_recorded_backend_name_ref = context
@@ -1645,7 +1648,7 @@ fn destack_random_secure_info_vm_replay(
                     let result_recorded_is_seeded = result_value.is_seeded;
                     let result_recorded_is_fips_approved = result_value.is_fips_approved;
                     let result_recorded_entropy_bits_per_byte = result_value.entropy_bits_per_byte;
-                    let result_recorded = SecureRandomInfoReplayRecord {
+                    let result_recorded = SecureRandomMetadataReplayRecord {
                         source: result_recorded_source,
                         backend_name: result_recorded_backend_name,
                         may_block: result_recorded_may_block,
@@ -1654,7 +1657,7 @@ fn destack_random_secure_info_vm_replay(
                         is_fips_approved: result_recorded_is_fips_approved,
                         entropy_bits_per_byte: result_recorded_entropy_bits_per_byte,
                     };
-                    let payload = RandomSecureInfoReplay {
+                    let payload = RandomSecureMetadataReplay {
                         result: Ok(result_recorded),
                     };
                     return Ok(Some(payload));
@@ -1663,7 +1666,7 @@ fn destack_random_secure_info_vm_replay(
                 if let Err(error) = result {
                     let payload = {
                         let result = Err(PlatformError::from(error.as_ref()));
-                        RandomSecureInfoReplay { result }
+                        RandomSecureMetadataReplay { result }
                     };
                     return Ok(Some(payload));
                 }
@@ -1685,7 +1688,7 @@ fn destack_random_secure_info_vm_replay(
                         let vm_result_is_seeded = value.is_seeded;
                         let vm_result_is_fips_approved = value.is_fips_approved;
                         let vm_result_entropy_bits_per_byte = value.entropy_bits_per_byte;
-                        let vm_result = SecureRandomInfoVm {
+                        let vm_result = SecureRandomMetadataVm {
                             source: vm_result_source,
                             backend_name: vm_result_backend_name,
                             may_block: vm_result_may_block,
@@ -1700,7 +1703,7 @@ fn destack_random_secure_info_vm_replay(
                 }
             },
         );
-    let result = encode_destack_random_secure_info_result(context, result)?;
+    let result = encode_destack_random_secure_metadata_result(context, result)?;
     Ok(result)
 }
 
@@ -2068,12 +2071,12 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
         binding!(
             registry,
             isolate,
-            RANDOM_SECURE_INFO,
+            RANDOM_SECURE_METADATA,
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
-                    runtime.check_policy(RANDOM_SECURE_INFO)?;
-                    destack_random_secure_info_vm_replay(runtime, context)
+                    runtime.check_policy(RANDOM_SECURE_METADATA)?;
+                    destack_random_secure_metadata_vm_replay(runtime, context)
                 })
                 .map_err(Into::into)
             }

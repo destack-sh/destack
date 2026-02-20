@@ -287,10 +287,10 @@ impl VmAggregateCodec for MountEntryAbi<VmAbi> {
     }
 }
 
-/// ABI struct for SystemInfo.
+/// ABI struct for SystemSnapshot.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct SystemInfo {
+pub struct SystemSnapshot {
     /// The cpu_count field.
     pub cpu_count: u32,
     /// The memory_total field.
@@ -301,9 +301,9 @@ pub struct SystemInfo {
     pub page_size: u64,
 }
 
-pub type SystemInfoVm = SystemInfo;
+pub type SystemSnapshotVm = SystemSnapshot;
 
-impl VmAggregateCodec for SystemInfo {
+impl VmAggregateCodec for SystemSnapshot {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -311,7 +311,7 @@ impl VmAggregateCodec for SystemInfo {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "SystemInfo",
+                "SystemSnapshot",
             ))
             .boxed());
         }

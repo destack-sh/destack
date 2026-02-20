@@ -1,13 +1,66 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
 
+#[path = "harness.rs"]
+mod harness;
+
 use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::time::{ClockMetadata, ClockMetadataVm};
 use crate::runtime::RuntimeCallContext;
 use crate::tests::runtime::TestRuntime;
 
-#[path = "harness.generated.rs"]
-mod harness;
+/// Assert one result failed with one exact platform error code.
+pub(crate) fn assert_platform_error_code<T>(
+    result: RuntimeResult<T>,
+    expected: PlatformErrorCode,
+) -> RuntimeResult<()> {
+    let error = match result {
+        Ok(_) => panic!("operation should fail"),
+        Err(error) => error,
+    };
+
+    let platform = error
+        .platform_error()
+        .expect("error should contain one platform error");
+    assert_eq!(platform.code, expected);
+
+    Ok(())
+}
+
+/// Assert one result failed with one code from the allowed set.
+pub(crate) fn assert_platform_error_codes<T>(
+    result: RuntimeResult<T>,
+    expected: &[PlatformErrorCode],
+) -> RuntimeResult<()> {
+    let error = match result {
+        Ok(_) => panic!("operation should fail"),
+        Err(error) => error,
+    };
+
+    let platform = error
+        .platform_error()
+        .expect("error should contain one platform error");
+    assert!(
+        expected.contains(&platform.code),
+        "unexpected platform error code {:?}, allowed: {:?}",
+        platform.code,
+        expected
+    );
+
+    Ok(())
+}
+
+/// Normalize one harness clock info payload into the native value shape.
+pub(crate) fn clock_info_from_value(
+    value: harness::HarnessValue<ClockMetadata, ClockMetadataVm>,
+) -> ClockMetadata {
+    match value {
+        harness::HarnessValue::Native(value) => value,
+        harness::HarnessValue::Vm(value) => value,
+    }
+}
 
 /// Test harness context used by tests.
 pub(crate) struct TimeHarnessContext<'call> {

@@ -2,11 +2,11 @@
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
-    InputCompositionEventVm, InputDeviceCapabilitiesVm, InputDeviceInfoVm, InputEventVm,
+    InputCompositionEventVm, InputDeviceCapabilitiesVm, InputDeviceDescriptorVm, InputEventVm,
     InputGamepadStateVm, InputHapticEffectParametersVm, InputHapticEffectType, InputHapticsResult,
     InputKeyboardStateVm, InputMonitorEventVm, InputPointerGrabMode, InputPointerStateVm,
-    InputRawHidReportVm, InputReadMode, InputSensorConfigVm, InputSensorEffectiveConfigVm,
-    InputSensorInfoVm, InputSensorKind, InputSensorSampleVm, InputTextInputAreaVm,
+    InputRawHidReportVm, InputReadMode, InputSensorConfigVm, InputSensorDescriptorVm,
+    InputSensorEffectiveConfigVm, InputSensorKind, InputSensorSampleVm, InputTextInputAreaVm,
     InputTextInputType, InputTouchStateVm, InputWindowTargetVm,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, resource};
@@ -95,7 +95,7 @@ pub(crate) fn destack_input_close(
 pub(crate) fn destack_input_list(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<VmSlice<InputDeviceInfoVm>> {
+) -> RuntimeResult<VmSlice<InputDeviceDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.device.list")).boxed())
 }
 
@@ -980,7 +980,7 @@ pub(crate) fn destack_input_sensor_list(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
-) -> RuntimeResult<VmArray<InputSensorInfoVm>> {
+) -> RuntimeResult<VmArray<InputSensorDescriptorVm>> {
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.sensor.list")).boxed())
 }

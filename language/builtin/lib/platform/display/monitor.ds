@@ -15,7 +15,7 @@ export struct DisplayMode {
 }
 
 /// Display device information.
-export struct DisplayInfo {
+export struct DisplayDescriptor {
     /// Stable runtime display identifier.
     id: string;
     /// Host display name.
@@ -55,7 +55,7 @@ declare namespace display {
         scope: "host",
         blocking: "sometimes",
     })
-    export function list(): Result<Slice<DisplayInfo>, PlatformError>;
+    export function list(): Result<Slice<DisplayDescriptor>, PlatformError>;
 
     /// Open one display endpoint.
     ///

@@ -9,11 +9,11 @@ use crate::runtime::RuntimeCallContext;
 use bindings::*;
 
 use crate::platform::audio::{
-    AudioBackend, AudioChannelLayout, AudioClockDomain, AudioClockSnapshot, AudioDeviceDirection,
-    AudioDeviceEvent, AudioDeviceEventKind, AudioDeviceInfo, AudioDeviceListRequest,
+    AudioBackend, AudioChannelLayout, AudioClockDomain, AudioClockSnapshot, AudioDeviceDescriptor,
+    AudioDeviceDirection, AudioDeviceEvent, AudioDeviceEventKind, AudioDeviceListRequest,
     AudioDeviceOpenOptions, AudioSampleFormat, AudioShareMode, AudioStreamAvailability,
-    AudioStreamConfig, AudioStreamInfo, AudioStreamState, AudioStreamStateKind, AudioStreamTiming,
-    AudioStreamTransferMode,
+    AudioStreamConfig, AudioStreamSnapshot, AudioStreamState, AudioStreamStateKind,
+    AudioStreamTiming, AudioStreamTransferMode,
 };
 use crate::platform::resource;
 
@@ -151,9 +151,9 @@ pub(crate) unsafe fn destack_audio_device_default(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_device_info(
+pub(crate) unsafe fn destack_audio_device_descriptor(
     _context: &RuntimeCallContext,
-    out: *mut AudioDeviceInfo,
+    out: *mut AudioDeviceDescriptor,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -183,7 +183,7 @@ pub(crate) unsafe fn destack_audio_device_info(
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_device_list(
     _context: &RuntimeCallContext,
-    out: *mut NativeSlice<AudioDeviceInfo>,
+    out: *mut NativeSlice<AudioDeviceDescriptor>,
     request: AudioDeviceListRequest,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -470,9 +470,9 @@ pub(crate) unsafe fn destack_audio_stream_flush(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_stream_info(
+pub(crate) unsafe fn destack_audio_stream_snapshot(
     _context: &RuntimeCallContext,
-    out: *mut AudioStreamInfo,
+    out: *mut AudioStreamSnapshot,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {

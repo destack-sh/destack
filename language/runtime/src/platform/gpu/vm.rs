@@ -19,12 +19,12 @@ use crate::platform::gpu::{
     GpuQuerySetOptionsVm, GpuQueryType, GpuRenderBundleEncoderOptionsVm,
     GpuRenderPassColorAttachmentVm, GpuRenderPassDepthStencilAttachmentVm, GpuRenderPassOptionsVm,
     GpuRenderPipelineOptionsVm, GpuRenderStateVm, GpuSamplerBindingType, GpuSamplerOptionsVm,
-    GpuShaderOptionsVm, GpuShaderVisibilityMask, GpuStencilFaceStateVm, GpuStencilOperation,
-    GpuStorageTextureAccess, GpuStoreOp, GpuSubmitOptionsVm, GpuSurfaceAcquireStatus,
-    GpuSurfaceAlphaMode, GpuSurfaceCapabilitiesVm, GpuSurfaceFrameVm, GpuSurfaceOptionsVm,
-    GpuTextureCopyVm, GpuTextureDimension, GpuTextureInfoVm, GpuTextureOptionsVm,
-    GpuTextureSampleType, GpuTextureViewDimension, GpuTextureViewOptionsVm, GpuVertexAttributeVm,
-    GpuVertexBufferLayoutVm, GpuVertexStateVm, GpuVertexStepMode,
+    GpuShaderFormat, GpuShaderOptionsVm, GpuShaderVisibilityMask, GpuStencilFaceStateVm,
+    GpuStencilOperation, GpuStorageTextureAccess, GpuStoreOp, GpuSubmitOptionsVm,
+    GpuSurfaceAcquireStatus, GpuSurfaceAlphaMode, GpuSurfaceCapabilitiesVm, GpuSurfaceFrameVm,
+    GpuSurfaceOptionsVm, GpuTextureCopyVm, GpuTextureDimension, GpuTextureInfoVm,
+    GpuTextureOptionsVm, GpuTextureSampleType, GpuTextureViewDimension, GpuTextureViewOptionsVm,
+    GpuVertexAttributeVm, GpuVertexBufferLayoutVm, GpuVertexStateVm, GpuVertexStepMode,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, resource};
 use crate::runtime::RuntimeCallContext;
@@ -464,7 +464,7 @@ pub(crate) fn destack_gpu_pipeline_layout_destroy(
 pub(crate) fn destack_gpu_command_bind_compute_pipeline(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
     let _ = (handle, pipeline);
@@ -494,7 +494,7 @@ pub(crate) fn destack_gpu_command_bind_compute_pipeline(
 pub(crate) fn destack_gpu_command_bind_render_pipeline(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
     let _ = (handle, pipeline);
@@ -559,7 +559,7 @@ pub(crate) fn destack_gpu_command_compute_pass_begin(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     options: GpuComputePassOptionsVm,
-) -> RuntimeResult<()> {
+) -> RuntimeResult<resource::GpuComputePassHandle> {
     let _ = (handle, options);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.command.computePassBegin is not available in the VM yet",
@@ -587,11 +587,100 @@ pub(crate) fn destack_gpu_command_compute_pass_begin(
 pub(crate) fn destack_gpu_command_compute_pass_end(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.command.computePassEnd is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Insert one debug marker in one compute-pass scope.
+///
+/// Insert one lightweight debug marker in one active compute-pass scope.
+/// Marker visibility is backend-defined and intended for tooling.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses WebGPU-style compute-pass debug-marker insertion commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `gpu.debug`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_gpu_command_compute_pass_insert_debug_marker(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::GpuComputePassHandle,
+    marker: vm::StringHandle,
+) -> RuntimeResult<()> {
+    let _ = (handle, marker);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.command.computePassInsertDebugMarker is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Pop one debug group in one compute-pass scope.
+///
+/// Pop one previously pushed debug group in one active compute-pass scope.
+/// Pop fails when no matching group exists.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses WebGPU-style compute-pass debug-group pop commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `gpu.debug`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_gpu_command_compute_pass_pop_debug_group(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::GpuComputePassHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.command.computePassPopDebugGroup is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Push one debug group in one compute-pass scope.
+///
+/// Push one nested debug group in one active compute-pass scope.
+/// Groups must be balanced with matching pop operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses WebGPU-style compute-pass debug-group push commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `gpu.debug`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_gpu_command_compute_pass_push_debug_group(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::GpuComputePassHandle,
+    label: vm::StringHandle,
+) -> RuntimeResult<()> {
+    let _ = (handle, label);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.command.computePassPushDebugGroup is not available in the VM yet",
     ))
     .boxed())
 }
@@ -746,7 +835,7 @@ pub(crate) fn destack_gpu_command_copy_texture_to_texture(
 pub(crate) fn destack_gpu_command_dispatch(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
     groupx: u32,
     groupy: u32,
     groupz: u32,
@@ -778,7 +867,7 @@ pub(crate) fn destack_gpu_command_dispatch(
 pub(crate) fn destack_gpu_command_dispatch_indirect(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuComputePassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
 ) -> RuntimeResult<()> {
@@ -809,7 +898,7 @@ pub(crate) fn destack_gpu_command_dispatch_indirect(
 pub(crate) fn destack_gpu_command_draw(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     vertexcount: u32,
     instancecount: u32,
     firstvertex: u32,
@@ -848,7 +937,7 @@ pub(crate) fn destack_gpu_command_draw(
 pub(crate) fn destack_gpu_command_draw_indexed(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     indexcount: u32,
     instancecount: u32,
     firstindex: u32,
@@ -889,7 +978,7 @@ pub(crate) fn destack_gpu_command_draw_indexed(
 pub(crate) fn destack_gpu_command_draw_indexed_indirect(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -922,7 +1011,7 @@ pub(crate) fn destack_gpu_command_draw_indexed_indirect(
 pub(crate) fn destack_gpu_command_draw_indirect(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -1043,7 +1132,7 @@ pub(crate) fn destack_gpu_command_encoder_open(
 pub(crate) fn destack_gpu_command_execute_bundles(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     bundles: VmSlice<resource::GpuRenderBundleHandle>,
 ) -> RuntimeResult<()> {
     let _ = (handle, bundles);
@@ -1104,7 +1193,7 @@ pub(crate) fn destack_gpu_command_insert_debug_marker(
 pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -1137,7 +1226,7 @@ pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect(
 pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect_count(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     countbuffer: resource::GpuBufferHandle,
@@ -1181,7 +1270,7 @@ pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect_count(
 pub(crate) fn destack_gpu_command_multi_draw_indirect(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     drawcount: u32,
@@ -1214,7 +1303,7 @@ pub(crate) fn destack_gpu_command_multi_draw_indirect(
 pub(crate) fn destack_gpu_command_multi_draw_indirect_count(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     countbuffer: resource::GpuBufferHandle,
@@ -1927,7 +2016,7 @@ pub(crate) fn destack_gpu_command_render_pass_begin(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuCommandListHandle,
     options: GpuRenderPassOptionsVm,
-) -> RuntimeResult<()> {
+) -> RuntimeResult<resource::GpuRenderPassHandle> {
     let _ = (handle, options);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.command.renderPassBegin is not available in the VM yet",
@@ -1955,7 +2044,7 @@ pub(crate) fn destack_gpu_command_render_pass_begin(
 pub(crate) fn destack_gpu_command_render_pass_end(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1964,34 +2053,91 @@ pub(crate) fn destack_gpu_command_render_pass_end(
     .boxed())
 }
 
-/// Bind one bind group for subsequent commands.
+/// Insert one debug marker in one render-pass scope.
 ///
-/// Bind one bind group at the requested index for the current pass state.
-/// Dynamic offsets are interpreted in backend-defined order for dynamic bindings.
+/// Insert one lightweight debug marker in one active render-pass scope.
+/// Marker visibility is backend-defined and intended for tooling.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses WebGPU-style bind-group or descriptor-set bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+/// Uses WebGPU-style render-pass debug-marker insertion commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `gpu.bind`.
+/// Requires `gpu.debug`.
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_gpu_command_set_bind_group(
+pub(crate) fn destack_gpu_command_render_pass_insert_debug_marker(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
-    index: u32,
-    bindgroup: resource::GpuBindGroupHandle,
-    dynamicoffsets: VmSlice<u32>,
+    handle: resource::GpuRenderPassHandle,
+    marker: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let _ = (handle, index, bindgroup, dynamicoffsets);
+    let _ = (handle, marker);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.gpu.command.setBindGroup is not available in the VM yet",
+        "destack.gpu.command.renderPassInsertDebugMarker is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Pop one debug group in one render-pass scope.
+///
+/// Pop one previously pushed debug group in one active render-pass scope.
+/// Pop fails when no matching group exists.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses WebGPU-style render-pass debug-group pop commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `gpu.debug`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_gpu_command_render_pass_pop_debug_group(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::GpuRenderPassHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.command.renderPassPopDebugGroup is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Push one debug group in one render-pass scope.
+///
+/// Push one nested debug group in one active render-pass scope.
+/// Groups must be balanced with matching pop operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses WebGPU-style render-pass debug-group push commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `gpu.debug`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_gpu_command_render_pass_push_debug_group(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::GpuRenderPassHandle,
+    label: vm::StringHandle,
+) -> RuntimeResult<()> {
+    let _ = (handle, label);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.command.renderPassPushDebugGroup is not available in the VM yet",
     ))
     .boxed())
 }
@@ -2016,7 +2162,7 @@ pub(crate) fn destack_gpu_command_set_bind_group(
 pub(crate) fn destack_gpu_command_set_blend_constant(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     r: f64,
     g: f64,
     b: f64,
@@ -2025,6 +2171,38 @@ pub(crate) fn destack_gpu_command_set_blend_constant(
     let _ = (handle, r, g, b, a);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.command.setBlendConstant is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Bind one bind group for one compute pass.
+///
+/// Bind one bind group at the requested index for one active compute pass.
+/// Dynamic offsets are interpreted in backend-defined order for dynamic bindings.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend-specific compute-pass bind-group commands.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `gpu.bind`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_gpu_command_set_compute_bind_group(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::GpuComputePassHandle,
+    index: u32,
+    bindgroup: resource::GpuBindGroupHandle,
+    dynamicoffsets: VmSlice<u32>,
+) -> RuntimeResult<()> {
+    let _ = (handle, index, bindgroup, dynamicoffsets);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.command.setComputeBindGroup is not available in the VM yet",
     ))
     .boxed())
 }
@@ -2049,7 +2227,7 @@ pub(crate) fn destack_gpu_command_set_blend_constant(
 pub(crate) fn destack_gpu_command_set_index_buffer(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     format: GpuIndexFormat,
     offset: u64,
@@ -2058,6 +2236,38 @@ pub(crate) fn destack_gpu_command_set_index_buffer(
     let _ = (handle, buffer, format, offset, size);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.command.setIndexBuffer is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Bind one bind group for one render pass.
+///
+/// Bind one bind group at the requested index for one active render pass.
+/// Dynamic offsets are interpreted in backend-defined order for dynamic bindings.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend-specific render-pass bind-group commands.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `gpu.bind`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_gpu_command_set_render_bind_group(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::GpuRenderPassHandle,
+    index: u32,
+    bindgroup: resource::GpuBindGroupHandle,
+    dynamicoffsets: VmSlice<u32>,
+) -> RuntimeResult<()> {
+    let _ = (handle, index, bindgroup, dynamicoffsets);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.command.setRenderBindGroup is not available in the VM yet",
     ))
     .boxed())
 }
@@ -2082,7 +2292,7 @@ pub(crate) fn destack_gpu_command_set_index_buffer(
 pub(crate) fn destack_gpu_command_set_scissor(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     x: u32,
     y: u32,
     width: u32,
@@ -2115,7 +2325,7 @@ pub(crate) fn destack_gpu_command_set_scissor(
 pub(crate) fn destack_gpu_command_set_stencil_reference(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     reference: u32,
 ) -> RuntimeResult<()> {
     let _ = (handle, reference);
@@ -2145,7 +2355,7 @@ pub(crate) fn destack_gpu_command_set_stencil_reference(
 pub(crate) fn destack_gpu_command_set_vertex_buffer(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     slot: u32,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -2178,7 +2388,7 @@ pub(crate) fn destack_gpu_command_set_vertex_buffer(
 pub(crate) fn destack_gpu_command_set_viewport(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuRenderPassHandle,
     x: f64,
     y: f64,
     width: f64,
@@ -3384,6 +3594,37 @@ pub(crate) fn destack_gpu_texture_view_destroy(
     .boxed())
 }
 
+/// Begin one pipeline-statistics query in one compute pass.
+///
+/// Begin one pipeline-statistics query in one active compute pass.
+/// Pipeline-statistics queries cannot be nested and require one matching end call.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend-specific pipeline-statistics query commands where exposed.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `gpu.sync.pipelineStatistics`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_gpu_command_begin_compute_pipeline_statistics_query(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    computepass: resource::GpuComputePassHandle,
+    queryset: resource::GpuQuerySetHandle,
+    queryindex: u32,
+) -> RuntimeResult<()> {
+    let _ = (computepass, queryset, queryindex);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.sync.commandBeginComputePipelineStatisticsQuery is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Begin one occlusion query.
 ///
 /// Begin one occlusion query in the active render pass.
@@ -3404,44 +3645,73 @@ pub(crate) fn destack_gpu_texture_view_destroy(
 pub(crate) fn destack_gpu_command_begin_occlusion_query(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    commandlist: resource::GpuCommandListHandle,
+    renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<()> {
-    let _ = (commandlist, queryset, queryindex);
+    let _ = (renderpass, queryset, queryindex);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.sync.commandBeginOcclusionQuery is not available in the VM yet",
     ))
     .boxed())
 }
 
-/// Begin one pipeline-statistics query.
+/// Begin one pipeline-statistics query in one render pass.
 ///
-/// Begin one pipeline-statistics query in the active render or compute pass.
+/// Begin one pipeline-statistics query in one active render pass.
 /// Pipeline-statistics queries cannot be nested and require one matching end call.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses WebGPU-style begin-pipeline-statistics-query commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+/// Uses backend-specific pipeline-statistics query commands where exposed.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `gpu.sync`.
+/// Requires `gpu.sync.pipelineStatistics`.
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_gpu_command_begin_pipeline_statistics_query(
+pub(crate) fn destack_gpu_command_begin_render_pipeline_statistics_query(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    commandlist: resource::GpuCommandListHandle,
+    renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<()> {
-    let _ = (commandlist, queryset, queryindex);
+    let _ = (renderpass, queryset, queryindex);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.gpu.sync.commandBeginPipelineStatisticsQuery is not available in the VM yet",
+        "destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// End one pipeline-statistics query in one compute pass.
+///
+/// End one active pipeline-statistics query in one compute pass.
+/// The active query must match the most recent begin call.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend-specific pipeline-statistics query commands where exposed.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `gpu.sync.pipelineStatistics`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_gpu_command_end_compute_pipeline_statistics_query(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    computepass: resource::GpuComputePassHandle,
+) -> RuntimeResult<()> {
+    let _ = computepass;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.sync.commandEndComputePipelineStatisticsQuery is not available in the VM yet",
     ))
     .boxed())
 }
@@ -3466,40 +3736,40 @@ pub(crate) fn destack_gpu_command_begin_pipeline_statistics_query(
 pub(crate) fn destack_gpu_command_end_occlusion_query(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    commandlist: resource::GpuCommandListHandle,
+    renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
-    let _ = commandlist;
+    let _ = renderpass;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.sync.commandEndOcclusionQuery is not available in the VM yet",
     ))
     .boxed())
 }
 
-/// End one pipeline-statistics query.
+/// End one pipeline-statistics query in one render pass.
 ///
-/// End one active pipeline-statistics query in the current pass.
+/// End one active pipeline-statistics query in one render pass.
 /// The active query must match the most recent begin call.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses WebGPU-style end-pipeline-statistics-query commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+/// Uses backend-specific pipeline-statistics query commands where exposed.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `gpu.sync`.
+/// Requires `gpu.sync.pipelineStatistics`.
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_gpu_command_end_pipeline_statistics_query(
+pub(crate) fn destack_gpu_command_end_render_pipeline_statistics_query(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    commandlist: resource::GpuCommandListHandle,
+    renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
-    let _ = commandlist;
+    let _ = renderpass;
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.gpu.sync.commandEndPipelineStatisticsQuery is not available in the VM yet",
+        "destack.gpu.sync.commandEndRenderPipelineStatisticsQuery is not available in the VM yet",
     ))
     .boxed())
 }

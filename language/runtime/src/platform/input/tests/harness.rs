@@ -5,16 +5,16 @@ use destack_vm as vm;
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
-    InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceCapabilityKind, InputDeviceInfo,
-    InputDeviceInfoVm, InputDeviceKind, InputEvent, InputEventAction, InputEventKind, InputEventVm,
-    InputGamepadState, InputGamepadStateVm, InputHapticEffectParameters,
-    InputHapticEffectParametersVm, InputHapticEffectType, InputKeyboardState, InputKeyboardStateVm,
-    InputMonitorEvent, InputMonitorEventKind, InputMonitorEventVm, InputPointerState,
-    InputPointerStateVm, InputRawHidReport, InputRawHidReportVm, InputSensorConfig,
-    InputSensorConfigVm, InputSensorEffectiveConfig, InputSensorEffectiveConfigVm, InputSensorInfo,
-    InputSensorInfoVm, InputSensorSample, InputSensorSampleVm, InputTextInputArea,
-    InputTextInputAreaVm, InputTouchState, InputTouchStateVm, InputWindowTarget,
-    InputWindowTargetVm,
+    InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceCapabilityKind,
+    InputDeviceDescriptor, InputDeviceDescriptorVm, InputDeviceKind, InputEvent, InputEventAction,
+    InputEventKind, InputEventVm, InputGamepadState, InputGamepadStateVm,
+    InputHapticEffectParameters, InputHapticEffectParametersVm, InputHapticEffectType,
+    InputKeyboardState, InputKeyboardStateVm, InputMonitorEvent, InputMonitorEventKind,
+    InputMonitorEventVm, InputPointerState, InputPointerStateVm, InputRawHidReport,
+    InputRawHidReportVm, InputSensorConfig, InputSensorConfigVm, InputSensorDescriptor,
+    InputSensorDescriptorVm, InputSensorEffectiveConfig, InputSensorEffectiveConfigVm,
+    InputSensorSample, InputSensorSampleVm, InputTextInputArea, InputTextInputAreaVm,
+    InputTouchState, InputTouchStateVm, InputWindowTarget, InputWindowTargetVm,
 };
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice};
 
@@ -380,7 +380,7 @@ impl<'call> InputHarnessContext<'call> {
     /// Decode one list result into normalized device records.
     pub(crate) fn device_records_from_value(
         &self,
-        value: HarnessValue<NativeSlice<InputDeviceInfo>, VmSlice<InputDeviceInfoVm>>,
+        value: HarnessValue<NativeSlice<InputDeviceDescriptor>, VmSlice<InputDeviceDescriptorVm>>,
     ) -> RuntimeResult<Vec<InputDeviceRecord>> {
         match value {
             HarnessValue::Native(value) => {
@@ -818,8 +818,8 @@ impl<'call> InputHarnessContext<'call> {
     /// Decode one sensor-info list wrapper into one unified payload list.
     pub(crate) fn sensor_infos_from_value(
         &self,
-        value: HarnessValue<NativeArray<InputSensorInfo>, VmArray<InputSensorInfoVm>>,
-    ) -> RuntimeResult<Vec<InputSensorInfo>> {
+        value: HarnessValue<NativeArray<InputSensorDescriptor>, VmArray<InputSensorDescriptorVm>>,
+    ) -> RuntimeResult<Vec<InputSensorDescriptor>> {
         match value {
             HarnessValue::Native(value) => {
                 let values = unsafe { value.as_slice()? };

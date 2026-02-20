@@ -6,10 +6,11 @@
 
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError as HarnessPlatformError;
 use crate::platform::time::{
-    ClockId, ClockInfo, ClockInfoVm, ClockSource, SleepClock, native as time_native, vm as time_vm,
+    ClockId, ClockMetadata, ClockMetadataVm, ClockSource, SleepClock, TimerClock, TimerFlags,
+    TimerOptions, TimerOptionsVm, native as time_native, vm as time_vm,
 };
+use crate::platform::{PlatformError as HarnessPlatformError, resource};
 use destack_vm as vm;
 
 impl<'call> TimeHarnessContext<'call> {
@@ -47,19 +48,19 @@ impl<'call> TimeHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_time_clock_info(
+    pub(crate) fn destack_time_clock_metadata(
         &mut self,
         clock: ClockId,
-    ) -> RuntimeResult<HarnessValue<ClockInfo, ClockInfoVm>> {
+    ) -> RuntimeResult<HarnessValue<ClockMetadata, ClockMetadataVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = time_vm::destack_time_clock_info(self.call_context, context, clock)?;
+                let out = time_vm::destack_time_clock_metadata(self.call_context, context, clock)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<ClockInfo>::uninit();
+                let mut out = std::mem::MaybeUninit::<ClockMetadata>::uninit();
                 unsafe {
-                    time_native::destack_time_clock_info(
+                    time_native::destack_time_clock_metadata(
                         self.call_context,
                         out.as_mut_ptr(),
                         clock,
@@ -353,6 +354,384 @@ impl<'call> TimeHarnessContext<'call> {
             }
             None => unsafe {
                 time_native::destack_time_sleep_until_on_ns(self.call_context, deadline, clock)
+            },
+        }
+    }
+
+    /// Schedule a timer for an absolute deadline.
+    ///
+    /// Register one timer that fires at a specific deadline in nanoseconds with explicit timer options.
+    /// Deadline interpretation follows runtime wall-clock and monotonic policy.
+    ///
+    /// # Platform
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_time_timer_at(
+        &mut self,
+        deadlinens: u64,
+        options: HarnessValue<TimerOptions, TimerOptionsVm>,
+    ) -> RuntimeResult<resource::TimerHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out = time_vm::destack_time_timer_at(
+                    self.call_context,
+                    context,
+                    deadlinens,
+                    options,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::TimerHandle>::uninit();
+                unsafe {
+                    time_native::destack_time_timer_at(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        deadlinens,
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Cancel one scheduled timer.
+    ///
+    /// Remove one timer from the runtime scheduler.
+    /// Cancellation is idempotent when supported by the runtime implementation.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_time_timer_cancel(
+        &mut self,
+        handle: resource::TimerHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => time_vm::destack_time_timer_cancel(self.call_context, context, handle),
+            None => unsafe { time_native::destack_time_timer_cancel(self.call_context, handle) },
+        }
+    }
+
+    /// Schedule a repeating timer.
+    ///
+    /// Register one timer that fires repeatedly at a fixed period with explicit timer options.
+    /// Drift and catch-up behavior follow runtime timer policy.
+    ///
+    /// # Platform
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_time_timer_interval(
+        &mut self,
+        periodns: u64,
+        options: HarnessValue<TimerOptions, TimerOptionsVm>,
+    ) -> RuntimeResult<resource::TimerHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out = time_vm::destack_time_timer_interval(
+                    self.call_context,
+                    context,
+                    periodns,
+                    options,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::TimerHandle>::uninit();
+                unsafe {
+                    time_native::destack_time_timer_interval(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        periodns,
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Return whether one timer is currently active.
+    ///
+    /// Read active-state metadata for one timer handle.
+    /// Active state reflects runtime scheduler ownership and cancellation state.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_time_timer_is_active(
+        &mut self,
+        handle: resource::TimerHandle,
+    ) -> RuntimeResult<bool> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    time_vm::destack_time_timer_is_active(self.call_context, context, handle)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<bool>::uninit();
+                unsafe {
+                    time_native::destack_time_timer_is_active(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Schedule a one-shot timer.
+    ///
+    /// Register one timer that fires once after a relative delay with explicit timer options.
+    /// The handle remains valid until explicit cancel or one-shot completion.
+    ///
+    /// # Platform
+    /// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_time_timer_once(
+        &mut self,
+        delayns: u64,
+        options: HarnessValue<TimerOptions, TimerOptionsVm>,
+    ) -> RuntimeResult<resource::TimerHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out =
+                    time_vm::destack_time_timer_once(self.call_context, context, delayns, options)?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::TimerHandle>::uninit();
+                unsafe {
+                    time_native::destack_time_timer_once(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        delayns,
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Pause one running timer.
+    ///
+    /// Suspend one timer without discarding its scheduling state.
+    /// Resume behavior and retained delay follow the active runtime timer policy.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_time_timer_pause(
+        &mut self,
+        handle: resource::TimerHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => time_vm::destack_time_timer_pause(self.call_context, context, handle),
+            None => unsafe { time_native::destack_time_timer_pause(self.call_context, handle) },
+        }
+    }
+
+    /// Return remaining timer delay in nanoseconds.
+    ///
+    /// Read remaining delay for one timer relative to its configured clock domain.
+    /// Remaining delay is zero when timer has fired or is inactive.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_time_timer_remaining_ns(
+        &mut self,
+        handle: resource::TimerHandle,
+    ) -> RuntimeResult<u64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    time_vm::destack_time_timer_remaining_ns(self.call_context, context, handle)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                unsafe {
+                    time_native::destack_time_timer_remaining_ns(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Reset one timer with a new relative delay.
+    ///
+    /// Replace one timer schedule with a new relative delay.
+    /// Reset semantics preserve timer identity and replay ordering.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_time_timer_reset(
+        &mut self,
+        handle: resource::TimerHandle,
+        delayns: u64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                time_vm::destack_time_timer_reset(self.call_context, context, handle, delayns)
+            }
+            None => unsafe {
+                time_native::destack_time_timer_reset(self.call_context, handle, delayns)
+            },
+        }
+    }
+
+    /// Resume one paused timer.
+    ///
+    /// Reactivate one paused timer in the runtime scheduler.
+    /// Resume timing semantics follow runtime timer policy.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_time_timer_resume(
+        &mut self,
+        handle: resource::TimerHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => time_vm::destack_time_timer_resume(self.call_context, context, handle),
+            None => unsafe { time_native::destack_time_timer_resume(self.call_context, handle) },
+        }
+    }
+
+    /// Update one timer interval period.
+    ///
+    /// Replace one interval timer period while preserving timer identity.
+    /// Update semantics are runtime-defined for already-expired intervals.
+    ///
+    /// # Platform
+    /// Runtime-level operation available on all native runtime targets.
+    /// Uses runtime scheduler timer queues.
+    ///
+    /// # Errors
+    /// Returns timeUnavailable, invalidArgument, notSupported.
+    ///
+    /// # Security
+    /// Requires `time.timer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_time_timer_update_interval(
+        &mut self,
+        handle: resource::TimerHandle,
+        periodns: u64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => time_vm::destack_time_timer_update_interval(
+                self.call_context,
+                context,
+                handle,
+                periodns,
+            ),
+            None => unsafe {
+                time_native::destack_time_timer_update_interval(self.call_context, handle, periodns)
             },
         }
     }

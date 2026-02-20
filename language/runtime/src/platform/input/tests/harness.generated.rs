@@ -7,30 +7,30 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
-    InputAxisInfo, InputAxisInfoVm, InputButtonInfo, InputButtonInfoVm,
+    InputAxisMetadata, InputAxisMetadataVm, InputButtonMetadata, InputButtonMetadataVm,
     InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin, InputCompositionEvent,
     InputCompositionEventPayload, InputCompositionEventPayloadVm, InputCompositionEventVm,
     InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceCapabilityKind,
-    InputDeviceEventPayload, InputDeviceEventPayloadVm, InputDeviceInfo, InputDeviceInfoVm,
-    InputDeviceKind, InputEvent, InputEventAction, InputEventKind, InputEventPayload,
-    InputEventPayloadVm, InputEventVm, InputGamepadBatteryInfo, InputGamepadBatteryInfoVm,
-    InputGamepadBatteryState, InputGamepadButtonState, InputGamepadButtonStateVm,
-    InputGamepadConnectionType, InputGamepadEventPayload, InputGamepadEventPayloadVm,
-    InputGamepadMappingType, InputGamepadState, InputGamepadStateVm, InputGamepadTouchState,
-    InputGamepadTouchStateVm, InputHapticEffectParameters, InputHapticEffectParametersVm,
-    InputHapticEffectType, InputHapticsResult, InputKeyEventPayload, InputKeyEventPayloadVm,
-    InputKeyboardState, InputKeyboardStateVm, InputMonitorEvent, InputMonitorEventKind,
-    InputMonitorEventVm, InputPointerButtonEventPayload, InputPointerButtonEventPayloadVm,
-    InputPointerGrabMode, InputPointerMotionEventPayload, InputPointerMotionEventPayloadVm,
-    InputPointerState, InputPointerStateVm, InputRawHidReport, InputRawHidReportVm, InputReadMode,
-    InputScrollEventPayload, InputScrollEventPayloadVm, InputSensorConfig, InputSensorConfigVm,
+    InputDeviceDescriptor, InputDeviceDescriptorVm, InputDeviceEventPayload,
+    InputDeviceEventPayloadVm, InputDeviceKind, InputEvent, InputEventAction, InputEventKind,
+    InputEventPayload, InputEventPayloadVm, InputEventVm, InputGamepadBatteryState,
+    InputGamepadBatteryStatus, InputGamepadBatteryStatusVm, InputGamepadButtonState,
+    InputGamepadButtonStateVm, InputGamepadConnectionType, InputGamepadEventPayload,
+    InputGamepadEventPayloadVm, InputGamepadMappingType, InputGamepadState, InputGamepadStateVm,
+    InputGamepadTouchState, InputGamepadTouchStateVm, InputHapticEffectParameters,
+    InputHapticEffectParametersVm, InputHapticEffectType, InputHapticsResult, InputKeyEventPayload,
+    InputKeyEventPayloadVm, InputKeyboardState, InputKeyboardStateVm, InputMonitorEvent,
+    InputMonitorEventKind, InputMonitorEventVm, InputPointerButtonEventPayload,
+    InputPointerButtonEventPayloadVm, InputPointerGrabMode, InputPointerMotionEventPayload,
+    InputPointerMotionEventPayloadVm, InputPointerState, InputPointerStateVm, InputRawHidReport,
+    InputRawHidReportVm, InputReadMode, InputScrollEventPayload, InputScrollEventPayloadVm,
+    InputSensorConfig, InputSensorConfigVm, InputSensorDescriptor, InputSensorDescriptorVm,
     InputSensorEffectiveConfig, InputSensorEffectiveConfigVm, InputSensorEventPayload,
-    InputSensorEventPayloadVm, InputSensorInfo, InputSensorInfoVm, InputSensorKind,
-    InputSensorSample, InputSensorSampleVm, InputTextEventPayload, InputTextEventPayloadVm,
-    InputTextInputArea, InputTextInputAreaVm, InputTextInputType, InputTouchContactPhase,
-    InputTouchContactState, InputTouchContactStateVm, InputTouchEventPayload,
-    InputTouchEventPayloadVm, InputTouchState, InputTouchStateVm, InputWindowTarget,
-    InputWindowTargetVm, native as input_native, vm as input_vm,
+    InputSensorEventPayloadVm, InputSensorKind, InputSensorSample, InputSensorSampleVm,
+    InputTextEventPayload, InputTextEventPayloadVm, InputTextInputArea, InputTextInputAreaVm,
+    InputTextInputType, InputTouchContactPhase, InputTouchContactState, InputTouchContactStateVm,
+    InputTouchEventPayload, InputTouchEventPayloadVm, InputTouchState, InputTouchStateVm,
+    InputWindowTarget, InputWindowTargetVm, native as input_native, vm as input_vm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
@@ -150,14 +150,16 @@ impl<'call> InputHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_input_list(
         &mut self,
-    ) -> RuntimeResult<HarnessValue<NativeSlice<InputDeviceInfo>, VmSlice<InputDeviceInfoVm>>> {
+    ) -> RuntimeResult<
+        HarnessValue<NativeSlice<InputDeviceDescriptor>, VmSlice<InputDeviceDescriptorVm>>,
+    > {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out = input_vm::destack_input_list(self.call_context, context)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<NativeSlice<InputDeviceInfo>>::uninit();
+                let mut out = std::mem::MaybeUninit::<NativeSlice<InputDeviceDescriptor>>::uninit();
                 unsafe {
                     input_native::destack_input_list(self.call_context, out.as_mut_ptr())?;
                 }
@@ -1467,14 +1469,16 @@ impl<'call> InputHarnessContext<'call> {
     pub(crate) fn destack_input_sensor_list(
         &mut self,
         handle: resource::InputDeviceHandle,
-    ) -> RuntimeResult<HarnessValue<NativeArray<InputSensorInfo>, VmArray<InputSensorInfoVm>>> {
+    ) -> RuntimeResult<
+        HarnessValue<NativeArray<InputSensorDescriptor>, VmArray<InputSensorDescriptorVm>>,
+    > {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out = input_vm::destack_input_sensor_list(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<NativeArray<InputSensorInfo>>::uninit();
+                let mut out = std::mem::MaybeUninit::<NativeArray<InputSensorDescriptor>>::uninit();
                 unsafe {
                     input_native::destack_input_sensor_list(
                         self.call_context,

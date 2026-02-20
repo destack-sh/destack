@@ -9,9 +9,7 @@ use crate::runtime::RuntimeCallContext;
 use bindings::*;
 
 use crate::platform::resource;
-use crate::platform::security::{
-    PlatformCapability, SecurityFilter, SecurityFilterKind, SecurityPolicyMode, SecurityPolicyRule,
-};
+use crate::platform::security::{PlatformCapability, SecurityPolicyMode, SecurityPolicyRule};
 
 /// Check one capability.
 ///
@@ -78,36 +76,6 @@ pub(crate) unsafe fn destack_security_capability_list(
     .boxed())
 }
 
-/// Install one host filter for a sandbox scope.
-///
-/// Install one host-enforced filter descriptor for a sandbox scope.
-/// Filter parsing and host mapping are selected by the filter kind.
-///
-/// # Platform
-/// Hybrid across runtime and host enforcement hooks.
-/// Uses runtime-to-host policy adapters for seccomp, pledge, landlock, seatbelt, or token restrictions.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `security.filter`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_security_sandbox_install_filter(
-    _context: &RuntimeCallContext,
-    handle: resource::SandboxHandle,
-    filter: SecurityFilter,
-) -> RuntimeResult<()> {
-    let _ = (handle, filter);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.security.enforce.sandboxInstallFilter",
-    ))
-    .boxed())
-}
-
 /// Seal one sandbox policy.
 ///
 /// Transition one sandbox scope into sealed mode.
@@ -163,6 +131,35 @@ pub(crate) unsafe fn destack_security_sandbox_set_capabilities(
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.security.enforce.sandboxSetCapabilities",
+    ))
+    .boxed())
+}
+
+/// Set runtime W^X policy.
+///
+/// Enable or disable runtime write-xor-execute policy enforcement.
+/// Policy update affects subsequent executable-memory transitions.
+///
+/// # Platform
+/// Runtime-managed on all targets.
+/// Uses runtime memory policy controls layered over host page protections.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `security.restrict`.
+///
+/// # Replay
+/// Deterministic.
+pub(crate) unsafe fn destack_security_set_write_xor_execute(
+    _context: &RuntimeCallContext,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    let _ = enabled;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.security.enforce.setWriteXorExecute",
     ))
     .boxed())
 }

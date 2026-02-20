@@ -8,7 +8,7 @@ use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::os::{
     HostIdentity, HostIdentityVm, LoadAverage, LoadAverageVm, MountEntry, MountEntryVm, PowerState,
-    SystemInfo, SystemInfoVm, native as os_native, vm as os_vm,
+    SystemSnapshot, SystemSnapshotVm, native as os_native, vm as os_vm,
 };
 use crate::platform::{
     NativeArray, NativeStringRef, PlatformError as HarnessPlatformError, VmArray, fs,
@@ -156,18 +156,18 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_os_system_info(
+    pub(crate) fn destack_os_system_snapshot(
         &mut self,
-    ) -> RuntimeResult<HarnessValue<SystemInfo, SystemInfoVm>> {
+    ) -> RuntimeResult<HarnessValue<SystemSnapshot, SystemSnapshotVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = os_vm::destack_os_system_info(self.call_context, context)?;
+                let out = os_vm::destack_os_system_snapshot(self.call_context, context)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<SystemInfo>::uninit();
+                let mut out = std::mem::MaybeUninit::<SystemSnapshot>::uninit();
                 unsafe {
-                    os_native::destack_os_system_info(self.call_context, out.as_mut_ptr())?;
+                    os_native::destack_os_system_snapshot(self.call_context, out.as_mut_ptr())?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))

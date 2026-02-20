@@ -1,13 +1,13 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{OsPath, PathBytesAbi, PathEncoding, core as core_fs};
 use crate::platform::net::{
-    KeepAliveConfig, Linger, PacketCaptureOptions, PacketCaptureRecord, PacketCaptureStats,
-    PacketFanoutOptions, PacketRingOptions, PacketTimestampMode, ResolveQuery, ReverseLookupFlags,
-    ReverseLookupName, RouteEntry, SocketAddress, SocketFamily, SocketMessageFlags,
-    SocketOptionLevel, SocketOptionName, SocketPair, SocketProtocol, SocketRecvBatchRequest,
-    SocketRecvFrom, SocketRecvMessage, SocketSendBatchEntry, SocketSendTo, SocketTimestampingMode,
-    SocketType, UdpMessageFlags, UdpReceive, UdpSourceMembershipV4, UdpSourceMembershipV6,
-    UdsAddress, host as host_net,
+    KeepAliveConfig, Linger, NetInterface, PacketCaptureOptions, PacketCaptureRecord,
+    PacketCaptureStats, PacketFanoutOptions, PacketRingOptions, PacketTimestampMode, ResolveQuery,
+    ReverseLookupFlags, ReverseLookupName, RouteEntry, SocketAddress, SocketFamily,
+    SocketMessageFlags, SocketOptionLevel, SocketOptionName, SocketPair, SocketProtocol,
+    SocketRecvBatchRequest, SocketRecvFrom, SocketRecvMessage, SocketSendBatchEntry, SocketSendTo,
+    SocketTimestampingMode, SocketType, UdpMessageFlags, UdpReceive, UdpSourceMembershipV4,
+    UdpSourceMembershipV6, UdsAddress, UdsAddressKind, host as host_net,
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
@@ -567,8 +567,7 @@ pub(crate) unsafe fn destack_net_reverse_lookup(
     }
 
     // resolve hostnames from the address
-    let mut hosts =
-        std::mem::MaybeUninit::<NativeArray<crate::platform::NativeStringRef>>::uninit();
+    let mut hosts = std::mem::MaybeUninit::<NativeArray<NativeStringRef>>::uninit();
     unsafe { host_net::destack_net_reverse_lookup_raw(context, hosts.as_mut_ptr(), address) }?;
     let hosts = unsafe { hosts.assume_init() };
     let hosts = unsafe { hosts.as_slice()? };
@@ -696,7 +695,7 @@ pub(crate) unsafe fn destack_net_set_only_v6(
 pub(crate) unsafe fn destack_net_socket(
     context: &RuntimeCallContext,
     out: *mut SocketHandle,
-    family: crate::platform::net::SocketFamily,
+    family: SocketFamily,
     sockettype: SocketType,
     protocol: SocketProtocol,
 ) -> RuntimeResult<()> {
@@ -723,7 +722,7 @@ pub(crate) unsafe fn destack_net_socket(
 pub(crate) unsafe fn destack_net_socket_pair(
     context: &RuntimeCallContext,
     out: *mut SocketPair,
-    family: crate::platform::net::SocketFamily,
+    family: SocketFamily,
     sockettype: SocketType,
     protocol: SocketProtocol,
 ) -> RuntimeResult<()> {
@@ -1081,7 +1080,7 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
 fn resolve_host(
     _context: &RuntimeCallContext,
     query: ResolveQuery,
-) -> RuntimeResult<crate::platform::NativeStringRef> {
+) -> RuntimeResult<NativeStringRef> {
     if !query.has_host {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "query",
@@ -1112,8 +1111,8 @@ fn resolve_port(query: ResolveQuery) -> RuntimeResult<u16> {
 /// Map a UDS address into the path shape expected by OS backends.
 fn uds_path(context: &RuntimeCallContext, address: UdsAddress) -> RuntimeResult<OsPath> {
     match address.kind {
-        crate::platform::net::UdsAddressKind::Path => Ok(address.path),
-        crate::platform::net::UdsAddressKind::Abstract => {
+        UdsAddressKind::Path => Ok(address.path),
+        UdsAddressKind::Abstract => {
             let name = unsafe { address.abstract_name.as_slice()? };
             let mut bytes = Vec::with_capacity(name.len().saturating_add(1));
             bytes.push(0);
@@ -1125,7 +1124,7 @@ fn uds_path(context: &RuntimeCallContext, address: UdsAddress) -> RuntimeResult<
                 utf16: core_fs::empty_path_utf16(),
             })
         }
-        crate::platform::net::UdsAddressKind::Unnamed => {
+        UdsAddressKind::Unnamed => {
             Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsConnect")).boxed())
         }
     }
@@ -1313,7 +1312,7 @@ pub(crate) unsafe fn destack_net_interface_name(
 /// External, recordable.
 pub(crate) unsafe fn destack_net_list_interfaces(
     _context: &RuntimeCallContext,
-    out: *mut NativeArray<crate::platform::net::NetInterface>,
+    out: *mut NativeArray<NetInterface>,
 ) -> RuntimeResult<()> {
     // validate pointer and keep arguments used
     unsafe { check_out_pointer(out, "out")? };

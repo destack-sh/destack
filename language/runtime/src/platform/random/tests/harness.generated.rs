@@ -7,8 +7,8 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::random::{
-    RandomStream, RandomStreamDomain, RandomStreamState, RandomStreamStateVm, SecureRandomInfo,
-    SecureRandomInfoVm, SecureRandomSource, native as random_native, vm as random_vm,
+    RandomStream, RandomStreamDomain, RandomStreamState, RandomStreamStateVm, SecureRandomMetadata,
+    SecureRandomMetadataVm, SecureRandomSource, native as random_native, vm as random_vm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
@@ -117,18 +117,21 @@ impl<'call> RandomHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_random_secure_info(
+    pub(crate) fn destack_random_secure_metadata(
         &mut self,
-    ) -> RuntimeResult<HarnessValue<SecureRandomInfo, SecureRandomInfoVm>> {
+    ) -> RuntimeResult<HarnessValue<SecureRandomMetadata, SecureRandomMetadataVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = random_vm::destack_random_secure_info(self.call_context, context)?;
+                let out = random_vm::destack_random_secure_metadata(self.call_context, context)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<SecureRandomInfo>::uninit();
+                let mut out = std::mem::MaybeUninit::<SecureRandomMetadata>::uninit();
                 unsafe {
-                    random_native::destack_random_secure_info(self.call_context, out.as_mut_ptr())?;
+                    random_native::destack_random_secure_metadata(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))

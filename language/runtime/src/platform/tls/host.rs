@@ -14,4 +14,4 @@ pub(crate) use windows::*;
 
 #[cfg(not(any(unix, windows)))]
 #[allow(unused_imports)]
-pub(crate) use crate::platform::tls::unsupported::*;
+pub(crate) use super::unsupported::*;

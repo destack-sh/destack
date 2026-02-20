@@ -57,7 +57,7 @@ declare namespace ffi {
             replay: "nonrecordable",
             capabilities: ["ffi.symbol"],
             platforms: ["windows", "unix"],
-            scope: "runtime",
+            scope: "host",
             blocking: "never",
         },
     )

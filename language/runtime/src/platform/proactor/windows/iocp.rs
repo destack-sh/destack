@@ -32,8 +32,8 @@ use windows_sys::Win32::System::Threading::INFINITE;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::poller::{PlatformEventMask, PlatformInterest};
 use crate::platform::proactor::{
-    Proactor, ProactorCompletion, ProactorCompletionData, ProactorOp, ProactorOpKind,
-    ProactorRequest, ProactorShutdown,
+    Proactor, ProactorAddress, ProactorAddressStorage, ProactorBufferVec, ProactorCompletion,
+    ProactorCompletionData, ProactorOp, ProactorOpKind, ProactorRequest, ProactorShutdown,
 };
 use crate::platform::{
     PlatformError, PlatformErrorCode, PlatformHandle, ResourceId, core as core_platform,
@@ -106,7 +106,7 @@ struct IocpOperation {
     /// AcceptEx remote address length.
     accept_remote_len: u32,
     /// Optional caller output for the accepted remote address.
-    accept_address_out: Option<crate::platform::proactor::ProactorAddressStorage>,
+    accept_address_out: Option<ProactorAddressStorage>,
     /// ConnectEx target address copy.
     connect_address: Vec<u8>,
 }
@@ -1441,7 +1441,7 @@ fn execute_write(
 fn execute_readv(
     request: ProactorRequest,
     handle: PlatformHandle,
-    buffers: crate::platform::proactor::ProactorBufferVec,
+    buffers: ProactorBufferVec,
     offset: Option<u64>,
 ) -> ProactorCompletion {
     // validate buffer vector pointer
@@ -1477,7 +1477,7 @@ fn execute_readv(
 fn execute_writev(
     request: ProactorRequest,
     handle: PlatformHandle,
-    buffers: crate::platform::proactor::ProactorBufferVec,
+    buffers: ProactorBufferVec,
     offset: Option<u64>,
 ) -> ProactorCompletion {
     // validate buffer vector pointer
@@ -1561,7 +1561,7 @@ fn execute_recvfrom(
     buffer: *mut u8,
     buffer_len: u32,
     flags: u32,
-    address: crate::platform::proactor::ProactorAddressStorage,
+    address: ProactorAddressStorage,
 ) -> ProactorCompletion {
     // validate address output pointers
     if address.data.is_null() {
@@ -1608,7 +1608,7 @@ fn execute_sendto(
     buffer: *const u8,
     buffer_len: u32,
     flags: u32,
-    address: crate::platform::proactor::ProactorAddress,
+    address: ProactorAddress,
 ) -> ProactorCompletion {
     // validate address input pointer
     if address.data.is_null() && address.len != 0 {
@@ -1921,7 +1921,7 @@ fn execute_fsync(request: ProactorRequest, handle: PlatformHandle) -> ProactorCo
 fn execute_accept(
     request: ProactorRequest,
     handle: PlatformHandle,
-    address: Option<crate::platform::proactor::ProactorAddressStorage>,
+    address: Option<ProactorAddressStorage>,
 ) -> ProactorCompletion {
     // prepare optional address pointers
     let (address_ptr, address_len_ptr, output_len_ptr) = match address {
@@ -1963,7 +1963,7 @@ fn execute_accept(
 fn execute_connect(
     request: ProactorRequest,
     handle: PlatformHandle,
-    address: crate::platform::proactor::ProactorAddress,
+    address: ProactorAddress,
 ) -> ProactorCompletion {
     // validate address pointer
     if address.data.is_null() && address.len != 0 {
@@ -2287,7 +2287,7 @@ fn decode_acceptex_remote_address(
 }
 
 /// Resolve one socket family from one sockaddr payload.
-fn socket_address_family(address: crate::platform::proactor::ProactorAddress) -> Option<i32> {
+fn socket_address_family(address: ProactorAddress) -> Option<i32> {
     // reject empty or null address payloads
     if address.data.is_null() || address.len < 2 {
         return None;

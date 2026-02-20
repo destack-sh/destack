@@ -1,7 +1,9 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::display::{DisplayInfoVm, DisplayModeVm, WindowEventVm, WindowOptionsVm};
+use crate::platform::display::{
+    DisplayDescriptorVm, DisplayModeVm, WindowEventVm, WindowOptionsVm,
+};
 use crate::platform::{PlatformError, VmSlice, resource};
 use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
@@ -55,7 +57,7 @@ pub(crate) fn destack_display_close(
 pub(crate) fn destack_display_list(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<VmSlice<DisplayInfoVm>> {
+) -> RuntimeResult<VmSlice<DisplayDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.monitor.list")).boxed())
 }
 

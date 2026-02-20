@@ -7,11 +7,12 @@ use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
 use crate::runtime::RuntimeCallContext;
 
 use crate::platform::input::{
-    InputCompositionEvent, InputDeviceCapabilities, InputDeviceInfo, InputEvent, InputGamepadState,
-    InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult, InputKeyboardState,
-    InputMonitorEvent, InputPointerGrabMode, InputPointerState, InputRawHidReport, InputReadMode,
-    InputSensorConfig, InputSensorEffectiveConfig, InputSensorInfo, InputSensorKind,
-    InputSensorSample, InputTextInputArea, InputTextInputType, InputTouchState, InputWindowTarget,
+    InputCompositionEvent, InputDeviceCapabilities, InputDeviceDescriptor, InputEvent,
+    InputGamepadState, InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult,
+    InputKeyboardState, InputMonitorEvent, InputPointerGrabMode, InputPointerState,
+    InputRawHidReport, InputReadMode, InputSensorConfig, InputSensorDescriptor,
+    InputSensorEffectiveConfig, InputSensorKind, InputSensorSample, InputTextInputArea,
+    InputTextInputType, InputTouchState, InputWindowTarget,
 };
 use crate::platform::resource;
 
@@ -97,7 +98,7 @@ pub(crate) unsafe fn destack_input_close(
 /// External, recordable.
 pub(crate) unsafe fn destack_input_list(
     _context: &RuntimeCallContext,
-    out: *mut NativeSlice<InputDeviceInfo>,
+    out: *mut NativeSlice<InputDeviceDescriptor>,
 ) -> RuntimeResult<()> {
     let _ = out;
 
@@ -1002,7 +1003,7 @@ pub(crate) unsafe fn destack_input_sensor_configure(
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_list(
     _context: &RuntimeCallContext,
-    out: *mut NativeArray<InputSensorInfo>,
+    out: *mut NativeArray<InputSensorDescriptor>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = (out, handle);

@@ -116,7 +116,7 @@ pub(crate) unsafe fn destack_net_udp_recv_from_raw(
     context: &RuntimeCallContext,
     out: *mut UdpReceive,
     handle: SocketHandle,
-    buffer: crate::platform::NativeSlice<u8>,
+    buffer: NativeSlice<u8>,
     recv_flags: UdpMessageFlags,
 ) -> RuntimeResult<()> {
     // ensure the output pointer is valid
@@ -165,7 +165,7 @@ pub(crate) unsafe fn destack_net_udp_send_to_raw(
     out: *mut u64,
     handle: SocketHandle,
     address: SocketAddress,
-    buffer: crate::platform::NativeSlice<u8>,
+    buffer: NativeSlice<u8>,
     send_flags: UdpMessageFlags,
 ) -> RuntimeResult<()> {
     // ensure the output pointer is valid

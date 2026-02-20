@@ -1,7 +1,9 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::os::{HostIdentityVm, LoadAverageVm, MountEntryVm, PowerState, SystemInfoVm};
+use crate::platform::os::{
+    HostIdentityVm, LoadAverageVm, MountEntryVm, PowerState, SystemSnapshotVm,
+};
 use crate::platform::{PlatformError, VmArray, fs};
 use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
@@ -104,10 +106,10 @@ pub(crate) fn destack_os_load_average(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_os_system_info(
+pub(crate) fn destack_os_system_snapshot(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<SystemInfoVm> {
+) -> RuntimeResult<SystemSnapshotVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.os.info.systemInfo is not available in the VM yet",
     ))

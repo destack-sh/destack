@@ -13,9 +13,9 @@ use crate::platform::{
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
-/// ABI struct for DisplayInfo.
+/// ABI struct for DisplayDescriptor.
 #[repr(C)]
-pub struct DisplayInfoAbi<A: BindingAbi> {
+pub struct DisplayDescriptorAbi<A: BindingAbi> {
     /// The id field.
     pub id: A::String,
     /// The name field.
@@ -28,31 +28,31 @@ pub struct DisplayInfoAbi<A: BindingAbi> {
     pub primary: bool,
 }
 
-pub type DisplayInfo = DisplayInfoAbi<NativeAbi>;
-pub type DisplayInfoVm = DisplayInfoAbi<VmAbi>;
+pub type DisplayDescriptor = DisplayDescriptorAbi<NativeAbi>;
+pub type DisplayDescriptorVm = DisplayDescriptorAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for DisplayInfoAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for DisplayDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("DisplayInfoAbi")
+            .debug_struct("DisplayDescriptorAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for DisplayInfoAbi<NativeAbi> {}
-impl Clone for DisplayInfoAbi<NativeAbi> {
+impl Copy for DisplayDescriptorAbi<NativeAbi> {}
+impl Clone for DisplayDescriptorAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for DisplayInfoAbi<VmAbi> {}
-impl Clone for DisplayInfoAbi<VmAbi> {
+impl Copy for DisplayDescriptorAbi<VmAbi> {}
+impl Clone for DisplayDescriptorAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for DisplayInfoAbi<VmAbi> {
+impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -60,7 +60,7 @@ impl VmAggregateCodec for DisplayInfoAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "DisplayInfo",
+                "DisplayDescriptor",
             ))
             .boxed());
         }
@@ -330,9 +330,9 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
     }
 }
 
-/// Replay struct for DisplayInfo.
+/// Replay struct for DisplayDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct DisplayInfoReplayRecord {
+pub struct DisplayDescriptorReplayRecord {
     /// The id field.
     pub id: String,
     /// The name field.

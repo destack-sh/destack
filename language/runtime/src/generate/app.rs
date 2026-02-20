@@ -89,7 +89,7 @@ pub(crate) fn run() {
         &platform_modules,
         options.domains.as_ref(),
     );
-    let analysis_modules = selected_modules.clone();
+    let analysis_modules = platform_modules.clone();
 
     // run analysis passes before extraction
     analyze_platform_modules(

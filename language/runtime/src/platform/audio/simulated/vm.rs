@@ -2,9 +2,9 @@
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{
-    AudioClockDomain, AudioClockSnapshotVm, AudioDeviceDirection, AudioDeviceEventVm,
-    AudioDeviceInfoVm, AudioDeviceListRequestVm, AudioDeviceOpenOptionsVm,
-    AudioStreamAvailabilityVm, AudioStreamConfigVm, AudioStreamInfoVm, AudioStreamStateVm,
+    AudioClockDomain, AudioClockSnapshotVm, AudioDeviceDescriptorVm, AudioDeviceDirection,
+    AudioDeviceEventVm, AudioDeviceListRequestVm, AudioDeviceOpenOptionsVm,
+    AudioStreamAvailabilityVm, AudioStreamConfigVm, AudioStreamSnapshotVm, AudioStreamStateVm,
     AudioStreamTimingVm,
 };
 use crate::platform::{PlatformError, VmSlice, resource};
@@ -133,11 +133,11 @@ pub(crate) fn destack_audio_device_default(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_audio_device_info(
+pub(crate) fn destack_audio_device_descriptor(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioDeviceHandle,
-) -> RuntimeResult<AudioDeviceInfoVm> {
+) -> RuntimeResult<AudioDeviceDescriptorVm> {
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.audio.device.info")).boxed())
 }
@@ -163,7 +163,7 @@ pub(crate) fn destack_audio_device_list(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     request: AudioDeviceListRequestVm,
-) -> RuntimeResult<VmSlice<AudioDeviceInfoVm>> {
+) -> RuntimeResult<VmSlice<AudioDeviceDescriptorVm>> {
     let _ = request;
     Err(RuntimeError::from(PlatformError::not_supported("destack.audio.device.list")).boxed())
 }
@@ -423,11 +423,11 @@ pub(crate) fn destack_audio_stream_flush(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_audio_stream_info(
+pub(crate) fn destack_audio_stream_snapshot(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
-) -> RuntimeResult<AudioStreamInfoVm> {
+) -> RuntimeResult<AudioStreamSnapshotVm> {
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.info")).boxed())
 }

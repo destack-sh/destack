@@ -1,7 +1,7 @@
 import type { PlatformError } from "../error/index.ds";
 
 /// System topology and capacity snapshot.
-export struct SystemInfo {
+export struct SystemSnapshot {
     /// Logical CPU count.
     cpuCount: uint32;
     /// Total physical memory bytes.
@@ -42,7 +42,7 @@ declare namespace os {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.os.info.systemInfo",
+        "destack.os.info.systemSnapshot",
         {
             effect: "external",
             replay: "recordable",
@@ -52,7 +52,7 @@ declare namespace os {
             blocking: "sometimes",
         },
     )
-    export function systemInfo(): Result<SystemInfo, PlatformError>;
+    export function systemSnapshot(): Result<SystemSnapshot, PlatformError>;
 
     /// Read host uptime.
     ///

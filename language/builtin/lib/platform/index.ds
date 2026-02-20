@@ -18,4 +18,3 @@ export { security } from "./security/index.ds";
 export { thread } from "./thread/index.ds";
 export { tty } from "./tty/index.ds";
 export { time } from "./time/index.ds";
-export { timer } from "./timer/index.ds";

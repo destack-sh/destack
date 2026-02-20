@@ -10,7 +10,6 @@ pub use bindings_generated::*;
 
 mod host;
 pub mod native;
-pub(crate) mod runtime;
 pub(crate) mod simulated;
 #[cfg(test)]
 mod tests;

@@ -9,10 +9,11 @@ use super::core as input_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputAxisInfo, InputButtonInfo, InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin,
-    InputDeviceCapabilities, InputDeviceCapabilityKind, InputEvent, InputEventAction,
-    InputEventKind, InputKeyEventPayload, InputKeyboardState, InputPointerButtonEventPayload,
-    InputPointerMotionEventPayload, InputPointerState, InputReadMode, InputScrollEventPayload,
+    InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
+    InputCapabilityMetadataOrigin, InputDeviceCapabilities, InputDeviceCapabilityKind, InputEvent,
+    InputEventAction, InputEventKind, InputKeyEventPayload, InputKeyboardState,
+    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputPointerState,
+    InputReadMode, InputScrollEventPayload,
 };
 use crate::platform::resource::ResourceKind;
 use crate::platform::{PlatformError, resource};
@@ -611,7 +612,7 @@ pub(super) fn query_macos_session_capabilities(
 
     // expose pointer axes and wheel lanes for cursor and scroll semantics
     let axes = vec![
-        InputAxisInfo {
+        InputAxisMetadata {
             code: 0,
             minimum: 0.0,
             maximum: 0.0,
@@ -619,7 +620,7 @@ pub(super) fn query_macos_session_capabilities(
             fuzz: 0.0,
             resolution: 0.0,
         },
-        InputAxisInfo {
+        InputAxisMetadata {
             code: 1,
             minimum: 0.0,
             maximum: 0.0,
@@ -627,7 +628,7 @@ pub(super) fn query_macos_session_capabilities(
             fuzz: 0.0,
             resolution: 0.0,
         },
-        InputAxisInfo {
+        InputAxisMetadata {
             code: KCG_SCROLL_WHEEL_EVENT_DELTA_AXIS1 as u32,
             minimum: 0.0,
             maximum: 0.0,
@@ -635,7 +636,7 @@ pub(super) fn query_macos_session_capabilities(
             fuzz: 0.0,
             resolution: 0.0,
         },
-        InputAxisInfo {
+        InputAxisMetadata {
             code: KCG_SCROLL_WHEEL_EVENT_DELTA_AXIS2 as u32,
             minimum: 0.0,
             maximum: 0.0,
@@ -647,23 +648,23 @@ pub(super) fn query_macos_session_capabilities(
 
     // expose primary pointer-button lanes used by the session event tap
     let buttons = vec![
-        InputButtonInfo {
+        InputButtonMetadata {
             code: 0,
             analog: false,
         },
-        InputButtonInfo {
+        InputButtonMetadata {
             code: 1,
             analog: false,
         },
-        InputButtonInfo {
+        InputButtonMetadata {
             code: 2,
             analog: false,
         },
-        InputButtonInfo {
+        InputButtonMetadata {
             code: 3,
             analog: false,
         },
-        InputButtonInfo {
+        InputButtonMetadata {
             code: 4,
             analog: false,
         },

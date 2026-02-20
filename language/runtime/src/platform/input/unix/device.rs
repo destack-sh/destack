@@ -5,9 +5,9 @@ use super::linux as input_linux;
 use super::macos as input_macos;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
-    InputAxisInfo, InputButtonInfo, InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin,
-    InputDeviceCapabilities, InputDeviceCapabilityKind, InputDeviceInfo, InputDeviceKind,
-    InputReadMode, InputTextInputArea, InputTextInputType,
+    InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
+    InputCapabilityMetadataOrigin, InputDeviceCapabilities, InputDeviceCapabilityKind,
+    InputDeviceDescriptor, InputDeviceKind, InputReadMode, InputTextInputArea, InputTextInputType,
 };
 use crate::platform::resource::ResourceEntry;
 use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
@@ -16,7 +16,7 @@ use crate::runtime::RuntimeCallContext;
 /// Build one capabilities payload from available device summary metadata.
 fn derive_capabilities_from_device_summary(
     context: &RuntimeCallContext,
-    device: InputDeviceInfo,
+    device: InputDeviceDescriptor,
 ) -> InputDeviceCapabilities {
     let mut kinds = Vec::new();
     match device.kind {
@@ -48,7 +48,7 @@ fn derive_capabilities_from_device_summary(
 
     let mut axes = Vec::with_capacity(device.axis_count as usize);
     for code in 0..u32::from(device.axis_count) {
-        axes.push(InputAxisInfo {
+        axes.push(InputAxisMetadata {
             code,
             minimum: 0.0,
             maximum: 0.0,
@@ -60,7 +60,7 @@ fn derive_capabilities_from_device_summary(
 
     let mut buttons = Vec::with_capacity(device.button_count as usize);
     for code in 0..u32::from(device.button_count) {
-        buttons.push(InputButtonInfo {
+        buttons.push(InputButtonMetadata {
             code,
             analog: false,
         });
@@ -177,7 +177,7 @@ pub(crate) unsafe fn destack_input_close(
 /// External, recordable.
 pub(crate) unsafe fn destack_input_list(
     context: &RuntimeCallContext,
-    out: *mut NativeSlice<InputDeviceInfo>,
+    out: *mut NativeSlice<InputDeviceDescriptor>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -349,7 +349,7 @@ pub(crate) unsafe fn destack_input_capabilities(
                 input_core::UnixInputBackend::Platform => "platform",
             };
 
-            InputDeviceInfo {
+            InputDeviceDescriptor {
                 id: context.store_string(&binding.device_id),
                 instance_id: context.store_string(&binding.device_id),
                 hardware_id: context.store_string(&binding.device_id),

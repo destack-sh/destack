@@ -1,8 +1,9 @@
 #![allow(dead_code)]
-#![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
-use crate::platform::time::{ClockId, ClockInfoVm, ClockSource, SleepClock};
+
+use crate::diagnostic::RuntimeResult;
+use crate::platform::resource;
+use crate::platform::time::runtime::vm as runtime_vm;
+use crate::platform::time::{ClockId, ClockMetadataVm, SleepClock, TimerOptionsVm};
 use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
 
@@ -23,16 +24,12 @@ use destack_vm as vm;
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_time_clock_info(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+pub(crate) fn destack_time_clock_metadata(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     clock: ClockId,
-) -> RuntimeResult<ClockInfoVm> {
-    let _ = clock;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.time.clock.info is not available in the VM yet",
-    ))
-    .boxed())
+) -> RuntimeResult<ClockMetadataVm> {
+    runtime_vm::destack_time_clock_metadata(runtime, context, clock)
 }
 
 /// Return monotonic time in nanoseconds.
@@ -53,13 +50,10 @@ pub(crate) fn destack_time_clock_info(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_mono_ns(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.time.clock.monoNs is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_vm::destack_time_mono_ns(runtime, context)
 }
 
 /// Read one selected clock in nanoseconds.
@@ -80,15 +74,11 @@ pub(crate) fn destack_time_mono_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_now_ns(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     clock: ClockId,
 ) -> RuntimeResult<u64> {
-    let _ = clock;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.time.clock.nowNs is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_vm::destack_time_now_ns(runtime, context, clock)
 }
 
 /// Return process CPU time in nanoseconds.
@@ -109,13 +99,10 @@ pub(crate) fn destack_time_now_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_process_cpu_ns(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.time.clock.processCpuNs is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_vm::destack_time_process_cpu_ns(runtime, context)
 }
 
 /// Return current thread CPU time in nanoseconds.
@@ -136,13 +123,10 @@ pub(crate) fn destack_time_process_cpu_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_thread_cpu_ns(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.time.clock.threadCpuNs is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_vm::destack_time_thread_cpu_ns(runtime, context)
 }
 
 /// Return wall clock time in nanoseconds since the runtime epoch.
@@ -163,13 +147,10 @@ pub(crate) fn destack_time_thread_cpu_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_wall_ns(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.time.clock.wallNs is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_vm::destack_time_wall_ns(runtime, context)
 }
 
 /// Sleep for at least the given duration in nanoseconds.
@@ -190,15 +171,11 @@ pub(crate) fn destack_time_wall_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_sleep_ns(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     duration: u64,
 ) -> RuntimeResult<()> {
-    let _ = duration;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.time.sleep.ns is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_vm::destack_time_sleep_ns(runtime, context, duration)
 }
 
 /// Sleep for at least the given duration on one clock domain.
@@ -219,16 +196,12 @@ pub(crate) fn destack_time_sleep_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_sleep_on_ns(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     duration: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {
-    let _ = (duration, clock);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.time.sleep.onNs is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_vm::destack_time_sleep_on_ns(runtime, context, duration, clock)
 }
 
 /// Sleep until the given wall-clock deadline in nanoseconds.
@@ -249,15 +222,11 @@ pub(crate) fn destack_time_sleep_on_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_sleep_until_ns(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     deadline: u64,
 ) -> RuntimeResult<()> {
-    let _ = deadline;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.time.sleep.untilNs is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_vm::destack_time_sleep_until_ns(runtime, context, deadline)
 }
 
 /// Sleep until one deadline on one clock domain.
@@ -278,14 +247,265 @@ pub(crate) fn destack_time_sleep_until_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_sleep_until_on_ns(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     deadline: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {
-    let _ = (deadline, clock);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.time.sleep.untilOnNs is not available in the VM yet",
-    ))
-    .boxed())
+    runtime_vm::destack_time_sleep_until_on_ns(runtime, context, deadline, clock)
+}
+
+/// Schedule a timer for an absolute deadline.
+///
+/// Register one timer that fires at a specific deadline in nanoseconds with explicit timer options.
+/// Deadline interpretation follows runtime wall-clock and monotonic policy.
+///
+/// # Platform
+/// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+/// Uses runtime scheduler timer queues.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, notSupported.
+///
+/// # Security
+/// Requires `time.timer`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_time_timer_at(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    deadlinens: u64,
+    options: TimerOptionsVm,
+) -> RuntimeResult<resource::TimerHandle> {
+    runtime_vm::destack_time_timer_at(runtime, context, deadlinens, options)
+}
+
+/// Cancel one scheduled timer.
+///
+/// Remove one timer from the runtime scheduler.
+/// Cancellation is idempotent when supported by the runtime implementation.
+///
+/// # Platform
+/// Runtime-level operation available on all native runtime targets.
+/// Uses runtime scheduler timer queues.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, notSupported.
+///
+/// # Security
+/// Requires `time.timer`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_time_timer_cancel(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TimerHandle,
+) -> RuntimeResult<()> {
+    runtime_vm::destack_time_timer_cancel(runtime, context, handle)
+}
+
+/// Schedule a repeating timer.
+///
+/// Register one timer that fires repeatedly at a fixed period with explicit timer options.
+/// Drift and catch-up behavior follow runtime timer policy.
+///
+/// # Platform
+/// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+/// Uses runtime scheduler timer queues.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, notSupported.
+///
+/// # Security
+/// Requires `time.timer`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_time_timer_interval(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    periodns: u64,
+    options: TimerOptionsVm,
+) -> RuntimeResult<resource::TimerHandle> {
+    runtime_vm::destack_time_timer_interval(runtime, context, periodns, options)
+}
+
+/// Return whether one timer is currently active.
+///
+/// Read active-state metadata for one timer handle.
+/// Active state reflects runtime scheduler ownership and cancellation state.
+///
+/// # Platform
+/// Runtime-level operation available on all native runtime targets.
+/// Uses runtime scheduler timer queues.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, notSupported.
+///
+/// # Security
+/// Requires `time.timer`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_time_timer_is_active(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TimerHandle,
+) -> RuntimeResult<bool> {
+    runtime_vm::destack_time_timer_is_active(runtime, context, handle)
+}
+
+/// Schedule a one-shot timer.
+///
+/// Register one timer that fires once after a relative delay with explicit timer options.
+/// The handle remains valid until explicit cancel or one-shot completion.
+///
+/// # Platform
+/// Runtime-integrated operation on Unix, Windows, and Wasi targets.
+/// Uses runtime scheduler timer queues.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, notSupported.
+///
+/// # Security
+/// Requires `time.timer`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_time_timer_once(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    delayns: u64,
+    options: TimerOptionsVm,
+) -> RuntimeResult<resource::TimerHandle> {
+    runtime_vm::destack_time_timer_once(runtime, context, delayns, options)
+}
+
+/// Pause one running timer.
+///
+/// Suspend one timer without discarding its scheduling state.
+/// Resume behavior and retained delay follow the active runtime timer policy.
+///
+/// # Platform
+/// Runtime-level operation available on all native runtime targets.
+/// Uses runtime scheduler timer queues.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, notSupported.
+///
+/// # Security
+/// Requires `time.timer`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_time_timer_pause(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TimerHandle,
+) -> RuntimeResult<()> {
+    runtime_vm::destack_time_timer_pause(runtime, context, handle)
+}
+
+/// Return remaining timer delay in nanoseconds.
+///
+/// Read remaining delay for one timer relative to its configured clock domain.
+/// Remaining delay is zero when timer has fired or is inactive.
+///
+/// # Platform
+/// Runtime-level operation available on all native runtime targets.
+/// Uses runtime scheduler timer queues.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, notSupported.
+///
+/// # Security
+/// Requires `time.timer`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_time_timer_remaining_ns(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TimerHandle,
+) -> RuntimeResult<u64> {
+    runtime_vm::destack_time_timer_remaining_ns(runtime, context, handle)
+}
+
+/// Reset one timer with a new relative delay.
+///
+/// Replace one timer schedule with a new relative delay.
+/// Reset semantics preserve timer identity and replay ordering.
+///
+/// # Platform
+/// Runtime-level operation available on all native runtime targets.
+/// Uses runtime scheduler timer queues.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, notSupported.
+///
+/// # Security
+/// Requires `time.timer`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_time_timer_reset(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TimerHandle,
+    delayns: u64,
+) -> RuntimeResult<()> {
+    runtime_vm::destack_time_timer_reset(runtime, context, handle, delayns)
+}
+
+/// Resume one paused timer.
+///
+/// Reactivate one paused timer in the runtime scheduler.
+/// Resume timing semantics follow runtime timer policy.
+///
+/// # Platform
+/// Runtime-level operation available on all native runtime targets.
+/// Uses runtime scheduler timer queues.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, notSupported.
+///
+/// # Security
+/// Requires `time.timer`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_time_timer_resume(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TimerHandle,
+) -> RuntimeResult<()> {
+    runtime_vm::destack_time_timer_resume(runtime, context, handle)
+}
+
+/// Update one timer interval period.
+///
+/// Replace one interval timer period while preserving timer identity.
+/// Update semantics are runtime-defined for already-expired intervals.
+///
+/// # Platform
+/// Runtime-level operation available on all native runtime targets.
+/// Uses runtime scheduler timer queues.
+///
+/// # Errors
+/// Returns timeUnavailable, invalidArgument, notSupported.
+///
+/// # Security
+/// Requires `time.timer`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_time_timer_update_interval(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TimerHandle,
+    periodns: u64,
+) -> RuntimeResult<()> {
+    runtime_vm::destack_time_timer_update_interval(runtime, context, handle, periodns)
 }

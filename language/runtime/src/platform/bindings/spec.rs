@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::replay::{RandomEventKind, TimeEventKind};
+use crate::runtime::replay::{RandomEventKind, TimeEventKind};
 use destack_base::fnv1a_128;
 
 /// Replay behavior for external bindings.

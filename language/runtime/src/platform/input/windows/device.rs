@@ -6,21 +6,23 @@ use super::{core as input_core, raw as raw_input, xinput as xinput_input};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputAxisInfo, InputButtonInfo, InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin,
-    InputDeviceCapabilities, InputDeviceCapabilityKind, InputDeviceInfo, InputDeviceKind,
-    InputReadMode, InputTextInputArea, InputTextInputType,
+    InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
+    InputCapabilityMetadataOrigin, InputDeviceCapabilities, InputDeviceCapabilityKind,
+    InputDeviceDescriptor, InputDeviceKind, InputReadMode, InputTextInputArea, InputTextInputType,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
 use crate::runtime::RuntimeCallContext;
 
 /// Enumerate windows input devices and raw-input devices.
-pub(super) fn list_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<InputDeviceInfo>> {
+pub(super) fn list_devices(
+    context: &RuntimeCallContext,
+) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
     // append console input when available for this process
     let mut devices = Vec::new();
 
     if input_core::get_stdin_console_mode()?.is_some() {
-        devices.push(InputDeviceInfo {
+        devices.push(InputDeviceDescriptor {
             id: context.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
             instance_id: context.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
             hardware_id: context.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
@@ -48,7 +50,7 @@ pub(super) fn list_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<In
     // append enumerated per-device raw-input endpoints
     let raw_devices = raw_input::list_raw_input_devices("destack.input.device.list")?;
     for raw_device in raw_devices {
-        devices.push(InputDeviceInfo {
+        devices.push(InputDeviceDescriptor {
             id: context.store_string(&raw_device.id),
             instance_id: context.store_string(&raw_device.instance_id),
             hardware_id: context.store_string(&raw_device.hardware_id),
@@ -275,7 +277,7 @@ pub(super) fn device_capabilities(
                 InputDeviceCapabilityKind::TextInput,
             ];
             let axes = vec![
-                InputAxisInfo {
+                InputAxisMetadata {
                     code: 0,
                     minimum: 0.0,
                     maximum: 0.0,
@@ -283,7 +285,7 @@ pub(super) fn device_capabilities(
                     fuzz: 0.0,
                     resolution: 0.0,
                 },
-                InputAxisInfo {
+                InputAxisMetadata {
                     code: 1,
                     minimum: 0.0,
                     maximum: 0.0,
@@ -291,7 +293,7 @@ pub(super) fn device_capabilities(
                     fuzz: 0.0,
                     resolution: 0.0,
                 },
-                InputAxisInfo {
+                InputAxisMetadata {
                     code: windows_sys::Win32::System::Console::MOUSE_WHEELED,
                     minimum: 0.0,
                     maximum: 0.0,
@@ -299,7 +301,7 @@ pub(super) fn device_capabilities(
                     fuzz: 0.0,
                     resolution: 0.0,
                 },
-                InputAxisInfo {
+                InputAxisMetadata {
                     code: windows_sys::Win32::System::Console::MOUSE_HWHEELED,
                     minimum: 0.0,
                     maximum: 0.0,
@@ -310,7 +312,7 @@ pub(super) fn device_capabilities(
             ];
             let mut buttons = Vec::new();
             for code in 0..u32::from(input_core::WINDOWS_CONSOLE_BUTTON_COUNT) {
-                buttons.push(InputButtonInfo {
+                buttons.push(InputButtonMetadata {
                     code,
                     analog: false,
                 });
@@ -402,7 +404,7 @@ pub(crate) unsafe fn destack_input_close(
 /// External, recordable.
 pub(crate) unsafe fn destack_input_list(
     context: &RuntimeCallContext,
-    out: *mut NativeSlice<InputDeviceInfo>,
+    out: *mut NativeSlice<InputDeviceDescriptor>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());

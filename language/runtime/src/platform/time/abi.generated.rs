@@ -12,6 +12,26 @@ use crate::platform::{
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
+/// ABI newtype for TimerFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TimerFlags(
+    /// Inner value.
+    pub u32,
+);
+
+pub type TimerFlagsVm = TimerFlags;
+
+impl VmValueCodec for TimerFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI enum for ClockId.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -126,10 +146,42 @@ impl VmValueCodec for SleepClock {
     }
 }
 
-/// ABI struct for ClockInfo.
+/// ABI enum for TimerClock.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TimerClock {
+    /// Wall.
+    Wall = 1,
+    /// Monotonic.
+    Monotonic = 2,
+}
+
+impl VmValueCodec for TimerClock {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Wall,
+            2u8 => Self::Monotonic,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TimerClock value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI struct for ClockMetadata.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct ClockInfo {
+pub struct ClockMetadata {
     /// The id field.
     pub id: ClockId,
     /// The source field.
@@ -140,9 +192,9 @@ pub struct ClockInfo {
     pub is_monotonic: bool,
 }
 
-pub type ClockInfoVm = ClockInfo;
+pub type ClockMetadataVm = ClockMetadata;
 
-impl VmAggregateCodec for ClockInfo {
+impl VmAggregateCodec for ClockMetadata {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -150,7 +202,7 @@ impl VmAggregateCodec for ClockInfo {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "ClockInfo",
+                "ClockMetadata",
             ))
             .boxed());
         }
@@ -188,6 +240,60 @@ impl VmAggregateCodec for ClockInfo {
             <ClockSource as VmAggregateCodec>::encode_with_context(self.source, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.resolution_ns, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.is_monotonic, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for TimerOptions.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct TimerOptions {
+    /// The clock field.
+    pub clock: TimerClock,
+    /// The flags field.
+    pub flags: TimerFlags,
+}
+
+pub type TimerOptionsVm = TimerOptions;
+
+impl VmAggregateCodec for TimerOptions {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "TimerOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_clock = <TimerClock as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_flags = <TimerFlags as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            clock: field_clock,
+            flags: field_flags,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <TimerClock as VmAggregateCodec>::encode_with_context(self.clock, context)?,
+            <TimerFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }

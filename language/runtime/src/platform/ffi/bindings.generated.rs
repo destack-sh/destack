@@ -21,7 +21,6 @@ use destack_vm::Isolate;
 use crate::binding;
 use crate::runtime::with_runtime_call_context;
 
-use crate::platform::ffi::runtime::{native as platform_runtime_native, vm as platform_runtime_vm};
 use crate::platform::ffi::simulated::{
     native as platform_simulated_native, vm as platform_simulated_vm,
 };
@@ -332,7 +331,7 @@ pub const FFI_CALL_INVOKE: BindingDescriptor = BindingDescriptor::external_with_
     ReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["ffi.call"],
-    BindingScope::Runtime,
+    BindingScope::Host,
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
@@ -395,7 +394,7 @@ pub const FFI_POINTER_ADDRESS: BindingDescriptor =
         "destack.ffi.pointer.address",
         "export function address(pointer: FfiPointer): Result<uint64, PlatformError>",
         &["ffi.pointer"],
-        BindingScope::Runtime,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -419,7 +418,7 @@ pub const FFI_POINTER_FROM_ADDRESS: BindingDescriptor =
         "destack.ffi.pointer.fromAddress",
         "export function fromAddress(address: uint64): Result<FfiPointer, PlatformError>",
         &["ffi.pointer"],
-        BindingScope::Runtime,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -445,7 +444,7 @@ pub const FFI_SYMBOL_ADDRESS: BindingDescriptor =
         ReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["ffi.symbol"],
-        BindingScope::Runtime,
+        BindingScope::Host,
         BindingBlocking::Never,
     )
     .with_host_platforms(&[
@@ -546,10 +545,18 @@ pub unsafe extern "C" fn destack_ffi_call_invoke(
 
         {
             context.check_policy(FFI_CALL_INVOKE)?;
-            unsafe {
-                platform_runtime_native::destack_ffi_call(
-                    context, out, symbol, abi, flags, arguments, resultsize,
-                )
+            let world = context.check_and_resolve_world(FFI_CALL_INVOKE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_ffi_call(
+                        context, out, symbol, abi, flags, arguments, resultsize,
+                    )
+                },
+                RuntimeWorld::Simulated => unsafe {
+                    platform_simulated_native::destack_ffi_call(
+                        context, out, symbol, abi, flags, arguments, resultsize,
+                    )
+                },
             }
         }
     })
@@ -617,7 +624,15 @@ pub unsafe extern "C" fn destack_ffi_pointer_address(
 
         {
             context.check_policy(FFI_POINTER_ADDRESS)?;
-            unsafe { platform_runtime_native::destack_ffi_address(context, out, pointer) }
+            let world = context.check_and_resolve_world(FFI_POINTER_ADDRESS)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_ffi_address(context, out, pointer)
+                },
+                RuntimeWorld::Simulated => unsafe {
+                    platform_simulated_native::destack_ffi_address(context, out, pointer)
+                },
+            }
         }
     })
 }
@@ -635,7 +650,15 @@ pub unsafe extern "C" fn destack_ffi_pointer_from_address(
 
         {
             context.check_policy(FFI_POINTER_FROM_ADDRESS)?;
-            unsafe { platform_runtime_native::destack_ffi_from_address(context, out, address) }
+            let world = context.check_and_resolve_world(FFI_POINTER_FROM_ADDRESS)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_ffi_from_address(context, out, address)
+                },
+                RuntimeWorld::Simulated => unsafe {
+                    platform_simulated_native::destack_ffi_from_address(context, out, address)
+                },
+            }
         }
     })
 }
@@ -653,7 +676,15 @@ pub unsafe extern "C" fn destack_ffi_symbol_address(
 
         {
             context.check_policy(FFI_SYMBOL_ADDRESS)?;
-            unsafe { platform_runtime_native::destack_ffi_symbol_address(context, out, symbol) }
+            let world = context.check_and_resolve_world(FFI_SYMBOL_ADDRESS)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_ffi_symbol_address(context, out, symbol)
+                },
+                RuntimeWorld::Simulated => unsafe {
+                    platform_simulated_native::destack_ffi_symbol_address(context, out, symbol)
+                },
+            }
         }
     })
 }
@@ -699,9 +730,15 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 // execute binding
                 let result = {
                     runtime.check_policy(FFI_CALL_INVOKE)?;
-                    platform_runtime_vm::destack_ffi_call(
-                        runtime, context, symbol, abi, flags, arguments, resultsize,
-                    )
+                    let world = runtime.check_and_resolve_world(FFI_CALL_INVOKE)?;
+                    match world {
+                        RuntimeWorld::Host => platform_vm::destack_ffi_call(
+                            runtime, context, symbol, abi, flags, arguments, resultsize,
+                        ),
+                        RuntimeWorld::Simulated => platform_simulated_vm::destack_ffi_call(
+                            runtime, context, symbol, abi, flags, arguments, resultsize,
+                        ),
+                    }
                 };
                 encode_destack_ffi_call_invoke_result(context, result)
             })
@@ -774,7 +811,15 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     // execute binding
                     let result = {
                         runtime.check_policy(FFI_POINTER_ADDRESS)?;
-                        platform_runtime_vm::destack_ffi_address(runtime, context, pointer)
+                        let world = runtime.check_and_resolve_world(FFI_POINTER_ADDRESS)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_ffi_address(runtime, context, pointer)
+                            }
+                            RuntimeWorld::Simulated => platform_simulated_vm::destack_ffi_address(
+                                runtime, context, pointer,
+                            ),
+                        }
                     };
                     encode_destack_ffi_pointer_address_result(context, result)
                 })
@@ -795,7 +840,17 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     // execute binding
                     let result = {
                         runtime.check_policy(FFI_POINTER_FROM_ADDRESS)?;
-                        platform_runtime_vm::destack_ffi_from_address(runtime, context, address)
+                        let world = runtime.check_and_resolve_world(FFI_POINTER_FROM_ADDRESS)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_ffi_from_address(runtime, context, address)
+                            }
+                            RuntimeWorld::Simulated => {
+                                platform_simulated_vm::destack_ffi_from_address(
+                                    runtime, context, address,
+                                )
+                            }
+                        }
                     };
                     encode_destack_ffi_pointer_from_address_result(context, result)
                 })
@@ -816,7 +871,17 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     // execute binding
                     let result = {
                         runtime.check_policy(FFI_SYMBOL_ADDRESS)?;
-                        platform_runtime_vm::destack_ffi_symbol_address(runtime, context, symbol)
+                        let world = runtime.check_and_resolve_world(FFI_SYMBOL_ADDRESS)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_ffi_symbol_address(runtime, context, symbol)
+                            }
+                            RuntimeWorld::Simulated => {
+                                platform_simulated_vm::destack_ffi_symbol_address(
+                                    runtime, context, symbol,
+                                )
+                            }
+                        }
                     };
                     encode_destack_ffi_symbol_address_result(context, result)
                 })

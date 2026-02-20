@@ -8,17 +8,17 @@ use super::core as input_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputAxisInfo, InputButtonInfo, InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin,
-    InputCompositionEventPayload, InputDeviceCapabilities, InputDeviceCapabilityKind,
-    InputDeviceEventPayload, InputDeviceInfo, InputDeviceKind, InputEvent, InputEventAction,
-    InputEventKind, InputGamepadBatteryInfo, InputGamepadBatteryState, InputGamepadButtonState,
-    InputGamepadConnectionType, InputGamepadEventPayload, InputGamepadMappingType,
-    InputGamepadState, InputGamepadTouchState, InputHapticEffectParameters, InputHapticEffectType,
-    InputKeyEventPayload, InputKeyboardState, InputPointerButtonEventPayload,
-    InputPointerMotionEventPayload, InputPointerState, InputScrollEventPayload,
-    InputSensorEventPayload, InputSensorInfo, InputSensorKind, InputSensorSample,
-    InputTextEventPayload, InputTouchContactPhase, InputTouchContactState, InputTouchEventPayload,
-    InputTouchState,
+    InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
+    InputCapabilityMetadataOrigin, InputCompositionEventPayload, InputDeviceCapabilities,
+    InputDeviceCapabilityKind, InputDeviceDescriptor, InputDeviceEventPayload, InputDeviceKind,
+    InputEvent, InputEventAction, InputEventKind, InputGamepadBatteryState,
+    InputGamepadBatteryStatus, InputGamepadButtonState, InputGamepadConnectionType,
+    InputGamepadEventPayload, InputGamepadMappingType, InputGamepadState, InputGamepadTouchState,
+    InputHapticEffectParameters, InputHapticEffectType, InputKeyEventPayload, InputKeyboardState,
+    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputPointerState,
+    InputScrollEventPayload, InputSensorDescriptor, InputSensorEventPayload, InputSensorKind,
+    InputSensorSample, InputTextEventPayload, InputTouchContactPhase, InputTouchContactState,
+    InputTouchEventPayload, InputTouchState,
 };
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::RuntimeCallContext;
@@ -621,7 +621,7 @@ pub(super) fn linux_runtime_device_id_for_path(path: &str) -> String {
 /// Enumerate Linux evdev devices and map them into runtime metadata.
 pub(super) fn list_linux_devices(
     context: &RuntimeCallContext,
-) -> RuntimeResult<Vec<InputDeviceInfo>> {
+) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
     let evdev_paths = list_linux_device_paths()?;
     let hidraw_paths = list_linux_hidraw_paths()?;
     let mut devices = Vec::with_capacity(evdev_paths.len() + hidraw_paths.len());
@@ -633,7 +633,7 @@ pub(super) fn list_linux_devices(
         let metadata = query_device_metadata(&path, fallback_name);
         let runtime_id = linux_runtime_device_id(path.as_str(), &metadata, false);
 
-        devices.push(InputDeviceInfo {
+        devices.push(InputDeviceDescriptor {
             id: context.store_string(&runtime_id),
             instance_id: context.store_string(&metadata.instance_id),
             hardware_id: context.store_string(&metadata.hardware_id),
@@ -666,7 +666,7 @@ pub(super) fn list_linux_devices(
         let metadata = query_hidraw_metadata(&path, fallback_name);
         let runtime_id = linux_runtime_device_id(path.as_str(), &metadata, true);
 
-        devices.push(InputDeviceInfo {
+        devices.push(InputDeviceDescriptor {
             id: context.store_string(&runtime_id),
             instance_id: context.store_string(&metadata.instance_id),
             hardware_id: context.store_string(&metadata.hardware_id),
@@ -1260,7 +1260,7 @@ pub(super) fn gamepad_state_snapshot(
         mapping: InputGamepadMappingType::Standard,
         connection_type: InputGamepadConnectionType::Wired,
         player_index,
-        battery: InputGamepadBatteryInfo {
+        battery: InputGamepadBatteryStatus {
             state: InputGamepadBatteryState::Unknown,
             level: 0.0,
         },
@@ -1413,7 +1413,7 @@ fn sensor_kinds_for_descriptor(
 pub(super) fn linux_sensor_infos(
     descriptor: RawFd,
     device_kind: InputDeviceKind,
-) -> Vec<InputSensorInfo> {
+) -> Vec<InputSensorDescriptor> {
     // query supported sensor kinds from descriptor axis topology
     let kinds = sensor_kinds_for_descriptor(descriptor, device_kind);
     let mut infos = Vec::with_capacity(kinds.len());
@@ -1440,7 +1440,7 @@ pub(super) fn linux_sensor_infos(
             0.0
         };
 
-        infos.push(InputSensorInfo {
+        infos.push(InputSensorDescriptor {
             kind,
             min_sample_rate_hz: 0.0,
             max_sample_rate_hz: 0.0,
@@ -2373,7 +2373,7 @@ pub(super) fn query_linux_capabilities(
                     continue;
                 }
 
-                axes.push(InputAxisInfo {
+                axes.push(InputAxisMetadata {
                     code: code as u32,
                     minimum: 0.0,
                     maximum: 0.0,
@@ -2410,7 +2410,7 @@ pub(super) fn query_linux_capabilities(
                 };
                 if abs_info_status >= 0 {
                     let abs_info = unsafe { abs_info.assume_init() };
-                    axes.push(InputAxisInfo {
+                    axes.push(InputAxisMetadata {
                         code: u32::from(axis_code),
                         minimum: f64::from(abs_info.minimum),
                         maximum: f64::from(abs_info.maximum),
@@ -2421,7 +2421,7 @@ pub(super) fn query_linux_capabilities(
                     continue;
                 }
 
-                axes.push(InputAxisInfo {
+                axes.push(InputAxisMetadata {
                     code: u32::from(axis_code),
                     minimum: 0.0,
                     maximum: 0.0,
@@ -2450,7 +2450,7 @@ pub(super) fn query_linux_capabilities(
                     continue;
                 }
 
-                buttons.push(InputButtonInfo {
+                buttons.push(InputButtonMetadata {
                     code: code as u32,
                     analog: false,
                 });

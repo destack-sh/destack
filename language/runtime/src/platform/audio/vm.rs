@@ -2,11 +2,11 @@
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{
-    AudioBackend, AudioChannelLayout, AudioClockDomain, AudioClockSnapshotVm, AudioDeviceDirection,
-    AudioDeviceEventKind, AudioDeviceEventVm, AudioDeviceInfoVm, AudioDeviceListRequestVm,
-    AudioDeviceOpenOptionsVm, AudioSampleFormat, AudioShareMode, AudioStreamAvailabilityVm,
-    AudioStreamConfigVm, AudioStreamInfoVm, AudioStreamStateKind, AudioStreamStateVm,
-    AudioStreamTimingVm, AudioStreamTransferMode,
+    AudioBackend, AudioChannelLayout, AudioClockDomain, AudioClockSnapshotVm,
+    AudioDeviceDescriptorVm, AudioDeviceDirection, AudioDeviceEventKind, AudioDeviceEventVm,
+    AudioDeviceListRequestVm, AudioDeviceOpenOptionsVm, AudioSampleFormat, AudioShareMode,
+    AudioStreamAvailabilityVm, AudioStreamConfigVm, AudioStreamSnapshotVm, AudioStreamStateKind,
+    AudioStreamStateVm, AudioStreamTimingVm, AudioStreamTransferMode,
 };
 use crate::platform::{PlatformError, VmSlice, resource};
 use crate::runtime::RuntimeCallContext;
@@ -146,11 +146,11 @@ pub(crate) fn destack_audio_device_default(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_audio_device_info(
+pub(crate) fn destack_audio_device_descriptor(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioDeviceHandle,
-) -> RuntimeResult<AudioDeviceInfoVm> {
+) -> RuntimeResult<AudioDeviceDescriptorVm> {
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.audio.device.info is not available in the VM yet",
@@ -179,7 +179,7 @@ pub(crate) fn destack_audio_device_list(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     request: AudioDeviceListRequestVm,
-) -> RuntimeResult<VmSlice<AudioDeviceInfoVm>> {
+) -> RuntimeResult<VmSlice<AudioDeviceDescriptorVm>> {
     let _ = request;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.audio.device.list is not available in the VM yet",
@@ -466,11 +466,11 @@ pub(crate) fn destack_audio_stream_flush(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_audio_stream_info(
+pub(crate) fn destack_audio_stream_snapshot(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
-) -> RuntimeResult<AudioStreamInfoVm> {
+) -> RuntimeResult<AudioStreamSnapshotVm> {
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.audio.stream.info is not available in the VM yet",

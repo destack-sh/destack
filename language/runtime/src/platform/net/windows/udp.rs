@@ -5,11 +5,11 @@ use windows_sys::Win32::Networking::WinSock::{
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::net::{
     SocketAddress, SocketFamily, SocketHandle, UdpMessageFlags, UdpReceive,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
+use crate::platform::{NativeSlice, PlatformError};
 use crate::runtime::RuntimeCallContext;
 
 /// Create a UDP socket.
@@ -121,7 +121,7 @@ pub(crate) unsafe fn destack_net_udp_recv_from_raw(
     context: &RuntimeCallContext,
     out: *mut UdpReceive,
     handle: SocketHandle,
-    buffer: crate::platform::NativeSlice<u8>,
+    buffer: NativeSlice<u8>,
     recv_flags: UdpMessageFlags,
 ) -> RuntimeResult<()> {
     // validate the output pointer
@@ -180,7 +180,7 @@ pub(crate) unsafe fn destack_net_udp_send_to_raw(
     out: *mut u64,
     handle: SocketHandle,
     address: SocketAddress,
-    buffer: crate::platform::NativeSlice<u8>,
+    buffer: NativeSlice<u8>,
     send_flags: UdpMessageFlags,
 ) -> RuntimeResult<()> {
     // validate the output pointer

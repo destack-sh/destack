@@ -5,7 +5,7 @@ use super::linux as input_linux;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputSensorConfig, InputSensorEffectiveConfig, InputSensorInfo, InputSensorKind,
+    InputSensorConfig, InputSensorDescriptor, InputSensorEffectiveConfig, InputSensorKind,
     InputSensorSample, validation as input_validation,
 };
 use crate::platform::{NativeArray, PlatformError, resource};
@@ -31,7 +31,7 @@ fn resolve_sensor_binding(
 /// Return sensor capability metadata for one opened Unix binding.
 fn sensor_infos_for_binding(
     binding: &input_core::UnixInputBinding,
-) -> RuntimeResult<Vec<InputSensorInfo>> {
+) -> RuntimeResult<Vec<InputSensorDescriptor>> {
     #[cfg(target_os = "linux")]
     {
         let Some(descriptor) = binding.descriptor else {
@@ -174,7 +174,7 @@ pub(crate) unsafe fn destack_input_sensor_configure(
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_list(
     context: &RuntimeCallContext,
-    out: *mut NativeArray<InputSensorInfo>,
+    out: *mut NativeArray<InputSensorDescriptor>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     // validate output pointer

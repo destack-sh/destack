@@ -425,32 +425,3 @@ pub(crate) unsafe fn destack_memory_remap(
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.memory.protect.remap")).boxed())
 }
-
-/// Set runtime W^X policy.
-///
-/// Enable or disable runtime write-xor-execute policy enforcement.
-/// Policy update affects subsequent executable-memory transitions.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime memory policy controls layered over host page protections.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `memory.execute`.
-///
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_memory_set_write_xor_execute(
-    _context: &RuntimeCallContext,
-    enabled: bool,
-) -> RuntimeResult<()> {
-    let _ = enabled;
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.protect.setWriteXorExecute",
-    ))
-    .boxed())
-}

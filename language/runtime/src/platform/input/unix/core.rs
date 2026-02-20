@@ -10,7 +10,7 @@ use super::macos as input_macos;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputCompositionEventPayload, InputDeviceEventPayload, InputDeviceInfo, InputDeviceKind,
+    InputCompositionEventPayload, InputDeviceDescriptor, InputDeviceEventPayload, InputDeviceKind,
     InputEvent, InputEventAction, InputEventKind, InputEventPayload, InputGamepadEventPayload,
     InputKeyEventPayload, InputPointerButtonEventPayload, InputPointerMotionEventPayload,
     InputReadMode, InputScrollEventPayload, InputSensorEffectiveConfig, InputSensorEventPayload,
@@ -327,7 +327,7 @@ pub(super) fn normalize_unix_input_spec(id: &str) -> RuntimeResult<UnixInputOpen
 /// Enumerate Unix input devices for the active platform.
 pub(super) fn list_unix_devices(
     context: &RuntimeCallContext,
-) -> RuntimeResult<Vec<InputDeviceInfo>> {
+) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
     list_platform_devices(context)
 }
 
@@ -998,7 +998,9 @@ fn normalize_platform_input_spec(_id: &str, _id_lower: &str) -> RuntimeResult<Un
 
 /// Enumerate platform-specific devices on Linux with terminal fallback.
 #[cfg(target_os = "linux")]
-fn list_platform_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<InputDeviceInfo>> {
+fn list_platform_devices(
+    context: &RuntimeCallContext,
+) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
     let devices = input_linux::list_linux_devices(context)?;
     if !devices.is_empty() {
         return Ok(devices);
@@ -1010,9 +1012,11 @@ fn list_platform_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<Inpu
 
 /// Enumerate platform-specific devices on macOS and include terminal fallback.
 #[cfg(target_os = "macos")]
-fn list_platform_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<InputDeviceInfo>> {
+fn list_platform_devices(
+    context: &RuntimeCallContext,
+) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
     let mut devices = Vec::new();
-    devices.push(InputDeviceInfo {
+    devices.push(InputDeviceDescriptor {
         id: context.store_string(input_macos::MACOS_INPUT_SESSION_ID),
         instance_id: context.store_string(input_macos::MACOS_INPUT_SESSION_ID),
         hardware_id: context.store_string(input_macos::MACOS_INPUT_SESSION_ID),
@@ -1045,7 +1049,9 @@ fn list_platform_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<Inpu
 
 /// Enumerate platform-specific devices on other Unix hosts with terminal-only discovery.
 #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
-fn list_platform_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<InputDeviceInfo>> {
+fn list_platform_devices(
+    context: &RuntimeCallContext,
+) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
     let tty_device = list_terminal_device(context)?;
     Ok(tty_device.into_iter().collect())
 }
@@ -1184,7 +1190,9 @@ fn set_platform_read_mode(_mode: InputReadMode) -> RuntimeResult<()> {
 }
 
 /// Build terminal input metadata when `/dev/tty` is available.
-fn list_terminal_device(context: &RuntimeCallContext) -> RuntimeResult<Option<InputDeviceInfo>> {
+fn list_terminal_device(
+    context: &RuntimeCallContext,
+) -> RuntimeResult<Option<InputDeviceDescriptor>> {
     // encode terminal path for one open probe
     let path = CString::new(UNIX_INPUT_TTY_PATH).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
@@ -1214,7 +1222,7 @@ fn list_terminal_device(context: &RuntimeCallContext) -> RuntimeResult<Option<In
         libc::close(descriptor);
     }
 
-    Ok(Some(InputDeviceInfo {
+    Ok(Some(InputDeviceDescriptor {
         id: context.store_string(UNIX_INPUT_TTY_ID),
         instance_id: context.store_string(UNIX_INPUT_TTY_ID),
         hardware_id: context.store_string(UNIX_INPUT_TTY_ID),

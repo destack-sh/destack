@@ -11,8 +11,8 @@ declare namespace ffi {
     /// Pointer validity and lifetime are controlled by caller and host ABI contracts.
     ///
     /// # Platform
-    /// Runtime-managed on all targets.
-    /// Uses runtime pointer wrapper logic only.
+    /// Unix and Windows.
+    /// Uses host-process pointer wrapper logic.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -29,7 +29,7 @@ declare namespace ffi {
             replay: "nonrecordable",
             capabilities: ["ffi.pointer"],
             platforms: ["windows", "unix"],
-            scope: "runtime",
+            scope: "host",
             blocking: "never",
         },
     )
@@ -41,8 +41,8 @@ declare namespace ffi {
     /// Address interpretation depends on caller ABI and target architecture.
     ///
     /// # Platform
-    /// Runtime-managed on all targets.
-    /// Uses runtime pointer wrapper logic only.
+    /// Unix and Windows.
+    /// Uses host-process pointer wrapper logic.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -59,7 +59,7 @@ declare namespace ffi {
             replay: "nonrecordable",
             capabilities: ["ffi.pointer"],
             platforms: ["windows", "unix"],
-            scope: "runtime",
+            scope: "host",
             blocking: "never",
         },
     )

@@ -7,7 +7,7 @@ use crate::platform::{NativeArray, NativeStringRef, PlatformError};
 use crate::runtime::RuntimeCallContext;
 
 use crate::platform::fs;
-use crate::platform::os::{HostIdentity, LoadAverage, MountEntry, PowerState, SystemInfo};
+use crate::platform::os::{HostIdentity, LoadAverage, MountEntry, PowerState, SystemSnapshot};
 
 /// Read host identity.
 ///
@@ -110,9 +110,9 @@ pub(crate) unsafe fn destack_os_load_average(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_system_info(
+pub(crate) unsafe fn destack_os_system_snapshot(
     context: &RuntimeCallContext,
-    out: *mut SystemInfo,
+    out: *mut SystemSnapshot,
 ) -> RuntimeResult<()> {
     let _ = context;
     let _ = out;

@@ -609,7 +609,7 @@ pub(crate) unsafe fn destack_fs_statx(
                         rdev_major: ((stat.st_rdev >> 8) & 0xfff) as u32,
                         rdev_minor: ((stat.st_rdev & 0xff) | ((stat.st_rdev >> 12) & 0xfff00))
                             as u32,
-                        size: crate::platform::fs::FileSize(stat.st_size as u64),
+                        size: FileSize(stat.st_size as u64),
                         blocks: stat.st_blocks as u64,
                         atime_ns,
                         btime_ns,

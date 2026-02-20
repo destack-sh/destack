@@ -592,12 +592,13 @@ impl<'a> DomainWriter<'a> {
                 replay_imports.push("RandomEventKind");
             }
             self.output.push_str(&format!(
-                "use crate::replay::{{{}}};\n",
+                "use crate::runtime::replay::{{{}}};\n",
                 replay_imports.join(", ")
             ));
         }
         if usage.uses_random_replay_kind {
-            self.output.push_str("use crate::random::RandomStreamId;\n");
+            self.output
+                .push_str("use crate::runtime::random::RandomStreamId;\n");
         }
         self.output.push_str("use crate::vm_binding_set;\n");
         if usage.needs_decode

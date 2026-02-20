@@ -101,7 +101,7 @@ export struct AudioDeviceOpenOptions {
 }
 
 /// Audio device information.
-export struct AudioDeviceInfo {
+export struct AudioDeviceDescriptor {
     /// Stable runtime device identifier.
     id: string;
     /// Host-facing device name.
@@ -167,7 +167,7 @@ declare namespace audio {
         scope: "host",
         blocking: "sometimes",
     })
-    export function deviceList(request: AudioDeviceListRequest): Result<Slice<AudioDeviceInfo>, PlatformError>;
+    export function deviceList(request: AudioDeviceListRequest): Result<Slice<AudioDeviceDescriptor>, PlatformError>;
 
     /// Read one default device identifier for the selected direction.
     ///
@@ -243,7 +243,7 @@ declare namespace audio {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.audio.device.info", {
+    @binding("destack.audio.device.descriptor", {
         effect: "external",
         replay: "recordable",
         capabilities: ["audio.device"],
@@ -251,7 +251,7 @@ declare namespace audio {
         scope: "host",
         blocking: "never",
     })
-    export function deviceInfo(handle: AudioDeviceHandle): Result<AudioDeviceInfo, PlatformError>;
+    export function deviceDescriptor(handle: AudioDeviceHandle): Result<AudioDeviceDescriptor, PlatformError>;
 
     /// Close one audio device endpoint.
     ///
