@@ -605,7 +605,7 @@ impl Compiler {
         // assign this to the nominal target type when available
         let this_ty_id = if let Some(target) = target_symbol {
             // evaluate the target type to capture static arguments
-            let target_ty_id = self.try_evaluate_expression_to_type(
+            let target_ty_id = self.resolve_declared_type_expression(
                 module,
                 ctx.profile,
                 target_type,
@@ -1305,7 +1305,7 @@ impl Compiler {
             return Ok(type_id);
         }
 
-        self.try_evaluate_expression_to_type(
+        self.resolve_declared_type_expression(
             module,
             profile,
             expression_id,
@@ -1363,7 +1363,7 @@ impl Compiler {
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         if let Some(member_type_node) = declaration_member.member_type {
             return self
-                .try_evaluate_expression_to_type(
+                .resolve_declared_type_expression(
                     module,
                     profile,
                     member_type_node,
@@ -1377,7 +1377,7 @@ impl Compiler {
         }
         if let Some(member_value_node) = declaration_member.member_value {
             return self
-                .try_evaluate_expression_to_type(
+                .resolve_declared_type_expression(
                     module,
                     profile,
                     member_value_node,
@@ -2009,7 +2009,7 @@ impl Compiler {
 
                 // evaluate associated type constraint
                 let constraint_type = if let Some(ty) = ty {
-                    Some(self.try_evaluate_expression_to_type(
+                    Some(self.resolve_declared_type_expression(
                         module,
                         ctx.profile,
                         *ty,
@@ -2025,7 +2025,7 @@ impl Compiler {
 
                 // evaluate and register associated type default
                 let value_type = if let Some(value) = value {
-                    let value_type = self.try_evaluate_expression_to_type(
+                    let value_type = self.resolve_declared_type_expression(
                         module,
                         ctx.profile,
                         *value,
@@ -2110,7 +2110,7 @@ impl Compiler {
 
                 // evaluate optional annotation
                 let constraint_type = if let Some(ty) = ty {
-                    Some(self.try_evaluate_expression_to_type(
+                    Some(self.resolve_declared_type_expression(
                         module,
                         ctx.profile,
                         *ty,
@@ -2158,7 +2158,7 @@ impl Compiler {
 
                     // fall back to declaration evaluation when static typing is unavailable
                     if value_type.is_none() {
-                        value_type = Some(self.try_evaluate_expression_to_type(
+                        value_type = Some(self.resolve_declared_type_expression(
                             module,
                             ctx.profile,
                             *value,
@@ -2222,7 +2222,7 @@ impl Compiler {
 
                 // infer index signatures and defaults
                 if let Some(DynamicKey::NamedExpression { name: _, key }) = key {
-                    let _key_type = self.try_evaluate_expression_to_type(
+                    let _key_type = self.resolve_declared_type_expression(
                         module,
                         ctx.profile,
                         *key,
@@ -2233,7 +2233,7 @@ impl Compiler {
                         true,
                     )?;
                     let _value_type = if let Some(value) = value {
-                        self.try_evaluate_expression_to_type(
+                        self.resolve_declared_type_expression(
                             module,
                             ctx.profile,
                             *value,
@@ -2284,7 +2284,7 @@ impl Compiler {
                     let global_value_id = value.into_global_any(module.id);
                     if let Some(declared_type_id) = types.get_declared_type_id(global_value_id) {
                         if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
-                            self.evaluate_type(
+                            self.resolve_declared_type(
                                 module,
                                 ctx.profile,
                                 declared_type_id,
@@ -2296,7 +2296,7 @@ impl Compiler {
 
                         Some(declared_type_id)
                     } else {
-                        Some(self.try_evaluate_expression_to_type(
+                        Some(self.resolve_declared_type_expression(
                             module,
                             ctx.profile,
                             *value,
@@ -2827,7 +2827,7 @@ impl Compiler {
                 )
         });
         let return_type = if let Some(return_type_node_id) = return_type_node_id {
-            Some(self.try_evaluate_expression_to_type(
+            Some(self.resolve_declared_type_expression(
                 module,
                 ctx.profile,
                 return_type_node_id,
@@ -3142,7 +3142,7 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         // resolve unevaluated types before checking managed usage
         if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
-            self.evaluate_type(module, profile, ty_id, tree, symbols, types)?;
+            self.resolve_declared_type(module, profile, ty_id, tree, symbols, types)?;
         }
 
         // report managed types in signatures
@@ -3171,7 +3171,7 @@ impl Compiler {
         if let Some(binding_ty_id) = binding_ty_id
             && matches!(types.get_type(binding_ty_id), Type::Unevaluated(_))
         {
-            self.evaluate_type(module, ctx.profile, binding_ty_id, tree, symbols, types)?;
+            self.resolve_declared_type(module, ctx.profile, binding_ty_id, tree, symbols, types)?;
         }
 
         let parameter = tree.get(parameter_id);
@@ -3402,7 +3402,7 @@ impl Compiler {
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let clause = tree.get(clause_id);
-        let constraint_ty_id = self.try_evaluate_expression_to_type(
+        let constraint_ty_id = self.resolve_declared_type_expression(
             module,
             ctx.profile,
             clause.right,
@@ -3567,7 +3567,7 @@ impl Compiler {
 
         // evaluate and prepare declared types before inference
         if let Some(declared_ty_id) = declared_ty_id {
-            self.evaluate_type(module, ctx.profile, declared_ty_id, tree, symbols, types)?;
+            self.resolve_declared_type(module, ctx.profile, declared_ty_id, tree, symbols, types)?;
             self.ensure_reference_instance_types_for_type(
                 module,
                 ctx.profile,

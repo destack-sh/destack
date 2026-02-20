@@ -636,7 +636,7 @@ impl Compiler {
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // evaluate the type expression when possible
-        let mut ty_id = self.try_evaluate_expression_to_type(
+        let mut ty_id = self.resolve_declared_type_expression(
             module,
             profile,
             expression_id,
@@ -683,7 +683,7 @@ impl Compiler {
         // reuse declared types when present
         let declared_ty_id = types.get_declared_type_id(declarator_id.into_global_any(module.id));
         if let Some(declared_ty_id) = declared_ty_id {
-            self.evaluate_type(module, profile, declared_ty_id, tree, symbols, types)?;
+            self.resolve_declared_type(module, profile, declared_ty_id, tree, symbols, types)?;
             types.set_value_type(symbol, declared_ty_id);
             return Ok(Some(declared_ty_id));
         }
@@ -1207,7 +1207,7 @@ impl Compiler {
             } => {
                 let (left_ty_id, right_ty_id) = match operator {
                     TypeBinaryOperator::Extends | TypeBinaryOperator::Implements => {
-                        let left_ty_id = self.try_evaluate_expression_to_type(
+                        let left_ty_id = self.resolve_declared_type_expression(
                             module,
                             ctx.profile,
                             *left,
@@ -1920,7 +1920,7 @@ impl Compiler {
         let ty_id = match expression {
             Expression::TaggedScalarExpression { ty, value } => {
                 // resolve the tag type
-                let ty_id = self.try_evaluate_expression_to_type(
+                let ty_id = self.resolve_declared_type_expression(
                     module,
                     ctx.profile,
                     *ty,
@@ -1946,7 +1946,7 @@ impl Compiler {
 
             Expression::TaggedTupleExpression { ty, elements } => {
                 // resolve the tag type
-                let ty_id = self.try_evaluate_expression_to_type(
+                let ty_id = self.resolve_declared_type_expression(
                     module,
                     ctx.profile,
                     *ty,
@@ -1989,7 +1989,7 @@ impl Compiler {
 
             Expression::TaggedObjectExpression { ty, properties } => {
                 // resolve the tag type
-                let ty_id = self.try_evaluate_expression_to_type(
+                let ty_id = self.resolve_declared_type_expression(
                     module,
                     ctx.profile,
                     *ty,
@@ -4929,7 +4929,7 @@ impl Compiler {
         if canonical_symbol.module_id == module.id
             && matches!(types.get_type(base_ty_id), Type::Unevaluated(_))
         {
-            self.evaluate_type(module, ctx.profile, base_ty_id, tree, symbols, types)?;
+            self.resolve_declared_type(module, ctx.profile, base_ty_id, tree, symbols, types)?;
         }
 
         // ensure instance types for referenced symbols

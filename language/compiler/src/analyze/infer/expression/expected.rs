@@ -116,7 +116,14 @@ impl Compiler {
                     let value_id = value.into_global_any(module.id);
                     if let Some(value_ty_id) = types.get_declared_type_id(value_id) {
                         if matches!(types.get_type(value_ty_id), Type::Unevaluated(_)) {
-                            self.evaluate_type(module, profile, value_ty_id, tree, symbols, types)?;
+                            self.resolve_declared_type(
+                                module,
+                                profile,
+                                value_ty_id,
+                                tree,
+                                symbols,
+                                types,
+                            )?;
                         }
                         declared_type_id = Some(value_ty_id);
                     }

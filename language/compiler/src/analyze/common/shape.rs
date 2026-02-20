@@ -316,7 +316,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<ObjectShape> {
         // resolve the embed target type
-        let embed_ty_id = self.try_evaluate_expression_to_type(
+        let embed_ty_id = self.resolve_declared_type_expression(
             module, profile, value, tree, symbols, types, true, true,
         )?;
 

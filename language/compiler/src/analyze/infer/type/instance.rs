@@ -61,7 +61,7 @@ impl Compiler {
         }
 
         // evaluate the alias value into an instance type
-        let instance_type_id = self.try_evaluate_expression_to_type(
+        let instance_type_id = self.resolve_declared_type_expression(
             module, profile, *value, tree, symbols, types, true, true,
         )?;
         types.set_instance_type(symbol, instance_type_id);

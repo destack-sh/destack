@@ -71,7 +71,7 @@ impl Compiler {
 
         // cache runtime check kind for instanceof guards
         if matches!(operator, BinaryOperator::InstanceOf) {
-            let target_type_id = self.try_evaluate_expression_to_type(
+            let target_type_id = self.resolve_declared_type_expression(
                 module,
                 ctx.profile,
                 right_id,

@@ -1,7 +1,6 @@
-mod builtin;
-mod cache;
-mod declaration;
-mod decorator;
-mod evaluate;
-mod namespace;
+mod attribute;
+mod collect;
 mod process;
+
+#[cfg(test)]
+mod tests;

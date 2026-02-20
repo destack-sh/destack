@@ -91,7 +91,7 @@ impl Compiler {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_DECLARATIONS);
             self.collect(
                 &mut collector,
-                self.declare_module_declarations(&module, profile, &tree, &symbols, &mut types),
+                self.collect_module_declarations(&module, profile, &tree, &symbols, &mut types),
             );
         }
 
@@ -257,7 +257,7 @@ impl Compiler {
 
                 self.collect(
                     collector,
-                    self.evaluate_type(module, profile, ty_id, tree, symbols, types),
+                    self.resolve_declared_type(module, profile, ty_id, tree, symbols, types),
                 );
 
                 if collector.has_dependencies() {

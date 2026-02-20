@@ -3,6 +3,7 @@ mod canonical;
 mod conditional;
 mod context;
 mod declarator;
+pub(crate) mod declared;
 mod extension;
 mod global;
 mod import;

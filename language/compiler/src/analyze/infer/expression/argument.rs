@@ -133,7 +133,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
 
         // evaluate unevaluated types before rewriting
         if matches!(types.get_type(id), Type::Unevaluated(_)) {
-            let _ = self.compiler.evaluate_type(
+            let _ = self.compiler.resolve_declared_type(
                 self.argument_module,
                 self.profile,
                 id,
@@ -1546,7 +1546,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         if matches!(types.get_type(bound_id), Type::Unevaluated(_)) {
-            self.evaluate_type(module, profile, bound_id, tree, symbols, types)?;
+            self.resolve_declared_type(module, profile, bound_id, tree, symbols, types)?;
         }
         Ok(())
     }
@@ -2652,7 +2652,7 @@ impl Compiler {
                                 types.get_type(static_parameter.declared_type_id),
                                 Type::Unevaluated(_)
                             ) {
-                                self.evaluate_type(
+                                self.resolve_declared_type(
                                     argument_module,
                                     profile,
                                     static_parameter.declared_type_id,
@@ -2954,7 +2954,7 @@ impl Compiler {
                 }
 
                 // try evaluate expression as a type
-                let ty_id = self.try_evaluate_expression_to_type(
+                let ty_id = self.resolve_declared_type_expression(
                     argument_module,
                     profile,
                     expression_id,
@@ -3637,7 +3637,7 @@ impl Compiler {
         // evaluate default value based on the parameter kind
         let value = match parameter_kind {
             StaticParameterKind::Type => {
-                let resolved = self.try_evaluate_expression_to_type_value(
+                let resolved = self.resolve_declared_type_expression_value(
                     module,
                     profile,
                     default_expression,
@@ -5078,7 +5078,7 @@ impl Compiler {
                                 let ty_id = types
                                     .insert_type_from_any(reference_ty, expression_id.into_any());
                                 Some(StaticExpression::Type { ty: ty_id })
-                            } else if let Ok(ty_id) = self.try_evaluate_expression_to_type(
+                            } else if let Ok(ty_id) = self.resolve_declared_type_expression(
                                 owner_module,
                                 profile,
                                 expression_id,

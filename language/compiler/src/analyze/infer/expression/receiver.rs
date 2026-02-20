@@ -68,7 +68,7 @@ impl Compiler {
         )
         .or_else(|| {
             let receiver_type_id = self
-                .try_evaluate_expression_to_type(
+                .resolve_declared_type_expression(
                     module,
                     profile,
                     receiver_id,

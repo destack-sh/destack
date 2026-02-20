@@ -1531,7 +1531,7 @@ impl Compiler {
         ctx: &InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // evaluate the tag expression as a type
-        let ty_id = self.try_evaluate_expression_to_type(
+        let ty_id = self.resolve_declared_type_expression(
             module,
             ctx.profile,
             expression_id,
@@ -1596,7 +1596,7 @@ impl Compiler {
 
         // evaluate unevaluated declared types
         if matches!(types.get_type(declared_ty_id), Type::Unevaluated(_)) {
-            self.evaluate_type(module, ctx.profile, declared_ty_id, tree, symbols, types)?;
+            self.resolve_declared_type(module, ctx.profile, declared_ty_id, tree, symbols, types)?;
         }
 
         let mut declared_ty_id = declared_ty_id;
