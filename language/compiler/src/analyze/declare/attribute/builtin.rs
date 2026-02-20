@@ -1,4 +1,4 @@
-use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeIdAny, NodeType, SymbolType};
+use destack_dir::{AnchoredGlobalNodeId, SymbolType};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, WellKnownIntrinsics};
 
@@ -90,13 +90,21 @@ impl Compiler {
                     symbol_id,
                     CanonicalSymbolMode::FollowAliases,
                 );
+                let Some(anchor) = intrinsic_binding_anchor(symbol, profile) else {
+                    return Err(AnalyzeError::Internal {
+                        message: format!(
+                            "intrinsic binding symbol is missing declaration anchor: {symbol_id:?}"
+                        ),
+                    });
+                };
+
                 let Some(name_id) = binding.name.or(symbol.name()) else {
                     let message = self
                         .program
                         .strings
                         .intern("intrinsic binding missing symbol name");
                     return Err(AnalyzeError::InvalidWellKnownDecorator {
-                        node: intrinsic_binding_anchor(symbol, symbol_id, profile),
+                        node: anchor,
                         message,
                     });
                 };
@@ -115,7 +123,7 @@ impl Compiler {
                         .strings
                         .intern(&format!("intrinsic name '{}' is already bound", name));
                     return Err(AnalyzeError::InvalidWellKnownDecorator {
-                        node: intrinsic_binding_anchor(symbol, symbol_id, profile),
+                        node: anchor,
                         message,
                     });
                 }
@@ -135,21 +143,20 @@ impl Compiler {
     }
 }
 
-/// Create a diagnostic anchor for an intrinsic binding symbol.
+/// Resolve the declaration-backed diagnostic anchor for an intrinsic binding symbol.
 fn intrinsic_binding_anchor(
     symbol: &destack_dir::Symbol,
-    symbol_id: GlobalSymbolId,
     profile: ProfileId,
-) -> destack_dir::AnchoredGlobalNodeId {
+) -> Option<AnchoredGlobalNodeId> {
     // prefer the primary declaration when available
     if let Some(node_id) = symbol.primary_declaration {
-        return node_id.into_anchored(Some(profile));
+        return Some(node_id.into_anchored(Some(profile)));
     }
 
-    // synthesize a fallback anchor when no declaration exists
-    let fallback = GlobalNodeIdAny::new(
-        symbol_id.module_id,
-        LocalNodeIdAny::new(symbol_id.local_id.id, NodeType::Declaration),
-    );
-    fallback.into_anchored(Some(profile))
+    // otherwise use the first secondary declaration when available
+    symbol
+        .secondary_declarations
+        .as_deref()
+        .and_then(|nodes| nodes.first().copied())
+        .map(|node_id| node_id.into_anchored(Some(profile)))
 }
