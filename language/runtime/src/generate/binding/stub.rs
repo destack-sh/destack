@@ -402,7 +402,7 @@ fn write_stub_docs(
     output: &mut String,
     entry: &BindingEntry,
     extern_name: &str,
-    is_simulated: bool,
+    is_simulation: bool,
 ) {
     if let Some(documentation) = entry.documentation.as_deref() {
         for line in documentation.lines() {
@@ -412,8 +412,8 @@ fn write_stub_docs(
                 output.push_str(&format!("/// {line}\n"));
             }
         }
-    } else if is_simulated {
-        output.push_str(&format!("/// Simulated binding for `{extern_name}`.\n"));
+    } else if is_simulation {
+        output.push_str(&format!("/// Simulation binding for `{extern_name}`.\n"));
     } else {
         output.push_str(&format!("/// Binding for `{extern_name}`.\n"));
     }
@@ -636,12 +636,15 @@ pub(crate) fn render_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> St
     output
 }
 
-/// Render stub simulated native bindings for a runtime domain.
-pub(crate) fn render_simulated_native_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
+/// Render stub simulation native bindings for a runtime domain.
+pub(crate) fn render_simulation_native_stub(
+    domain: &str,
+    bindings: &BindingCatalogEntry,
+) -> String {
     // build a deterministic list of binding descriptors
     let consts = build_binding_consts(domain, bindings);
 
-    // collect required imports for the simulated native stub
+    // collect required imports for the simulation native stub
     let usage = collect_native_usage(bindings);
 
     // collect domain-specific named types for imports
@@ -742,8 +745,8 @@ pub(crate) fn render_simulated_native_stub(domain: &str, bindings: &BindingCatal
     output
 }
 
-/// Render stub simulated VM bindings for a runtime domain.
-pub(crate) fn render_simulated_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
+/// Render stub simulation VM bindings for a runtime domain.
+pub(crate) fn render_simulation_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
     // build a deterministic list of binding descriptors
     let consts = build_binding_consts(domain, bindings);
     let vm_types = collect_vm_stub_named_types(domain, bindings);
@@ -822,8 +825,8 @@ pub(crate) fn render_simulated_vm_stub(domain: &str, bindings: &BindingCatalogEn
     output
 }
 
-/// Render a simulated module re-export stub for a runtime domain.
-pub(crate) fn render_simulated_mod_stub() -> String {
+/// Render a simulation module re-export stub for a runtime domain.
+pub(crate) fn render_simulation_mod_stub() -> String {
     let mut output = String::new();
     output.push_str("pub(crate) mod native;\n");
     output.push_str("pub(crate) mod vm;\n");
@@ -852,7 +855,7 @@ pub(crate) fn render_domain_mod_stub(
         output.push_str("pub(crate) mod runtime;\n");
     }
     if has_world_dispatch {
-        output.push_str("pub(crate) mod simulated;\n");
+        output.push_str("pub(crate) mod simulation;\n");
     }
     output.push_str("pub mod vm;\n");
     output

@@ -54,8 +54,8 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::gpu::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
+use crate::platform::gpu::simulation::{
+    native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::gpu::{native as platform_native, vm as platform_vm};
 use crate::platform::{gpu as platform_gpu, resource as platform_resource, resource};
@@ -10307,7 +10307,7 @@ fn destack_gpu_adapter_close_replay(
                 platform_native::destack_gpu_adapter_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_adapter_close(context, handle)
+                platform_simulation_native::destack_gpu_adapter_close(context, handle)
             },
         },
         |result| {
@@ -10356,7 +10356,7 @@ fn destack_gpu_adapter_features_replay(
                 platform_native::destack_gpu_adapter_features(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_adapter_features(context, out, handle)
+                platform_simulation_native::destack_gpu_adapter_features(context, out, handle)
             },
         },
         |result| {
@@ -10431,7 +10431,7 @@ fn destack_gpu_adapter_format_capabilities_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_adapter_format_capabilities(
+                platform_simulation_native::destack_gpu_adapter_format_capabilities(
                     context, out, handle, format,
                 )
             },
@@ -10521,7 +10521,7 @@ fn destack_gpu_adapter_has_feature_replay(
                 platform_native::destack_gpu_adapter_has_feature(context, out, handle, feature)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_adapter_has_feature(
+                platform_simulation_native::destack_gpu_adapter_has_feature(
                     context, out, handle, feature,
                 )
             },
@@ -10584,7 +10584,7 @@ fn destack_gpu_adapter_info_replay(
                 platform_native::destack_gpu_adapter_info(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_adapter_info(context, out, handle)
+                platform_simulation_native::destack_gpu_adapter_info(context, out, handle)
             },
         },
         |result| {
@@ -10950,7 +10950,7 @@ fn destack_gpu_adapter_limits_replay(
                 platform_native::destack_gpu_adapter_limits(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_adapter_limits(context, out, handle)
+                platform_simulation_native::destack_gpu_adapter_limits(context, out, handle)
             },
         },
         |result| {
@@ -11208,7 +11208,7 @@ fn destack_gpu_adapter_list_replay(
         context.replay_payload_for(GPU_ADAPTER_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_gpu_adapter_list(context, out, request) },
-            RuntimeWorld::Simulated => unsafe { platform_simulated_native::destack_gpu_adapter_list(context, out, request) },
+            RuntimeWorld::Simulated => unsafe { platform_simulation_native::destack_gpu_adapter_list(context, out, request) },
         },
         |result| {
             if let Ok(()) = result {
@@ -11476,7 +11476,7 @@ fn destack_gpu_adapter_open_replay(
                 platform_native::destack_gpu_adapter_open(context, out, id)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_adapter_open(context, out, id)
+                platform_simulation_native::destack_gpu_adapter_open(context, out, id)
             },
         },
         |result| {
@@ -11542,7 +11542,7 @@ fn destack_gpu_bind_group_create_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_bind_group_create(
+                platform_simulation_native::destack_gpu_bind_group_create(
                     context, out, device, layout, entries, flags,
                 )
             },
@@ -11604,7 +11604,7 @@ fn destack_gpu_bind_group_destroy_replay(
                 platform_native::destack_gpu_bind_group_destroy(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_bind_group_destroy(context, handle)
+                platform_simulation_native::destack_gpu_bind_group_destroy(context, handle)
             },
         },
         |result| {
@@ -11657,7 +11657,7 @@ fn destack_gpu_bind_group_layout_create_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_bind_group_layout_create(
+                platform_simulation_native::destack_gpu_bind_group_layout_create(
                     context, out, device, entries, flags,
                 )
             },
@@ -11719,7 +11719,7 @@ fn destack_gpu_bind_group_layout_destroy_replay(
                 platform_native::destack_gpu_bind_group_layout_destroy(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_bind_group_layout_destroy(context, handle)
+                platform_simulation_native::destack_gpu_bind_group_layout_destroy(context, handle)
             },
         },
         |result| {
@@ -11769,7 +11769,7 @@ fn destack_gpu_bind_pipeline_layout_create_replay(
                 platform_native::destack_gpu_pipeline_layout_create(context, out, device, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_pipeline_layout_create(
+                platform_simulation_native::destack_gpu_pipeline_layout_create(
                     context, out, device, options,
                 )
             },
@@ -11831,7 +11831,7 @@ fn destack_gpu_bind_pipeline_layout_destroy_replay(
                 platform_native::destack_gpu_pipeline_layout_destroy(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_pipeline_layout_destroy(context, handle)
+                platform_simulation_native::destack_gpu_pipeline_layout_destroy(context, handle)
             },
         },
         |result| {
@@ -11882,7 +11882,7 @@ fn destack_gpu_command_bind_compute_pipeline_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_bind_compute_pipeline(
+                platform_simulation_native::destack_gpu_command_bind_compute_pipeline(
                     context, handle, pipeline,
                 )
             },
@@ -11933,7 +11933,7 @@ fn destack_gpu_command_bind_render_pipeline_replay(
                 platform_native::destack_gpu_command_bind_render_pipeline(context, handle, pipeline)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_bind_render_pipeline(
+                platform_simulation_native::destack_gpu_command_bind_render_pipeline(
                     context, handle, pipeline,
                 )
             },
@@ -11988,7 +11988,7 @@ fn destack_gpu_command_clear_buffer_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_clear_buffer(
+                platform_simulation_native::destack_gpu_command_clear_buffer(
                     context, handle, buffer, offset, size,
                 )
             },
@@ -12042,7 +12042,7 @@ fn destack_gpu_command_compute_pass_begin_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_compute_pass_begin(
+                platform_simulation_native::destack_gpu_command_compute_pass_begin(
                     context, out, handle, options,
                 )
             },
@@ -12104,7 +12104,7 @@ fn destack_gpu_command_compute_pass_end_replay(
                 platform_native::destack_gpu_command_compute_pass_end(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_compute_pass_end(context, handle)
+                platform_simulation_native::destack_gpu_command_compute_pass_end(context, handle)
             },
         },
         |result| {
@@ -12155,7 +12155,7 @@ fn destack_gpu_command_compute_pass_insert_debug_marker_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_compute_pass_insert_debug_marker(
+                platform_simulation_native::destack_gpu_command_compute_pass_insert_debug_marker(
                     context, handle, marker,
                 )
             },
@@ -12205,7 +12205,7 @@ fn destack_gpu_command_compute_pass_pop_debug_group_replay(
                 platform_native::destack_gpu_command_compute_pass_pop_debug_group(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_compute_pass_pop_debug_group(
+                platform_simulation_native::destack_gpu_command_compute_pass_pop_debug_group(
                     context, handle,
                 )
             },
@@ -12258,7 +12258,7 @@ fn destack_gpu_command_compute_pass_push_debug_group_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_compute_pass_push_debug_group(
+                platform_simulation_native::destack_gpu_command_compute_pass_push_debug_group(
                     context, handle, label,
                 )
             },
@@ -12321,7 +12321,7 @@ fn destack_gpu_command_copy_buffer_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_copy_buffer(
+                platform_simulation_native::destack_gpu_command_copy_buffer(
                     context,
                     handle,
                     src,
@@ -12386,7 +12386,7 @@ fn destack_gpu_command_copy_buffer_to_texture_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_copy_buffer_to_texture(
+                platform_simulation_native::destack_gpu_command_copy_buffer_to_texture(
                     context,
                     handle,
                     source,
@@ -12449,7 +12449,7 @@ fn destack_gpu_command_copy_texture_to_buffer_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_copy_texture_to_buffer(
+                platform_simulation_native::destack_gpu_command_copy_texture_to_buffer(
                     context,
                     handle,
                     source,
@@ -12512,7 +12512,7 @@ fn destack_gpu_command_copy_texture_to_texture_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_copy_texture_to_texture(
+                platform_simulation_native::destack_gpu_command_copy_texture_to_texture(
                     context,
                     handle,
                     source,
@@ -12571,7 +12571,7 @@ fn destack_gpu_command_dispatch_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_dispatch(
+                platform_simulation_native::destack_gpu_command_dispatch(
                     context, handle, groupx, groupy, groupz,
                 )
             },
@@ -12625,7 +12625,7 @@ fn destack_gpu_command_dispatch_indirect_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_dispatch_indirect(
+                platform_simulation_native::destack_gpu_command_dispatch_indirect(
                     context, handle, buffer, offset,
                 )
             },
@@ -12692,7 +12692,7 @@ fn destack_gpu_command_draw_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_draw(
+                platform_simulation_native::destack_gpu_command_draw(
                     context,
                     handle,
                     vertexcount,
@@ -12767,7 +12767,7 @@ fn destack_gpu_command_draw_indexed_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_draw_indexed(
+                platform_simulation_native::destack_gpu_command_draw_indexed(
                     context,
                     handle,
                     indexcount,
@@ -12829,7 +12829,7 @@ fn destack_gpu_command_draw_indexed_indirect_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_draw_indexed_indirect(
+                platform_simulation_native::destack_gpu_command_draw_indexed_indirect(
                     context, handle, buffer, offset, drawcount, stride,
                 )
             },
@@ -12885,7 +12885,7 @@ fn destack_gpu_command_draw_indirect_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_draw_indirect(
+                platform_simulation_native::destack_gpu_command_draw_indirect(
                     context, handle, buffer, offset, drawcount, stride,
                 )
             },
@@ -12935,7 +12935,7 @@ fn destack_gpu_command_encoder_close_replay(
                 platform_native::destack_gpu_command_encoder_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_encoder_close(context, handle)
+                platform_simulation_native::destack_gpu_command_encoder_close(context, handle)
             },
         },
         |result| {
@@ -12983,7 +12983,7 @@ fn destack_gpu_command_encoder_finish_replay(
                 platform_native::destack_gpu_command_encoder_finish(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_encoder_finish(context, handle)
+                platform_simulation_native::destack_gpu_command_encoder_finish(context, handle)
             },
         },
         |result| {
@@ -13033,7 +13033,7 @@ fn destack_gpu_command_encoder_open_replay(
                 platform_native::destack_gpu_command_encoder_open(context, out, device, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_encoder_open(
+                platform_simulation_native::destack_gpu_command_encoder_open(
                     context, out, device, options,
                 )
             },
@@ -13096,7 +13096,7 @@ fn destack_gpu_command_execute_bundles_replay(
                 platform_native::destack_gpu_command_execute_bundles(context, handle, bundles)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_execute_bundles(
+                platform_simulation_native::destack_gpu_command_execute_bundles(
                     context, handle, bundles,
                 )
             },
@@ -13147,7 +13147,7 @@ fn destack_gpu_command_insert_debug_marker_replay(
                 platform_native::destack_gpu_command_insert_debug_marker(context, handle, marker)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_insert_debug_marker(
+                platform_simulation_native::destack_gpu_command_insert_debug_marker(
                     context, handle, marker,
                 )
             },
@@ -13203,7 +13203,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_multi_draw_indexed_indirect(
+                platform_simulation_native::destack_gpu_command_multi_draw_indexed_indirect(
                     context, handle, buffer, offset, drawcount, stride,
                 )
             },
@@ -13276,7 +13276,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_multi_draw_indexed_indirect_count(
+                platform_simulation_native::destack_gpu_command_multi_draw_indexed_indirect_count(
                     context,
                     handle,
                     buffer,
@@ -13339,7 +13339,7 @@ fn destack_gpu_command_multi_draw_indirect_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_multi_draw_indirect(
+                platform_simulation_native::destack_gpu_command_multi_draw_indirect(
                     context, handle, buffer, offset, drawcount, stride,
                 )
             },
@@ -13412,7 +13412,7 @@ fn destack_gpu_command_multi_draw_indirect_count_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_multi_draw_indirect_count(
+                platform_simulation_native::destack_gpu_command_multi_draw_indirect_count(
                     context,
                     handle,
                     buffer,
@@ -13469,7 +13469,7 @@ fn destack_gpu_command_pop_debug_group_replay(
                 platform_native::destack_gpu_command_pop_debug_group(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_pop_debug_group(context, handle)
+                platform_simulation_native::destack_gpu_command_pop_debug_group(context, handle)
             },
         },
         |result| {
@@ -13518,7 +13518,7 @@ fn destack_gpu_command_push_debug_group_replay(
                 platform_native::destack_gpu_command_push_debug_group(context, handle, label)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_push_debug_group(
+                platform_simulation_native::destack_gpu_command_push_debug_group(
                     context, handle, label,
                 )
             },
@@ -13570,7 +13570,7 @@ fn destack_gpu_command_queue_submit_replay(
                 platform_native::destack_gpu_queue_submit(context, queue, commandlists, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_queue_submit(
+                platform_simulation_native::destack_gpu_queue_submit(
                     context,
                     queue,
                     commandlists,
@@ -13624,7 +13624,7 @@ fn destack_gpu_command_queue_wait_idle_replay(
                 platform_native::destack_gpu_queue_wait_idle(context, queue, timeoutns)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_queue_wait_idle(context, queue, timeoutns)
+                platform_simulation_native::destack_gpu_queue_wait_idle(context, queue, timeoutns)
             },
         },
         |result| {
@@ -13685,7 +13685,7 @@ fn destack_gpu_command_queue_write_buffer_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_queue_write_buffer(
+                platform_simulation_native::destack_gpu_queue_write_buffer(
                     context,
                     queue,
                     buffer,
@@ -13752,7 +13752,7 @@ fn destack_gpu_command_queue_write_texture_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_queue_write_texture(
+                platform_simulation_native::destack_gpu_queue_write_texture(
                     context,
                     queue,
                     destination,
@@ -13807,7 +13807,7 @@ fn destack_gpu_command_render_bundle_destroy_replay(
                 platform_native::destack_gpu_render_bundle_destroy(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_bundle_destroy(context, handle)
+                platform_simulation_native::destack_gpu_render_bundle_destroy(context, handle)
             },
         },
         |result| {
@@ -13872,7 +13872,7 @@ fn destack_gpu_command_render_bundle_draw_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_bundle_draw(
+                platform_simulation_native::destack_gpu_render_bundle_draw(
                     context,
                     handle,
                     vertexcount,
@@ -13947,7 +13947,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_bundle_draw_indexed(
+                platform_simulation_native::destack_gpu_render_bundle_draw_indexed(
                     context,
                     handle,
                     indexcount,
@@ -14009,7 +14009,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_indirect_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_bundle_draw_indexed_indirect(
+                platform_simulation_native::destack_gpu_render_bundle_draw_indexed_indirect(
                     context, handle, buffer, offset, drawcount, stride,
                 )
             },
@@ -14065,7 +14065,7 @@ fn destack_gpu_command_render_bundle_draw_indirect_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_bundle_draw_indirect(
+                platform_simulation_native::destack_gpu_render_bundle_draw_indirect(
                     context, handle, buffer, offset, drawcount, stride,
                 )
             },
@@ -14115,7 +14115,7 @@ fn destack_gpu_command_render_bundle_encoder_close_replay(
                 platform_native::destack_gpu_render_bundle_encoder_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_bundle_encoder_close(context, handle)
+                platform_simulation_native::destack_gpu_render_bundle_encoder_close(context, handle)
             },
         },
         |result| {
@@ -14164,7 +14164,7 @@ fn destack_gpu_command_render_bundle_encoder_finish_replay(
                 platform_native::destack_gpu_render_bundle_encoder_finish(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_bundle_encoder_finish(
+                platform_simulation_native::destack_gpu_render_bundle_encoder_finish(
                     context, out, handle,
                 )
             },
@@ -14230,7 +14230,7 @@ fn destack_gpu_command_render_bundle_encoder_open_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_bundle_encoder_open(
+                platform_simulation_native::destack_gpu_render_bundle_encoder_open(
                     context, out, device, options,
                 )
             },
@@ -14295,7 +14295,7 @@ fn destack_gpu_command_render_bundle_insert_debug_marker_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_bundle_insert_debug_marker(
+                platform_simulation_native::destack_gpu_render_bundle_insert_debug_marker(
                     context, handle, marker,
                 )
             },
@@ -14345,7 +14345,7 @@ fn destack_gpu_command_render_bundle_pop_debug_group_replay(
                 platform_native::destack_gpu_render_bundle_pop_debug_group(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_bundle_pop_debug_group(
+                platform_simulation_native::destack_gpu_render_bundle_pop_debug_group(
                     context, handle,
                 )
             },
@@ -14396,7 +14396,7 @@ fn destack_gpu_command_render_bundle_push_debug_group_replay(
                 platform_native::destack_gpu_render_bundle_push_debug_group(context, handle, label)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_bundle_push_debug_group(
+                platform_simulation_native::destack_gpu_render_bundle_push_debug_group(
                     context, handle, label,
                 )
             },
@@ -14455,7 +14455,7 @@ fn destack_gpu_command_render_bundle_set_bind_group_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_bundle_set_bind_group(
+                platform_simulation_native::destack_gpu_render_bundle_set_bind_group(
                     context,
                     handle,
                     index,
@@ -14515,7 +14515,7 @@ fn destack_gpu_command_render_bundle_set_index_buffer_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_bundle_set_index_buffer(
+                platform_simulation_native::destack_gpu_render_bundle_set_index_buffer(
                     context, handle, buffer, format, offset, size,
                 )
             },
@@ -14566,7 +14566,7 @@ fn destack_gpu_command_render_bundle_set_pipeline_replay(
                 platform_native::destack_gpu_render_bundle_set_pipeline(context, handle, pipeline)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_bundle_set_pipeline(
+                platform_simulation_native::destack_gpu_render_bundle_set_pipeline(
                     context, handle, pipeline,
                 )
             },
@@ -14622,7 +14622,7 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_bundle_set_vertex_buffer(
+                platform_simulation_native::destack_gpu_render_bundle_set_vertex_buffer(
                     context, handle, slot, buffer, offset, size,
                 )
             },
@@ -14676,7 +14676,7 @@ fn destack_gpu_command_render_pass_begin_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_render_pass_begin(
+                platform_simulation_native::destack_gpu_command_render_pass_begin(
                     context, out, handle, options,
                 )
             },
@@ -14738,7 +14738,7 @@ fn destack_gpu_command_render_pass_end_replay(
                 platform_native::destack_gpu_command_render_pass_end(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_render_pass_end(context, handle)
+                platform_simulation_native::destack_gpu_command_render_pass_end(context, handle)
             },
         },
         |result| {
@@ -14789,7 +14789,7 @@ fn destack_gpu_command_render_pass_insert_debug_marker_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_render_pass_insert_debug_marker(
+                platform_simulation_native::destack_gpu_command_render_pass_insert_debug_marker(
                     context, handle, marker,
                 )
             },
@@ -14839,7 +14839,7 @@ fn destack_gpu_command_render_pass_pop_debug_group_replay(
                 platform_native::destack_gpu_command_render_pass_pop_debug_group(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_render_pass_pop_debug_group(
+                platform_simulation_native::destack_gpu_command_render_pass_pop_debug_group(
                     context, handle,
                 )
             },
@@ -14892,7 +14892,7 @@ fn destack_gpu_command_render_pass_push_debug_group_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_render_pass_push_debug_group(
+                platform_simulation_native::destack_gpu_command_render_pass_push_debug_group(
                     context, handle, label,
                 )
             },
@@ -14946,7 +14946,7 @@ fn destack_gpu_command_set_blend_constant_replay(
                 platform_native::destack_gpu_command_set_blend_constant(context, handle, r, g, b, a)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_set_blend_constant(
+                platform_simulation_native::destack_gpu_command_set_blend_constant(
                     context, handle, r, g, b, a,
                 )
             },
@@ -15005,7 +15005,7 @@ fn destack_gpu_command_set_compute_bind_group_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_set_compute_bind_group(
+                platform_simulation_native::destack_gpu_command_set_compute_bind_group(
                     context,
                     handle,
                     index,
@@ -15065,7 +15065,7 @@ fn destack_gpu_command_set_index_buffer_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_set_index_buffer(
+                platform_simulation_native::destack_gpu_command_set_index_buffer(
                     context, handle, buffer, format, offset, size,
                 )
             },
@@ -15124,7 +15124,7 @@ fn destack_gpu_command_set_render_bind_group_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_set_render_bind_group(
+                platform_simulation_native::destack_gpu_command_set_render_bind_group(
                     context,
                     handle,
                     index,
@@ -15184,7 +15184,7 @@ fn destack_gpu_command_set_scissor_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_set_scissor(
+                platform_simulation_native::destack_gpu_command_set_scissor(
                     context, handle, x, y, width, height,
                 )
             },
@@ -15237,7 +15237,7 @@ fn destack_gpu_command_set_stencil_reference_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_set_stencil_reference(
+                platform_simulation_native::destack_gpu_command_set_stencil_reference(
                     context, handle, reference,
                 )
             },
@@ -15293,7 +15293,7 @@ fn destack_gpu_command_set_vertex_buffer_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_set_vertex_buffer(
+                platform_simulation_native::destack_gpu_command_set_vertex_buffer(
                     context, handle, slot, buffer, offset, size,
                 )
             },
@@ -15351,7 +15351,7 @@ fn destack_gpu_command_set_viewport_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_set_viewport(
+                platform_simulation_native::destack_gpu_command_set_viewport(
                     context, handle, x, y, width, height, mindepth, maxdepth,
                 )
             },
@@ -15402,7 +15402,7 @@ fn destack_gpu_debug_set_label_replay(
                 platform_native::destack_gpu_set_label(context, handle, label)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_set_label(context, handle, label)
+                platform_simulation_native::destack_gpu_set_label(context, handle, label)
             },
         },
         |result| {
@@ -15450,7 +15450,7 @@ fn destack_gpu_device_close_replay(
                 platform_native::destack_gpu_device_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_device_close(context, handle)
+                platform_simulation_native::destack_gpu_device_close(context, handle)
             },
         },
         |result| {
@@ -15499,7 +15499,7 @@ fn destack_gpu_device_features_replay(
                 platform_native::destack_gpu_device_features(context, out, device)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_device_features(context, out, device)
+                platform_simulation_native::destack_gpu_device_features(context, out, device)
             },
         },
         |result| {
@@ -15572,7 +15572,7 @@ fn destack_gpu_device_has_feature_replay(
                 platform_native::destack_gpu_device_has_feature(context, out, device, feature)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_device_has_feature(
+                platform_simulation_native::destack_gpu_device_has_feature(
                     context, out, device, feature,
                 )
             },
@@ -15632,7 +15632,7 @@ fn destack_gpu_device_info_replay(
         context.replay_payload_for(GPU_DEVICE_INFO)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_gpu_device_info(context, out, device) },
-            RuntimeWorld::Simulated => unsafe { platform_simulated_native::destack_gpu_device_info(context, out, device) },
+            RuntimeWorld::Simulated => unsafe { platform_simulation_native::destack_gpu_device_info(context, out, device) },
         },
         |result| {
             if let Ok(()) = result {
@@ -15861,7 +15861,7 @@ fn destack_gpu_device_limits_replay(
                 platform_native::destack_gpu_device_limits(context, out, device)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_device_limits(context, out, device)
+                platform_simulation_native::destack_gpu_device_limits(context, out, device)
             },
         },
         |result| {
@@ -16123,7 +16123,7 @@ fn destack_gpu_device_open_replay(
                 platform_native::destack_gpu_device_open(context, out, adapter, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_device_open(context, out, adapter, options)
+                platform_simulation_native::destack_gpu_device_open(context, out, adapter, options)
             },
         },
         |result| {
@@ -16186,7 +16186,7 @@ fn destack_gpu_device_poll_replay(
                 platform_native::destack_gpu_device_poll(context, out, device, wait, timeoutns)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_device_poll(
+                platform_simulation_native::destack_gpu_device_poll(
                     context, out, device, wait, timeoutns,
                 )
             },
@@ -16250,7 +16250,7 @@ fn destack_gpu_device_pop_error_scope_replay(
                 platform_native::destack_gpu_device_pop_error_scope(context, out, device, timeoutns)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_device_pop_error_scope(
+                platform_simulation_native::destack_gpu_device_pop_error_scope(
                     context, out, device, timeoutns,
                 )
             },
@@ -16327,7 +16327,7 @@ fn destack_gpu_device_push_error_scope_replay(
                 platform_native::destack_gpu_device_push_error_scope(context, device, filter)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_device_push_error_scope(
+                platform_simulation_native::destack_gpu_device_push_error_scope(
                     context, device, filter,
                 )
             },
@@ -16378,7 +16378,7 @@ fn destack_gpu_device_queue_replay(
                 platform_native::destack_gpu_device_queue(context, out, device)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_device_queue(context, out, device)
+                platform_simulation_native::destack_gpu_device_queue(context, out, device)
             },
         },
         |result| {
@@ -16439,7 +16439,7 @@ fn destack_gpu_device_status_replay(
                 platform_native::destack_gpu_device_status(context, out, device)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_device_status(context, out, device)
+                platform_simulation_native::destack_gpu_device_status(context, out, device)
             },
         },
         |result| {
@@ -16521,7 +16521,7 @@ fn destack_gpu_pipeline_bind_group_layout_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_pipeline_bind_group_layout(
+                platform_simulation_native::destack_gpu_pipeline_bind_group_layout(
                     context, out, pipeline, groupindex,
                 )
             },
@@ -16585,7 +16585,7 @@ fn destack_gpu_pipeline_compute_create_replay(
                 platform_native::destack_gpu_compute_pipeline_create(context, out, device, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_compute_pipeline_create(
+                platform_simulation_native::destack_gpu_compute_pipeline_create(
                     context, out, device, options,
                 )
             },
@@ -16647,7 +16647,7 @@ fn destack_gpu_pipeline_destroy_replay(
                 platform_native::destack_gpu_pipeline_destroy(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_pipeline_destroy(context, handle)
+                platform_simulation_native::destack_gpu_pipeline_destroy(context, handle)
             },
         },
         |result| {
@@ -16697,7 +16697,7 @@ fn destack_gpu_pipeline_render_create_replay(
                 platform_native::destack_gpu_render_pipeline_create(context, out, device, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_render_pipeline_create(
+                platform_simulation_native::destack_gpu_render_pipeline_create(
                     context, out, device, options,
                 )
             },
@@ -16763,7 +16763,7 @@ fn destack_gpu_pipeline_shader_compilation_info_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_shader_compilation_info(
+                platform_simulation_native::destack_gpu_shader_compilation_info(
                     context, out, handle, timeoutns,
                 )
             },
@@ -16891,7 +16891,7 @@ fn destack_gpu_pipeline_shader_create_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_shader_create(
+                platform_simulation_native::destack_gpu_shader_create(
                     context,
                     out,
                     device,
@@ -16957,7 +16957,7 @@ fn destack_gpu_pipeline_shader_destroy_replay(
                 platform_native::destack_gpu_shader_destroy(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_shader_destroy(context, handle)
+                platform_simulation_native::destack_gpu_shader_destroy(context, handle)
             },
         },
         |result| {
@@ -17007,7 +17007,7 @@ fn destack_gpu_resource_buffer_create_replay(
                 platform_native::destack_gpu_buffer_create(context, out, device, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_buffer_create(context, out, device, options)
+                platform_simulation_native::destack_gpu_buffer_create(context, out, device, options)
             },
         },
         |result| {
@@ -17067,7 +17067,7 @@ fn destack_gpu_resource_buffer_destroy_replay(
                 platform_native::destack_gpu_buffer_destroy(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_buffer_destroy(context, handle)
+                platform_simulation_native::destack_gpu_buffer_destroy(context, handle)
             },
         },
         |result| {
@@ -17116,7 +17116,7 @@ fn destack_gpu_resource_buffer_info_replay(
                 platform_native::destack_gpu_buffer_info(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_buffer_info(context, out, handle)
+                platform_simulation_native::destack_gpu_buffer_info(context, out, handle)
             },
         },
         |result| {
@@ -17194,7 +17194,7 @@ fn destack_gpu_resource_buffer_map_replay(
                 platform_native::destack_gpu_buffer_map(context, out, handle, offset, length, mode)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_buffer_map(
+                platform_simulation_native::destack_gpu_buffer_map(
                     context, out, handle, offset, length, mode,
                 )
             },
@@ -17273,7 +17273,7 @@ fn destack_gpu_resource_buffer_read_replay(
                 platform_native::destack_gpu_buffer_read(context, out, handle, offset, length)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_buffer_read(
+                platform_simulation_native::destack_gpu_buffer_read(
                     context, out, handle, offset, length,
                 )
             },
@@ -17346,7 +17346,7 @@ fn destack_gpu_resource_buffer_unmap_replay(
                 platform_native::destack_gpu_buffer_unmap(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_buffer_unmap(context, handle)
+                platform_simulation_native::destack_gpu_buffer_unmap(context, handle)
             },
         },
         |result| {
@@ -17396,7 +17396,7 @@ fn destack_gpu_resource_buffer_write_replay(
                 platform_native::destack_gpu_buffer_write(context, handle, offset, argument_bytes)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_buffer_write(
+                platform_simulation_native::destack_gpu_buffer_write(
                     context,
                     handle,
                     offset,
@@ -17451,7 +17451,9 @@ fn destack_gpu_resource_sampler_create_replay(
                 platform_native::destack_gpu_sampler_create(context, out, device, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_sampler_create(context, out, device, options)
+                platform_simulation_native::destack_gpu_sampler_create(
+                    context, out, device, options,
+                )
             },
         },
         |result| {
@@ -17511,7 +17513,7 @@ fn destack_gpu_resource_sampler_destroy_replay(
                 platform_native::destack_gpu_sampler_destroy(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_sampler_destroy(context, handle)
+                platform_simulation_native::destack_gpu_sampler_destroy(context, handle)
             },
         },
         |result| {
@@ -17561,7 +17563,9 @@ fn destack_gpu_resource_texture_create_replay(
                 platform_native::destack_gpu_texture_create(context, out, device, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_texture_create(context, out, device, options)
+                platform_simulation_native::destack_gpu_texture_create(
+                    context, out, device, options,
+                )
             },
         },
         |result| {
@@ -17621,7 +17625,7 @@ fn destack_gpu_resource_texture_destroy_replay(
                 platform_native::destack_gpu_texture_destroy(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_texture_destroy(context, handle)
+                platform_simulation_native::destack_gpu_texture_destroy(context, handle)
             },
         },
         |result| {
@@ -17670,7 +17674,7 @@ fn destack_gpu_resource_texture_info_replay(
                 platform_native::destack_gpu_texture_info(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_texture_info(context, out, handle)
+                platform_simulation_native::destack_gpu_texture_info(context, out, handle)
             },
         },
         |result| {
@@ -17766,7 +17770,7 @@ fn destack_gpu_resource_texture_view_create_replay(
                 platform_native::destack_gpu_texture_view_create(context, out, texture, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_texture_view_create(
+                platform_simulation_native::destack_gpu_texture_view_create(
                     context, out, texture, options,
                 )
             },
@@ -17828,7 +17832,7 @@ fn destack_gpu_resource_texture_view_destroy_replay(
                 platform_native::destack_gpu_texture_view_destroy(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_texture_view_destroy(context, handle)
+                platform_simulation_native::destack_gpu_texture_view_destroy(context, handle)
             },
         },
         |result| {
@@ -17875,7 +17879,7 @@ fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_replay(
         context.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_begin_compute_pipeline_statistics_query(context, computepass, queryset, queryindex) },
-            RuntimeWorld::Simulated => unsafe { platform_simulated_native::destack_gpu_command_begin_compute_pipeline_statistics_query(context, computepass, queryset, queryindex) },
+            RuntimeWorld::Simulated => unsafe { platform_simulation_native::destack_gpu_command_begin_compute_pipeline_statistics_query(context, computepass, queryset, queryindex) },
         },
         |result| {
             if let Ok(()) = result {
@@ -17928,7 +17932,7 @@ fn destack_gpu_sync_command_begin_occlusion_query_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_begin_occlusion_query(
+                platform_simulation_native::destack_gpu_command_begin_occlusion_query(
                     context, renderpass, queryset, queryindex,
                 )
             },
@@ -17977,7 +17981,7 @@ fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_replay(
         context.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_begin_render_pipeline_statistics_query(context, renderpass, queryset, queryindex) },
-            RuntimeWorld::Simulated => unsafe { platform_simulated_native::destack_gpu_command_begin_render_pipeline_statistics_query(context, renderpass, queryset, queryindex) },
+            RuntimeWorld::Simulated => unsafe { platform_simulation_native::destack_gpu_command_begin_render_pipeline_statistics_query(context, renderpass, queryset, queryindex) },
         },
         |result| {
             if let Ok(()) = result {
@@ -18023,7 +18027,7 @@ fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_replay(
         context.replay_payload_for(GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_end_compute_pipeline_statistics_query(context, computepass) },
-            RuntimeWorld::Simulated => unsafe { platform_simulated_native::destack_gpu_command_end_compute_pipeline_statistics_query(context, computepass) },
+            RuntimeWorld::Simulated => unsafe { platform_simulation_native::destack_gpu_command_end_compute_pipeline_statistics_query(context, computepass) },
         },
         |result| {
             if let Ok(()) = result {
@@ -18072,7 +18076,7 @@ fn destack_gpu_sync_command_end_occlusion_query_replay(
                 platform_native::destack_gpu_command_end_occlusion_query(context, renderpass)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_end_occlusion_query(
+                platform_simulation_native::destack_gpu_command_end_occlusion_query(
                     context, renderpass,
                 )
             },
@@ -18118,16 +18122,8 @@ fn destack_gpu_sync_command_end_render_pipeline_statistics_query_replay(
         GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
         context.replay_payload_for(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_end_render_pipeline_statistics_query(
-                    context, renderpass,
-                )
-            },
-            RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_end_render_pipeline_statistics_query(
-                    context, renderpass,
-                )
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_end_render_pipeline_statistics_query(context, renderpass) },
+            RuntimeWorld::Simulated => unsafe { platform_simulation_native::destack_gpu_command_end_render_pipeline_statistics_query(context, renderpass) },
         },
         |result| {
             if let Ok(()) = result {
@@ -18141,7 +18137,9 @@ fn destack_gpu_sync_command_end_render_pipeline_statistics_query_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GpuSyncCommandEndRenderPipelineStatisticsQueryReplay { result }
+                    GpuSyncCommandEndRenderPipelineStatisticsQueryReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -18194,7 +18192,7 @@ fn destack_gpu_sync_command_resolve_queries_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_resolve_queries(
+                platform_simulation_native::destack_gpu_command_resolve_queries(
                     context,
                     commandlist,
                     queryset,
@@ -18257,7 +18255,7 @@ fn destack_gpu_sync_command_write_timestamp_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_command_write_timestamp(
+                platform_simulation_native::destack_gpu_command_write_timestamp(
                     context,
                     commandlist,
                     queryset,
@@ -18312,7 +18310,7 @@ fn destack_gpu_sync_fence_create_replay(
                 platform_native::destack_gpu_fence_create(context, out, device, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_fence_create(context, out, device, options)
+                platform_simulation_native::destack_gpu_fence_create(context, out, device, options)
             },
         },
         |result| {
@@ -18372,7 +18370,7 @@ fn destack_gpu_sync_fence_destroy_replay(
                 platform_native::destack_gpu_fence_destroy(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_fence_destroy(context, handle)
+                platform_simulation_native::destack_gpu_fence_destroy(context, handle)
             },
         },
         |result| {
@@ -18422,7 +18420,7 @@ fn destack_gpu_sync_query_set_create_replay(
                 platform_native::destack_gpu_query_set_create(context, out, device, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_query_set_create(
+                platform_simulation_native::destack_gpu_query_set_create(
                     context, out, device, options,
                 )
             },
@@ -18484,7 +18482,7 @@ fn destack_gpu_sync_query_set_destroy_replay(
                 platform_native::destack_gpu_query_set_destroy(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_query_set_destroy(context, handle)
+                platform_simulation_native::destack_gpu_query_set_destroy(context, handle)
             },
         },
         |result| {
@@ -18533,7 +18531,7 @@ fn destack_gpu_sync_query_set_info_replay(
                 platform_native::destack_gpu_query_set_info(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_query_set_info(context, out, handle)
+                platform_simulation_native::destack_gpu_query_set_info(context, out, handle)
             },
         },
         |result| {
@@ -18610,7 +18608,7 @@ fn destack_gpu_sync_queue_signal_replay(
                 platform_native::destack_gpu_queue_signal(context, queue, fence, argument_value)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_queue_signal(
+                platform_simulation_native::destack_gpu_queue_signal(
                     context,
                     queue,
                     fence,
@@ -18664,7 +18662,7 @@ fn destack_gpu_sync_queue_timestamp_period_replay(
                 platform_native::destack_gpu_queue_timestamp_period(context, out, queue)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_queue_timestamp_period(context, out, queue)
+                platform_simulation_native::destack_gpu_queue_timestamp_period(context, out, queue)
             },
         },
         |result| {
@@ -18733,7 +18731,7 @@ fn destack_gpu_sync_queue_wait_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_queue_wait(
+                platform_simulation_native::destack_gpu_queue_wait(
                     context,
                     queue,
                     fence,
@@ -18788,7 +18786,7 @@ fn destack_gpu_sync_queue_work_done_replay(
                 platform_native::destack_gpu_queue_work_done(context, queue, timeoutns)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_queue_work_done(context, queue, timeoutns)
+                platform_simulation_native::destack_gpu_queue_work_done(context, queue, timeoutns)
             },
         },
         |result| {
@@ -20541,7 +20539,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_acquire(
                     platform_native::destack_gpu_surface_acquire(context, out, surface, timeoutns)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_gpu_surface_acquire(
+                    platform_simulation_native::destack_gpu_surface_acquire(
                         context, out, surface, timeoutns,
                     )
                 },
@@ -20572,7 +20570,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_capabilities(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_gpu_surface_capabilities(
+                    platform_simulation_native::destack_gpu_surface_capabilities(
                         context, out, surface, adapter,
                     )
                 },
@@ -20596,7 +20594,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_close(
                     platform_native::destack_gpu_surface_close(context, surface)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_gpu_surface_close(context, surface)
+                    platform_simulation_native::destack_gpu_surface_close(context, surface)
                 },
             }
         }
@@ -20622,7 +20620,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_configure(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_gpu_surface_configure(
+                    platform_simulation_native::destack_gpu_surface_configure(
                         context, device, surface, options,
                     )
                 },
@@ -20650,7 +20648,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_open(
                     platform_native::destack_gpu_surface_open(context, out, window)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_gpu_surface_open(context, out, window)
+                    platform_simulation_native::destack_gpu_surface_open(context, out, window)
                 },
             }
         }
@@ -20673,7 +20671,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_present(
                     platform_native::destack_gpu_surface_present(context, surface, options)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_gpu_surface_present(
+                    platform_simulation_native::destack_gpu_surface_present(
                         context, surface, options,
                     )
                 },
@@ -20697,7 +20695,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_unconfigure(
                     platform_native::destack_gpu_surface_unconfigure(context, surface)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_gpu_surface_unconfigure(context, surface)
+                    platform_simulation_native::destack_gpu_surface_unconfigure(context, surface)
                 },
             }
         }
@@ -21248,7 +21246,7 @@ fn destack_gpu_adapter_close_vm_replay(
                     platform_vm::destack_gpu_adapter_close(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_adapter_close(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_adapter_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -21302,7 +21300,7 @@ fn destack_gpu_adapter_features_vm_replay(
                     platform_vm::destack_gpu_adapter_features(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_adapter_features(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_adapter_features(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -21378,7 +21376,7 @@ fn destack_gpu_adapter_format_capabilities_vm_replay(
                     runtime, context, handle, format,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_adapter_format_capabilities(
+                    platform_simulation_vm::destack_gpu_adapter_format_capabilities(
                         runtime, context, handle, format,
                     )
                 }
@@ -21464,7 +21462,7 @@ fn destack_gpu_adapter_has_feature_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_gpu_adapter_has_feature(runtime, context, handle, feature)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_adapter_has_feature(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_adapter_has_feature(
                     runtime, context, handle, feature,
                 ),
             },
@@ -21523,7 +21521,7 @@ fn destack_gpu_adapter_info_vm_replay(
                     platform_vm::destack_gpu_adapter_info(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_adapter_info(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_adapter_info(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -21929,7 +21927,7 @@ fn destack_gpu_adapter_limits_vm_replay(
                     platform_vm::destack_gpu_adapter_limits(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_adapter_limits(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_adapter_limits(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -22193,7 +22191,7 @@ fn destack_gpu_adapter_list_vm_replay(
         |context| {
             match world {
                 RuntimeWorld::Host => platform_vm::destack_gpu_adapter_list(runtime, context, request),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_adapter_list(runtime, context, request),
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_adapter_list(runtime, context, request),
             }
         },
         |context, result| {
@@ -22592,7 +22590,7 @@ fn destack_gpu_adapter_open_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_gpu_adapter_open(runtime, context, id),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_adapter_open(runtime, context, id)
+                    platform_simulation_vm::destack_gpu_adapter_open(runtime, context, id)
                 }
             },
             |context, result| {
@@ -22652,7 +22650,7 @@ fn destack_gpu_bind_group_create_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_gpu_bind_group_create(
                     runtime, context, device, layout, entries, flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_bind_group_create(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_bind_group_create(
                     runtime, context, device, layout, entries, flags,
                 ),
             },
@@ -22711,7 +22709,7 @@ fn destack_gpu_bind_group_destroy_vm_replay(
                     platform_vm::destack_gpu_bind_group_destroy(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_bind_group_destroy(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_bind_group_destroy(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -22767,7 +22765,7 @@ fn destack_gpu_bind_group_layout_create_vm_replay(
                     runtime, context, device, entries, flags,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_bind_group_layout_create(
+                    platform_simulation_vm::destack_gpu_bind_group_layout_create(
                         runtime, context, device, entries, flags,
                     )
                 }
@@ -22827,7 +22825,7 @@ fn destack_gpu_bind_group_layout_destroy_vm_replay(
                     platform_vm::destack_gpu_bind_group_layout_destroy(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_bind_group_layout_destroy(
+                    platform_simulation_vm::destack_gpu_bind_group_layout_destroy(
                         runtime, context, handle,
                     )
                 }
@@ -22884,7 +22882,7 @@ fn destack_gpu_bind_pipeline_layout_create_vm_replay(
                     runtime, context, device, options,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_pipeline_layout_create(
+                    platform_simulation_vm::destack_gpu_pipeline_layout_create(
                         runtime, context, device, options,
                     )
                 }
@@ -22944,7 +22942,7 @@ fn destack_gpu_bind_pipeline_layout_destroy_vm_replay(
                     platform_vm::destack_gpu_pipeline_layout_destroy(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_pipeline_layout_destroy(
+                    platform_simulation_vm::destack_gpu_pipeline_layout_destroy(
                         runtime, context, handle,
                     )
                 }
@@ -23001,7 +22999,7 @@ fn destack_gpu_command_bind_compute_pipeline_vm_replay(
                     runtime, context, handle, pipeline,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_bind_compute_pipeline(
+                    platform_simulation_vm::destack_gpu_command_bind_compute_pipeline(
                         runtime, context, handle, pipeline,
                     )
                 }
@@ -23058,7 +23056,7 @@ fn destack_gpu_command_bind_render_pipeline_vm_replay(
                     runtime, context, handle, pipeline,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_bind_render_pipeline(
+                    platform_simulation_vm::destack_gpu_command_bind_render_pipeline(
                         runtime, context, handle, pipeline,
                     )
                 }
@@ -23116,9 +23114,11 @@ fn destack_gpu_command_clear_buffer_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_gpu_command_clear_buffer(
                     runtime, context, handle, buffer, offset, size,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_command_clear_buffer(
-                    runtime, context, handle, buffer, offset, size,
-                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulation_vm::destack_gpu_command_clear_buffer(
+                        runtime, context, handle, buffer, offset, size,
+                    )
+                }
             },
             |context, result| {
                 let _ = &context;
@@ -23172,7 +23172,7 @@ fn destack_gpu_command_compute_pass_begin_vm_replay(
                     runtime, context, handle, options,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_compute_pass_begin(
+                    platform_simulation_vm::destack_gpu_command_compute_pass_begin(
                         runtime, context, handle, options,
                     )
                 }
@@ -23232,7 +23232,7 @@ fn destack_gpu_command_compute_pass_end_vm_replay(
                     platform_vm::destack_gpu_command_compute_pass_end(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_compute_pass_end(
+                    platform_simulation_vm::destack_gpu_command_compute_pass_end(
                         runtime, context, handle,
                     )
                 }
@@ -23291,7 +23291,7 @@ fn destack_gpu_command_compute_pass_insert_debug_marker_vm_replay(
                     )
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_compute_pass_insert_debug_marker(
+                    platform_simulation_vm::destack_gpu_command_compute_pass_insert_debug_marker(
                         runtime, context, handle, marker,
                     )
                 }
@@ -23350,7 +23350,7 @@ fn destack_gpu_command_compute_pass_pop_debug_group_vm_replay(
                     )
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_compute_pass_pop_debug_group(
+                    platform_simulation_vm::destack_gpu_command_compute_pass_pop_debug_group(
                         runtime, context, handle,
                     )
                 }
@@ -23409,7 +23409,7 @@ fn destack_gpu_command_compute_pass_push_debug_group_vm_replay(
                     )
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_compute_pass_push_debug_group(
+                    platform_simulation_vm::destack_gpu_command_compute_pass_push_debug_group(
                         runtime, context, handle, label,
                     )
                 }
@@ -23476,7 +23476,7 @@ fn destack_gpu_command_copy_buffer_vm_replay(
                     dstoffset,
                     argument_bytes,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_command_copy_buffer(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_copy_buffer(
                     runtime,
                     context,
                     handle,
@@ -23546,7 +23546,7 @@ fn destack_gpu_command_copy_buffer_to_texture_vm_replay(
                     size,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_copy_buffer_to_texture(
+                    platform_simulation_vm::destack_gpu_command_copy_buffer_to_texture(
                         runtime,
                         context,
                         handle,
@@ -23615,7 +23615,7 @@ fn destack_gpu_command_copy_texture_to_buffer_vm_replay(
                     size,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_copy_texture_to_buffer(
+                    platform_simulation_vm::destack_gpu_command_copy_texture_to_buffer(
                         runtime,
                         context,
                         handle,
@@ -23684,7 +23684,7 @@ fn destack_gpu_command_copy_texture_to_texture_vm_replay(
                     size,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_copy_texture_to_texture(
+                    platform_simulation_vm::destack_gpu_command_copy_texture_to_texture(
                         runtime,
                         context,
                         handle,
@@ -23747,7 +23747,7 @@ fn destack_gpu_command_dispatch_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_gpu_command_dispatch(
                     runtime, context, handle, groupx, groupy, groupz,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_command_dispatch(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_dispatch(
                     runtime, context, handle, groupx, groupy, groupz,
                 ),
             },
@@ -23804,7 +23804,7 @@ fn destack_gpu_command_dispatch_indirect_vm_replay(
                     runtime, context, handle, buffer, offset,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_dispatch_indirect(
+                    platform_simulation_vm::destack_gpu_command_dispatch_indirect(
                         runtime, context, handle, buffer, offset,
                     )
                 }
@@ -23869,7 +23869,7 @@ fn destack_gpu_command_draw_vm_replay(
                     firstvertex,
                     firstinstance,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_command_draw(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_draw(
                     runtime,
                     context,
                     handle,
@@ -23941,16 +23941,18 @@ fn destack_gpu_command_draw_indexed_vm_replay(
                     basevertex,
                     firstinstance,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_command_draw_indexed(
-                    runtime,
-                    context,
-                    handle,
-                    indexcount,
-                    instancecount,
-                    firstindex,
-                    basevertex,
-                    firstinstance,
-                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulation_vm::destack_gpu_command_draw_indexed(
+                        runtime,
+                        context,
+                        handle,
+                        indexcount,
+                        instancecount,
+                        firstindex,
+                        basevertex,
+                        firstinstance,
+                    )
+                }
             },
             |context, result| {
                 let _ = &context;
@@ -24007,7 +24009,7 @@ fn destack_gpu_command_draw_indexed_indirect_vm_replay(
                     runtime, context, handle, buffer, offset, drawcount, stride,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_draw_indexed_indirect(
+                    platform_simulation_vm::destack_gpu_command_draw_indexed_indirect(
                         runtime, context, handle, buffer, offset, drawcount, stride,
                     )
                 }
@@ -24067,7 +24069,7 @@ fn destack_gpu_command_draw_indirect_vm_replay(
                     runtime, context, handle, buffer, offset, drawcount, stride,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_draw_indirect(
+                    platform_simulation_vm::destack_gpu_command_draw_indirect(
                         runtime, context, handle, buffer, offset, drawcount, stride,
                     )
                 }
@@ -24123,7 +24125,7 @@ fn destack_gpu_command_encoder_close_vm_replay(
                     platform_vm::destack_gpu_command_encoder_close(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_encoder_close(
+                    platform_simulation_vm::destack_gpu_command_encoder_close(
                         runtime, context, handle,
                     )
                 }
@@ -24179,7 +24181,7 @@ fn destack_gpu_command_encoder_finish_vm_replay(
                     platform_vm::destack_gpu_command_encoder_finish(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_encoder_finish(
+                    platform_simulation_vm::destack_gpu_command_encoder_finish(
                         runtime, context, handle,
                     )
                 }
@@ -24235,9 +24237,11 @@ fn destack_gpu_command_encoder_open_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_gpu_command_encoder_open(runtime, context, device, options)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_command_encoder_open(
-                    runtime, context, device, options,
-                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulation_vm::destack_gpu_command_encoder_open(
+                        runtime, context, device, options,
+                    )
+                }
             },
             |context, result| {
                 let _ = &context;
@@ -24295,7 +24299,7 @@ fn destack_gpu_command_execute_bundles_vm_replay(
                     runtime, context, handle, bundles,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_execute_bundles(
+                    platform_simulation_vm::destack_gpu_command_execute_bundles(
                         runtime, context, handle, bundles,
                     )
                 }
@@ -24352,7 +24356,7 @@ fn destack_gpu_command_insert_debug_marker_vm_replay(
                     runtime, context, handle, marker,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_insert_debug_marker(
+                    platform_simulation_vm::destack_gpu_command_insert_debug_marker(
                         runtime, context, handle, marker,
                     )
                 }
@@ -24412,7 +24416,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_vm_replay(
                     runtime, context, handle, buffer, offset, drawcount, stride,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_multi_draw_indexed_indirect(
+                    platform_simulation_vm::destack_gpu_command_multi_draw_indexed_indirect(
                         runtime, context, handle, buffer, offset, drawcount, stride,
                     )
                 }
@@ -24484,7 +24488,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_vm_replay(
                     )
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_multi_draw_indexed_indirect_count(
+                    platform_simulation_vm::destack_gpu_command_multi_draw_indexed_indirect_count(
                         runtime,
                         context,
                         handle,
@@ -24553,7 +24557,7 @@ fn destack_gpu_command_multi_draw_indirect_vm_replay(
                     runtime, context, handle, buffer, offset, drawcount, stride,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_multi_draw_indirect(
+                    platform_simulation_vm::destack_gpu_command_multi_draw_indirect(
                         runtime, context, handle, buffer, offset, drawcount, stride,
                     )
                 }
@@ -24623,7 +24627,7 @@ fn destack_gpu_command_multi_draw_indirect_count_vm_replay(
                     stride,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_multi_draw_indirect_count(
+                    platform_simulation_vm::destack_gpu_command_multi_draw_indirect_count(
                         runtime,
                         context,
                         handle,
@@ -24687,7 +24691,7 @@ fn destack_gpu_command_pop_debug_group_vm_replay(
                     platform_vm::destack_gpu_command_pop_debug_group(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_pop_debug_group(
+                    platform_simulation_vm::destack_gpu_command_pop_debug_group(
                         runtime, context, handle,
                     )
                 }
@@ -24744,7 +24748,7 @@ fn destack_gpu_command_push_debug_group_vm_replay(
                     runtime, context, handle, label,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_push_debug_group(
+                    platform_simulation_vm::destack_gpu_command_push_debug_group(
                         runtime, context, handle, label,
                     )
                 }
@@ -24805,7 +24809,7 @@ fn destack_gpu_command_queue_submit_vm_replay(
                     commandlists,
                     options,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_queue_submit(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_queue_submit(
                     runtime,
                     context,
                     queue,
@@ -24864,7 +24868,7 @@ fn destack_gpu_command_queue_wait_idle_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_gpu_queue_wait_idle(runtime, context, queue, timeoutns)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_queue_wait_idle(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_queue_wait_idle(
                     runtime, context, queue, timeoutns,
                 ),
             },
@@ -24930,7 +24934,7 @@ fn destack_gpu_command_queue_write_buffer_vm_replay(
                     dataoffset,
                     size,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_queue_write_buffer(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_queue_write_buffer(
                     runtime,
                     context,
                     queue,
@@ -25001,7 +25005,7 @@ fn destack_gpu_command_queue_write_texture_vm_replay(
                     layout,
                     size,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_queue_write_texture(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_queue_write_texture(
                     runtime,
                     context,
                     queue,
@@ -25062,7 +25066,7 @@ fn destack_gpu_command_render_bundle_destroy_vm_replay(
                     platform_vm::destack_gpu_render_bundle_destroy(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_render_bundle_destroy(
+                    platform_simulation_vm::destack_gpu_render_bundle_destroy(
                         runtime, context, handle,
                     )
                 }
@@ -25127,7 +25131,7 @@ fn destack_gpu_command_render_bundle_draw_vm_replay(
                     firstvertex,
                     firstinstance,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_render_bundle_draw(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_render_bundle_draw(
                     runtime,
                     context,
                     handle,
@@ -25200,7 +25204,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_vm_replay(
                     firstinstance,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_render_bundle_draw_indexed(
+                    platform_simulation_vm::destack_gpu_render_bundle_draw_indexed(
                         runtime,
                         context,
                         handle,
@@ -25267,7 +25271,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_indirect_vm_replay(
                     runtime, context, handle, buffer, offset, drawcount, stride,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_render_bundle_draw_indexed_indirect(
+                    platform_simulation_vm::destack_gpu_render_bundle_draw_indexed_indirect(
                         runtime, context, handle, buffer, offset, drawcount, stride,
                     )
                 }
@@ -25328,7 +25332,7 @@ fn destack_gpu_command_render_bundle_draw_indirect_vm_replay(
                     runtime, context, handle, buffer, offset, drawcount, stride,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_render_bundle_draw_indirect(
+                    platform_simulation_vm::destack_gpu_render_bundle_draw_indirect(
                         runtime, context, handle, buffer, offset, drawcount, stride,
                     )
                 }
@@ -25384,7 +25388,7 @@ fn destack_gpu_command_render_bundle_encoder_close_vm_replay(
                     platform_vm::destack_gpu_render_bundle_encoder_close(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_render_bundle_encoder_close(
+                    platform_simulation_vm::destack_gpu_render_bundle_encoder_close(
                         runtime, context, handle,
                     )
                 }
@@ -25440,7 +25444,7 @@ fn destack_gpu_command_render_bundle_encoder_finish_vm_replay(
                     platform_vm::destack_gpu_render_bundle_encoder_finish(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_render_bundle_encoder_finish(
+                    platform_simulation_vm::destack_gpu_render_bundle_encoder_finish(
                         runtime, context, handle,
                     )
                 }
@@ -25501,7 +25505,7 @@ fn destack_gpu_command_render_bundle_encoder_open_vm_replay(
                     runtime, context, device, options,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_render_bundle_encoder_open(
+                    platform_simulation_vm::destack_gpu_render_bundle_encoder_open(
                         runtime, context, device, options,
                     )
                 }
@@ -25562,7 +25566,7 @@ fn destack_gpu_command_render_bundle_insert_debug_marker_vm_replay(
                     runtime, context, handle, marker,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_render_bundle_insert_debug_marker(
+                    platform_simulation_vm::destack_gpu_render_bundle_insert_debug_marker(
                         runtime, context, handle, marker,
                     )
                 }
@@ -25619,7 +25623,7 @@ fn destack_gpu_command_render_bundle_pop_debug_group_vm_replay(
                     platform_vm::destack_gpu_render_bundle_pop_debug_group(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_render_bundle_pop_debug_group(
+                    platform_simulation_vm::destack_gpu_render_bundle_pop_debug_group(
                         runtime, context, handle,
                     )
                 }
@@ -25676,7 +25680,7 @@ fn destack_gpu_command_render_bundle_push_debug_group_vm_replay(
                     runtime, context, handle, label,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_render_bundle_push_debug_group(
+                    platform_simulation_vm::destack_gpu_render_bundle_push_debug_group(
                         runtime, context, handle, label,
                     )
                 }
@@ -25740,7 +25744,7 @@ fn destack_gpu_command_render_bundle_set_bind_group_vm_replay(
                     dynamicoffsets,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_render_bundle_set_bind_group(
+                    platform_simulation_vm::destack_gpu_render_bundle_set_bind_group(
                         runtime,
                         context,
                         handle,
@@ -25805,7 +25809,7 @@ fn destack_gpu_command_render_bundle_set_index_buffer_vm_replay(
                     runtime, context, handle, buffer, format, offset, size,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_render_bundle_set_index_buffer(
+                    platform_simulation_vm::destack_gpu_render_bundle_set_index_buffer(
                         runtime, context, handle, buffer, format, offset, size,
                     )
                 }
@@ -25862,7 +25866,7 @@ fn destack_gpu_command_render_bundle_set_pipeline_vm_replay(
                     runtime, context, handle, pipeline,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_render_bundle_set_pipeline(
+                    platform_simulation_vm::destack_gpu_render_bundle_set_pipeline(
                         runtime, context, handle, pipeline,
                     )
                 }
@@ -25922,7 +25926,7 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_vm_replay(
                     runtime, context, handle, slot, buffer, offset, size,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_render_bundle_set_vertex_buffer(
+                    platform_simulation_vm::destack_gpu_render_bundle_set_vertex_buffer(
                         runtime, context, handle, slot, buffer, offset, size,
                     )
                 }
@@ -25980,7 +25984,7 @@ fn destack_gpu_command_render_pass_begin_vm_replay(
                     runtime, context, handle, options,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_render_pass_begin(
+                    platform_simulation_vm::destack_gpu_command_render_pass_begin(
                         runtime, context, handle, options,
                     )
                 }
@@ -26040,7 +26044,7 @@ fn destack_gpu_command_render_pass_end_vm_replay(
                     platform_vm::destack_gpu_command_render_pass_end(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_render_pass_end(
+                    platform_simulation_vm::destack_gpu_command_render_pass_end(
                         runtime, context, handle,
                     )
                 }
@@ -26099,7 +26103,7 @@ fn destack_gpu_command_render_pass_insert_debug_marker_vm_replay(
                     )
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_render_pass_insert_debug_marker(
+                    platform_simulation_vm::destack_gpu_command_render_pass_insert_debug_marker(
                         runtime, context, handle, marker,
                     )
                 }
@@ -26156,7 +26160,7 @@ fn destack_gpu_command_render_pass_pop_debug_group_vm_replay(
                     runtime, context, handle,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_render_pass_pop_debug_group(
+                    platform_simulation_vm::destack_gpu_command_render_pass_pop_debug_group(
                         runtime, context, handle,
                     )
                 }
@@ -26215,7 +26219,7 @@ fn destack_gpu_command_render_pass_push_debug_group_vm_replay(
                     )
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_render_pass_push_debug_group(
+                    platform_simulation_vm::destack_gpu_command_render_pass_push_debug_group(
                         runtime, context, handle, label,
                     )
                 }
@@ -26275,7 +26279,7 @@ fn destack_gpu_command_set_blend_constant_vm_replay(
                     runtime, context, handle, r, g, b, a,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_set_blend_constant(
+                    platform_simulation_vm::destack_gpu_command_set_blend_constant(
                         runtime, context, handle, r, g, b, a,
                     )
                 }
@@ -26339,7 +26343,7 @@ fn destack_gpu_command_set_compute_bind_group_vm_replay(
                     dynamicoffsets,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_set_compute_bind_group(
+                    platform_simulation_vm::destack_gpu_command_set_compute_bind_group(
                         runtime,
                         context,
                         handle,
@@ -26404,7 +26408,7 @@ fn destack_gpu_command_set_index_buffer_vm_replay(
                     runtime, context, handle, buffer, format, offset, size,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_set_index_buffer(
+                    platform_simulation_vm::destack_gpu_command_set_index_buffer(
                         runtime, context, handle, buffer, format, offset, size,
                     )
                 }
@@ -26468,7 +26472,7 @@ fn destack_gpu_command_set_render_bind_group_vm_replay(
                     dynamicoffsets,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_set_render_bind_group(
+                    platform_simulation_vm::destack_gpu_command_set_render_bind_group(
                         runtime,
                         context,
                         handle,
@@ -26532,7 +26536,7 @@ fn destack_gpu_command_set_scissor_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_gpu_command_set_scissor(
                     runtime, context, handle, x, y, width, height,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_command_set_scissor(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_set_scissor(
                     runtime, context, handle, x, y, width, height,
                 ),
             },
@@ -26588,7 +26592,7 @@ fn destack_gpu_command_set_stencil_reference_vm_replay(
                     runtime, context, handle, reference,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_set_stencil_reference(
+                    platform_simulation_vm::destack_gpu_command_set_stencil_reference(
                         runtime, context, handle, reference,
                     )
                 }
@@ -26648,7 +26652,7 @@ fn destack_gpu_command_set_vertex_buffer_vm_replay(
                     runtime, context, handle, slot, buffer, offset, size,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_set_vertex_buffer(
+                    platform_simulation_vm::destack_gpu_command_set_vertex_buffer(
                         runtime, context, handle, slot, buffer, offset, size,
                     )
                 }
@@ -26709,9 +26713,11 @@ fn destack_gpu_command_set_viewport_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_gpu_command_set_viewport(
                     runtime, context, handle, x, y, width, height, mindepth, maxdepth,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_command_set_viewport(
-                    runtime, context, handle, x, y, width, height, mindepth, maxdepth,
-                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulation_vm::destack_gpu_command_set_viewport(
+                        runtime, context, handle, x, y, width, height, mindepth, maxdepth,
+                    )
+                }
             },
             |context, result| {
                 let _ = &context;
@@ -26765,7 +26771,7 @@ fn destack_gpu_debug_set_label_vm_replay(
                     platform_vm::destack_gpu_set_label(runtime, context, handle, label)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_set_label(runtime, context, handle, label)
+                    platform_simulation_vm::destack_gpu_set_label(runtime, context, handle, label)
                 }
             },
             |context, result| {
@@ -26819,7 +26825,7 @@ fn destack_gpu_device_close_vm_replay(
                     platform_vm::destack_gpu_device_close(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_device_close(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_device_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -26873,7 +26879,7 @@ fn destack_gpu_device_features_vm_replay(
                     platform_vm::destack_gpu_device_features(runtime, context, device)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_device_features(runtime, context, device)
+                    platform_simulation_vm::destack_gpu_device_features(runtime, context, device)
                 }
             },
             |context, result| {
@@ -26948,7 +26954,7 @@ fn destack_gpu_device_has_feature_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_gpu_device_has_feature(runtime, context, device, feature)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_device_has_feature(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_device_has_feature(
                     runtime, context, device, feature,
                 ),
             },
@@ -27003,7 +27009,7 @@ fn destack_gpu_device_info_vm_replay(
         |context| {
             match world {
                 RuntimeWorld::Host => platform_vm::destack_gpu_device_info(runtime, context, device),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_device_info(runtime, context, device),
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_device_info(runtime, context, device),
             }
         },
         |context, result| {
@@ -27236,7 +27242,7 @@ fn destack_gpu_device_limits_vm_replay(
                     platform_vm::destack_gpu_device_limits(runtime, context, device)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_device_limits(runtime, context, device)
+                    platform_simulation_vm::destack_gpu_device_limits(runtime, context, device)
                 }
             },
             |context, result| {
@@ -27504,7 +27510,7 @@ fn destack_gpu_device_open_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_gpu_device_open(runtime, context, adapter, options)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_device_open(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_device_open(
                     runtime, context, adapter, options,
                 ),
             },
@@ -27564,7 +27570,7 @@ fn destack_gpu_device_poll_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_gpu_device_poll(runtime, context, device, wait, timeoutns)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_device_poll(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_device_poll(
                     runtime, context, device, wait, timeoutns,
                 ),
             },
@@ -27624,7 +27630,7 @@ fn destack_gpu_device_pop_error_scope_vm_replay(
                     runtime, context, device, timeoutns,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_device_pop_error_scope(
+                    platform_simulation_vm::destack_gpu_device_pop_error_scope(
                         runtime, context, device, timeoutns,
                     )
                 }
@@ -27705,7 +27711,7 @@ fn destack_gpu_device_push_error_scope_vm_replay(
                     runtime, context, device, filter,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_device_push_error_scope(
+                    platform_simulation_vm::destack_gpu_device_push_error_scope(
                         runtime, context, device, filter,
                     )
                 }
@@ -27761,7 +27767,7 @@ fn destack_gpu_device_queue_vm_replay(
                     platform_vm::destack_gpu_device_queue(runtime, context, device)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_device_queue(runtime, context, device)
+                    platform_simulation_vm::destack_gpu_device_queue(runtime, context, device)
                 }
             },
             |context, result| {
@@ -27819,7 +27825,7 @@ fn destack_gpu_device_status_vm_replay(
                     platform_vm::destack_gpu_device_status(runtime, context, device)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_device_status(runtime, context, device)
+                    platform_simulation_vm::destack_gpu_device_status(runtime, context, device)
                 }
             },
             |context, result| {
@@ -27902,7 +27908,7 @@ fn destack_gpu_pipeline_bind_group_layout_vm_replay(
                     runtime, context, pipeline, groupindex,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_pipeline_bind_group_layout(
+                    platform_simulation_vm::destack_gpu_pipeline_bind_group_layout(
                         runtime, context, pipeline, groupindex,
                     )
                 }
@@ -27963,7 +27969,7 @@ fn destack_gpu_pipeline_compute_create_vm_replay(
                     runtime, context, device, options,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_compute_pipeline_create(
+                    platform_simulation_vm::destack_gpu_compute_pipeline_create(
                         runtime, context, device, options,
                     )
                 }
@@ -28023,7 +28029,7 @@ fn destack_gpu_pipeline_destroy_vm_replay(
                     platform_vm::destack_gpu_pipeline_destroy(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_pipeline_destroy(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_pipeline_destroy(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -28078,7 +28084,7 @@ fn destack_gpu_pipeline_render_create_vm_replay(
                     runtime, context, device, options,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_render_pipeline_create(
+                    platform_simulation_vm::destack_gpu_render_pipeline_create(
                         runtime, context, device, options,
                     )
                 }
@@ -28139,7 +28145,7 @@ fn destack_gpu_pipeline_shader_compilation_info_vm_replay(
                     runtime, context, handle, timeoutns,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_shader_compilation_info(
+                    platform_simulation_vm::destack_gpu_shader_compilation_info(
                         runtime, context, handle, timeoutns,
                     )
                 }
@@ -28375,7 +28381,7 @@ fn destack_gpu_pipeline_shader_create_vm_replay(
                     options,
                     argument_bytes,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_shader_create(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_shader_create(
                     runtime,
                     context,
                     device,
@@ -28438,7 +28444,7 @@ fn destack_gpu_pipeline_shader_destroy_vm_replay(
                     platform_vm::destack_gpu_shader_destroy(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_shader_destroy(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_shader_destroy(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -28492,7 +28498,7 @@ fn destack_gpu_resource_buffer_create_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_gpu_buffer_create(runtime, context, device, options)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_buffer_create(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_buffer_create(
                     runtime, context, device, options,
                 ),
             },
@@ -28551,7 +28557,7 @@ fn destack_gpu_resource_buffer_destroy_vm_replay(
                     platform_vm::destack_gpu_buffer_destroy(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_buffer_destroy(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_buffer_destroy(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -28605,7 +28611,7 @@ fn destack_gpu_resource_buffer_info_vm_replay(
                     platform_vm::destack_gpu_buffer_info(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_buffer_info(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_buffer_info(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -28679,7 +28685,7 @@ fn destack_gpu_resource_buffer_map_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_gpu_buffer_map(
                     runtime, context, handle, offset, length, mode,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_buffer_map(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_buffer_map(
                     runtime, context, handle, offset, length, mode,
                 ),
             },
@@ -28753,7 +28759,7 @@ fn destack_gpu_resource_buffer_read_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_gpu_buffer_read(runtime, context, handle, offset, length)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_buffer_read(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_buffer_read(
                     runtime, context, handle, offset, length,
                 ),
             },
@@ -28812,7 +28818,7 @@ fn destack_gpu_resource_buffer_unmap_vm_replay(
                     platform_vm::destack_gpu_buffer_unmap(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_buffer_unmap(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_buffer_unmap(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -28871,7 +28877,7 @@ fn destack_gpu_resource_buffer_write_vm_replay(
                     offset,
                     argument_bytes,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_buffer_write(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_buffer_write(
                     runtime,
                     context,
                     handle,
@@ -28930,7 +28936,7 @@ fn destack_gpu_resource_sampler_create_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_gpu_sampler_create(runtime, context, device, options)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_sampler_create(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_sampler_create(
                     runtime, context, device, options,
                 ),
             },
@@ -28989,7 +28995,7 @@ fn destack_gpu_resource_sampler_destroy_vm_replay(
                     platform_vm::destack_gpu_sampler_destroy(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_sampler_destroy(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_sampler_destroy(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -29043,7 +29049,7 @@ fn destack_gpu_resource_texture_create_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_gpu_texture_create(runtime, context, device, options)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_texture_create(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_texture_create(
                     runtime, context, device, options,
                 ),
             },
@@ -29102,7 +29108,7 @@ fn destack_gpu_resource_texture_destroy_vm_replay(
                     platform_vm::destack_gpu_texture_destroy(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_texture_destroy(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_texture_destroy(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -29156,7 +29162,7 @@ fn destack_gpu_resource_texture_info_vm_replay(
                     platform_vm::destack_gpu_texture_info(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_texture_info(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_texture_info(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -29248,7 +29254,7 @@ fn destack_gpu_resource_texture_view_create_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_gpu_texture_view_create(runtime, context, texture, options)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_texture_view_create(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_texture_view_create(
                     runtime, context, texture, options,
                 ),
             },
@@ -29306,9 +29312,11 @@ fn destack_gpu_resource_texture_view_destroy_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_gpu_texture_view_destroy(runtime, context, handle)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_texture_view_destroy(
-                    runtime, context, handle,
-                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulation_vm::destack_gpu_texture_view_destroy(
+                        runtime, context, handle,
+                    )
+                }
             },
             |context, result| {
                 let _ = &context;
@@ -29359,7 +29367,7 @@ fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_vm_replay(
         |context| {
             match world {
                 RuntimeWorld::Host => platform_vm::destack_gpu_command_begin_compute_pipeline_statistics_query(runtime, context, computepass, queryset, queryindex),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_command_begin_compute_pipeline_statistics_query(runtime, context, computepass, queryset, queryindex),
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_begin_compute_pipeline_statistics_query(runtime, context, computepass, queryset, queryindex),
             }
         },
         |context, result| {
@@ -29419,7 +29427,7 @@ fn destack_gpu_sync_command_begin_occlusion_query_vm_replay(
                     runtime, context, renderpass, queryset, queryindex,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_begin_occlusion_query(
+                    platform_simulation_vm::destack_gpu_command_begin_occlusion_query(
                         runtime, context, renderpass, queryset, queryindex,
                     )
                 }
@@ -29473,7 +29481,7 @@ fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_vm_replay(
         |context| {
             match world {
                 RuntimeWorld::Host => platform_vm::destack_gpu_command_begin_render_pipeline_statistics_query(runtime, context, renderpass, queryset, queryindex),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_command_begin_render_pipeline_statistics_query(runtime, context, renderpass, queryset, queryindex),
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_begin_render_pipeline_statistics_query(runtime, context, renderpass, queryset, queryindex),
             }
         },
         |context, result| {
@@ -29527,7 +29535,7 @@ fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_vm_replay(
         |context| {
             match world {
                 RuntimeWorld::Host => platform_vm::destack_gpu_command_end_compute_pipeline_statistics_query(runtime, context, computepass),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_command_end_compute_pipeline_statistics_query(runtime, context, computepass),
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_end_compute_pipeline_statistics_query(runtime, context, computepass),
             }
         },
         |context, result| {
@@ -29585,7 +29593,7 @@ fn destack_gpu_sync_command_end_occlusion_query_vm_replay(
                     runtime, context, renderpass,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_end_occlusion_query(
+                    platform_simulation_vm::destack_gpu_command_end_occlusion_query(
                         runtime, context, renderpass,
                     )
                 }
@@ -29630,53 +29638,47 @@ fn destack_gpu_sync_command_end_render_pipeline_statistics_query_vm_replay(
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
-            runtime.replay_payload_for(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_command_end_render_pipeline_statistics_query(
-                        runtime, context, renderpass,
-                    )
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_end_render_pipeline_statistics_query(
-                        runtime, context, renderpass,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuSyncCommandEndRenderPipelineStatisticsQueryReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_and_payload_policy(
+        GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
+        runtime.replay_payload_for(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?,
+        context,
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_gpu_command_end_render_pipeline_statistics_query(runtime, context, renderpass),
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_end_render_pipeline_statistics_query(runtime, context, renderpass),
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuSyncCommandEndRenderPipelineStatisticsQueryReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncCommandEndRenderPipelineStatisticsQueryReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncCommandEndRenderPipelineStatisticsQueryReplay {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_sync_command_end_render_pipeline_statistics_query_result(
         context, result,
     )?;
@@ -29713,7 +29715,7 @@ fn destack_gpu_sync_command_resolve_queries_vm_replay(
                     destinationoffset,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_resolve_queries(
+                    platform_simulation_vm::destack_gpu_command_resolve_queries(
                         runtime,
                         context,
                         commandlist,
@@ -29782,7 +29784,7 @@ fn destack_gpu_sync_command_write_timestamp_vm_replay(
                     queryindex,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_command_write_timestamp(
+                    platform_simulation_vm::destack_gpu_command_write_timestamp(
                         runtime,
                         context,
                         commandlist,
@@ -29842,7 +29844,7 @@ fn destack_gpu_sync_fence_create_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_gpu_fence_create(runtime, context, device, options)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_fence_create(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_fence_create(
                     runtime, context, device, options,
                 ),
             },
@@ -29901,7 +29903,7 @@ fn destack_gpu_sync_fence_destroy_vm_replay(
                     platform_vm::destack_gpu_fence_destroy(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_fence_destroy(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_fence_destroy(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -29955,7 +29957,7 @@ fn destack_gpu_sync_query_set_create_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_gpu_query_set_create(runtime, context, device, options)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_query_set_create(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_query_set_create(
                     runtime, context, device, options,
                 ),
             },
@@ -30014,7 +30016,7 @@ fn destack_gpu_sync_query_set_destroy_vm_replay(
                     platform_vm::destack_gpu_query_set_destroy(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_query_set_destroy(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_query_set_destroy(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -30068,7 +30070,7 @@ fn destack_gpu_sync_query_set_info_vm_replay(
                     platform_vm::destack_gpu_query_set_info(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_query_set_info(runtime, context, handle)
+                    platform_simulation_vm::destack_gpu_query_set_info(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -30146,7 +30148,7 @@ fn destack_gpu_sync_queue_signal_vm_replay(
                     fence,
                     argument_value,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_queue_signal(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_queue_signal(
                     runtime,
                     context,
                     queue,
@@ -30205,7 +30207,7 @@ fn destack_gpu_sync_queue_timestamp_period_vm_replay(
                     platform_vm::destack_gpu_queue_timestamp_period(runtime, context, queue)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_gpu_queue_timestamp_period(
+                    platform_simulation_vm::destack_gpu_queue_timestamp_period(
                         runtime, context, queue,
                     )
                 }
@@ -30272,7 +30274,7 @@ fn destack_gpu_sync_queue_wait_vm_replay(
                     argument_value,
                     timeoutns,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_queue_wait(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_queue_wait(
                     runtime,
                     context,
                     queue,
@@ -30332,7 +30334,7 @@ fn destack_gpu_sync_queue_work_done_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_gpu_queue_work_done(runtime, context, queue, timeoutns)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_queue_work_done(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_queue_work_done(
                     runtime, context, queue, timeoutns,
                 ),
             },
@@ -32520,7 +32522,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 runtime, context, surface, timeoutns,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_gpu_surface_acquire(
+                                platform_simulation_vm::destack_gpu_surface_acquire(
                                     runtime, context, surface, timeoutns,
                                 )
                             }
@@ -32553,7 +32555,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 runtime, context, surface, adapter,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_gpu_surface_capabilities(
+                                platform_simulation_vm::destack_gpu_surface_capabilities(
                                     runtime, context, surface, adapter,
                                 )
                             }
@@ -32584,7 +32586,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 platform_vm::destack_gpu_surface_close(runtime, context, surface)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_gpu_surface_close(
+                                platform_simulation_vm::destack_gpu_surface_close(
                                     runtime, context, surface,
                                 )
                             }
@@ -32617,7 +32619,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 runtime, context, device, surface, options,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_gpu_surface_configure(
+                                platform_simulation_vm::destack_gpu_surface_configure(
                                     runtime, context, device, surface, options,
                                 )
                             }
@@ -32648,7 +32650,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 platform_vm::destack_gpu_surface_open(runtime, context, window)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_gpu_surface_open(
+                                platform_simulation_vm::destack_gpu_surface_open(
                                     runtime, context, window,
                                 )
                             }
@@ -32680,7 +32682,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 runtime, context, surface, options,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_gpu_surface_present(
+                                platform_simulation_vm::destack_gpu_surface_present(
                                     runtime, context, surface, options,
                                 )
                             }
@@ -32713,7 +32715,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 runtime, context, surface,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_gpu_surface_unconfigure(
+                                platform_simulation_vm::destack_gpu_surface_unconfigure(
                                     runtime, context, surface,
                                 )
                             }

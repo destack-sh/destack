@@ -40,8 +40,8 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::net::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
+use crate::platform::net::simulation::{
+    native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::net::{native as platform_native, vm as platform_vm};
 use crate::platform::{
@@ -6934,7 +6934,7 @@ fn destack_net_address_local_address_replay(
                 platform_native::destack_net_local_address(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_local_address(context, out, handle)
+                platform_simulation_native::destack_net_local_address(context, out, handle)
             },
         },
         |result| {
@@ -7020,7 +7020,7 @@ fn destack_net_address_peer_address_replay(
                 platform_native::destack_net_peer_address(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_peer_address(context, out, handle)
+                platform_simulation_native::destack_net_peer_address(context, out, handle)
             },
         },
         |result| {
@@ -7106,7 +7106,7 @@ fn destack_net_interface_interface_index_replay(
                 platform_native::destack_net_interface_index(context, out, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_interface_index(context, out, name)
+                platform_simulation_native::destack_net_interface_index(context, out, name)
             },
         },
         |result| {
@@ -7167,7 +7167,7 @@ fn destack_net_interface_interface_name_replay(
                 platform_native::destack_net_interface_name(context, out, index)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_interface_name(context, out, index)
+                platform_simulation_native::destack_net_interface_name(context, out, index)
             },
         },
         |result| {
@@ -7222,7 +7222,7 @@ fn destack_net_interface_list_interfaces_replay(
         context.replay_payload_for(NET_INTERFACE_LIST_INTERFACES)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_net_list_interfaces(context, out) },
-            RuntimeWorld::Simulated => unsafe { platform_simulated_native::destack_net_list_interfaces(context, out) },
+            RuntimeWorld::Simulated => unsafe { platform_simulation_native::destack_net_list_interfaces(context, out) },
         },
         |result| {
             if let Ok(()) = result {
@@ -7365,7 +7365,7 @@ fn destack_net_listener_accept_replay(
                 platform_native::destack_net_accept(context, out, listener, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_accept(context, out, listener, flags)
+                platform_simulation_native::destack_net_accept(context, out, listener, flags)
             },
         },
         |result| {
@@ -7426,7 +7426,7 @@ fn destack_net_listener_bind_replay(
                 platform_native::destack_net_bind(context, handle, address)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_bind(context, handle, address)
+                platform_simulation_native::destack_net_bind(context, handle, address)
             },
         },
         |result| {
@@ -7474,7 +7474,7 @@ fn destack_net_listener_close_listener_replay(
                 platform_native::destack_net_close_listener(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_close_listener(context, handle)
+                platform_simulation_native::destack_net_close_listener(context, handle)
             },
         },
         |result| {
@@ -7524,7 +7524,7 @@ fn destack_net_listener_listen_replay(
                 platform_native::destack_net_listen(context, out, address, backlog)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_listen(context, out, address, backlog)
+                platform_simulation_native::destack_net_listen(context, out, address, backlog)
             },
         },
         |result| {
@@ -7585,7 +7585,7 @@ fn destack_net_options_get_broadcast_replay(
                 platform_native::destack_net_get_broadcast(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_broadcast(context, out, handle)
+                platform_simulation_native::destack_net_get_broadcast(context, out, handle)
             },
         },
         |result| {
@@ -7646,7 +7646,7 @@ fn destack_net_options_get_linger_replay(
                 platform_native::destack_net_get_linger(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_linger(context, out, handle)
+                platform_simulation_native::destack_net_get_linger(context, out, handle)
             },
         },
         |result| {
@@ -7717,7 +7717,7 @@ fn destack_net_options_get_only_v6_replay(
                 platform_native::destack_net_get_only_v6(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_only_v6(context, out, handle)
+                platform_simulation_native::destack_net_get_only_v6(context, out, handle)
             },
         },
         |result| {
@@ -7778,7 +7778,7 @@ fn destack_net_options_get_packet_mark_replay(
                 platform_native::destack_net_get_packet_mark(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_packet_mark(context, out, handle)
+                platform_simulation_native::destack_net_get_packet_mark(context, out, handle)
             },
         },
         |result| {
@@ -7839,7 +7839,7 @@ fn destack_net_options_get_read_timeout_replay(
                 platform_native::destack_net_get_read_timeout(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_read_timeout(context, out, handle)
+                platform_simulation_native::destack_net_get_read_timeout(context, out, handle)
             },
         },
         |result| {
@@ -7900,7 +7900,7 @@ fn destack_net_options_get_recv_buffer_replay(
                 platform_native::destack_net_get_recv_buffer(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_recv_buffer(context, out, handle)
+                platform_simulation_native::destack_net_get_recv_buffer(context, out, handle)
             },
         },
         |result| {
@@ -7961,7 +7961,7 @@ fn destack_net_options_get_send_buffer_replay(
                 platform_native::destack_net_get_send_buffer(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_send_buffer(context, out, handle)
+                platform_simulation_native::destack_net_get_send_buffer(context, out, handle)
             },
         },
         |result| {
@@ -8027,7 +8027,7 @@ fn destack_net_options_get_sock_opt_raw_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_sock_opt_raw(
+                platform_simulation_native::destack_net_get_sock_opt_raw(
                     context, out, handle, level, name, maxbytes,
                 )
             },
@@ -8101,7 +8101,7 @@ fn destack_net_options_get_timestamping_replay(
                 platform_native::destack_net_get_timestamping(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_timestamping(context, out, handle)
+                platform_simulation_native::destack_net_get_timestamping(context, out, handle)
             },
         },
         |result| {
@@ -8162,7 +8162,7 @@ fn destack_net_options_get_tos_replay(
                 platform_native::destack_net_get_tos(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_tos(context, out, handle)
+                platform_simulation_native::destack_net_get_tos(context, out, handle)
             },
         },
         |result| {
@@ -8223,7 +8223,7 @@ fn destack_net_options_get_ttl_replay(
                 platform_native::destack_net_get_ttl(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_ttl(context, out, handle)
+                platform_simulation_native::destack_net_get_ttl(context, out, handle)
             },
         },
         |result| {
@@ -8284,7 +8284,7 @@ fn destack_net_options_get_write_timeout_replay(
                 platform_native::destack_net_get_write_timeout(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_write_timeout(context, out, handle)
+                platform_simulation_native::destack_net_get_write_timeout(context, out, handle)
             },
         },
         |result| {
@@ -8345,7 +8345,7 @@ fn destack_net_options_set_broadcast_replay(
                 platform_native::destack_net_set_broadcast(context, handle, enabled)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_broadcast(context, handle, enabled)
+                platform_simulation_native::destack_net_set_broadcast(context, handle, enabled)
             },
         },
         |result| {
@@ -8394,7 +8394,7 @@ fn destack_net_options_set_linger_replay(
                 platform_native::destack_net_set_linger(context, handle, linger)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_linger(context, handle, linger)
+                platform_simulation_native::destack_net_set_linger(context, handle, linger)
             },
         },
         |result| {
@@ -8443,7 +8443,7 @@ fn destack_net_options_set_only_v6_replay(
                 platform_native::destack_net_set_only_v6(context, handle, enabled)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_only_v6(context, handle, enabled)
+                platform_simulation_native::destack_net_set_only_v6(context, handle, enabled)
             },
         },
         |result| {
@@ -8492,7 +8492,7 @@ fn destack_net_options_set_packet_mark_replay(
                 platform_native::destack_net_set_packet_mark(context, handle, mark)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_packet_mark(context, handle, mark)
+                platform_simulation_native::destack_net_set_packet_mark(context, handle, mark)
             },
         },
         |result| {
@@ -8541,7 +8541,7 @@ fn destack_net_options_set_read_timeout_replay(
                 platform_native::destack_net_set_read_timeout(context, handle, timeoutms)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_read_timeout(context, handle, timeoutms)
+                platform_simulation_native::destack_net_set_read_timeout(context, handle, timeoutms)
             },
         },
         |result| {
@@ -8590,7 +8590,7 @@ fn destack_net_options_set_recv_buffer_replay(
                 platform_native::destack_net_set_recv_buffer(context, handle, size)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_recv_buffer(context, handle, size)
+                platform_simulation_native::destack_net_set_recv_buffer(context, handle, size)
             },
         },
         |result| {
@@ -8639,7 +8639,7 @@ fn destack_net_options_set_send_buffer_replay(
                 platform_native::destack_net_set_send_buffer(context, handle, size)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_send_buffer(context, handle, size)
+                platform_simulation_native::destack_net_set_send_buffer(context, handle, size)
             },
         },
         |result| {
@@ -8696,7 +8696,7 @@ fn destack_net_options_set_sock_opt_raw_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_sock_opt_raw(
+                platform_simulation_native::destack_net_set_sock_opt_raw(
                     context,
                     handle,
                     level,
@@ -8751,7 +8751,7 @@ fn destack_net_options_set_timestamping_replay(
                 platform_native::destack_net_set_timestamping(context, handle, mode)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_timestamping(context, handle, mode)
+                platform_simulation_native::destack_net_set_timestamping(context, handle, mode)
             },
         },
         |result| {
@@ -8800,7 +8800,7 @@ fn destack_net_options_set_tos_replay(
                 platform_native::destack_net_set_tos(context, handle, tos)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_tos(context, handle, tos)
+                platform_simulation_native::destack_net_set_tos(context, handle, tos)
             },
         },
         |result| {
@@ -8849,7 +8849,7 @@ fn destack_net_options_set_ttl_replay(
                 platform_native::destack_net_set_ttl(context, handle, ttl)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_ttl(context, handle, ttl)
+                platform_simulation_native::destack_net_set_ttl(context, handle, ttl)
             },
         },
         |result| {
@@ -8898,7 +8898,9 @@ fn destack_net_options_set_write_timeout_replay(
                 platform_native::destack_net_set_write_timeout(context, handle, timeoutms)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_write_timeout(context, handle, timeoutms)
+                platform_simulation_native::destack_net_set_write_timeout(
+                    context, handle, timeoutms,
+                )
             },
         },
         |result| {
@@ -8946,7 +8948,7 @@ fn destack_net_raw_packet_clear_fanout_replay(
                 platform_native::destack_net_packet_clear_fanout(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_packet_clear_fanout(context, handle)
+                platform_simulation_native::destack_net_packet_clear_fanout(context, handle)
             },
         },
         |result| {
@@ -8994,7 +8996,7 @@ fn destack_net_raw_packet_clear_filter_replay(
                 platform_native::destack_net_packet_clear_filter(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_packet_clear_filter(context, handle)
+                platform_simulation_native::destack_net_packet_clear_filter(context, handle)
             },
         },
         |result| {
@@ -9042,7 +9044,7 @@ fn destack_net_raw_packet_clear_ring_replay(
                 platform_native::destack_net_packet_clear_ring(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_packet_clear_ring(context, handle)
+                platform_simulation_native::destack_net_packet_clear_ring(context, handle)
             },
         },
         |result| {
@@ -9091,7 +9093,7 @@ fn destack_net_raw_packet_open_replay(
                 platform_native::destack_net_packet_open(context, out, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_packet_open(context, out, options)
+                platform_simulation_native::destack_net_packet_open(context, out, options)
             },
         },
         |result| {
@@ -9153,7 +9155,7 @@ fn destack_net_raw_packet_receive_replay(
                 platform_native::destack_net_packet_receive(context, out, handle, argument_payload)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_packet_receive(
+                platform_simulation_native::destack_net_packet_receive(
                     context,
                     out,
                     handle,
@@ -9238,7 +9240,7 @@ fn destack_net_raw_packet_send_replay(
                 platform_native::destack_net_packet_send(context, out, handle, argument_payload)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_packet_send(
+                platform_simulation_native::destack_net_packet_send(
                     context,
                     out,
                     handle,
@@ -9304,7 +9306,7 @@ fn destack_net_raw_packet_set_fanout_replay(
                 platform_native::destack_net_packet_set_fanout(context, handle, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_packet_set_fanout(context, handle, options)
+                platform_simulation_native::destack_net_packet_set_fanout(context, handle, options)
             },
         },
         |result| {
@@ -9353,7 +9355,7 @@ fn destack_net_raw_packet_set_filter_replay(
                 platform_native::destack_net_packet_set_filter(context, handle, filterprogram)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_packet_set_filter(
+                platform_simulation_native::destack_net_packet_set_filter(
                     context,
                     handle,
                     filterprogram,
@@ -9406,7 +9408,7 @@ fn destack_net_raw_packet_set_rx_ring_replay(
                 platform_native::destack_net_packet_set_rx_ring(context, handle, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_packet_set_rx_ring(context, handle, options)
+                platform_simulation_native::destack_net_packet_set_rx_ring(context, handle, options)
             },
         },
         |result| {
@@ -9455,7 +9457,7 @@ fn destack_net_raw_packet_set_timestamp_mode_replay(
                 platform_native::destack_net_packet_set_timestamp_mode(context, handle, mode)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_packet_set_timestamp_mode(
+                platform_simulation_native::destack_net_packet_set_timestamp_mode(
                     context, handle, mode,
                 )
             },
@@ -9506,7 +9508,7 @@ fn destack_net_raw_packet_set_tx_ring_replay(
                 platform_native::destack_net_packet_set_tx_ring(context, handle, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_packet_set_tx_ring(context, handle, options)
+                platform_simulation_native::destack_net_packet_set_tx_ring(context, handle, options)
             },
         },
         |result| {
@@ -9555,7 +9557,7 @@ fn destack_net_raw_packet_stats_replay(
                 platform_native::destack_net_packet_stats(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_packet_stats(context, out, handle)
+                platform_simulation_native::destack_net_packet_stats(context, out, handle)
             },
         },
         |result| {
@@ -9631,7 +9633,7 @@ fn destack_net_raw_set_header_included_replay(
                 platform_native::destack_net_raw_set_header_included(context, handle, enabled)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_raw_set_header_included(
+                platform_simulation_native::destack_net_raw_set_header_included(
                     context, handle, enabled,
                 )
             },
@@ -9683,7 +9685,7 @@ fn destack_net_raw_socket_replay(
                 platform_native::destack_net_raw_socket(context, out, family, protocol)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_raw_socket(context, out, family, protocol)
+                platform_simulation_native::destack_net_raw_socket(context, out, family, protocol)
             },
         },
         |result| {
@@ -9744,7 +9746,7 @@ fn destack_net_resolve_lookup_replay(
                 platform_native::destack_net_resolve(context, out, query)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_resolve(context, out, query)
+                platform_simulation_native::destack_net_resolve(context, out, query)
             },
         },
         |result| {
@@ -9853,7 +9855,7 @@ fn destack_net_resolve_reverse_lookup_replay(
                 platform_native::destack_net_reverse_lookup(context, out, address, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_reverse_lookup(context, out, address, flags)
+                platform_simulation_native::destack_net_reverse_lookup(context, out, address, flags)
             },
         },
         |result| {
@@ -9939,7 +9941,7 @@ fn destack_net_reuse_get_reuse_addr_replay(
                 platform_native::destack_net_get_reuse_addr(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_reuse_addr(context, out, handle)
+                platform_simulation_native::destack_net_get_reuse_addr(context, out, handle)
             },
         },
         |result| {
@@ -10000,7 +10002,7 @@ fn destack_net_reuse_get_reuse_port_replay(
                 platform_native::destack_net_get_reuse_port(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_reuse_port(context, out, handle)
+                platform_simulation_native::destack_net_get_reuse_port(context, out, handle)
             },
         },
         |result| {
@@ -10061,7 +10063,7 @@ fn destack_net_reuse_set_reuse_addr_replay(
                 platform_native::destack_net_set_reuse_addr(context, handle, enabled)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_reuse_addr(context, handle, enabled)
+                platform_simulation_native::destack_net_set_reuse_addr(context, handle, enabled)
             },
         },
         |result| {
@@ -10110,7 +10112,7 @@ fn destack_net_reuse_set_reuse_port_replay(
                 platform_native::destack_net_set_reuse_port(context, handle, enabled)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_reuse_port(context, handle, enabled)
+                platform_simulation_native::destack_net_set_reuse_port(context, handle, enabled)
             },
         },
         |result| {
@@ -10156,7 +10158,7 @@ fn destack_net_route_route_add_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_net_route_add(context, route) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_route_add(context, route)
+                platform_simulation_native::destack_net_route_add(context, route)
             },
         },
         |result| {
@@ -10204,7 +10206,7 @@ fn destack_net_route_route_delete_replay(
                 platform_native::destack_net_route_delete(context, route)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_route_delete(context, route)
+                platform_simulation_native::destack_net_route_delete(context, route)
             },
         },
         |result| {
@@ -10253,7 +10255,7 @@ fn destack_net_route_route_list_replay(
                 platform_native::destack_net_route_list(context, out, family)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_route_list(context, out, family)
+                platform_simulation_native::destack_net_route_list(context, out, family)
             },
         },
         |result| {
@@ -10441,7 +10443,7 @@ fn destack_net_socket_close_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_net_close(context, handle) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_close(context, handle)
+                platform_simulation_native::destack_net_close(context, handle)
             },
         },
         |result| {
@@ -10490,7 +10492,7 @@ fn destack_net_socket_connect_replay(
                 platform_native::destack_net_connect(context, handle, address)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_connect(context, handle, address)
+                platform_simulation_native::destack_net_connect(context, handle, address)
             },
         },
         |result| {
@@ -10541,7 +10543,7 @@ fn destack_net_socket_open_replay(
                 platform_native::destack_net_socket(context, out, family, sockettype, protocol)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_socket(
+                platform_simulation_native::destack_net_socket(
                     context, out, family, sockettype, protocol,
                 )
             },
@@ -10606,7 +10608,7 @@ fn destack_net_socket_open_pair_replay(
                 platform_native::destack_net_socket_pair(context, out, family, sockettype, protocol)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_socket_pair(
+                platform_simulation_native::destack_net_socket_pair(
                     context, out, family, sockettype, protocol,
                 )
             },
@@ -10680,7 +10682,7 @@ fn destack_net_socket_read_replay(
                 platform_native::destack_net_read(context, out, handle, buffer)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_read(context, out, handle, buffer)
+                platform_simulation_native::destack_net_read(context, out, handle, buffer)
             },
         },
         |result| {
@@ -10742,7 +10744,7 @@ fn destack_net_socket_readv_replay(
                 platform_native::destack_net_readv(context, out, handle, buffers)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_readv(context, out, handle, buffers)
+                platform_simulation_native::destack_net_readv(context, out, handle, buffers)
             },
         },
         |result| {
@@ -10805,7 +10807,7 @@ fn destack_net_socket_recv_from_replay(
                 platform_native::destack_net_recv_from(context, out, handle, buffer, recvflags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_recv_from(
+                platform_simulation_native::destack_net_recv_from(
                     context, out, handle, buffer, recvflags,
                 )
             },
@@ -10933,7 +10935,7 @@ fn destack_net_socket_recv_mmsg_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_recv_mmsg(
+                platform_simulation_native::destack_net_recv_mmsg(
                     context,
                     out,
                     handle,
@@ -11194,7 +11196,7 @@ fn destack_net_socket_recv_msg_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_recv_msg(
+                platform_simulation_native::destack_net_recv_msg(
                     context,
                     out,
                     handle,
@@ -11384,7 +11386,7 @@ fn destack_net_socket_send_mmsg_replay(
                 platform_native::destack_net_send_mmsg(context, out, handle, messages)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_send_mmsg(context, out, handle, messages)
+                platform_simulation_native::destack_net_send_mmsg(context, out, handle, messages)
             },
         },
         |result| {
@@ -11447,7 +11449,7 @@ fn destack_net_socket_send_msg_replay(
                 platform_native::destack_net_send_msg(context, out, handle, buffer, message)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_send_msg(
+                platform_simulation_native::destack_net_send_msg(
                     context, out, handle, buffer, message,
                 )
             },
@@ -11512,7 +11514,7 @@ fn destack_net_socket_send_to_replay(
                 platform_native::destack_net_send_to(context, out, handle, buffer, message)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_send_to(
+                platform_simulation_native::destack_net_send_to(
                     context, out, handle, buffer, message,
                 )
             },
@@ -11575,7 +11577,7 @@ fn destack_net_socket_set_nonblocking_replay(
                 platform_native::destack_net_set_nonblocking(context, handle, enabled)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_nonblocking(context, handle, enabled)
+                platform_simulation_native::destack_net_set_nonblocking(context, handle, enabled)
             },
         },
         |result| {
@@ -11624,7 +11626,7 @@ fn destack_net_socket_shutdown_replay(
                 platform_native::destack_net_shutdown(context, handle, how)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_shutdown(context, handle, how)
+                platform_simulation_native::destack_net_shutdown(context, handle, how)
             },
         },
         |result| {
@@ -11674,7 +11676,7 @@ fn destack_net_socket_write_replay(
                 platform_native::destack_net_write(context, out, handle, buffer)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_write(context, out, handle, buffer)
+                platform_simulation_native::destack_net_write(context, out, handle, buffer)
             },
         },
         |result| {
@@ -11736,7 +11738,7 @@ fn destack_net_socket_writev_replay(
                 platform_native::destack_net_writev(context, out, handle, buffers)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_writev(context, out, handle, buffers)
+                platform_simulation_native::destack_net_writev(context, out, handle, buffers)
             },
         },
         |result| {
@@ -11797,7 +11799,7 @@ fn destack_net_tcp_get_keep_alive_replay(
                 platform_native::destack_net_get_keep_alive(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_keep_alive(context, out, handle)
+                platform_simulation_native::destack_net_get_keep_alive(context, out, handle)
             },
         },
         |result| {
@@ -11876,7 +11878,7 @@ fn destack_net_tcp_get_no_delay_replay(
                 platform_native::destack_net_get_no_delay(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_no_delay(context, out, handle)
+                platform_simulation_native::destack_net_get_no_delay(context, out, handle)
             },
         },
         |result| {
@@ -11937,7 +11939,7 @@ fn destack_net_tcp_set_keep_alive_replay(
                 platform_native::destack_net_set_keep_alive(context, handle, config)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_keep_alive(context, handle, config)
+                platform_simulation_native::destack_net_set_keep_alive(context, handle, config)
             },
         },
         |result| {
@@ -11986,7 +11988,7 @@ fn destack_net_tcp_set_no_delay_replay(
                 platform_native::destack_net_set_no_delay(context, handle, enabled)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_no_delay(context, handle, enabled)
+                platform_simulation_native::destack_net_set_no_delay(context, handle, enabled)
             },
         },
         |result| {
@@ -12035,7 +12037,7 @@ fn destack_net_udp_bind_replay(
                 platform_native::destack_net_udp_bind(context, handle, address)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_udp_bind(context, handle, address)
+                platform_simulation_native::destack_net_udp_bind(context, handle, address)
             },
         },
         |result| {
@@ -12084,7 +12086,7 @@ fn destack_net_udp_connect_replay(
                 platform_native::destack_net_udp_connect(context, handle, address)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_udp_connect(context, handle, address)
+                platform_simulation_native::destack_net_udp_connect(context, handle, address)
             },
         },
         |result| {
@@ -12133,7 +12135,7 @@ fn destack_net_udp_get_multicast_interface_v4_replay(
                 platform_native::destack_net_get_multicast_interface_v4(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_multicast_interface_v4(
+                platform_simulation_native::destack_net_get_multicast_interface_v4(
                     context, out, handle,
                 )
             },
@@ -12196,7 +12198,7 @@ fn destack_net_udp_get_multicast_interface_v6_replay(
                 platform_native::destack_net_get_multicast_interface_v6(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_multicast_interface_v6(
+                platform_simulation_native::destack_net_get_multicast_interface_v6(
                     context, out, handle,
                 )
             },
@@ -12259,7 +12261,7 @@ fn destack_net_udp_get_multicast_loop_replay(
                 platform_native::destack_net_get_multicast_loop(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_multicast_loop(context, out, handle)
+                platform_simulation_native::destack_net_get_multicast_loop(context, out, handle)
             },
         },
         |result| {
@@ -12320,7 +12322,7 @@ fn destack_net_udp_get_multicast_ttl_replay(
                 platform_native::destack_net_get_multicast_ttl(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_get_multicast_ttl(context, out, handle)
+                platform_simulation_native::destack_net_get_multicast_ttl(context, out, handle)
             },
         },
         |result| {
@@ -12381,7 +12383,7 @@ fn destack_net_udp_join_multicast_source_v4_replay(
                 platform_native::destack_net_join_multicast_source_v4(context, handle, membership)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_join_multicast_source_v4(
+                platform_simulation_native::destack_net_join_multicast_source_v4(
                     context, handle, membership,
                 )
             },
@@ -12432,7 +12434,7 @@ fn destack_net_udp_join_multicast_source_v6_replay(
                 platform_native::destack_net_join_multicast_source_v6(context, handle, membership)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_join_multicast_source_v6(
+                platform_simulation_native::destack_net_join_multicast_source_v6(
                     context, handle, membership,
                 )
             },
@@ -12489,7 +12491,7 @@ fn destack_net_udp_join_multicast_v4_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_join_multicast_v4(
+                platform_simulation_native::destack_net_join_multicast_v4(
                     context,
                     handle,
                     group,
@@ -12549,7 +12551,7 @@ fn destack_net_udp_join_multicast_v6_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_join_multicast_v6(
+                platform_simulation_native::destack_net_join_multicast_v6(
                     context,
                     handle,
                     group,
@@ -12603,7 +12605,7 @@ fn destack_net_udp_leave_multicast_source_v4_replay(
                 platform_native::destack_net_leave_multicast_source_v4(context, handle, membership)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_leave_multicast_source_v4(
+                platform_simulation_native::destack_net_leave_multicast_source_v4(
                     context, handle, membership,
                 )
             },
@@ -12654,7 +12656,7 @@ fn destack_net_udp_leave_multicast_source_v6_replay(
                 platform_native::destack_net_leave_multicast_source_v6(context, handle, membership)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_leave_multicast_source_v6(
+                platform_simulation_native::destack_net_leave_multicast_source_v6(
                     context, handle, membership,
                 )
             },
@@ -12711,7 +12713,7 @@ fn destack_net_udp_leave_multicast_v4_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_leave_multicast_v4(
+                platform_simulation_native::destack_net_leave_multicast_v4(
                     context,
                     handle,
                     group,
@@ -12771,7 +12773,7 @@ fn destack_net_udp_leave_multicast_v6_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_leave_multicast_v6(
+                platform_simulation_native::destack_net_leave_multicast_v6(
                     context,
                     handle,
                     group,
@@ -12827,7 +12829,7 @@ fn destack_net_udp_recv_from_replay(
                 platform_native::destack_net_udp_recv_from(context, out, handle, buffer, recvflags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_udp_recv_from(
+                platform_simulation_native::destack_net_udp_recv_from(
                     context, out, handle, buffer, recvflags,
                 )
             },
@@ -12942,7 +12944,7 @@ fn destack_net_udp_send_to_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_udp_send_to(
+                platform_simulation_native::destack_net_udp_send_to(
                     context, out, handle, address, buffer, sendflags,
                 )
             },
@@ -13009,7 +13011,7 @@ fn destack_net_udp_set_multicast_interface_v4_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_multicast_interface_v4(
+                platform_simulation_native::destack_net_set_multicast_interface_v4(
                     context,
                     handle,
                     interfaceaddress,
@@ -13066,7 +13068,7 @@ fn destack_net_udp_set_multicast_interface_v6_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_multicast_interface_v6(
+                platform_simulation_native::destack_net_set_multicast_interface_v6(
                     context,
                     handle,
                     interfaceindex,
@@ -13119,7 +13121,7 @@ fn destack_net_udp_set_multicast_loop_replay(
                 platform_native::destack_net_set_multicast_loop(context, handle, enabled)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_multicast_loop(context, handle, enabled)
+                platform_simulation_native::destack_net_set_multicast_loop(context, handle, enabled)
             },
         },
         |result| {
@@ -13168,7 +13170,7 @@ fn destack_net_udp_set_multicast_ttl_replay(
                 platform_native::destack_net_set_multicast_ttl(context, handle, ttl)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_set_multicast_ttl(context, handle, ttl)
+                platform_simulation_native::destack_net_set_multicast_ttl(context, handle, ttl)
             },
         },
         |result| {
@@ -13217,7 +13219,7 @@ fn destack_net_udp_socket_replay(
                 platform_native::destack_net_udp_socket(context, out, family)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_udp_socket(context, out, family)
+                platform_simulation_native::destack_net_udp_socket(context, out, family)
             },
         },
         |result| {
@@ -13278,7 +13280,7 @@ fn destack_net_uds_uds_accept_replay(
                 platform_native::destack_net_uds_accept(context, out, listener)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_uds_accept(context, out, listener)
+                platform_simulation_native::destack_net_uds_accept(context, out, listener)
             },
         },
         |result| {
@@ -13338,7 +13340,7 @@ fn destack_net_uds_uds_close_listener_replay(
                 platform_native::destack_net_uds_close_listener(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_uds_close_listener(context, handle)
+                platform_simulation_native::destack_net_uds_close_listener(context, handle)
             },
         },
         |result| {
@@ -13387,7 +13389,7 @@ fn destack_net_uds_uds_connect_replay(
                 platform_native::destack_net_uds_connect(context, out, address)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_uds_connect(context, out, address)
+                platform_simulation_native::destack_net_uds_connect(context, out, address)
             },
         },
         |result| {
@@ -13449,7 +13451,7 @@ fn destack_net_uds_uds_listen_replay(
                 platform_native::destack_net_uds_listen(context, out, address, backlog)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_uds_listen(context, out, address, backlog)
+                platform_simulation_native::destack_net_uds_listen(context, out, address, backlog)
             },
         },
         |result| {
@@ -13510,7 +13512,7 @@ fn destack_net_uds_uds_socket_pair_replay(
                 platform_native::destack_net_uds_socket_pair(context, out, sockettype)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_uds_socket_pair(context, out, sockettype)
+                platform_simulation_native::destack_net_uds_socket_pair(context, out, sockettype)
             },
         },
         |result| {
@@ -15247,7 +15249,7 @@ fn destack_net_address_local_address_vm_replay(
                     platform_vm::destack_net_local_address(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_local_address(runtime, context, handle)
+                    platform_simulation_vm::destack_net_local_address(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -15319,7 +15321,7 @@ fn destack_net_address_peer_address_vm_replay(
                     platform_vm::destack_net_peer_address(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_peer_address(runtime, context, handle)
+                    platform_simulation_vm::destack_net_peer_address(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -15391,7 +15393,7 @@ fn destack_net_interface_interface_index_vm_replay(
                     platform_vm::destack_net_interface_index(runtime, context, name)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_interface_index(runtime, context, name)
+                    platform_simulation_vm::destack_net_interface_index(runtime, context, name)
                 }
             },
             |context, result| {
@@ -15449,7 +15451,7 @@ fn destack_net_interface_interface_name_vm_replay(
                     platform_vm::destack_net_interface_name(runtime, context, index)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_interface_name(runtime, context, index)
+                    platform_simulation_vm::destack_net_interface_name(runtime, context, index)
                 }
             },
             |context, result| {
@@ -15508,7 +15510,7 @@ fn destack_net_interface_list_interfaces_vm_replay(
         |context| {
             match world {
                 RuntimeWorld::Host => platform_vm::destack_net_list_interfaces(runtime, context),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_list_interfaces(runtime, context),
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_list_interfaces(runtime, context),
             }
         },
         |context, result| {
@@ -15672,7 +15674,7 @@ fn destack_net_listener_accept_vm_replay(
                     platform_vm::destack_net_accept(runtime, context, listener, flags)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_accept(runtime, context, listener, flags)
+                    platform_simulation_vm::destack_net_accept(runtime, context, listener, flags)
                 }
             },
             |context, result| {
@@ -15731,7 +15733,7 @@ fn destack_net_listener_bind_vm_replay(
                     platform_vm::destack_net_bind(runtime, context, handle, address)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_bind(runtime, context, handle, address)
+                    platform_simulation_vm::destack_net_bind(runtime, context, handle, address)
                 }
             },
             |context, result| {
@@ -15785,7 +15787,7 @@ fn destack_net_listener_close_listener_vm_replay(
                     platform_vm::destack_net_close_listener(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_close_listener(runtime, context, handle)
+                    platform_simulation_vm::destack_net_close_listener(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -15840,7 +15842,7 @@ fn destack_net_listener_listen_vm_replay(
                     platform_vm::destack_net_listen(runtime, context, address, backlog)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_listen(runtime, context, address, backlog)
+                    platform_simulation_vm::destack_net_listen(runtime, context, address, backlog)
                 }
             },
             |context, result| {
@@ -15898,7 +15900,7 @@ fn destack_net_options_get_broadcast_vm_replay(
                     platform_vm::destack_net_get_broadcast(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_broadcast(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_broadcast(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -15954,7 +15956,7 @@ fn destack_net_options_get_linger_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_net_get_linger(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_linger(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_linger(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -16022,7 +16024,7 @@ fn destack_net_options_get_only_v6_vm_replay(
                     platform_vm::destack_net_get_only_v6(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_only_v6(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_only_v6(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -16080,7 +16082,7 @@ fn destack_net_options_get_packet_mark_vm_replay(
                     platform_vm::destack_net_get_packet_mark(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_packet_mark(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_packet_mark(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -16138,7 +16140,7 @@ fn destack_net_options_get_read_timeout_vm_replay(
                     platform_vm::destack_net_get_read_timeout(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_read_timeout(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_read_timeout(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -16196,7 +16198,7 @@ fn destack_net_options_get_recv_buffer_vm_replay(
                     platform_vm::destack_net_get_recv_buffer(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_recv_buffer(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_recv_buffer(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -16254,7 +16256,7 @@ fn destack_net_options_get_send_buffer_vm_replay(
                     platform_vm::destack_net_get_send_buffer(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_send_buffer(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_send_buffer(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -16314,7 +16316,7 @@ fn destack_net_options_get_sock_opt_raw_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_net_get_sock_opt_raw(
                     runtime, context, handle, level, name, maxbytes,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_get_sock_opt_raw(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_get_sock_opt_raw(
                     runtime, context, handle, level, name, maxbytes,
                 ),
             },
@@ -16373,7 +16375,7 @@ fn destack_net_options_get_timestamping_vm_replay(
                     platform_vm::destack_net_get_timestamping(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_timestamping(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_timestamping(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -16429,7 +16431,7 @@ fn destack_net_options_get_tos_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_net_get_tos(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_tos(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_tos(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -16485,7 +16487,7 @@ fn destack_net_options_get_ttl_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_net_get_ttl(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_ttl(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_ttl(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -16543,7 +16545,7 @@ fn destack_net_options_get_write_timeout_vm_replay(
                     platform_vm::destack_net_get_write_timeout(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_write_timeout(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_write_timeout(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -16601,7 +16603,7 @@ fn destack_net_options_set_broadcast_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_set_broadcast(runtime, context, handle, enabled)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_broadcast(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_broadcast(
                     runtime, context, handle, enabled,
                 ),
             },
@@ -16657,7 +16659,7 @@ fn destack_net_options_set_linger_vm_replay(
                     platform_vm::destack_net_set_linger(runtime, context, handle, linger)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_set_linger(runtime, context, handle, linger)
+                    platform_simulation_vm::destack_net_set_linger(runtime, context, handle, linger)
                 }
             },
             |context, result| {
@@ -16711,7 +16713,7 @@ fn destack_net_options_set_only_v6_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_set_only_v6(runtime, context, handle, enabled)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_only_v6(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_only_v6(
                     runtime, context, handle, enabled,
                 ),
             },
@@ -16766,7 +16768,7 @@ fn destack_net_options_set_packet_mark_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_set_packet_mark(runtime, context, handle, mark)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_packet_mark(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_packet_mark(
                     runtime, context, handle, mark,
                 ),
             },
@@ -16821,7 +16823,7 @@ fn destack_net_options_set_read_timeout_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_set_read_timeout(runtime, context, handle, timeoutms)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_read_timeout(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_read_timeout(
                     runtime, context, handle, timeoutms,
                 ),
             },
@@ -16876,7 +16878,7 @@ fn destack_net_options_set_recv_buffer_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_set_recv_buffer(runtime, context, handle, size)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_recv_buffer(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_recv_buffer(
                     runtime, context, handle, size,
                 ),
             },
@@ -16931,7 +16933,7 @@ fn destack_net_options_set_send_buffer_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_set_send_buffer(runtime, context, handle, size)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_send_buffer(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_send_buffer(
                     runtime, context, handle, size,
                 ),
             },
@@ -16993,7 +16995,7 @@ fn destack_net_options_set_sock_opt_raw_vm_replay(
                     name,
                     argument_value,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_sock_opt_raw(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_sock_opt_raw(
                     runtime,
                     context,
                     handle,
@@ -17053,7 +17055,7 @@ fn destack_net_options_set_timestamping_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_set_timestamping(runtime, context, handle, mode)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_timestamping(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_timestamping(
                     runtime, context, handle, mode,
                 ),
             },
@@ -17109,7 +17111,7 @@ fn destack_net_options_set_tos_vm_replay(
                     platform_vm::destack_net_set_tos(runtime, context, handle, tos)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_set_tos(runtime, context, handle, tos)
+                    platform_simulation_vm::destack_net_set_tos(runtime, context, handle, tos)
                 }
             },
             |context, result| {
@@ -17164,7 +17166,7 @@ fn destack_net_options_set_ttl_vm_replay(
                     platform_vm::destack_net_set_ttl(runtime, context, handle, ttl)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_set_ttl(runtime, context, handle, ttl)
+                    platform_simulation_vm::destack_net_set_ttl(runtime, context, handle, ttl)
                 }
             },
             |context, result| {
@@ -17218,7 +17220,7 @@ fn destack_net_options_set_write_timeout_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_set_write_timeout(runtime, context, handle, timeoutms)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_write_timeout(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_write_timeout(
                     runtime, context, handle, timeoutms,
                 ),
             },
@@ -17272,9 +17274,9 @@ fn destack_net_raw_packet_clear_fanout_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_packet_clear_fanout(runtime, context, handle)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_packet_clear_fanout(runtime, context, handle)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_packet_clear_fanout(
+                    runtime, context, handle,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -17326,9 +17328,9 @@ fn destack_net_raw_packet_clear_filter_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_packet_clear_filter(runtime, context, handle)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_packet_clear_filter(runtime, context, handle)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_packet_clear_filter(
+                    runtime, context, handle,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -17381,7 +17383,7 @@ fn destack_net_raw_packet_clear_ring_vm_replay(
                     platform_vm::destack_net_packet_clear_ring(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_packet_clear_ring(runtime, context, handle)
+                    platform_simulation_vm::destack_net_packet_clear_ring(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -17435,7 +17437,7 @@ fn destack_net_raw_packet_open_vm_replay(
                     platform_vm::destack_net_packet_open(runtime, context, options)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_packet_open(runtime, context, options)
+                    platform_simulation_vm::destack_net_packet_open(runtime, context, options)
                 }
             },
             |context, result| {
@@ -17496,7 +17498,7 @@ fn destack_net_raw_packet_receive_vm_replay(
                     handle,
                     argument_payload,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_packet_receive(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_packet_receive(
                     runtime,
                     context,
                     handle,
@@ -17576,7 +17578,7 @@ fn destack_net_raw_packet_send_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_packet_send(runtime, context, handle, argument_payload)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_packet_send(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_packet_send(
                     runtime,
                     context,
                     handle,
@@ -17638,7 +17640,7 @@ fn destack_net_raw_packet_set_fanout_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_packet_set_fanout(runtime, context, handle, options)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_packet_set_fanout(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_packet_set_fanout(
                     runtime, context, handle, options,
                 ),
             },
@@ -17696,7 +17698,7 @@ fn destack_net_raw_packet_set_filter_vm_replay(
                     handle,
                     filterprogram,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_packet_set_filter(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_packet_set_filter(
                     runtime,
                     context,
                     handle,
@@ -17754,7 +17756,7 @@ fn destack_net_raw_packet_set_rx_ring_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_packet_set_rx_ring(runtime, context, handle, options)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_packet_set_rx_ring(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_packet_set_rx_ring(
                     runtime, context, handle, options,
                 ),
             },
@@ -17810,7 +17812,7 @@ fn destack_net_raw_packet_set_timestamp_mode_vm_replay(
                     runtime, context, handle, mode,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_packet_set_timestamp_mode(
+                    platform_simulation_vm::destack_net_packet_set_timestamp_mode(
                         runtime, context, handle, mode,
                     )
                 }
@@ -17866,7 +17868,7 @@ fn destack_net_raw_packet_set_tx_ring_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_packet_set_tx_ring(runtime, context, handle, options)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_packet_set_tx_ring(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_packet_set_tx_ring(
                     runtime, context, handle, options,
                 ),
             },
@@ -17921,7 +17923,7 @@ fn destack_net_raw_packet_stats_vm_replay(
                     platform_vm::destack_net_packet_stats(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_packet_stats(runtime, context, handle)
+                    platform_simulation_vm::destack_net_packet_stats(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -17995,7 +17997,7 @@ fn destack_net_raw_set_header_included_vm_replay(
                     runtime, context, handle, enabled,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_raw_set_header_included(
+                    platform_simulation_vm::destack_net_raw_set_header_included(
                         runtime, context, handle, enabled,
                     )
                 }
@@ -18051,7 +18053,7 @@ fn destack_net_raw_socket_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_raw_socket(runtime, context, family, protocol)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_raw_socket(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_raw_socket(
                     runtime, context, family, protocol,
                 ),
             },
@@ -18108,7 +18110,7 @@ fn destack_net_resolve_lookup_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_net_resolve(runtime, context, query),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_resolve(runtime, context, query)
+                    platform_simulation_vm::destack_net_resolve(runtime, context, query)
                 }
             },
             |context, result| {
@@ -18245,7 +18247,7 @@ fn destack_net_resolve_reverse_lookup_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_reverse_lookup(runtime, context, address, flags)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_reverse_lookup(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_reverse_lookup(
                     runtime, context, address, flags,
                 ),
             },
@@ -18385,7 +18387,7 @@ fn destack_net_reuse_get_reuse_addr_vm_replay(
                     platform_vm::destack_net_get_reuse_addr(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_reuse_addr(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_reuse_addr(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -18443,7 +18445,7 @@ fn destack_net_reuse_get_reuse_port_vm_replay(
                     platform_vm::destack_net_get_reuse_port(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_reuse_port(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_reuse_port(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -18501,7 +18503,7 @@ fn destack_net_reuse_set_reuse_addr_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_set_reuse_addr(runtime, context, handle, enabled)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_reuse_addr(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_reuse_addr(
                     runtime, context, handle, enabled,
                 ),
             },
@@ -18556,7 +18558,7 @@ fn destack_net_reuse_set_reuse_port_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_set_reuse_port(runtime, context, handle, enabled)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_reuse_port(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_reuse_port(
                     runtime, context, handle, enabled,
                 ),
             },
@@ -18609,7 +18611,7 @@ fn destack_net_route_route_add_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_net_route_add(runtime, context, route),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_route_add(runtime, context, route)
+                    platform_simulation_vm::destack_net_route_add(runtime, context, route)
                 }
             },
             |context, result| {
@@ -18663,7 +18665,7 @@ fn destack_net_route_route_delete_vm_replay(
                     platform_vm::destack_net_route_delete(runtime, context, route)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_route_delete(runtime, context, route)
+                    platform_simulation_vm::destack_net_route_delete(runtime, context, route)
                 }
             },
             |context, result| {
@@ -18715,7 +18717,7 @@ fn destack_net_route_route_list_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_net_route_list(runtime, context, family),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_route_list(runtime, context, family)
+                    platform_simulation_vm::destack_net_route_list(runtime, context, family)
                 }
             },
             |context, result| {
@@ -19076,7 +19078,7 @@ fn destack_net_socket_close_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_net_close(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_close(runtime, context, handle)
+                    platform_simulation_vm::destack_net_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -19131,7 +19133,7 @@ fn destack_net_socket_connect_vm_replay(
                     platform_vm::destack_net_connect(runtime, context, handle, address)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_connect(runtime, context, handle, address)
+                    platform_simulation_vm::destack_net_connect(runtime, context, handle, address)
                 }
             },
             |context, result| {
@@ -19186,7 +19188,7 @@ fn destack_net_socket_open_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_socket(runtime, context, family, sockettype, protocol)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_socket(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_socket(
                     runtime, context, family, sockettype, protocol,
                 ),
             },
@@ -19246,7 +19248,7 @@ fn destack_net_socket_open_pair_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_net_socket_pair(
                     runtime, context, family, sockettype, protocol,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_socket_pair(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_socket_pair(
                     runtime, context, family, sockettype, protocol,
                 ),
             },
@@ -19316,7 +19318,7 @@ fn destack_net_socket_read_vm_replay(
                     platform_vm::destack_net_read(runtime, context, handle, buffer)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_read(runtime, context, handle, buffer)
+                    platform_simulation_vm::destack_net_read(runtime, context, handle, buffer)
                 }
             },
             |context, result| {
@@ -19375,7 +19377,7 @@ fn destack_net_socket_readv_vm_replay(
                     platform_vm::destack_net_readv(runtime, context, handle, buffers)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_readv(runtime, context, handle, buffers)
+                    platform_simulation_vm::destack_net_readv(runtime, context, handle, buffers)
                 }
             },
             |context, result| {
@@ -19434,7 +19436,7 @@ fn destack_net_socket_recv_from_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_recv_from(runtime, context, handle, buffer, recvflags)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_recv_from(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_recv_from(
                     runtime, context, handle, buffer, recvflags,
                 ),
             },
@@ -19532,7 +19534,7 @@ fn destack_net_socket_recv_mmsg_vm_replay(
                     wantcredentials,
                     maxcontrolbytes,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_recv_mmsg(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_recv_mmsg(
                     runtime,
                     context,
                     handle,
@@ -19969,7 +19971,7 @@ fn destack_net_socket_recv_msg_vm_replay(
                     wantcredentials,
                     maxcontrolbytes,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_recv_msg(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_recv_msg(
                     runtime,
                     context,
                     handle,
@@ -20133,9 +20135,9 @@ fn destack_net_socket_send_mmsg_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_send_mmsg(runtime, context, handle, messages)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_send_mmsg(runtime, context, handle, messages)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_send_mmsg(
+                    runtime, context, handle, messages,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -20193,7 +20195,7 @@ fn destack_net_socket_send_msg_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_send_msg(runtime, context, handle, buffer, message)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_send_msg(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_send_msg(
                     runtime, context, handle, buffer, message,
                 ),
             },
@@ -20253,7 +20255,7 @@ fn destack_net_socket_send_to_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_send_to(runtime, context, handle, buffer, message)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_send_to(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_send_to(
                     runtime, context, handle, buffer, message,
                 ),
             },
@@ -20312,7 +20314,7 @@ fn destack_net_socket_set_nonblocking_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_set_nonblocking(runtime, context, handle, enabled)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_nonblocking(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_nonblocking(
                     runtime, context, handle, enabled,
                 ),
             },
@@ -20368,7 +20370,7 @@ fn destack_net_socket_shutdown_vm_replay(
                     platform_vm::destack_net_shutdown(runtime, context, handle, how)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_shutdown(runtime, context, handle, how)
+                    platform_simulation_vm::destack_net_shutdown(runtime, context, handle, how)
                 }
             },
             |context, result| {
@@ -20423,7 +20425,7 @@ fn destack_net_socket_write_vm_replay(
                     platform_vm::destack_net_write(runtime, context, handle, buffer)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_write(runtime, context, handle, buffer)
+                    platform_simulation_vm::destack_net_write(runtime, context, handle, buffer)
                 }
             },
             |context, result| {
@@ -20482,7 +20484,7 @@ fn destack_net_socket_writev_vm_replay(
                     platform_vm::destack_net_writev(runtime, context, handle, buffers)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_writev(runtime, context, handle, buffers)
+                    platform_simulation_vm::destack_net_writev(runtime, context, handle, buffers)
                 }
             },
             |context, result| {
@@ -20540,7 +20542,7 @@ fn destack_net_tcp_get_keep_alive_vm_replay(
                     platform_vm::destack_net_get_keep_alive(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_keep_alive(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_keep_alive(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -20616,7 +20618,7 @@ fn destack_net_tcp_get_no_delay_vm_replay(
                     platform_vm::destack_net_get_no_delay(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_no_delay(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_no_delay(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -20674,7 +20676,7 @@ fn destack_net_tcp_set_keep_alive_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_set_keep_alive(runtime, context, handle, config)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_keep_alive(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_keep_alive(
                     runtime, context, handle, config,
                 ),
             },
@@ -20729,7 +20731,7 @@ fn destack_net_tcp_set_no_delay_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_set_no_delay(runtime, context, handle, enabled)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_no_delay(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_no_delay(
                     runtime, context, handle, enabled,
                 ),
             },
@@ -20785,7 +20787,7 @@ fn destack_net_udp_bind_vm_replay(
                     platform_vm::destack_net_udp_bind(runtime, context, handle, address)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_udp_bind(runtime, context, handle, address)
+                    platform_simulation_vm::destack_net_udp_bind(runtime, context, handle, address)
                 }
             },
             |context, result| {
@@ -20839,7 +20841,7 @@ fn destack_net_udp_connect_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_udp_connect(runtime, context, handle, address)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_udp_connect(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_udp_connect(
                     runtime, context, handle, address,
                 ),
             },
@@ -20894,7 +20896,7 @@ fn destack_net_udp_get_multicast_interface_v4_vm_replay(
                     platform_vm::destack_net_get_multicast_interface_v4(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_multicast_interface_v4(
+                    platform_simulation_vm::destack_net_get_multicast_interface_v4(
                         runtime, context, handle,
                     )
                 }
@@ -20960,7 +20962,7 @@ fn destack_net_udp_get_multicast_interface_v6_vm_replay(
                     platform_vm::destack_net_get_multicast_interface_v6(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_multicast_interface_v6(
+                    platform_simulation_vm::destack_net_get_multicast_interface_v6(
                         runtime, context, handle,
                     )
                 }
@@ -21020,7 +21022,7 @@ fn destack_net_udp_get_multicast_loop_vm_replay(
                     platform_vm::destack_net_get_multicast_loop(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_multicast_loop(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_multicast_loop(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -21078,7 +21080,7 @@ fn destack_net_udp_get_multicast_ttl_vm_replay(
                     platform_vm::destack_net_get_multicast_ttl(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_get_multicast_ttl(runtime, context, handle)
+                    platform_simulation_vm::destack_net_get_multicast_ttl(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -21137,7 +21139,7 @@ fn destack_net_udp_join_multicast_source_v4_vm_replay(
                     runtime, context, handle, membership,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_join_multicast_source_v4(
+                    platform_simulation_vm::destack_net_join_multicast_source_v4(
                         runtime, context, handle, membership,
                     )
                 }
@@ -21194,7 +21196,7 @@ fn destack_net_udp_join_multicast_source_v6_vm_replay(
                     runtime, context, handle, membership,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_join_multicast_source_v6(
+                    platform_simulation_vm::destack_net_join_multicast_source_v6(
                         runtime, context, handle, membership,
                     )
                 }
@@ -21255,7 +21257,7 @@ fn destack_net_udp_join_multicast_v4_vm_replay(
                     group,
                     interfaceaddress,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_join_multicast_v4(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_join_multicast_v4(
                     runtime,
                     context,
                     handle,
@@ -21319,7 +21321,7 @@ fn destack_net_udp_join_multicast_v6_vm_replay(
                     group,
                     interfaceindex,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_join_multicast_v6(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_join_multicast_v6(
                     runtime,
                     context,
                     handle,
@@ -21379,7 +21381,7 @@ fn destack_net_udp_leave_multicast_source_v4_vm_replay(
                     runtime, context, handle, membership,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_leave_multicast_source_v4(
+                    platform_simulation_vm::destack_net_leave_multicast_source_v4(
                         runtime, context, handle, membership,
                     )
                 }
@@ -21436,7 +21438,7 @@ fn destack_net_udp_leave_multicast_source_v6_vm_replay(
                     runtime, context, handle, membership,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_leave_multicast_source_v6(
+                    platform_simulation_vm::destack_net_leave_multicast_source_v6(
                         runtime, context, handle, membership,
                     )
                 }
@@ -21497,7 +21499,7 @@ fn destack_net_udp_leave_multicast_v4_vm_replay(
                     group,
                     interfaceaddress,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_leave_multicast_v4(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_leave_multicast_v4(
                     runtime,
                     context,
                     handle,
@@ -21561,7 +21563,7 @@ fn destack_net_udp_leave_multicast_v6_vm_replay(
                     group,
                     interfaceindex,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_leave_multicast_v6(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_leave_multicast_v6(
                     runtime,
                     context,
                     handle,
@@ -21621,7 +21623,7 @@ fn destack_net_udp_recv_from_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_net_udp_recv_from(
                     runtime, context, handle, buffer, recvflags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_udp_recv_from(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_udp_recv_from(
                     runtime, context, handle, buffer, recvflags,
                 ),
             },
@@ -21712,7 +21714,7 @@ fn destack_net_udp_send_to_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_net_udp_send_to(
                     runtime, context, handle, address, buffer, sendflags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_udp_send_to(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_udp_send_to(
                     runtime, context, handle, address, buffer, sendflags,
                 ),
             },
@@ -21775,7 +21777,7 @@ fn destack_net_udp_set_multicast_interface_v4_vm_replay(
                     interfaceaddress,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_set_multicast_interface_v4(
+                    platform_simulation_vm::destack_net_set_multicast_interface_v4(
                         runtime,
                         context,
                         handle,
@@ -21838,7 +21840,7 @@ fn destack_net_udp_set_multicast_interface_v6_vm_replay(
                     interfaceindex,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_set_multicast_interface_v6(
+                    platform_simulation_vm::destack_net_set_multicast_interface_v6(
                         runtime,
                         context,
                         handle,
@@ -21897,7 +21899,7 @@ fn destack_net_udp_set_multicast_loop_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_set_multicast_loop(runtime, context, handle, enabled)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_multicast_loop(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_multicast_loop(
                     runtime, context, handle, enabled,
                 ),
             },
@@ -21952,7 +21954,7 @@ fn destack_net_udp_set_multicast_ttl_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_set_multicast_ttl(runtime, context, handle, ttl)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_multicast_ttl(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_set_multicast_ttl(
                     runtime, context, handle, ttl,
                 ),
             },
@@ -22005,7 +22007,7 @@ fn destack_net_udp_socket_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_net_udp_socket(runtime, context, family),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_udp_socket(runtime, context, family)
+                    platform_simulation_vm::destack_net_udp_socket(runtime, context, family)
                 }
             },
             |context, result| {
@@ -22063,7 +22065,7 @@ fn destack_net_uds_uds_accept_vm_replay(
                     platform_vm::destack_net_uds_accept(runtime, context, listener)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_uds_accept(runtime, context, listener)
+                    platform_simulation_vm::destack_net_uds_accept(runtime, context, listener)
                 }
             },
             |context, result| {
@@ -22121,7 +22123,7 @@ fn destack_net_uds_uds_close_listener_vm_replay(
                     platform_vm::destack_net_uds_close_listener(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_uds_close_listener(runtime, context, handle)
+                    platform_simulation_vm::destack_net_uds_close_listener(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -22175,7 +22177,7 @@ fn destack_net_uds_uds_connect_vm_replay(
                     platform_vm::destack_net_uds_connect(runtime, context, address)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_uds_connect(runtime, context, address)
+                    platform_simulation_vm::destack_net_uds_connect(runtime, context, address)
                 }
             },
             |context, result| {
@@ -22233,7 +22235,7 @@ fn destack_net_uds_uds_listen_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_uds_listen(runtime, context, address, backlog)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_net_uds_listen(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_uds_listen(
                     runtime, context, address, backlog,
                 ),
             },
@@ -22291,9 +22293,9 @@ fn destack_net_uds_uds_socket_pair_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_net_uds_socket_pair(runtime, context, sockettype)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_net_uds_socket_pair(runtime, context, sockettype)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_net_uds_socket_pair(
+                    runtime, context, sockettype,
+                ),
             },
             |context, result| {
                 let _ = &context;

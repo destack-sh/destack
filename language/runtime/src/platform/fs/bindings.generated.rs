@@ -33,8 +33,8 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::fs::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
+use crate::platform::fs::simulation::{
+    native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::fs::{native as platform_native, vm as platform_vm};
 use crate::platform::{fs as platform_fs, resource as platform_resource, resource};
@@ -9583,7 +9583,7 @@ fn destack_fs_attrs_access_replay(
                 platform_native::destack_fs_access(context, path, mode)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_access(context, path, mode)
+                platform_simulation_native::destack_fs_access(context, path, mode)
             },
         },
         |result| {
@@ -9634,7 +9634,7 @@ fn destack_fs_attrs_accessat_replay(
                 platform_native::destack_fs_accessat(context, dir, path, mode, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_accessat(context, dir, path, mode, flags)
+                platform_simulation_native::destack_fs_accessat(context, dir, path, mode, flags)
             },
         },
         |result| {
@@ -9681,7 +9681,7 @@ fn destack_fs_attrs_chmod_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_chmod(context, path, mode) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_chmod(context, path, mode)
+                platform_simulation_native::destack_fs_chmod(context, path, mode)
             },
         },
         |result| {
@@ -9731,7 +9731,7 @@ fn destack_fs_attrs_chown_replay(
                 platform_native::destack_fs_chown(context, path, uid, gid)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_chown(context, path, uid, gid)
+                platform_simulation_native::destack_fs_chown(context, path, uid, gid)
             },
         },
         |result| {
@@ -9780,7 +9780,7 @@ fn destack_fs_attrs_fchmod_replay(
                 platform_native::destack_fs_fchmod(context, handle, mode)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fchmod(context, handle, mode)
+                platform_simulation_native::destack_fs_fchmod(context, handle, mode)
             },
         },
         |result| {
@@ -9831,7 +9831,7 @@ fn destack_fs_attrs_fchmodat_replay(
                 platform_native::destack_fs_fchmodat(context, dir, path, mode, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fchmodat(context, dir, path, mode, flags)
+                platform_simulation_native::destack_fs_fchmodat(context, dir, path, mode, flags)
             },
         },
         |result| {
@@ -9881,7 +9881,7 @@ fn destack_fs_attrs_fchown_replay(
                 platform_native::destack_fs_fchown(context, handle, uid, gid)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fchown(context, handle, uid, gid)
+                platform_simulation_native::destack_fs_fchown(context, handle, uid, gid)
             },
         },
         |result| {
@@ -9933,7 +9933,7 @@ fn destack_fs_attrs_fchownat_replay(
                 platform_native::destack_fs_fchownat(context, dir, path, uid, gid, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fchownat(context, dir, path, uid, gid, flags)
+                platform_simulation_native::destack_fs_fchownat(context, dir, path, uid, gid, flags)
             },
         },
         |result| {
@@ -9983,7 +9983,7 @@ fn destack_fs_attrs_futimes_replay(
                 platform_native::destack_fs_futimes(context, handle, atimens, mtimens)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_futimes(context, handle, atimens, mtimens)
+                platform_simulation_native::destack_fs_futimes(context, handle, atimens, mtimens)
             },
         },
         |result| {
@@ -10033,7 +10033,7 @@ fn destack_fs_attrs_lutimes_replay(
                 platform_native::destack_fs_lutimes(context, path, atimens, mtimens)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_lutimes(context, path, atimens, mtimens)
+                platform_simulation_native::destack_fs_lutimes(context, path, atimens, mtimens)
             },
         },
         |result| {
@@ -10085,7 +10085,7 @@ fn destack_fs_attrs_utimensat_replay(
                 platform_native::destack_fs_utimensat(context, dir, path, atimens, mtimens, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_utimensat(
+                platform_simulation_native::destack_fs_utimensat(
                     context, dir, path, atimens, mtimens, flags,
                 )
             },
@@ -10137,7 +10137,7 @@ fn destack_fs_attrs_utimes_replay(
                 platform_native::destack_fs_utimes(context, path, atimens, mtimens)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_utimes(context, path, atimens, mtimens)
+                platform_simulation_native::destack_fs_utimes(context, path, atimens, mtimens)
             },
         },
         |result| {
@@ -10183,7 +10183,7 @@ fn destack_fs_dir_closedir_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_closedir(context, handle) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_closedir(context, handle)
+                platform_simulation_native::destack_fs_closedir(context, handle)
             },
         },
         |result| {
@@ -10232,7 +10232,7 @@ fn destack_fs_dir_dirfd_replay(
                 platform_native::destack_fs_dirfd(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_dirfd(context, out, handle)
+                platform_simulation_native::destack_fs_dirfd(context, out, handle)
             },
         },
         |result| {
@@ -10291,7 +10291,7 @@ fn destack_fs_dir_mkdir_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_mkdir(context, path, mode) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_mkdir(context, path, mode)
+                platform_simulation_native::destack_fs_mkdir(context, path, mode)
             },
         },
         |result| {
@@ -10341,7 +10341,7 @@ fn destack_fs_dir_mkdirat_replay(
                 platform_native::destack_fs_mkdirat(context, dir, path, mode)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_mkdirat(context, dir, path, mode)
+                platform_simulation_native::destack_fs_mkdirat(context, dir, path, mode)
             },
         },
         |result| {
@@ -10390,7 +10390,7 @@ fn destack_fs_dir_mkdtemp_replay(
                 platform_native::destack_fs_mkdtemp(context, out, template)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_mkdtemp(context, out, template)
+                platform_simulation_native::destack_fs_mkdtemp(context, out, template)
             },
         },
         |result| {
@@ -10495,7 +10495,7 @@ fn destack_fs_dir_opendir_replay(
                 platform_native::destack_fs_opendir(context, out, path)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_opendir(context, out, path)
+                platform_simulation_native::destack_fs_opendir(context, out, path)
             },
         },
         |result| {
@@ -10556,7 +10556,7 @@ fn destack_fs_dir_readdir_replay(
                 platform_native::destack_fs_readdir(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_readdir(context, out, handle)
+                platform_simulation_native::destack_fs_readdir(context, out, handle)
             },
         },
         |result| {
@@ -10710,7 +10710,7 @@ fn destack_fs_dir_readdir_next_replay(
                 platform_native::destack_fs_readdir_next(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_readdir_next(context, out, handle)
+                platform_simulation_native::destack_fs_readdir_next(context, out, handle)
             },
         },
         |result| {
@@ -10854,7 +10854,7 @@ fn destack_fs_dir_rewinddir_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_rewinddir(context, handle) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_rewinddir(context, handle)
+                platform_simulation_native::destack_fs_rewinddir(context, handle)
             },
         },
         |result| {
@@ -10900,7 +10900,7 @@ fn destack_fs_dir_rmdir_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_rmdir(context, path) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_rmdir(context, path)
+                platform_simulation_native::destack_fs_rmdir(context, path)
             },
         },
         |result| {
@@ -10946,7 +10946,7 @@ fn destack_fs_file_close_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_close(context, handle) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_close(context, handle)
+                platform_simulation_native::destack_fs_close(context, handle)
             },
         },
         |result| {
@@ -11001,7 +11001,7 @@ fn destack_fs_file_copy_file_range_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_copy_file_range(
+                platform_simulation_native::destack_fs_copy_file_range(
                     context, out, src, srcoffset, dst, dstoffset, length,
                 )
             },
@@ -11062,7 +11062,7 @@ fn destack_fs_file_dup_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_dup(context, out, handle) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_dup(context, out, handle)
+                platform_simulation_native::destack_fs_dup(context, out, handle)
             },
         },
         |result| {
@@ -11124,7 +11124,7 @@ fn destack_fs_file_dup2_replay(
                 platform_native::destack_fs_dup2(context, out, handle, target)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_dup2(context, out, handle, target)
+                platform_simulation_native::destack_fs_dup2(context, out, handle, target)
             },
         },
         |result| {
@@ -11187,7 +11187,7 @@ fn destack_fs_file_dup3_replay(
                 platform_native::destack_fs_dup3(context, out, handle, target, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_dup3(context, out, handle, target, flags)
+                platform_simulation_native::destack_fs_dup3(context, out, handle, target, flags)
             },
         },
         |result| {
@@ -11250,7 +11250,7 @@ fn destack_fs_file_fadvise_replay(
                 platform_native::destack_fs_fadvise(context, handle, offset, length, advice)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fadvise(
+                platform_simulation_native::destack_fs_fadvise(
                     context, handle, offset, length, advice,
                 )
             },
@@ -11303,7 +11303,7 @@ fn destack_fs_file_fallocate_replay(
                 platform_native::destack_fs_fallocate(context, handle, offset, length, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fallocate(
+                platform_simulation_native::destack_fs_fallocate(
                     context, handle, offset, length, flags,
                 )
             },
@@ -11351,7 +11351,7 @@ fn destack_fs_file_fdatasync_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_fdatasync(context, handle) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fdatasync(context, handle)
+                platform_simulation_native::destack_fs_fdatasync(context, handle)
             },
         },
         |result| {
@@ -11397,7 +11397,7 @@ fn destack_fs_file_fsync_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_fsync(context, handle) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fsync(context, handle)
+                platform_simulation_native::destack_fs_fsync(context, handle)
             },
         },
         |result| {
@@ -11446,7 +11446,7 @@ fn destack_fs_file_ftruncate_replay(
                 platform_native::destack_fs_ftruncate(context, handle, size)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_ftruncate(context, handle, size)
+                platform_simulation_native::destack_fs_ftruncate(context, handle, size)
             },
         },
         |result| {
@@ -11495,7 +11495,7 @@ fn destack_fs_file_get_fd_flags_replay(
                 platform_native::destack_fs_get_fd_flags(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_get_fd_flags(context, out, handle)
+                platform_simulation_native::destack_fs_get_fd_flags(context, out, handle)
             },
         },
         |result| {
@@ -11556,7 +11556,7 @@ fn destack_fs_file_get_status_flags_replay(
                 platform_native::destack_fs_get_status_flags(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_get_status_flags(context, out, handle)
+                platform_simulation_native::destack_fs_get_status_flags(context, out, handle)
             },
         },
         |result| {
@@ -11617,7 +11617,7 @@ fn destack_fs_file_lock_replay(
                 platform_native::destack_fs_lock(context, handle, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_lock(context, handle, flags)
+                platform_simulation_native::destack_fs_lock(context, handle, flags)
             },
         },
         |result| {
@@ -11668,7 +11668,7 @@ fn destack_fs_file_open_replay(
                 platform_native::destack_fs_open(context, out, path, flags, mode)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_open(context, out, path, flags, mode)
+                platform_simulation_native::destack_fs_open(context, out, path, flags, mode)
             },
         },
         |result| {
@@ -11732,7 +11732,7 @@ fn destack_fs_file_openat_replay(
                 platform_native::destack_fs_openat(context, out, dir, path, flags, mode)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_openat(context, out, dir, path, flags, mode)
+                platform_simulation_native::destack_fs_openat(context, out, dir, path, flags, mode)
             },
         },
         |result| {
@@ -11795,7 +11795,7 @@ fn destack_fs_file_openat2_replay(
                 platform_native::destack_fs_openat2(context, out, dir, path, how)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_openat2(context, out, dir, path, how)
+                platform_simulation_native::destack_fs_openat2(context, out, dir, path, how)
             },
         },
         |result| {
@@ -11858,7 +11858,7 @@ fn destack_fs_file_pread_replay(
                 platform_native::destack_fs_pread(context, out, handle, buffer, offset)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_pread(context, out, handle, buffer, offset)
+                platform_simulation_native::destack_fs_pread(context, out, handle, buffer, offset)
             },
         },
         |result| {
@@ -11921,7 +11921,7 @@ fn destack_fs_file_preadv_replay(
                 platform_native::destack_fs_preadv(context, out, handle, buffers, offset)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_preadv(context, out, handle, buffers, offset)
+                platform_simulation_native::destack_fs_preadv(context, out, handle, buffers, offset)
             },
         },
         |result| {
@@ -11985,7 +11985,7 @@ fn destack_fs_file_preadv2_replay(
                 platform_native::destack_fs_preadv2(context, out, handle, buffers, offset, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_preadv2(
+                platform_simulation_native::destack_fs_preadv2(
                     context, out, handle, buffers, offset, flags,
                 )
             },
@@ -12050,7 +12050,7 @@ fn destack_fs_file_pwrite_replay(
                 platform_native::destack_fs_pwrite(context, out, handle, buffer, offset)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_pwrite(context, out, handle, buffer, offset)
+                platform_simulation_native::destack_fs_pwrite(context, out, handle, buffer, offset)
             },
         },
         |result| {
@@ -12113,7 +12113,9 @@ fn destack_fs_file_pwritev_replay(
                 platform_native::destack_fs_pwritev(context, out, handle, buffers, offset)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_pwritev(context, out, handle, buffers, offset)
+                platform_simulation_native::destack_fs_pwritev(
+                    context, out, handle, buffers, offset,
+                )
             },
         },
         |result| {
@@ -12177,7 +12179,7 @@ fn destack_fs_file_pwritev2_replay(
                 platform_native::destack_fs_pwritev2(context, out, handle, buffers, offset, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_pwritev2(
+                platform_simulation_native::destack_fs_pwritev2(
                     context, out, handle, buffers, offset, flags,
                 )
             },
@@ -12241,7 +12243,7 @@ fn destack_fs_file_read_replay(
                 platform_native::destack_fs_read(context, out, handle, buffer)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_read(context, out, handle, buffer)
+                platform_simulation_native::destack_fs_read(context, out, handle, buffer)
             },
         },
         |result| {
@@ -12303,7 +12305,7 @@ fn destack_fs_file_readv_replay(
                 platform_native::destack_fs_readv(context, out, handle, buffers)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_readv(context, out, handle, buffers)
+                platform_simulation_native::destack_fs_readv(context, out, handle, buffers)
             },
         },
         |result| {
@@ -12366,7 +12368,7 @@ fn destack_fs_file_seek_replay(
                 platform_native::destack_fs_seek(context, out, handle, offset, whence)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_seek(context, out, handle, offset, whence)
+                platform_simulation_native::destack_fs_seek(context, out, handle, offset, whence)
             },
         },
         |result| {
@@ -12430,7 +12432,7 @@ fn destack_fs_file_sendfile_replay(
                 platform_native::destack_fs_sendfile(context, out, socket, file, offset, length)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_sendfile(
+                platform_simulation_native::destack_fs_sendfile(
                     context, out, socket, file, offset, length,
                 )
             },
@@ -12493,7 +12495,7 @@ fn destack_fs_file_set_fd_flags_replay(
                 platform_native::destack_fs_set_fd_flags(context, handle, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_set_fd_flags(context, handle, flags)
+                platform_simulation_native::destack_fs_set_fd_flags(context, handle, flags)
             },
         },
         |result| {
@@ -12542,7 +12544,7 @@ fn destack_fs_file_set_status_flags_replay(
                 platform_native::destack_fs_set_status_flags(context, handle, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_set_status_flags(context, handle, flags)
+                platform_simulation_native::destack_fs_set_status_flags(context, handle, flags)
             },
         },
         |result| {
@@ -12612,7 +12614,7 @@ fn destack_fs_file_splice_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_splice(
+                platform_simulation_native::destack_fs_splice(
                     context,
                     out,
                     source,
@@ -12684,7 +12686,7 @@ fn destack_fs_file_sync_file_range_replay(
                 platform_native::destack_fs_sync_file_range(context, handle, offset, length, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_sync_file_range(
+                platform_simulation_native::destack_fs_sync_file_range(
                     context, handle, offset, length, flags,
                 )
             },
@@ -12732,7 +12734,7 @@ fn destack_fs_file_syncfs_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_syncfs(context, handle) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_syncfs(context, handle)
+                platform_simulation_native::destack_fs_syncfs(context, handle)
             },
         },
         |result| {
@@ -12784,7 +12786,7 @@ fn destack_fs_file_tee_replay(
                 platform_native::destack_fs_tee(context, out, sourcepipe, targetpipe, length, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_tee(
+                platform_simulation_native::destack_fs_tee(
                     context, out, sourcepipe, targetpipe, length, flags,
                 )
             },
@@ -12847,7 +12849,7 @@ fn destack_fs_file_truncate_replay(
                 platform_native::destack_fs_truncate(context, path, size)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_truncate(context, path, size)
+                platform_simulation_native::destack_fs_truncate(context, path, size)
             },
         },
         |result| {
@@ -12898,7 +12900,7 @@ fn destack_fs_file_vmsplice_replay(
                 platform_native::destack_fs_vmsplice(context, out, pipe, buffers, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_vmsplice(context, out, pipe, buffers, flags)
+                platform_simulation_native::destack_fs_vmsplice(context, out, pipe, buffers, flags)
             },
         },
         |result| {
@@ -12960,7 +12962,7 @@ fn destack_fs_file_write_replay(
                 platform_native::destack_fs_write(context, out, handle, buffer)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_write(context, out, handle, buffer)
+                platform_simulation_native::destack_fs_write(context, out, handle, buffer)
             },
         },
         |result| {
@@ -13022,7 +13024,7 @@ fn destack_fs_file_writev_replay(
                 platform_native::destack_fs_writev(context, out, handle, buffers)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_writev(context, out, handle, buffers)
+                platform_simulation_native::destack_fs_writev(context, out, handle, buffers)
             },
         },
         |result| {
@@ -13083,7 +13085,7 @@ fn destack_fs_mmap_madvise_replay(
                 platform_native::destack_fs_madvise(context, mapping, advice)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_madvise(context, mapping, advice)
+                platform_simulation_native::destack_fs_madvise(context, mapping, advice)
             },
         },
         |result| {
@@ -13134,7 +13136,7 @@ fn destack_fs_mmap_mmap_anonymous_replay(
                 platform_native::destack_fs_mmap_anonymous(context, out, length, prot, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_mmap_anonymous(
+                platform_simulation_native::destack_fs_mmap_anonymous(
                     context, out, length, prot, flags,
                 )
             },
@@ -13214,7 +13216,7 @@ fn destack_fs_mmap_mmap_file_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_mmap_file(
+                platform_simulation_native::destack_fs_mmap_file(
                     context, out, handle, offset, length, prot, flags,
                 )
             },
@@ -13288,7 +13290,7 @@ fn destack_fs_mmap_mprotect_replay(
                 platform_native::destack_fs_mprotect(context, mapping, prot)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_mprotect(context, mapping, prot)
+                platform_simulation_native::destack_fs_mprotect(context, mapping, prot)
             },
         },
         |result| {
@@ -13337,7 +13339,7 @@ fn destack_fs_mmap_msync_replay(
                 platform_native::destack_fs_msync(context, mapping, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_msync(context, mapping, flags)
+                platform_simulation_native::destack_fs_msync(context, mapping, flags)
             },
         },
         |result| {
@@ -13383,7 +13385,7 @@ fn destack_fs_mmap_munmap_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_munmap(context, mapping) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_munmap(context, mapping)
+                platform_simulation_native::destack_fs_munmap(context, mapping)
             },
         },
         |result| {
@@ -13433,7 +13435,7 @@ fn destack_fs_path_copyfile_replay(
                 platform_native::destack_fs_copyfile(context, from, to, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_copyfile(context, from, to, flags)
+                platform_simulation_native::destack_fs_copyfile(context, from, to, flags)
             },
         },
         |result| {
@@ -13482,7 +13484,7 @@ fn destack_fs_path_link_replay(
                 platform_native::destack_fs_link(context, existingpath, newpath)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_link(context, existingpath, newpath)
+                platform_simulation_native::destack_fs_link(context, existingpath, newpath)
             },
         },
         |result| {
@@ -13541,7 +13543,7 @@ fn destack_fs_path_linkat_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_linkat(
+                platform_simulation_native::destack_fs_linkat(
                     context,
                     existingdir,
                     existingpath,
@@ -13597,7 +13599,7 @@ fn destack_fs_path_mkfifo_replay(
                 platform_native::destack_fs_mkfifo(context, path, mode)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_mkfifo(context, path, mode)
+                platform_simulation_native::destack_fs_mkfifo(context, path, mode)
             },
         },
         |result| {
@@ -13647,7 +13649,7 @@ fn destack_fs_path_mkfifoat_replay(
                 platform_native::destack_fs_mkfifoat(context, dir, path, mode)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_mkfifoat(context, dir, path, mode)
+                platform_simulation_native::destack_fs_mkfifoat(context, dir, path, mode)
             },
         },
         |result| {
@@ -13697,7 +13699,7 @@ fn destack_fs_path_mknod_replay(
                 platform_native::destack_fs_mknod(context, path, mode, device)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_mknod(context, path, mode, device)
+                platform_simulation_native::destack_fs_mknod(context, path, mode, device)
             },
         },
         |result| {
@@ -13748,7 +13750,7 @@ fn destack_fs_path_mknodat_replay(
                 platform_native::destack_fs_mknodat(context, dir, path, mode, device)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_mknodat(context, dir, path, mode, device)
+                platform_simulation_native::destack_fs_mknodat(context, dir, path, mode, device)
             },
         },
         |result| {
@@ -13797,7 +13799,7 @@ fn destack_fs_path_readlink_replay(
                 platform_native::destack_fs_readlink(context, out, path)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_readlink(context, out, path)
+                platform_simulation_native::destack_fs_readlink(context, out, path)
             },
         },
         |result| {
@@ -13903,7 +13905,7 @@ fn destack_fs_path_readlinkat_replay(
                 platform_native::destack_fs_readlinkat(context, out, dir, path)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_readlinkat(context, out, dir, path)
+                platform_simulation_native::destack_fs_readlinkat(context, out, dir, path)
             },
         },
         |result| {
@@ -14008,7 +14010,7 @@ fn destack_fs_path_realpath_replay(
                 platform_native::destack_fs_realpath(context, out, path)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_realpath(context, out, path)
+                platform_simulation_native::destack_fs_realpath(context, out, path)
             },
         },
         |result| {
@@ -14111,7 +14113,7 @@ fn destack_fs_path_rename_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_rename(context, from, to) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_rename(context, from, to)
+                platform_simulation_native::destack_fs_rename(context, from, to)
             },
         },
         |result| {
@@ -14162,7 +14164,7 @@ fn destack_fs_path_renameat_replay(
                 platform_native::destack_fs_renameat(context, fromdir, from, todir, to)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_renameat(context, fromdir, from, todir, to)
+                platform_simulation_native::destack_fs_renameat(context, fromdir, from, todir, to)
             },
         },
         |result| {
@@ -14214,7 +14216,7 @@ fn destack_fs_path_renameat2_replay(
                 platform_native::destack_fs_renameat2(context, fromdir, from, todir, to, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_renameat2(
+                platform_simulation_native::destack_fs_renameat2(
                     context, fromdir, from, todir, to, flags,
                 )
             },
@@ -14266,7 +14268,7 @@ fn destack_fs_path_symlink_replay(
                 platform_native::destack_fs_symlink(context, target, path, kind)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_symlink(context, target, path, kind)
+                platform_simulation_native::destack_fs_symlink(context, target, path, kind)
             },
         },
         |result| {
@@ -14317,7 +14319,7 @@ fn destack_fs_path_symlinkat_replay(
                 platform_native::destack_fs_symlinkat(context, target, dir, path, kind)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_symlinkat(context, target, dir, path, kind)
+                platform_simulation_native::destack_fs_symlinkat(context, target, dir, path, kind)
             },
         },
         |result| {
@@ -14363,7 +14365,7 @@ fn destack_fs_path_unlink_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_unlink(context, path) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_unlink(context, path)
+                platform_simulation_native::destack_fs_unlink(context, path)
             },
         },
         |result| {
@@ -14413,7 +14415,7 @@ fn destack_fs_path_unlinkat_replay(
                 platform_native::destack_fs_unlinkat(context, dir, path, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_unlinkat(context, dir, path, flags)
+                platform_simulation_native::destack_fs_unlinkat(context, dir, path, flags)
             },
         },
         |result| {
@@ -14462,7 +14464,7 @@ fn destack_fs_stat_fstat_replay(
                 platform_native::destack_fs_fstat(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fstat(context, out, handle)
+                platform_simulation_native::destack_fs_fstat(context, out, handle)
             },
         },
         |result| {
@@ -14581,7 +14583,7 @@ fn destack_fs_stat_fstatfs_replay(
                 platform_native::destack_fs_fstatfs(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fstatfs(context, out, handle)
+                platform_simulation_native::destack_fs_fstatfs(context, out, handle)
             },
         },
         |result| {
@@ -14682,7 +14684,7 @@ fn destack_fs_stat_lstat_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_lstat(context, out, path) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_lstat(context, out, path)
+                platform_simulation_native::destack_fs_lstat(context, out, path)
             },
         },
         |result| {
@@ -14799,7 +14801,7 @@ fn destack_fs_stat_path_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_stat(context, out, path) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_stat(context, out, path)
+                platform_simulation_native::destack_fs_stat(context, out, path)
             },
         },
         |result| {
@@ -14920,7 +14922,7 @@ fn destack_fs_stat_pathat_replay(
                 platform_native::destack_fs_statat(context, out, dir, path, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_statat(context, out, dir, path, flags)
+                platform_simulation_native::destack_fs_statat(context, out, dir, path, flags)
             },
         },
         |result| {
@@ -15037,7 +15039,7 @@ fn destack_fs_stat_pathfs_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_statfs(context, out, path) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_statfs(context, out, path)
+                platform_simulation_native::destack_fs_statfs(context, out, path)
             },
         },
         |result| {
@@ -15143,7 +15145,7 @@ fn destack_fs_stat_pathx_replay(
                 platform_native::destack_fs_statx(context, out, dir, path, flags, mask)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_statx(context, out, dir, path, flags, mask)
+                platform_simulation_native::destack_fs_statx(context, out, dir, path, flags, mask)
             },
         },
         |result| {
@@ -15279,7 +15281,7 @@ fn destack_fs_watch_open_replay(
                 platform_native::destack_fs_watch(context, out, path, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_watch(context, out, path, options)
+                platform_simulation_native::destack_fs_watch(context, out, path, options)
             },
         },
         |result| {
@@ -15339,7 +15341,7 @@ fn destack_fs_watch_open_close_replay(
                 platform_native::destack_fs_watch_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_watch_close(context, handle)
+                platform_simulation_native::destack_fs_watch_close(context, handle)
             },
         },
         |result| {
@@ -15385,7 +15387,7 @@ fn destack_fs_watch_open_read_replay(
         context.replay_payload_for(FS_WATCH_OPEN_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_watch_read(context, out, handle) },
-            RuntimeWorld::Simulated => unsafe { platform_simulated_native::destack_fs_watch_read(context, out, handle) },
+            RuntimeWorld::Simulated => unsafe { platform_simulation_native::destack_fs_watch_read(context, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -15560,7 +15562,7 @@ fn destack_fs_watch_openat_replay(
                 platform_native::destack_fs_watchat(context, out, directory, path, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_watchat(
+                platform_simulation_native::destack_fs_watchat(
                     context, out, directory, path, options,
                 )
             },
@@ -15624,7 +15626,7 @@ fn destack_fs_xattr_fgetxattr_replay(
                 platform_native::destack_fs_fgetxattr(context, out, handle, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fgetxattr(context, out, handle, name)
+                platform_simulation_native::destack_fs_fgetxattr(context, out, handle, name)
             },
         },
         |result| {
@@ -15697,7 +15699,7 @@ fn destack_fs_xattr_fgetxattr_bytes_replay(
                 platform_native::destack_fs_fgetxattr_bytes(context, out, handle, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fgetxattr_bytes(context, out, handle, name)
+                platform_simulation_native::destack_fs_fgetxattr_bytes(context, out, handle, name)
             },
         },
         |result| {
@@ -15769,7 +15771,7 @@ fn destack_fs_xattr_flistxattr_replay(
                 platform_native::destack_fs_flistxattr(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_flistxattr(context, out, handle)
+                platform_simulation_native::destack_fs_flistxattr(context, out, handle)
             },
         },
         |result| {
@@ -15842,7 +15844,7 @@ fn destack_fs_xattr_flistxattr_bytes_replay(
                 platform_native::destack_fs_flistxattr_bytes(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_flistxattr_bytes(context, out, handle)
+                platform_simulation_native::destack_fs_flistxattr_bytes(context, out, handle)
             },
         },
         |result| {
@@ -15936,7 +15938,7 @@ fn destack_fs_xattr_fremovexattr_replay(
                 platform_native::destack_fs_fremovexattr(context, handle, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fremovexattr(context, handle, name)
+                platform_simulation_native::destack_fs_fremovexattr(context, handle, name)
             },
         },
         |result| {
@@ -15985,7 +15987,7 @@ fn destack_fs_xattr_fremovexattr_bytes_replay(
                 platform_native::destack_fs_fremovexattr_bytes(context, handle, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fremovexattr_bytes(context, handle, name)
+                platform_simulation_native::destack_fs_fremovexattr_bytes(context, handle, name)
             },
         },
         |result| {
@@ -16036,7 +16038,7 @@ fn destack_fs_xattr_fsetxattr_replay(
                 platform_native::destack_fs_fsetxattr(context, handle, name, argument_value, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fsetxattr(
+                platform_simulation_native::destack_fs_fsetxattr(
                     context,
                     handle,
                     name,
@@ -16099,7 +16101,7 @@ fn destack_fs_xattr_fsetxattr_bytes_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fsetxattr_bytes(
+                platform_simulation_native::destack_fs_fsetxattr_bytes(
                     context,
                     handle,
                     name,
@@ -16155,7 +16157,7 @@ fn destack_fs_xattr_getxattr_replay(
                 platform_native::destack_fs_getxattr(context, out, path, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_getxattr(context, out, path, name)
+                platform_simulation_native::destack_fs_getxattr(context, out, path, name)
             },
         },
         |result| {
@@ -16228,7 +16230,7 @@ fn destack_fs_xattr_getxattr_bytes_replay(
                 platform_native::destack_fs_getxattr_bytes(context, out, path, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_getxattr_bytes(context, out, path, name)
+                platform_simulation_native::destack_fs_getxattr_bytes(context, out, path, name)
             },
         },
         |result| {
@@ -16301,7 +16303,7 @@ fn destack_fs_xattr_lgetxattr_replay(
                 platform_native::destack_fs_lgetxattr(context, out, path, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_lgetxattr(context, out, path, name)
+                platform_simulation_native::destack_fs_lgetxattr(context, out, path, name)
             },
         },
         |result| {
@@ -16374,7 +16376,7 @@ fn destack_fs_xattr_lgetxattr_bytes_replay(
                 platform_native::destack_fs_lgetxattr_bytes(context, out, path, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_lgetxattr_bytes(context, out, path, name)
+                platform_simulation_native::destack_fs_lgetxattr_bytes(context, out, path, name)
             },
         },
         |result| {
@@ -16446,7 +16448,7 @@ fn destack_fs_xattr_listxattr_replay(
                 platform_native::destack_fs_listxattr(context, out, path)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_listxattr(context, out, path)
+                platform_simulation_native::destack_fs_listxattr(context, out, path)
             },
         },
         |result| {
@@ -16519,7 +16521,7 @@ fn destack_fs_xattr_listxattr_bytes_replay(
                 platform_native::destack_fs_listxattr_bytes(context, out, path)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_listxattr_bytes(context, out, path)
+                platform_simulation_native::destack_fs_listxattr_bytes(context, out, path)
             },
         },
         |result| {
@@ -16613,7 +16615,7 @@ fn destack_fs_xattr_llistxattr_replay(
                 platform_native::destack_fs_llistxattr(context, out, path)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_llistxattr(context, out, path)
+                platform_simulation_native::destack_fs_llistxattr(context, out, path)
             },
         },
         |result| {
@@ -16686,7 +16688,7 @@ fn destack_fs_xattr_llistxattr_bytes_replay(
                 platform_native::destack_fs_llistxattr_bytes(context, out, path)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_llistxattr_bytes(context, out, path)
+                platform_simulation_native::destack_fs_llistxattr_bytes(context, out, path)
             },
         },
         |result| {
@@ -16780,7 +16782,7 @@ fn destack_fs_xattr_lremovexattr_replay(
                 platform_native::destack_fs_lremovexattr(context, path, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_lremovexattr(context, path, name)
+                platform_simulation_native::destack_fs_lremovexattr(context, path, name)
             },
         },
         |result| {
@@ -16829,7 +16831,7 @@ fn destack_fs_xattr_lremovexattr_bytes_replay(
                 platform_native::destack_fs_lremovexattr_bytes(context, path, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_lremovexattr_bytes(context, path, name)
+                platform_simulation_native::destack_fs_lremovexattr_bytes(context, path, name)
             },
         },
         |result| {
@@ -16880,7 +16882,7 @@ fn destack_fs_xattr_lsetxattr_replay(
                 platform_native::destack_fs_lsetxattr(context, path, name, argument_value, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_lsetxattr(
+                platform_simulation_native::destack_fs_lsetxattr(
                     context,
                     path,
                     name,
@@ -16943,7 +16945,7 @@ fn destack_fs_xattr_lsetxattr_bytes_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_lsetxattr_bytes(
+                platform_simulation_native::destack_fs_lsetxattr_bytes(
                     context,
                     path,
                     name,
@@ -16998,7 +17000,7 @@ fn destack_fs_xattr_removexattr_replay(
                 platform_native::destack_fs_removexattr(context, path, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_removexattr(context, path, name)
+                platform_simulation_native::destack_fs_removexattr(context, path, name)
             },
         },
         |result| {
@@ -17047,7 +17049,7 @@ fn destack_fs_xattr_removexattr_bytes_replay(
                 platform_native::destack_fs_removexattr_bytes(context, path, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_removexattr_bytes(context, path, name)
+                platform_simulation_native::destack_fs_removexattr_bytes(context, path, name)
             },
         },
         |result| {
@@ -17098,7 +17100,7 @@ fn destack_fs_xattr_setxattr_replay(
                 platform_native::destack_fs_setxattr(context, path, name, argument_value, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_setxattr(
+                platform_simulation_native::destack_fs_setxattr(
                     context,
                     path,
                     name,
@@ -17161,7 +17163,7 @@ fn destack_fs_xattr_setxattr_bytes_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_setxattr_bytes(
+                platform_simulation_native::destack_fs_setxattr_bytes(
                     context,
                     path,
                     name,
@@ -19096,7 +19098,7 @@ fn destack_fs_attrs_access_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_access(runtime, context, path, mode),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_access(runtime, context, path, mode)
+                    platform_simulation_vm::destack_fs_access(runtime, context, path, mode)
                 }
             },
             |context, result| {
@@ -19152,7 +19154,7 @@ fn destack_fs_attrs_accessat_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_accessat(runtime, context, dir, path, mode, flags)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_accessat(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_accessat(
                     runtime, context, dir, path, mode, flags,
                 ),
             },
@@ -19206,7 +19208,7 @@ fn destack_fs_attrs_chmod_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_chmod(runtime, context, path, mode),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_chmod(runtime, context, path, mode)
+                    platform_simulation_vm::destack_fs_chmod(runtime, context, path, mode)
                 }
             },
             |context, result| {
@@ -19262,7 +19264,7 @@ fn destack_fs_attrs_chown_vm_replay(
                     platform_vm::destack_fs_chown(runtime, context, path, uid, gid)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_chown(runtime, context, path, uid, gid)
+                    platform_simulation_vm::destack_fs_chown(runtime, context, path, uid, gid)
                 }
             },
             |context, result| {
@@ -19317,7 +19319,7 @@ fn destack_fs_attrs_fchmod_vm_replay(
                     platform_vm::destack_fs_fchmod(runtime, context, handle, mode)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_fchmod(runtime, context, handle, mode)
+                    platform_simulation_vm::destack_fs_fchmod(runtime, context, handle, mode)
                 }
             },
             |context, result| {
@@ -19373,7 +19375,7 @@ fn destack_fs_attrs_fchmodat_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_fchmodat(runtime, context, dir, path, mode, flags)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_fchmodat(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fchmodat(
                     runtime, context, dir, path, mode, flags,
                 ),
             },
@@ -19430,7 +19432,7 @@ fn destack_fs_attrs_fchown_vm_replay(
                     platform_vm::destack_fs_fchown(runtime, context, handle, uid, gid)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_fchown(runtime, context, handle, uid, gid)
+                    platform_simulation_vm::destack_fs_fchown(runtime, context, handle, uid, gid)
                 }
             },
             |context, result| {
@@ -19487,7 +19489,7 @@ fn destack_fs_attrs_fchownat_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_fchownat(runtime, context, dir, path, uid, gid, flags)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_fchownat(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fchownat(
                     runtime, context, dir, path, uid, gid, flags,
                 ),
             },
@@ -19543,7 +19545,7 @@ fn destack_fs_attrs_futimes_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_futimes(runtime, context, handle, atimens, mtimens)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_futimes(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_futimes(
                     runtime, context, handle, atimens, mtimens,
                 ),
             },
@@ -19599,7 +19601,7 @@ fn destack_fs_attrs_lutimes_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_lutimes(runtime, context, path, atimens, mtimens)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_lutimes(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_lutimes(
                     runtime, context, path, atimens, mtimens,
                 ),
             },
@@ -19657,7 +19659,7 @@ fn destack_fs_attrs_utimensat_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_fs_utimensat(
                     runtime, context, dir, path, atimens, mtimens, flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_utimensat(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_utimensat(
                     runtime, context, dir, path, atimens, mtimens, flags,
                 ),
             },
@@ -19713,7 +19715,7 @@ fn destack_fs_attrs_utimes_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_utimes(runtime, context, path, atimens, mtimens)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_utimes(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_utimes(
                     runtime, context, path, atimens, mtimens,
                 ),
             },
@@ -19766,7 +19768,7 @@ fn destack_fs_dir_closedir_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_closedir(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_closedir(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_closedir(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -19818,7 +19820,7 @@ fn destack_fs_dir_dirfd_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_dirfd(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_dirfd(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_dirfd(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -19875,7 +19877,7 @@ fn destack_fs_dir_mkdir_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_mkdir(runtime, context, path, mode),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_mkdir(runtime, context, path, mode)
+                    platform_simulation_vm::destack_fs_mkdir(runtime, context, path, mode)
                 }
             },
             |context, result| {
@@ -19931,7 +19933,7 @@ fn destack_fs_dir_mkdirat_vm_replay(
                     platform_vm::destack_fs_mkdirat(runtime, context, dir, path, mode)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_mkdirat(runtime, context, dir, path, mode)
+                    platform_simulation_vm::destack_fs_mkdirat(runtime, context, dir, path, mode)
                 }
             },
             |context, result| {
@@ -19983,7 +19985,7 @@ fn destack_fs_dir_mkdtemp_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_mkdtemp(runtime, context, template),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_mkdtemp(runtime, context, template)
+                    platform_simulation_vm::destack_fs_mkdtemp(runtime, context, template)
                 }
             },
             |context, result| {
@@ -20081,7 +20083,7 @@ fn destack_fs_dir_opendir_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_opendir(runtime, context, path),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_opendir(runtime, context, path)
+                    platform_simulation_vm::destack_fs_opendir(runtime, context, path)
                 }
             },
             |context, result| {
@@ -20137,7 +20139,7 @@ fn destack_fs_dir_readdir_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_readdir(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_readdir(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_readdir(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -20415,7 +20417,7 @@ fn destack_fs_dir_readdir_next_vm_replay(
                     platform_vm::destack_fs_readdir_next(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_readdir_next(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_readdir_next(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -20546,7 +20548,7 @@ fn destack_fs_dir_rewinddir_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_rewinddir(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_rewinddir(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_rewinddir(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -20598,7 +20600,7 @@ fn destack_fs_dir_rmdir_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_rmdir(runtime, context, path),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_rmdir(runtime, context, path)
+                    platform_simulation_vm::destack_fs_rmdir(runtime, context, path)
                 }
             },
             |context, result| {
@@ -20650,7 +20652,7 @@ fn destack_fs_file_close_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_close(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_close(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -20707,7 +20709,7 @@ fn destack_fs_file_copy_file_range_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_fs_copy_file_range(
                     runtime, context, src, srcoffset, dst, dstoffset, length,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_copy_file_range(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_copy_file_range(
                     runtime, context, src, srcoffset, dst, dstoffset, length,
                 ),
             },
@@ -20764,7 +20766,7 @@ fn destack_fs_file_dup_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_dup(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_dup(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_dup(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -20823,7 +20825,7 @@ fn destack_fs_file_dup2_vm_replay(
                     platform_vm::destack_fs_dup2(runtime, context, handle, target)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_dup2(runtime, context, handle, target)
+                    platform_simulation_vm::destack_fs_dup2(runtime, context, handle, target)
                 }
             },
             |context, result| {
@@ -20883,7 +20885,7 @@ fn destack_fs_file_dup3_vm_replay(
                     platform_vm::destack_fs_dup3(runtime, context, handle, target, flags)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_dup3(runtime, context, handle, target, flags)
+                    platform_simulation_vm::destack_fs_dup3(runtime, context, handle, target, flags)
                 }
             },
             |context, result| {
@@ -20943,7 +20945,7 @@ fn destack_fs_file_fadvise_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_fs_fadvise(
                     runtime, context, handle, offset, length, advice,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_fadvise(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fadvise(
                     runtime, context, handle, offset, length, advice,
                 ),
             },
@@ -21000,7 +21002,7 @@ fn destack_fs_file_fallocate_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_fs_fallocate(
                     runtime, context, handle, offset, length, flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_fallocate(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fallocate(
                     runtime, context, handle, offset, length, flags,
                 ),
             },
@@ -21053,7 +21055,7 @@ fn destack_fs_file_fdatasync_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_fdatasync(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_fdatasync(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_fdatasync(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -21105,7 +21107,7 @@ fn destack_fs_file_fsync_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_fsync(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_fsync(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_fsync(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -21160,7 +21162,7 @@ fn destack_fs_file_ftruncate_vm_replay(
                     platform_vm::destack_fs_ftruncate(runtime, context, handle, size)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_ftruncate(runtime, context, handle, size)
+                    platform_simulation_vm::destack_fs_ftruncate(runtime, context, handle, size)
                 }
             },
             |context, result| {
@@ -21214,7 +21216,7 @@ fn destack_fs_file_get_fd_flags_vm_replay(
                     platform_vm::destack_fs_get_fd_flags(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_get_fd_flags(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_get_fd_flags(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -21272,7 +21274,7 @@ fn destack_fs_file_get_status_flags_vm_replay(
                     platform_vm::destack_fs_get_status_flags(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_get_status_flags(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_get_status_flags(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -21329,7 +21331,7 @@ fn destack_fs_file_lock_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_lock(runtime, context, handle, flags),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_lock(runtime, context, handle, flags)
+                    platform_simulation_vm::destack_fs_lock(runtime, context, handle, flags)
                 }
             },
             |context, result| {
@@ -21385,7 +21387,7 @@ fn destack_fs_file_open_vm_replay(
                     platform_vm::destack_fs_open(runtime, context, path, flags, mode)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_open(runtime, context, path, flags, mode)
+                    platform_simulation_vm::destack_fs_open(runtime, context, path, flags, mode)
                 }
             },
             |context, result| {
@@ -21445,7 +21447,7 @@ fn destack_fs_file_openat_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_openat(runtime, context, dir, path, flags, mode)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_openat(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_openat(
                     runtime, context, dir, path, flags, mode,
                 ),
             },
@@ -21506,7 +21508,7 @@ fn destack_fs_file_openat2_vm_replay(
                     platform_vm::destack_fs_openat2(runtime, context, dir, path, how)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_openat2(runtime, context, dir, path, how)
+                    platform_simulation_vm::destack_fs_openat2(runtime, context, dir, path, how)
                 }
             },
             |context, result| {
@@ -21565,7 +21567,7 @@ fn destack_fs_file_pread_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_pread(runtime, context, handle, buffer, offset)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_pread(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_pread(
                     runtime, context, handle, buffer, offset,
                 ),
             },
@@ -21625,7 +21627,7 @@ fn destack_fs_file_preadv_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_preadv(runtime, context, handle, buffers, offset)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_preadv(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_preadv(
                     runtime, context, handle, buffers, offset,
                 ),
             },
@@ -21686,7 +21688,7 @@ fn destack_fs_file_preadv2_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_fs_preadv2(
                     runtime, context, handle, buffers, offset, flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_preadv2(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_preadv2(
                     runtime, context, handle, buffers, offset, flags,
                 ),
             },
@@ -21746,7 +21748,7 @@ fn destack_fs_file_pwrite_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_pwrite(runtime, context, handle, buffer, offset)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_pwrite(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_pwrite(
                     runtime, context, handle, buffer, offset,
                 ),
             },
@@ -21806,7 +21808,7 @@ fn destack_fs_file_pwritev_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_pwritev(runtime, context, handle, buffers, offset)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_pwritev(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_pwritev(
                     runtime, context, handle, buffers, offset,
                 ),
             },
@@ -21867,7 +21869,7 @@ fn destack_fs_file_pwritev2_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_fs_pwritev2(
                     runtime, context, handle, buffers, offset, flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_pwritev2(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_pwritev2(
                     runtime, context, handle, buffers, offset, flags,
                 ),
             },
@@ -21927,7 +21929,7 @@ fn destack_fs_file_read_vm_replay(
                     platform_vm::destack_fs_read(runtime, context, handle, buffer)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_read(runtime, context, handle, buffer)
+                    platform_simulation_vm::destack_fs_read(runtime, context, handle, buffer)
                 }
             },
             |context, result| {
@@ -21986,7 +21988,7 @@ fn destack_fs_file_readv_vm_replay(
                     platform_vm::destack_fs_readv(runtime, context, handle, buffers)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_readv(runtime, context, handle, buffers)
+                    platform_simulation_vm::destack_fs_readv(runtime, context, handle, buffers)
                 }
             },
             |context, result| {
@@ -22045,9 +22047,9 @@ fn destack_fs_file_seek_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_seek(runtime, context, handle, offset, whence)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_seek(runtime, context, handle, offset, whence)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_seek(
+                    runtime, context, handle, offset, whence,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -22106,7 +22108,7 @@ fn destack_fs_file_sendfile_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_sendfile(runtime, context, socket, file, offset, length)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_sendfile(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_sendfile(
                     runtime, context, socket, file, offset, length,
                 ),
             },
@@ -22166,7 +22168,7 @@ fn destack_fs_file_set_fd_flags_vm_replay(
                     platform_vm::destack_fs_set_fd_flags(runtime, context, handle, flags)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_set_fd_flags(runtime, context, handle, flags)
+                    platform_simulation_vm::destack_fs_set_fd_flags(runtime, context, handle, flags)
                 }
             },
             |context, result| {
@@ -22220,7 +22222,7 @@ fn destack_fs_file_set_status_flags_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_set_status_flags(runtime, context, handle, flags)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_set_status_flags(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_set_status_flags(
                     runtime, context, handle, flags,
                 ),
             },
@@ -22286,7 +22288,7 @@ fn destack_fs_file_splice_vm_replay(
                     length,
                     flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_splice(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_splice(
                     runtime,
                     context,
                     source,
@@ -22354,7 +22356,7 @@ fn destack_fs_file_sync_file_range_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_fs_sync_file_range(
                     runtime, context, handle, offset, length, flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_sync_file_range(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_sync_file_range(
                     runtime, context, handle, offset, length, flags,
                 ),
             },
@@ -22407,7 +22409,7 @@ fn destack_fs_file_syncfs_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_syncfs(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_syncfs(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_syncfs(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -22463,7 +22465,7 @@ fn destack_fs_file_tee_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_fs_tee(
                     runtime, context, sourcepipe, targetpipe, length, flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_tee(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_tee(
                     runtime, context, sourcepipe, targetpipe, length, flags,
                 ),
             },
@@ -22523,7 +22525,7 @@ fn destack_fs_file_truncate_vm_replay(
                     platform_vm::destack_fs_truncate(runtime, context, path, size)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_truncate(runtime, context, path, size)
+                    platform_simulation_vm::destack_fs_truncate(runtime, context, path, size)
                 }
             },
             |context, result| {
@@ -22578,7 +22580,7 @@ fn destack_fs_file_vmsplice_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_vmsplice(runtime, context, pipe, buffers, flags)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_vmsplice(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_vmsplice(
                     runtime, context, pipe, buffers, flags,
                 ),
             },
@@ -22638,7 +22640,7 @@ fn destack_fs_file_write_vm_replay(
                     platform_vm::destack_fs_write(runtime, context, handle, buffer)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_write(runtime, context, handle, buffer)
+                    platform_simulation_vm::destack_fs_write(runtime, context, handle, buffer)
                 }
             },
             |context, result| {
@@ -22697,7 +22699,7 @@ fn destack_fs_file_writev_vm_replay(
                     platform_vm::destack_fs_writev(runtime, context, handle, buffers)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_writev(runtime, context, handle, buffers)
+                    platform_simulation_vm::destack_fs_writev(runtime, context, handle, buffers)
                 }
             },
             |context, result| {
@@ -22756,7 +22758,7 @@ fn destack_fs_mmap_madvise_vm_replay(
                     platform_vm::destack_fs_madvise(runtime, context, mapping, advice)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_madvise(runtime, context, mapping, advice)
+                    platform_simulation_vm::destack_fs_madvise(runtime, context, mapping, advice)
                 }
             },
             |context, result| {
@@ -22811,7 +22813,7 @@ fn destack_fs_mmap_mmap_anonymous_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_mmap_anonymous(runtime, context, length, prot, flags)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_mmap_anonymous(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_mmap_anonymous(
                     runtime, context, length, prot, flags,
                 ),
             },
@@ -22873,7 +22875,7 @@ fn destack_fs_mmap_mmap_file_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_fs_mmap_file(
                     runtime, context, handle, offset, length, prot, flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_mmap_file(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_mmap_file(
                     runtime, context, handle, offset, length, prot, flags,
                 ),
             },
@@ -22933,7 +22935,7 @@ fn destack_fs_mmap_mprotect_vm_replay(
                     platform_vm::destack_fs_mprotect(runtime, context, mapping, prot)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_mprotect(runtime, context, mapping, prot)
+                    platform_simulation_vm::destack_fs_mprotect(runtime, context, mapping, prot)
                 }
             },
             |context, result| {
@@ -22988,7 +22990,7 @@ fn destack_fs_mmap_msync_vm_replay(
                     platform_vm::destack_fs_msync(runtime, context, mapping, flags)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_msync(runtime, context, mapping, flags)
+                    platform_simulation_vm::destack_fs_msync(runtime, context, mapping, flags)
                 }
             },
             |context, result| {
@@ -23040,7 +23042,7 @@ fn destack_fs_mmap_munmap_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_munmap(runtime, context, mapping),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_munmap(runtime, context, mapping)
+                    platform_simulation_vm::destack_fs_munmap(runtime, context, mapping)
                 }
             },
             |context, result| {
@@ -23096,7 +23098,7 @@ fn destack_fs_path_copyfile_vm_replay(
                     platform_vm::destack_fs_copyfile(runtime, context, from, to, flags)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_copyfile(runtime, context, from, to, flags)
+                    platform_simulation_vm::destack_fs_copyfile(runtime, context, from, to, flags)
                 }
             },
             |context, result| {
@@ -23151,7 +23153,7 @@ fn destack_fs_path_link_vm_replay(
                     platform_vm::destack_fs_link(runtime, context, existingpath, newpath)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_link(runtime, context, existingpath, newpath)
+                    platform_simulation_vm::destack_fs_link(runtime, context, existingpath, newpath)
                 }
             },
             |context, result| {
@@ -23214,7 +23216,7 @@ fn destack_fs_path_linkat_vm_replay(
                     newpath,
                     flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_linkat(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_linkat(
                     runtime,
                     context,
                     existingdir,
@@ -23274,7 +23276,7 @@ fn destack_fs_path_mkfifo_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_mkfifo(runtime, context, path, mode),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_mkfifo(runtime, context, path, mode)
+                    platform_simulation_vm::destack_fs_mkfifo(runtime, context, path, mode)
                 }
             },
             |context, result| {
@@ -23330,7 +23332,7 @@ fn destack_fs_path_mkfifoat_vm_replay(
                     platform_vm::destack_fs_mkfifoat(runtime, context, dir, path, mode)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_mkfifoat(runtime, context, dir, path, mode)
+                    platform_simulation_vm::destack_fs_mkfifoat(runtime, context, dir, path, mode)
                 }
             },
             |context, result| {
@@ -23386,7 +23388,7 @@ fn destack_fs_path_mknod_vm_replay(
                     platform_vm::destack_fs_mknod(runtime, context, path, mode, device)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_mknod(runtime, context, path, mode, device)
+                    platform_simulation_vm::destack_fs_mknod(runtime, context, path, mode, device)
                 }
             },
             |context, result| {
@@ -23442,7 +23444,7 @@ fn destack_fs_path_mknodat_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_mknodat(runtime, context, dir, path, mode, device)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_mknodat(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_mknodat(
                     runtime, context, dir, path, mode, device,
                 ),
             },
@@ -23495,7 +23497,7 @@ fn destack_fs_path_readlink_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_readlink(runtime, context, path),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_readlink(runtime, context, path)
+                    platform_simulation_vm::destack_fs_readlink(runtime, context, path)
                 }
             },
             |context, result| {
@@ -23596,7 +23598,7 @@ fn destack_fs_path_readlinkat_vm_replay(
                     platform_vm::destack_fs_readlinkat(runtime, context, dir, path)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_readlinkat(runtime, context, dir, path)
+                    platform_simulation_vm::destack_fs_readlinkat(runtime, context, dir, path)
                 }
             },
             |context, result| {
@@ -23694,7 +23696,7 @@ fn destack_fs_path_realpath_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_realpath(runtime, context, path),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_realpath(runtime, context, path)
+                    platform_simulation_vm::destack_fs_realpath(runtime, context, path)
                 }
             },
             |context, result| {
@@ -23793,7 +23795,7 @@ fn destack_fs_path_rename_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_rename(runtime, context, from, to),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_rename(runtime, context, from, to)
+                    platform_simulation_vm::destack_fs_rename(runtime, context, from, to)
                 }
             },
             |context, result| {
@@ -23849,7 +23851,7 @@ fn destack_fs_path_renameat_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_renameat(runtime, context, fromdir, from, todir, to)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_renameat(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_renameat(
                     runtime, context, fromdir, from, todir, to,
                 ),
             },
@@ -23907,7 +23909,7 @@ fn destack_fs_path_renameat2_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_fs_renameat2(
                     runtime, context, fromdir, from, todir, to, flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_renameat2(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_renameat2(
                     runtime, context, fromdir, from, todir, to, flags,
                 ),
             },
@@ -23964,7 +23966,7 @@ fn destack_fs_path_symlink_vm_replay(
                     platform_vm::destack_fs_symlink(runtime, context, target, path, kind)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_symlink(runtime, context, target, path, kind)
+                    platform_simulation_vm::destack_fs_symlink(runtime, context, target, path, kind)
                 }
             },
             |context, result| {
@@ -24020,7 +24022,7 @@ fn destack_fs_path_symlinkat_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_symlinkat(runtime, context, target, dir, path, kind)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_symlinkat(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_symlinkat(
                     runtime, context, target, dir, path, kind,
                 ),
             },
@@ -24073,7 +24075,7 @@ fn destack_fs_path_unlink_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_unlink(runtime, context, path),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_unlink(runtime, context, path)
+                    platform_simulation_vm::destack_fs_unlink(runtime, context, path)
                 }
             },
             |context, result| {
@@ -24129,7 +24131,7 @@ fn destack_fs_path_unlinkat_vm_replay(
                     platform_vm::destack_fs_unlinkat(runtime, context, dir, path, flags)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_unlinkat(runtime, context, dir, path, flags)
+                    platform_simulation_vm::destack_fs_unlinkat(runtime, context, dir, path, flags)
                 }
             },
             |context, result| {
@@ -24181,7 +24183,7 @@ fn destack_fs_stat_fstat_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_fstat(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_fstat(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_fstat(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -24295,7 +24297,7 @@ fn destack_fs_stat_fstatfs_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_fstatfs(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_fstatfs(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_fstatfs(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -24393,7 +24395,7 @@ fn destack_fs_stat_lstat_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_lstat(runtime, context, path),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_lstat(runtime, context, path)
+                    platform_simulation_vm::destack_fs_lstat(runtime, context, path)
                 }
             },
             |context, result| {
@@ -24507,7 +24509,7 @@ fn destack_fs_stat_path_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_stat(runtime, context, path),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_stat(runtime, context, path)
+                    platform_simulation_vm::destack_fs_stat(runtime, context, path)
                 }
             },
             |context, result| {
@@ -24625,7 +24627,7 @@ fn destack_fs_stat_pathat_vm_replay(
                     platform_vm::destack_fs_statat(runtime, context, dir, path, flags)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_statat(runtime, context, dir, path, flags)
+                    platform_simulation_vm::destack_fs_statat(runtime, context, dir, path, flags)
                 }
             },
             |context, result| {
@@ -24739,7 +24741,7 @@ fn destack_fs_stat_pathfs_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_statfs(runtime, context, path),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_statfs(runtime, context, path)
+                    platform_simulation_vm::destack_fs_statfs(runtime, context, path)
                 }
             },
             |context, result| {
@@ -24841,7 +24843,7 @@ fn destack_fs_stat_pathx_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_statx(runtime, context, dir, path, flags, mask)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_statx(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_statx(
                     runtime, context, dir, path, flags, mask,
                 ),
             },
@@ -24975,7 +24977,7 @@ fn destack_fs_watch_open_vm_replay(
                     platform_vm::destack_fs_watch(runtime, context, path, options)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_watch(runtime, context, path, options)
+                    platform_simulation_vm::destack_fs_watch(runtime, context, path, options)
                 }
             },
             |context, result| {
@@ -25031,7 +25033,7 @@ fn destack_fs_watch_open_close_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_watch_close(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_watch_close(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_watch_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -25081,7 +25083,7 @@ fn destack_fs_watch_open_read_vm_replay(
         |context| {
             match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_watch_read(runtime, context, handle),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_watch_read(runtime, context, handle),
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_watch_read(runtime, context, handle),
             }
         },
         |context, result| {
@@ -25289,7 +25291,7 @@ fn destack_fs_watch_openat_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_watchat(runtime, context, directory, path, options)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_watchat(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_watchat(
                     runtime, context, directory, path, options,
                 ),
             },
@@ -25349,7 +25351,7 @@ fn destack_fs_xattr_fgetxattr_vm_replay(
                     platform_vm::destack_fs_fgetxattr(runtime, context, handle, name)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_fgetxattr(runtime, context, handle, name)
+                    platform_simulation_vm::destack_fs_fgetxattr(runtime, context, handle, name)
                 }
             },
             |context, result| {
@@ -25407,7 +25409,7 @@ fn destack_fs_xattr_fgetxattr_bytes_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_fgetxattr_bytes(runtime, context, handle, name)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_fgetxattr_bytes(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fgetxattr_bytes(
                     runtime, context, handle, name,
                 ),
             },
@@ -25464,7 +25466,7 @@ fn destack_fs_xattr_flistxattr_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_flistxattr(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_flistxattr(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_flistxattr(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -25545,7 +25547,7 @@ fn destack_fs_xattr_flistxattr_bytes_vm_replay(
                     platform_vm::destack_fs_flistxattr_bytes(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_flistxattr_bytes(runtime, context, handle)
+                    platform_simulation_vm::destack_fs_flistxattr_bytes(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -25631,7 +25633,7 @@ fn destack_fs_xattr_fremovexattr_vm_replay(
                     platform_vm::destack_fs_fremovexattr(runtime, context, handle, name)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_fremovexattr(runtime, context, handle, name)
+                    platform_simulation_vm::destack_fs_fremovexattr(runtime, context, handle, name)
                 }
             },
             |context, result| {
@@ -25685,7 +25687,7 @@ fn destack_fs_xattr_fremovexattr_bytes_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_fremovexattr_bytes(runtime, context, handle, name)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_fremovexattr_bytes(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fremovexattr_bytes(
                     runtime, context, handle, name,
                 ),
             },
@@ -25747,7 +25749,7 @@ fn destack_fs_xattr_fsetxattr_vm_replay(
                     argument_value,
                     flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_fsetxattr(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fsetxattr(
                     runtime,
                     context,
                     handle,
@@ -25814,7 +25816,7 @@ fn destack_fs_xattr_fsetxattr_bytes_vm_replay(
                     argument_value,
                     flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_fsetxattr_bytes(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fsetxattr_bytes(
                     runtime,
                     context,
                     handle,
@@ -25875,7 +25877,7 @@ fn destack_fs_xattr_getxattr_vm_replay(
                     platform_vm::destack_fs_getxattr(runtime, context, path, name)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_getxattr(runtime, context, path, name)
+                    platform_simulation_vm::destack_fs_getxattr(runtime, context, path, name)
                 }
             },
             |context, result| {
@@ -25934,7 +25936,7 @@ fn destack_fs_xattr_getxattr_bytes_vm_replay(
                     platform_vm::destack_fs_getxattr_bytes(runtime, context, path, name)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_getxattr_bytes(runtime, context, path, name)
+                    platform_simulation_vm::destack_fs_getxattr_bytes(runtime, context, path, name)
                 }
             },
             |context, result| {
@@ -25993,7 +25995,7 @@ fn destack_fs_xattr_lgetxattr_vm_replay(
                     platform_vm::destack_fs_lgetxattr(runtime, context, path, name)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_lgetxattr(runtime, context, path, name)
+                    platform_simulation_vm::destack_fs_lgetxattr(runtime, context, path, name)
                 }
             },
             |context, result| {
@@ -26052,7 +26054,7 @@ fn destack_fs_xattr_lgetxattr_bytes_vm_replay(
                     platform_vm::destack_fs_lgetxattr_bytes(runtime, context, path, name)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_lgetxattr_bytes(runtime, context, path, name)
+                    platform_simulation_vm::destack_fs_lgetxattr_bytes(runtime, context, path, name)
                 }
             },
             |context, result| {
@@ -26108,7 +26110,7 @@ fn destack_fs_xattr_listxattr_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_listxattr(runtime, context, path),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_listxattr(runtime, context, path)
+                    platform_simulation_vm::destack_fs_listxattr(runtime, context, path)
                 }
             },
             |context, result| {
@@ -26189,7 +26191,7 @@ fn destack_fs_xattr_listxattr_bytes_vm_replay(
                     platform_vm::destack_fs_listxattr_bytes(runtime, context, path)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_listxattr_bytes(runtime, context, path)
+                    platform_simulation_vm::destack_fs_listxattr_bytes(runtime, context, path)
                 }
             },
             |context, result| {
@@ -26272,7 +26274,7 @@ fn destack_fs_xattr_llistxattr_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_llistxattr(runtime, context, path),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_llistxattr(runtime, context, path)
+                    platform_simulation_vm::destack_fs_llistxattr(runtime, context, path)
                 }
             },
             |context, result| {
@@ -26353,7 +26355,7 @@ fn destack_fs_xattr_llistxattr_bytes_vm_replay(
                     platform_vm::destack_fs_llistxattr_bytes(runtime, context, path)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_llistxattr_bytes(runtime, context, path)
+                    platform_simulation_vm::destack_fs_llistxattr_bytes(runtime, context, path)
                 }
             },
             |context, result| {
@@ -26439,7 +26441,7 @@ fn destack_fs_xattr_lremovexattr_vm_replay(
                     platform_vm::destack_fs_lremovexattr(runtime, context, path, name)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_lremovexattr(runtime, context, path, name)
+                    platform_simulation_vm::destack_fs_lremovexattr(runtime, context, path, name)
                 }
             },
             |context, result| {
@@ -26493,7 +26495,7 @@ fn destack_fs_xattr_lremovexattr_bytes_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_lremovexattr_bytes(runtime, context, path, name)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_lremovexattr_bytes(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_lremovexattr_bytes(
                     runtime, context, path, name,
                 ),
             },
@@ -26555,7 +26557,7 @@ fn destack_fs_xattr_lsetxattr_vm_replay(
                     argument_value,
                     flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_lsetxattr(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_lsetxattr(
                     runtime,
                     context,
                     path,
@@ -26622,7 +26624,7 @@ fn destack_fs_xattr_lsetxattr_bytes_vm_replay(
                     argument_value,
                     flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_lsetxattr_bytes(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_lsetxattr_bytes(
                     runtime,
                     context,
                     path,
@@ -26683,7 +26685,7 @@ fn destack_fs_xattr_removexattr_vm_replay(
                     platform_vm::destack_fs_removexattr(runtime, context, path, name)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_fs_removexattr(runtime, context, path, name)
+                    platform_simulation_vm::destack_fs_removexattr(runtime, context, path, name)
                 }
             },
             |context, result| {
@@ -26737,7 +26739,7 @@ fn destack_fs_xattr_removexattr_bytes_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_removexattr_bytes(runtime, context, path, name)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_removexattr_bytes(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_removexattr_bytes(
                     runtime, context, path, name,
                 ),
             },
@@ -26799,7 +26801,7 @@ fn destack_fs_xattr_setxattr_vm_replay(
                     argument_value,
                     flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_setxattr(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_setxattr(
                     runtime,
                     context,
                     path,
@@ -26866,7 +26868,7 @@ fn destack_fs_xattr_setxattr_bytes_vm_replay(
                     argument_value,
                     flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_setxattr_bytes(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_setxattr_bytes(
                     runtime,
                     context,
                     path,

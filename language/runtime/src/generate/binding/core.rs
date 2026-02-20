@@ -26,8 +26,8 @@ pub(crate) use path::{
     runtime_domain_abi_types_path, runtime_domain_bindings_path, runtime_domain_host_path,
     runtime_domain_mod_path, runtime_domain_native_path, runtime_domain_runtime_mod_path,
     runtime_domain_runtime_native_path, runtime_domain_runtime_vm_path,
-    runtime_domain_simulated_mod_path, runtime_domain_simulated_native_path,
-    runtime_domain_simulated_vm_path, runtime_domain_test_harness_generated_path,
+    runtime_domain_simulation_mod_path, runtime_domain_simulation_native_path,
+    runtime_domain_simulation_vm_path, runtime_domain_test_harness_generated_path,
     runtime_domain_test_harness_path, runtime_domain_tests_basic_path,
     runtime_domain_tests_dir_path, runtime_domain_tests_mod_path, runtime_domain_tests_path,
     runtime_domain_unix_mod_path, runtime_domain_unsupported_path, runtime_domain_vm_path,
@@ -38,7 +38,7 @@ pub(crate) use stub::{
     render_domain_mod_stub, render_domain_test_harness_generated, render_domain_test_harness_stub,
     render_host_router_stub, render_host_stub, render_native_stub, render_os_backend_mod_stub,
     render_runtime_mod_stub, render_runtime_native_stub, render_runtime_vm_stub,
-    render_simulated_mod_stub, render_simulated_native_stub, render_simulated_vm_stub,
+    render_simulation_mod_stub, render_simulation_native_stub, render_simulation_vm_stub,
     render_vm_stub,
 };
 
@@ -708,7 +708,7 @@ impl<'a> DomainWriter<'a> {
         }
         if usage.uses_world_dispatch {
             self.output.push_str(&format!(
-                "use crate::platform::{domain}::simulated::{{native as platform_simulated_native, vm as platform_simulated_vm}};\n"
+                "use crate::platform::{domain}::simulation::{{native as platform_simulation_native, vm as platform_simulation_vm}};\n"
             ));
         }
         self.output.push('\n');
@@ -1627,17 +1627,17 @@ fn render_native_checked_world_dispatch_expr(
         return format!("{{ context.check_policy({binding_const})?; {runtime_call} }}");
     }
 
-    let simulated = if args.is_empty() {
-        format!("unsafe {{ platform_simulated_native::{implementation_fn_name}(context) }}")
+    let simulation = if args.is_empty() {
+        format!("unsafe {{ platform_simulation_native::{implementation_fn_name}(context) }}")
     } else {
         format!(
-            "unsafe {{ platform_simulated_native::{implementation_fn_name}(context, {}) }}",
+            "unsafe {{ platform_simulation_native::{implementation_fn_name}(context, {}) }}",
             args.join(", ")
         )
     };
 
     format!(
-        "{{\n            context.check_policy({binding_const})?;\n            let world = context.check_and_resolve_world({binding_const})?;\n            match world {{\n                RuntimeWorld::Host => {call},\n                RuntimeWorld::Simulated => {simulated},\n            }}\n        }}"
+        "{{\n            context.check_policy({binding_const})?;\n            let world = context.check_and_resolve_world({binding_const})?;\n            match world {{\n                RuntimeWorld::Host => {call},\n                RuntimeWorld::Simulated => {simulation},\n            }}\n        }}"
     )
 }
 
@@ -1656,11 +1656,11 @@ fn render_vm_checked_world_dispatch_expr(
         return format!("{{ runtime.check_policy({binding_const})?; {runtime_call} }}");
     }
 
-    let simulated =
-        format!("platform_simulated_vm::{implementation_fn_name}(runtime, context{invoke_args})");
+    let simulation =
+        format!("platform_simulation_vm::{implementation_fn_name}(runtime, context{invoke_args})");
 
     format!(
-        "{{\n                        runtime.check_policy({binding_const})?;\n                        let world = runtime.check_and_resolve_world({binding_const})?;\n                        match world {{\n                            RuntimeWorld::Host => {call},\n                            RuntimeWorld::Simulated => {simulated},\n                        }}\n                    }}"
+        "{{\n                        runtime.check_policy({binding_const})?;\n                        let world = runtime.check_and_resolve_world({binding_const})?;\n                        match world {{\n                            RuntimeWorld::Host => {call},\n                            RuntimeWorld::Simulated => {simulation},\n                        }}\n                    }}"
     )
 }
 
@@ -2047,7 +2047,7 @@ fn collect_native_named_types(domain: &str, bindings: &BindingCatalogEntry) -> B
     names
 }
 
-/// Collect named types required by simulated native stub signatures.
+/// Collect named types required by simulation native stub signatures.
 fn collect_native_stub_named_types(
     domain: &str,
     bindings: &BindingCatalogEntry,
@@ -2237,7 +2237,7 @@ fn collect_vm_named_types(domain: &str, bindings: &BindingCatalogEntry) -> BTree
     names
 }
 
-/// Collect named types required by simulated VM stub signatures.
+/// Collect named types required by simulation VM stub signatures.
 fn collect_vm_stub_named_types(domain: &str, bindings: &BindingCatalogEntry) -> BTreeSet<String> {
     let mut names = BTreeSet::new();
     for entry in bindings.values() {
@@ -2305,7 +2305,7 @@ fn collect_signature_type_names(
 
 /// Walk a binding type and record only named types that appear in function signatures.
 ///
-/// This skips nested field recursion so generated simulated stubs do not import
+/// This skips nested field recursion so generated simulation stubs do not import
 /// transitive types that are never referenced by the signature itself.
 fn collect_signature_stub_type_names(
     domain: &str,

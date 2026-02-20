@@ -12,8 +12,6 @@ pub(crate) mod core;
 pub mod crypto;
 /// Debug bindings.
 pub mod debug;
-/// Device bindings.
-pub mod device;
 /// Platform diagnostics.
 pub mod diagnostic;
 /// Display bindings.

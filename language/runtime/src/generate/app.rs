@@ -15,13 +15,13 @@ use crate::binding::{
     render_domain_mod_stub, render_domain_test_harness_generated, render_domain_test_harness_stub,
     render_host_router_stub, render_host_stub, render_native_stub, render_os_backend_mod_stub,
     render_platform_bindings_index, render_runtime_mod_stub, render_runtime_native_stub,
-    render_runtime_vm_stub, render_simulated_mod_stub, render_simulated_native_stub,
-    render_simulated_vm_stub, render_vm_stub, runtime_domain_abi_types_path,
+    render_runtime_vm_stub, render_simulation_mod_stub, render_simulation_native_stub,
+    render_simulation_vm_stub, render_vm_stub, runtime_domain_abi_types_path,
     runtime_domain_bindings_path, runtime_domain_host_path, runtime_domain_mod_path,
     runtime_domain_native_path, runtime_domain_runtime_mod_path,
     runtime_domain_runtime_native_path, runtime_domain_runtime_vm_path,
-    runtime_domain_simulated_mod_path, runtime_domain_simulated_native_path,
-    runtime_domain_simulated_vm_path, runtime_domain_test_harness_generated_path,
+    runtime_domain_simulation_mod_path, runtime_domain_simulation_native_path,
+    runtime_domain_simulation_vm_path, runtime_domain_test_harness_generated_path,
     runtime_domain_test_harness_path, runtime_domain_tests_basic_path,
     runtime_domain_tests_dir_path, runtime_domain_tests_mod_path, runtime_domain_tests_path,
     runtime_domain_unix_mod_path, runtime_domain_unsupported_path, runtime_domain_vm_path,
@@ -366,15 +366,22 @@ fn generate_bindings(
 
     for domain in &abi_domains {
         if let Some(bindings) = catalog.get(domain) {
-            let has_world_dispatch = bindings
+            let has_host_dispatch = bindings
                 .values()
                 .any(|entry| entry.scope != BindingScope::Runtime);
             let has_runtime_dispatch = bindings
                 .values()
                 .any(|entry| entry.scope == BindingScope::Runtime);
 
+            // enforce one scope family per module
+            if has_host_dispatch && has_runtime_dispatch {
+                panic!(
+                    "platform module {domain} mixes host and runtime binding scopes: split into one scope per module"
+                );
+            }
+
             let mod_path = runtime_domain_mod_path(domain);
-            let stub = render_domain_mod_stub(has_world_dispatch, has_runtime_dispatch);
+            let stub = render_domain_mod_stub(has_host_dispatch, has_runtime_dispatch);
             write_missing_stub_file(&mod_path, &stub);
 
             let generated = render_domain_bindings(domain, bindings);
@@ -389,7 +396,7 @@ fn generate_bindings(
             let stub = render_vm_stub(domain, bindings);
             write_stub_file(&vm_path, &stub, refresh_stubs);
 
-            if has_world_dispatch {
+            if has_host_dispatch {
                 let host_path = runtime_domain_host_path(domain);
                 let stub = render_host_router_stub();
                 write_missing_stub_file(&host_path, &stub);
@@ -406,17 +413,17 @@ fn generate_bindings(
                 let stub = render_host_stub(domain, bindings);
                 write_stub_file(&unsupported_path, &stub, refresh_stubs);
 
-                let simulated_mod_path = runtime_domain_simulated_mod_path(domain);
-                let stub = render_simulated_mod_stub();
-                write_stub_file(&simulated_mod_path, &stub, refresh_stubs);
+                let simulation_mod_path = runtime_domain_simulation_mod_path(domain);
+                let stub = render_simulation_mod_stub();
+                write_stub_file(&simulation_mod_path, &stub, refresh_stubs);
 
-                let simulated_native_path = runtime_domain_simulated_native_path(domain);
-                let stub = render_simulated_native_stub(domain, bindings);
-                write_stub_file(&simulated_native_path, &stub, refresh_stubs);
+                let simulation_native_path = runtime_domain_simulation_native_path(domain);
+                let stub = render_simulation_native_stub(domain, bindings);
+                write_stub_file(&simulation_native_path, &stub, refresh_stubs);
 
-                let simulated_vm_path = runtime_domain_simulated_vm_path(domain);
-                let stub = render_simulated_vm_stub(domain, bindings);
-                write_stub_file(&simulated_vm_path, &stub, refresh_stubs);
+                let simulation_vm_path = runtime_domain_simulation_vm_path(domain);
+                let stub = render_simulation_vm_stub(domain, bindings);
+                write_stub_file(&simulation_vm_path, &stub, refresh_stubs);
             }
 
             if has_runtime_dispatch {

@@ -42,19 +42,21 @@ pub(crate) fn runtime_domain_vm_path(domain: &str) -> PathBuf {
     language_root().join(format!("runtime/src/platform/{domain}/vm.rs"))
 }
 
-/// Resolve the simulated native binding path for a runtime domain.
-pub(crate) fn runtime_domain_simulated_native_path(domain: &str) -> PathBuf {
-    language_root().join(format!("runtime/src/platform/{domain}/simulated/native.rs"))
+/// Resolve the simulation native binding path for a runtime domain.
+pub(crate) fn runtime_domain_simulation_native_path(domain: &str) -> PathBuf {
+    language_root().join(format!(
+        "runtime/src/platform/{domain}/simulation/native.rs"
+    ))
 }
 
-/// Resolve the simulated VM binding path for a runtime domain.
-pub(crate) fn runtime_domain_simulated_vm_path(domain: &str) -> PathBuf {
-    language_root().join(format!("runtime/src/platform/{domain}/simulated/vm.rs"))
+/// Resolve the simulation VM binding path for a runtime domain.
+pub(crate) fn runtime_domain_simulation_vm_path(domain: &str) -> PathBuf {
+    language_root().join(format!("runtime/src/platform/{domain}/simulation/vm.rs"))
 }
 
-/// Resolve the simulated module path for a runtime domain.
-pub(crate) fn runtime_domain_simulated_mod_path(domain: &str) -> PathBuf {
-    language_root().join(format!("runtime/src/platform/{domain}/simulated/mod.rs"))
+/// Resolve the simulation module path for a runtime domain.
+pub(crate) fn runtime_domain_simulation_mod_path(domain: &str) -> PathBuf {
+    language_root().join(format!("runtime/src/platform/{domain}/simulation/mod.rs"))
 }
 
 /// Resolve the unix host backend shim path for a runtime domain.

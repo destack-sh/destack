@@ -26,8 +26,8 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::tls::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
+use crate::platform::tls::simulation::{
+    native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::tls::{native as platform_native, vm as platform_vm};
 use crate::platform::{resource as platform_resource, resource, tls as platform_tls};
@@ -1230,7 +1230,7 @@ fn destack_tls_context_close_replay(
                 platform_native::destack_tls_context_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tls_context_close(context, handle)
+                platform_simulation_native::destack_tls_context_close(context, handle)
             },
         },
         |result| {
@@ -1279,7 +1279,7 @@ fn destack_tls_context_open_replay(
                 platform_native::destack_tls_context_open(context, out, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tls_context_open(context, out, options)
+                platform_simulation_native::destack_tls_context_open(context, out, options)
             },
         },
         |result| {
@@ -1339,7 +1339,7 @@ fn destack_tls_session_close_replay(
                 platform_native::destack_tls_session_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tls_session_close(context, handle)
+                platform_simulation_native::destack_tls_session_close(context, handle)
             },
         },
         |result| {
@@ -1388,7 +1388,7 @@ fn destack_tls_session_handshake_replay(
                 platform_native::destack_tls_session_handshake(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tls_session_handshake(context, out, handle)
+                platform_simulation_native::destack_tls_session_handshake(context, out, handle)
             },
         },
         |result| {
@@ -1449,7 +1449,9 @@ fn destack_tls_session_negotiated_alpn_replay(
                 platform_native::destack_tls_session_negotiated_alpn(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tls_session_negotiated_alpn(context, out, handle)
+                platform_simulation_native::destack_tls_session_negotiated_alpn(
+                    context, out, handle,
+                )
             },
         },
         |result| {
@@ -1529,7 +1531,7 @@ fn destack_tls_session_open_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tls_session_open(
+                platform_simulation_native::destack_tls_session_open(
                     context,
                     out,
                     argument_context,
@@ -1596,7 +1598,7 @@ fn destack_tls_session_resumption_state_replay(
                 platform_native::destack_tls_session_resumption_state(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tls_session_resumption_state(
+                platform_simulation_native::destack_tls_session_resumption_state(
                     context, out, handle,
                 )
             },
@@ -1658,7 +1660,7 @@ fn destack_tls_session_shutdown_replay(
                 platform_native::destack_tls_session_shutdown(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tls_session_shutdown(context, handle)
+                platform_simulation_native::destack_tls_session_shutdown(context, handle)
             },
         },
         |result| {
@@ -1737,7 +1739,7 @@ pub unsafe extern "C" fn destack_tls_context_set_cipher_suites(
                     platform_native::destack_tls_context_set_cipher_suites(context, handle, suites)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_tls_context_set_cipher_suites(
+                    platform_simulation_native::destack_tls_context_set_cipher_suites(
                         context, handle, suites,
                     )
                 },
@@ -1762,7 +1764,7 @@ pub unsafe extern "C" fn destack_tls_context_set_groups(
                     platform_native::destack_tls_context_set_groups(context, handle, groups)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_tls_context_set_groups(
+                    platform_simulation_native::destack_tls_context_set_groups(
                         context, handle, groups,
                     )
                 },
@@ -1790,7 +1792,7 @@ pub unsafe extern "C" fn destack_tls_context_set_hostname_verification_mode(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_tls_context_set_hostname_verification_mode(
+                    platform_simulation_native::destack_tls_context_set_hostname_verification_mode(
                         context, handle, mode,
                     )
                 },
@@ -1821,7 +1823,7 @@ pub unsafe extern "C" fn destack_tls_context_set_identity_pem(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_tls_context_set_identity_pem(
+                    platform_simulation_native::destack_tls_context_set_identity_pem(
                         context,
                         handle,
                         certificatechainpem,
@@ -1851,7 +1853,7 @@ pub unsafe extern "C" fn destack_tls_context_set_keylog_enabled(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_tls_context_set_keylog_enabled(
+                    platform_simulation_native::destack_tls_context_set_keylog_enabled(
                         context, handle, enabled,
                     )
                 },
@@ -1878,7 +1880,7 @@ pub unsafe extern "C" fn destack_tls_context_set_session_resumption(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_tls_context_set_session_resumption(
+                    platform_simulation_native::destack_tls_context_set_session_resumption(
                         context, handle, mode,
                     )
                 },
@@ -1905,7 +1907,7 @@ pub unsafe extern "C" fn destack_tls_context_set_signature_algorithms(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_tls_context_set_signature_algorithms(
+                    platform_simulation_native::destack_tls_context_set_signature_algorithms(
                         context, handle, algorithms,
                     )
                 },
@@ -1934,7 +1936,7 @@ pub unsafe extern "C" fn destack_tls_context_set_trust_anchors_pem(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_tls_context_set_trust_anchors_pem(
+                    platform_simulation_native::destack_tls_context_set_trust_anchors_pem(
                         context,
                         handle,
                         trustanchorspem,
@@ -1987,7 +1989,7 @@ pub unsafe extern "C" fn destack_tls_session_export_keying_material(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_tls_session_export_keying_material(
+                    platform_simulation_native::destack_tls_session_export_keying_material(
                         context,
                         out,
                         handle,
@@ -2073,7 +2075,7 @@ pub unsafe extern "C" fn destack_tls_session_peer_certificates_pem(
                     platform_native::destack_tls_session_peer_certificates_pem(context, out, handle)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_tls_session_peer_certificates_pem(
+                    platform_simulation_native::destack_tls_session_peer_certificates_pem(
                         context, out, handle,
                     )
                 },
@@ -2102,7 +2104,7 @@ pub unsafe extern "C" fn destack_tls_session_read(
                     platform_native::destack_tls_session_read(context, out, handle, buffer)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_tls_session_read(
+                    platform_simulation_native::destack_tls_session_read(
                         context, out, handle, buffer,
                     )
                 },
@@ -2161,7 +2163,7 @@ pub unsafe extern "C" fn destack_tls_session_write(
                     platform_native::destack_tls_session_write(context, out, handle, buffer)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_tls_session_write(
+                    platform_simulation_native::destack_tls_session_write(
                         context, out, handle, buffer,
                     )
                 },
@@ -2189,7 +2191,7 @@ fn destack_tls_context_close_vm_replay(
                     platform_vm::destack_tls_context_close(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_tls_context_close(runtime, context, handle)
+                    platform_simulation_vm::destack_tls_context_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -2243,7 +2245,7 @@ fn destack_tls_context_open_vm_replay(
                     platform_vm::destack_tls_context_open(runtime, context, options)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_tls_context_open(runtime, context, options)
+                    platform_simulation_vm::destack_tls_context_open(runtime, context, options)
                 }
             },
             |context, result| {
@@ -2301,7 +2303,7 @@ fn destack_tls_session_close_vm_replay(
                     platform_vm::destack_tls_session_close(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_tls_session_close(runtime, context, handle)
+                    platform_simulation_vm::destack_tls_session_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -2355,7 +2357,7 @@ fn destack_tls_session_handshake_vm_replay(
                     platform_vm::destack_tls_session_handshake(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_tls_session_handshake(runtime, context, handle)
+                    platform_simulation_vm::destack_tls_session_handshake(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -2413,7 +2415,7 @@ fn destack_tls_session_negotiated_alpn_vm_replay(
                     platform_vm::destack_tls_session_negotiated_alpn(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_tls_session_negotiated_alpn(
+                    platform_simulation_vm::destack_tls_session_negotiated_alpn(
                         runtime, context, handle,
                     )
                 }
@@ -2478,7 +2480,7 @@ fn destack_tls_session_open_vm_replay(
                     socket,
                     servername,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_tls_session_open(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_tls_session_open(
                     runtime,
                     context,
                     argument_context,
@@ -2541,7 +2543,7 @@ fn destack_tls_session_resumption_state_vm_replay(
                     platform_vm::destack_tls_session_resumption_state(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_tls_session_resumption_state(
+                    platform_simulation_vm::destack_tls_session_resumption_state(
                         runtime, context, handle,
                     )
                 }
@@ -2601,7 +2603,7 @@ fn destack_tls_session_shutdown_vm_replay(
                     platform_vm::destack_tls_session_shutdown(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_tls_session_shutdown(runtime, context, handle)
+                    platform_simulation_vm::destack_tls_session_shutdown(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -2695,7 +2697,7 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 )
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_tls_context_set_cipher_suites(
+                                platform_simulation_vm::destack_tls_context_set_cipher_suites(
                                     runtime, context, handle, suites,
                                 )
                             }
@@ -2727,7 +2729,7 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 runtime, context, handle, groups,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_tls_context_set_groups(
+                                platform_simulation_vm::destack_tls_context_set_groups(
                                     runtime, context, handle, groups,
                                 )
                             }
@@ -2755,7 +2757,7 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         let world = runtime.check_and_resolve_world(TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_tls_context_set_hostname_verification_mode(runtime, context, handle, mode),
-                            RuntimeWorld::Simulated => platform_simulated_vm::destack_tls_context_set_hostname_verification_mode(runtime, context, handle, mode),
+                            RuntimeWorld::Simulated => platform_simulation_vm::destack_tls_context_set_hostname_verification_mode(runtime, context, handle, mode),
                         }
                     };
                 encode_destack_tls_context_set_hostname_verification_mode_result(context, result)
@@ -2791,7 +2793,7 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 )
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_tls_context_set_identity_pem(
+                                platform_simulation_vm::destack_tls_context_set_identity_pem(
                                     runtime,
                                     context,
                                     handle,
@@ -2830,7 +2832,7 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 )
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_tls_context_set_keylog_enabled(
+                                platform_simulation_vm::destack_tls_context_set_keylog_enabled(
                                     runtime, context, handle, enabled,
                                 )
                             }
@@ -2865,7 +2867,7 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 )
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_tls_context_set_session_resumption(
+                                platform_simulation_vm::destack_tls_context_set_session_resumption(
                                     runtime, context, handle, mode,
                                 )
                             }
@@ -2884,31 +2886,21 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
-                    // decode args
-                    let (handle, algorithms) =
-                        decode_destack_tls_context_set_signature_algorithms_args(context, args)?;
+                // decode args
+                let (handle, algorithms) = decode_destack_tls_context_set_signature_algorithms_args(context, args)?;
 
-                    // execute binding
-                    let result = {
+                // execute binding
+                let result = {
                         runtime.check_policy(TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS)?;
-                        let world = runtime
-                            .check_and_resolve_world(TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS)?;
+                        let world = runtime.check_and_resolve_world(TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS)?;
                         match world {
-                            RuntimeWorld::Host => {
-                                platform_vm::destack_tls_context_set_signature_algorithms(
-                                    runtime, context, handle, algorithms,
-                                )
-                            }
-                            RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_tls_context_set_signature_algorithms(
-                                    runtime, context, handle, algorithms,
-                                )
-                            }
+                            RuntimeWorld::Host => platform_vm::destack_tls_context_set_signature_algorithms(runtime, context, handle, algorithms),
+                            RuntimeWorld::Simulated => platform_simulation_vm::destack_tls_context_set_signature_algorithms(runtime, context, handle, algorithms),
                         }
                     };
-                    encode_destack_tls_context_set_signature_algorithms_result(context, result)
-                })
-                .map_err(Into::into)
+                encode_destack_tls_context_set_signature_algorithms_result(context, result)
+            })
+            .map_err(Into::into)
             }
         );
     }
@@ -2938,7 +2930,7 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 )
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_tls_context_set_trust_anchors_pem(
+                                platform_simulation_vm::destack_tls_context_set_trust_anchors_pem(
                                     runtime,
                                     context,
                                     handle,
@@ -3000,7 +2992,7 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 )
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_tls_session_export_keying_material(
+                                platform_simulation_vm::destack_tls_session_export_keying_material(
                                     runtime,
                                     context,
                                     handle,
@@ -3100,7 +3092,7 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 )
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_tls_session_peer_certificates_pem(
+                                platform_simulation_vm::destack_tls_session_peer_certificates_pem(
                                     runtime, context, handle,
                                 )
                             }
@@ -3126,9 +3118,11 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         RuntimeWorld::Host => {
                             platform_vm::destack_tls_session_read(runtime, context, handle, buffer)
                         }
-                        RuntimeWorld::Simulated => platform_simulated_vm::destack_tls_session_read(
-                            runtime, context, handle, buffer,
-                        ),
+                        RuntimeWorld::Simulated => {
+                            platform_simulation_vm::destack_tls_session_read(
+                                runtime, context, handle, buffer,
+                            )
+                        }
                     }
                 };
                 encode_destack_tls_session_read_result(context, result)
@@ -3194,7 +3188,7 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                                 runtime, context, handle, buffer,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_tls_session_write(
+                                platform_simulation_vm::destack_tls_session_write(
                                     runtime, context, handle, buffer,
                                 )
                             }

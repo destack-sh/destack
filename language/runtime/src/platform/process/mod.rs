@@ -9,7 +9,7 @@ pub use bindings_generated::*;
 pub mod core;
 mod host;
 pub mod native;
-pub(crate) mod simulated;
+pub(crate) mod simulation;
 #[cfg(test)]
 mod tests;
 pub mod vm;

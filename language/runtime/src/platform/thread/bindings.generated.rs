@@ -18,8 +18,8 @@ use destack_vm::Isolate;
 use crate::binding;
 use crate::runtime::with_runtime_call_context;
 
-use crate::platform::thread::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
+use crate::platform::thread::simulation::{
+    native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::thread::{native as platform_native, vm as platform_vm};
 use crate::platform::{resource as platform_resource, resource, thread as platform_thread};
@@ -1626,7 +1626,7 @@ pub unsafe extern "C" fn destack_thread_local_create(
                     platform_native::destack_thread_local_create(context, out)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_local_create(context, out)
+                    platform_simulation_native::destack_thread_local_create(context, out)
                 },
             }
         }
@@ -1648,7 +1648,7 @@ pub unsafe extern "C" fn destack_thread_local_delete(
                     platform_native::destack_thread_local_delete(context, key)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_local_delete(context, key)
+                    platform_simulation_native::destack_thread_local_delete(context, key)
                 },
             }
         }
@@ -1674,7 +1674,7 @@ pub unsafe extern "C" fn destack_thread_local_get(
                     platform_native::destack_thread_local_get(context, out, key)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_local_get(context, out, key)
+                    platform_simulation_native::destack_thread_local_get(context, out, key)
                 },
             }
         }
@@ -1697,7 +1697,7 @@ pub unsafe extern "C" fn destack_thread_local_set(
                     platform_native::destack_thread_local_set(context, key, argument_value)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_local_set(
+                    platform_simulation_native::destack_thread_local_set(
                         context,
                         key,
                         argument_value,
@@ -1727,7 +1727,7 @@ pub unsafe extern "C" fn destack_thread_priority_get_affinity(
                     platform_native::destack_thread_get_affinity(context, out, handle)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_get_affinity(context, out, handle)
+                    platform_simulation_native::destack_thread_get_affinity(context, out, handle)
                 },
             }
         }
@@ -1753,7 +1753,7 @@ pub unsafe extern "C" fn destack_thread_priority_get_priority(
                     platform_native::destack_thread_get_priority(context, out, handle)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_get_priority(context, out, handle)
+                    platform_simulation_native::destack_thread_get_priority(context, out, handle)
                 },
             }
         }
@@ -1776,7 +1776,7 @@ pub unsafe extern "C" fn destack_thread_priority_set_affinity(
                     platform_native::destack_thread_set_affinity(context, handle, mask)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_set_affinity(context, handle, mask)
+                    platform_simulation_native::destack_thread_set_affinity(context, handle, mask)
                 },
             }
         }
@@ -1799,7 +1799,7 @@ pub unsafe extern "C" fn destack_thread_priority_set_priority(
                     platform_native::destack_thread_set_priority(context, handle, priority)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_set_priority(
+                    platform_simulation_native::destack_thread_set_priority(
                         context, handle, priority,
                     )
                 },
@@ -1823,7 +1823,7 @@ pub unsafe extern "C" fn destack_thread_spawn_detach(
                     platform_native::destack_thread_detach(context, handle)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_detach(context, handle)
+                    platform_simulation_native::destack_thread_detach(context, handle)
                 },
             }
         }
@@ -1849,7 +1849,7 @@ pub unsafe extern "C" fn destack_thread_spawn_join(
                     platform_native::destack_thread_join(context, out, handle)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_join(context, out, handle)
+                    platform_simulation_native::destack_thread_join(context, out, handle)
                 },
             }
         }
@@ -1877,7 +1877,7 @@ pub unsafe extern "C" fn destack_thread_spawn_start(
                     platform_native::destack_thread_spawn(context, out, entry, argument, options)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_spawn(
+                    platform_simulation_native::destack_thread_spawn(
                         context, out, entry, argument, options,
                     )
                 },
@@ -1905,7 +1905,7 @@ pub unsafe extern "C" fn destack_thread_sync_address_wait(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_address_wait(
+                    platform_simulation_native::destack_thread_address_wait(
                         context, address, expected, timeoutns,
                     )
                 },
@@ -1927,7 +1927,7 @@ pub unsafe extern "C" fn destack_thread_sync_address_wake_all(address: u64) -> R
                     platform_native::destack_thread_address_wake_all(context, address)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_address_wake_all(context, address)
+                    platform_simulation_native::destack_thread_address_wake_all(context, address)
                 },
             }
         }
@@ -1947,7 +1947,7 @@ pub unsafe extern "C" fn destack_thread_sync_address_wake_one(address: u64) -> R
                     platform_native::destack_thread_address_wake_one(context, address)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_address_wake_one(context, address)
+                    platform_simulation_native::destack_thread_address_wake_one(context, address)
                 },
             }
         }
@@ -1979,7 +1979,7 @@ pub unsafe extern "C" fn destack_thread_sync_barrier_create(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_barrier_create(
+                    platform_simulation_native::destack_thread_barrier_create(
                         context,
                         out,
                         participants,
@@ -2011,7 +2011,7 @@ pub unsafe extern "C" fn destack_thread_sync_barrier_wait(
                     platform_native::destack_thread_barrier_wait(context, out, handle, timeoutns)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_barrier_wait(
+                    platform_simulation_native::destack_thread_barrier_wait(
                         context, out, handle, timeoutns,
                     )
                 },
@@ -2039,7 +2039,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_create(
                     platform_native::destack_thread_cond_var_create(context, out, flags)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_cond_var_create(context, out, flags)
+                    platform_simulation_native::destack_thread_cond_var_create(context, out, flags)
                 },
             }
         }
@@ -2061,7 +2061,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_notify_all(
                     platform_native::destack_thread_cond_var_notify_all(context, condvar)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_cond_var_notify_all(context, condvar)
+                    platform_simulation_native::destack_thread_cond_var_notify_all(context, condvar)
                 },
             }
         }
@@ -2083,7 +2083,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_notify_one(
                     platform_native::destack_thread_cond_var_notify_one(context, condvar)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_cond_var_notify_one(context, condvar)
+                    platform_simulation_native::destack_thread_cond_var_notify_one(context, condvar)
                 },
             }
         }
@@ -2109,7 +2109,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_wait(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_cond_var_wait(
+                    platform_simulation_native::destack_thread_cond_var_wait(
                         context, condvar, mutex, timeoutns,
                     )
                 },
@@ -2137,7 +2137,7 @@ pub unsafe extern "C" fn destack_thread_sync_mutex_create(
                     platform_native::destack_thread_mutex_create(context, out, flags)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_mutex_create(context, out, flags)
+                    platform_simulation_native::destack_thread_mutex_create(context, out, flags)
                 },
             }
         }
@@ -2160,7 +2160,9 @@ pub unsafe extern "C" fn destack_thread_sync_mutex_lock(
                     platform_native::destack_thread_mutex_lock(context, handle, timeoutns)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_mutex_lock(context, handle, timeoutns)
+                    platform_simulation_native::destack_thread_mutex_lock(
+                        context, handle, timeoutns,
+                    )
                 },
             }
         }
@@ -2182,7 +2184,7 @@ pub unsafe extern "C" fn destack_thread_sync_mutex_unlock(
                     platform_native::destack_thread_mutex_unlock(context, handle)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_mutex_unlock(context, handle)
+                    platform_simulation_native::destack_thread_mutex_unlock(context, handle)
                 },
             }
         }
@@ -2208,7 +2210,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_create(
                     platform_native::destack_thread_rwlock_create(context, out, flags)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_rwlock_create(context, out, flags)
+                    platform_simulation_native::destack_thread_rwlock_create(context, out, flags)
                 },
             }
         }
@@ -2231,7 +2233,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_read_lock(
                     platform_native::destack_thread_rwlock_read_lock(context, handle, timeoutns)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_rwlock_read_lock(
+                    platform_simulation_native::destack_thread_rwlock_read_lock(
                         context, handle, timeoutns,
                     )
                 },
@@ -2255,7 +2257,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_unlock(
                     platform_native::destack_thread_rwlock_unlock(context, handle)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_rwlock_unlock(context, handle)
+                    platform_simulation_native::destack_thread_rwlock_unlock(context, handle)
                 },
             }
         }
@@ -2278,7 +2280,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_write_lock(
                     platform_native::destack_thread_rwlock_write_lock(context, handle, timeoutns)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_rwlock_write_lock(
+                    platform_simulation_native::destack_thread_rwlock_write_lock(
                         context, handle, timeoutns,
                     )
                 },
@@ -2310,7 +2312,7 @@ pub unsafe extern "C" fn destack_thread_sync_semaphore_create(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_semaphore_create(
+                    platform_simulation_native::destack_thread_semaphore_create(
                         context, out, initial, maximum, flags,
                     )
                 },
@@ -2335,7 +2337,9 @@ pub unsafe extern "C" fn destack_thread_sync_semaphore_post(
                     platform_native::destack_thread_semaphore_post(context, handle, count)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_semaphore_post(context, handle, count)
+                    platform_simulation_native::destack_thread_semaphore_post(
+                        context, handle, count,
+                    )
                 },
             }
         }
@@ -2358,7 +2362,7 @@ pub unsafe extern "C" fn destack_thread_sync_semaphore_wait(
                     platform_native::destack_thread_semaphore_wait(context, handle, timeoutns)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_semaphore_wait(
+                    platform_simulation_native::destack_thread_semaphore_wait(
                         context, handle, timeoutns,
                     )
                 },
@@ -2385,7 +2389,9 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 platform_vm::destack_thread_local_create(runtime, context)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_local_create(runtime, context)
+                                platform_simulation_vm::destack_thread_local_create(
+                                    runtime, context,
+                                )
                             }
                         }
                     };
@@ -2414,7 +2420,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 platform_vm::destack_thread_local_delete(runtime, context, key)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_local_delete(
+                                platform_simulation_vm::destack_thread_local_delete(
                                     runtime, context, key,
                                 )
                             }
@@ -2441,7 +2447,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             platform_vm::destack_thread_local_get(runtime, context, key)
                         }
                         RuntimeWorld::Simulated => {
-                            platform_simulated_vm::destack_thread_local_get(runtime, context, key)
+                            platform_simulation_vm::destack_thread_local_get(runtime, context, key)
                         }
                     }
                 };
@@ -2467,12 +2473,14 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             key,
                             argument_value,
                         ),
-                        RuntimeWorld::Simulated => platform_simulated_vm::destack_thread_local_set(
-                            runtime,
-                            context,
-                            key,
-                            argument_value,
-                        ),
+                        RuntimeWorld::Simulated => {
+                            platform_simulation_vm::destack_thread_local_set(
+                                runtime,
+                                context,
+                                key,
+                                argument_value,
+                            )
+                        }
                     }
                 };
                 encode_destack_thread_local_set_result(context, result)
@@ -2501,7 +2509,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 platform_vm::destack_thread_get_affinity(runtime, context, handle)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_get_affinity(
+                                platform_simulation_vm::destack_thread_get_affinity(
                                     runtime, context, handle,
                                 )
                             }
@@ -2534,7 +2542,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 platform_vm::destack_thread_get_priority(runtime, context, handle)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_get_priority(
+                                platform_simulation_vm::destack_thread_get_priority(
                                     runtime, context, handle,
                                 )
                             }
@@ -2567,7 +2575,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, handle, mask,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_set_affinity(
+                                platform_simulation_vm::destack_thread_set_affinity(
                                     runtime, context, handle, mask,
                                 )
                             }
@@ -2600,7 +2608,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, handle, priority,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_set_priority(
+                                platform_simulation_vm::destack_thread_set_priority(
                                     runtime, context, handle, priority,
                                 )
                             }
@@ -2631,7 +2639,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 platform_vm::destack_thread_detach(runtime, context, handle)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_detach(
+                                platform_simulation_vm::destack_thread_detach(
                                     runtime, context, handle,
                                 )
                             }
@@ -2661,9 +2669,9 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_join(runtime, context, handle)
                             }
-                            RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_join(runtime, context, handle)
-                            }
+                            RuntimeWorld::Simulated => platform_simulation_vm::destack_thread_join(
+                                runtime, context, handle,
+                            ),
                         }
                     };
                     encode_destack_thread_spawn_join_result(context, result)
@@ -2691,9 +2699,11 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_spawn(
                                 runtime, context, entry, argument, options,
                             ),
-                            RuntimeWorld::Simulated => platform_simulated_vm::destack_thread_spawn(
-                                runtime, context, entry, argument, options,
-                            ),
+                            RuntimeWorld::Simulated => {
+                                platform_simulation_vm::destack_thread_spawn(
+                                    runtime, context, entry, argument, options,
+                                )
+                            }
                         }
                     };
                     encode_destack_thread_spawn_start_result(context, result)
@@ -2722,7 +2732,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, address, expected, timeoutns,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_address_wait(
+                                platform_simulation_vm::destack_thread_address_wait(
                                     runtime, context, address, expected, timeoutns,
                                 )
                             }
@@ -2755,7 +2765,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, address,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_address_wake_all(
+                                platform_simulation_vm::destack_thread_address_wake_all(
                                     runtime, context, address,
                                 )
                             }
@@ -2788,7 +2798,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, address,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_address_wake_one(
+                                platform_simulation_vm::destack_thread_address_wake_one(
                                     runtime, context, address,
                                 )
                             }
@@ -2823,7 +2833,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 flags,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_barrier_create(
+                                platform_simulation_vm::destack_thread_barrier_create(
                                     runtime,
                                     context,
                                     participants,
@@ -2858,7 +2868,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, handle, timeoutns,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_barrier_wait(
+                                platform_simulation_vm::destack_thread_barrier_wait(
                                     runtime, context, handle, timeoutns,
                                 )
                             }
@@ -2889,7 +2899,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 platform_vm::destack_thread_cond_var_create(runtime, context, flags)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_cond_var_create(
+                                platform_simulation_vm::destack_thread_cond_var_create(
                                     runtime, context, flags,
                                 )
                             }
@@ -2922,7 +2932,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, condvar,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_cond_var_notify_all(
+                                platform_simulation_vm::destack_thread_cond_var_notify_all(
                                     runtime, context, condvar,
                                 )
                             }
@@ -2955,7 +2965,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, condvar,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_cond_var_notify_one(
+                                platform_simulation_vm::destack_thread_cond_var_notify_one(
                                     runtime, context, condvar,
                                 )
                             }
@@ -2987,7 +2997,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, condvar, mutex, timeoutns,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_cond_var_wait(
+                                platform_simulation_vm::destack_thread_cond_var_wait(
                                     runtime, context, condvar, mutex, timeoutns,
                                 )
                             }
@@ -3018,7 +3028,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 platform_vm::destack_thread_mutex_create(runtime, context, flags)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_mutex_create(
+                                platform_simulation_vm::destack_thread_mutex_create(
                                     runtime, context, flags,
                                 )
                             }
@@ -3050,7 +3060,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, handle, timeoutns,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_mutex_lock(
+                                platform_simulation_vm::destack_thread_mutex_lock(
                                     runtime, context, handle, timeoutns,
                                 )
                             }
@@ -3081,7 +3091,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 platform_vm::destack_thread_mutex_unlock(runtime, context, handle)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_mutex_unlock(
+                                platform_simulation_vm::destack_thread_mutex_unlock(
                                     runtime, context, handle,
                                 )
                             }
@@ -3112,7 +3122,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 platform_vm::destack_thread_rwlock_create(runtime, context, flags)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_rwlock_create(
+                                platform_simulation_vm::destack_thread_rwlock_create(
                                     runtime, context, flags,
                                 )
                             }
@@ -3145,7 +3155,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, handle, timeoutns,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_rwlock_read_lock(
+                                platform_simulation_vm::destack_thread_rwlock_read_lock(
                                     runtime, context, handle, timeoutns,
                                 )
                             }
@@ -3176,7 +3186,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 platform_vm::destack_thread_rwlock_unlock(runtime, context, handle)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_rwlock_unlock(
+                                platform_simulation_vm::destack_thread_rwlock_unlock(
                                     runtime, context, handle,
                                 )
                             }
@@ -3209,7 +3219,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, handle, timeoutns,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_rwlock_write_lock(
+                                platform_simulation_vm::destack_thread_rwlock_write_lock(
                                     runtime, context, handle, timeoutns,
                                 )
                             }
@@ -3242,7 +3252,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, initial, maximum, flags,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_semaphore_create(
+                                platform_simulation_vm::destack_thread_semaphore_create(
                                     runtime, context, initial, maximum, flags,
                                 )
                             }
@@ -3274,7 +3284,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, handle, count,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_semaphore_post(
+                                platform_simulation_vm::destack_thread_semaphore_post(
                                     runtime, context, handle, count,
                                 )
                             }
@@ -3306,7 +3316,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, handle, timeoutns,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_thread_semaphore_wait(
+                                platform_simulation_vm::destack_thread_semaphore_wait(
                                     runtime, context, handle, timeoutns,
                                 )
                             }
