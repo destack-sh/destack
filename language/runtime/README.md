@@ -69,7 +69,7 @@ Generated files (`*.generated.rs`) define the control plane and handwritten file
 | `core.rs` | optional shared implementation helpers with no world routing |
 | `tests/` | shared harness tests that run both engine adapters against the same binding contracts |
 
-Modules with `os` or `hybrid` bindings get the host and simulated backend folders:
+Modules with `host` bindings get the host and simulation backend folders:
 
 | File or folder | Responsibility |
 |-----------|--------|
@@ -77,9 +77,9 @@ Modules with `os` or `hybrid` bindings get the host and simulated backend folder
 | `unix/` | host world Unix implementations |
 | `windows/` | host world Windows implementations |
 | `unsupported.rs` | host world fallback for unsupported targets |
-| `simulated/mod.rs` | simulated backend wiring |
-| `simulated/native.rs` | simulated backend native adapter surface |
-| `simulated/vm.rs` | simulated backend VM adapter surface |
+| `simulation/mod.rs` | simulation backend wiring |
+| `simulation/native.rs` | simulation backend native adapter surface |
+| `simulation/vm.rs` | simulation backend VM adapter surface |
 
 Modules with `runtime` bindings add runtime backend adapters.
 These modules use the following extra files.
@@ -90,8 +90,9 @@ These modules use the following extra files.
 | `runtime/native.rs` | runtime backend native adapter surface |
 | `runtime/vm.rs` | runtime backend VM adapter surface |
 
-Mixed modules include both sets and route per binding scope.
-The existence of `host.rs` or `simulated/` does not imply every binding in that module uses world dispatch.
+Modules are scope-pure at the module level.
+One module is either `host` scoped or `runtime` scoped, never both.
+The generator enforces this.
 
 ### Dispatch
 
@@ -101,7 +102,7 @@ World and execution dispatch belongs to generated wrappers only
 |-----------|--------|
 | decode or encode ABI values | `bindings.generated.rs`, then adapter helpers in `vm.rs` or `native.rs` |
 | execution mode (`fast`, `deterministic`, `record`, `replay`) | `bindings.generated.rs` replay wrapper |
-| world (`host` or `simulated`) | `bindings.generated.rs` for `os` or `hybrid` bindings only |
+| world (`host` or `simulated`) | `bindings.generated.rs` for `host` bindings only |
 | host OS target (`unix`, `windows`, `unsupported`) | `host.rs` cfg routing |
 | shared semantic helper logic | `core.rs` |
 
@@ -120,8 +121,7 @@ Scope specific backend calls are listed below.
 | Scope | VM engine | Native engine |
 |-----------|--------|--------|
 | `runtime` | `bindings.generated.rs -> runtime/vm.rs -> runtime subsystem or core helpers` | `bindings.generated.rs -> runtime/native.rs -> runtime subsystem or core helpers` |
-| `os` | `bindings.generated.rs -> resolve world -> vm.rs or simulated/vm.rs -> host backend or simulation backend` | `bindings.generated.rs -> resolve world -> native.rs or simulated/native.rs -> host backend or simulation backend` |
-| `hybrid` | `bindings.generated.rs -> resolve world -> vm.rs or simulated/vm.rs -> host plus runtime mixed backend` | `bindings.generated.rs -> resolve world -> native.rs or simulated/native.rs -> host plus runtime mixed backend` |
+| `host` | `bindings.generated.rs -> resolve world -> vm.rs or simulation/vm.rs -> host backend or simulation backend` | `bindings.generated.rs -> resolve world -> native.rs or simulation/native.rs -> host backend or simulation backend` |
 
 Flow chart by scope is listed below.
 
@@ -131,54 +131,45 @@ runtime scope:
     -> runtime/{vm,native}.rs
       -> runtime subsystem implementation
 
-os scope:
+host scope:
   bindings.generated.rs
     -> resolve world (host|simulated)
-      -> {vm,native}.rs or simulated/{vm,native}.rs
+      -> {vm,native}.rs or simulation/{vm,native}.rs
         -> host.rs cfg route or simulation backend
-
-hybrid scope:
-  bindings.generated.rs
-    -> resolve world (host|simulated)
-      -> {vm,native}.rs or simulated/{vm,native}.rs
-        -> host backend and runtime subsystem helpers as needed
 ```
 
 The platform module scope matrix is listed below.
 Counts come from `bindings.generated.rs` and represent unique binding descriptors per module.
-Scope is per binding descriptor, not per module.
-Modules may include bindings from more than one scope.
+Scope is declared per binding descriptor in builtin metadata.
+Generator validation enforces one effective scope per module.
 
-| Module | Description | `os` | `hybrid` | `runtime` | Total |
-|-----------|--------|--------|--------|--------|--------|
-| `audio` | Audio device and stream operations. | 10 | 0 | 0 | 10 |
-| `console` | Console and terminal text I/O. | 4 | 0 | 0 | 4 |
-| `crypto` | Cryptographic primitives and key operations. | 18 | 0 | 0 | 18 |
-| `debug` | Debugger, tracing, profiling, and inspector hooks. | 0 | 0 | 11 | 11 |
-| `device` | Host device discovery and control. | 5 | 0 | 0 | 5 |
-| `display` | Display surfaces, modes, and presentation control. | 11 | 0 | 0 | 11 |
-| `error` | Runtime error bridge and conversion helpers. | 0 | 0 | 1 | 1 |
-| `ffi` | Dynamic libraries, symbols, and foreign calls. | 3 | 0 | 4 | 7 |
-| `fs` | Filesystem paths, metadata, and file or directory operations. | 116 | 0 | 0 | 116 |
-| `gpu` | GPU devices, queues, resources, and command submission. | 46 | 0 | 0 | 46 |
-| `input` | Input devices, events, and state queries. | 4 | 2 | 0 | 6 |
-| `io` | Generic host I/O primitives and descriptors. | 26 | 0 | 0 | 26 |
-| `ipc` | Interprocess communication channels and message transfer. | 21 | 0 | 0 | 21 |
-| `memory` | Runtime memory controls and host memory integration. | 14 | 0 | 1 | 15 |
-| `net` | Sockets, addresses, protocols, and network I/O. | 102 | 0 | 0 | 102 |
-| `os` | Operating system identity and host environment data. | 10 | 0 | 0 | 10 |
-| `process` | Process identity, spawn, wait, signals, and limits. | 66 | 0 | 11 | 77 |
-| `random` | Secure entropy and deterministic random streams. | 0 | 3 | 10 | 13 |
-| `resource` | Runtime resource table and handle lifecycle management. | 0 | 0 | 4 | 4 |
-| `security` | Policy, capability checks, and security controls. | 0 | 1 | 10 | 11 |
-| `thread` | Thread local state, spawn, sync, and priority controls. | 30 | 0 | 0 | 30 |
-| `time` | Clocks, timestamps, and time source access. | 2 | 8 | 0 | 10 |
-| `timer` | Runtime timers, scheduling, and timer descriptor APIs. | 5 | 0 | 10 | 15 |
-| `tls` | Transport security sessions and certificate paths. | 20 | 0 | 0 | 20 |
-| `tty` | TTY mode, capabilities, and terminal controls. | 8 | 0 | 0 | 8 |
+| Module | Description | `host` | `runtime` | Total |
+|-----------|--------|--------|--------|--------|
+| `audio` | Audio device and stream operations. | 28 | 0 | 28 |
+| `crypto` | Cryptographic primitives and key operations. | 18 | 0 | 18 |
+| `debug` | Debugger, tracing, profiling, and inspector hooks. | 0 | 11 | 11 |
+| `display` | Display surfaces, modes, and presentation control. | 11 | 0 | 11 |
+| `error` | Runtime error bridge and conversion helpers. | 0 | 1 | 1 |
+| `ffi` | Dynamic libraries, symbols, and foreign calls. | 7 | 0 | 7 |
+| `fs` | Filesystem paths, metadata, and file or directory operations. | 116 | 0 | 116 |
+| `gpu` | GPU devices, queues, resources, and command submission. | 132 | 0 | 132 |
+| `input` | Input devices, events, and state queries. | 43 | 0 | 43 |
+| `io` | Generic host I/O primitives and descriptors. | 36 | 0 | 36 |
+| `ipc` | Interprocess communication channels and message transfer. | 21 | 0 | 21 |
+| `memory` | Runtime memory controls and host memory integration. | 14 | 0 | 14 |
+| `net` | Sockets, addresses, protocols, and network I/O. | 102 | 0 | 102 |
+| `os` | Operating system identity and host environment data. | 10 | 0 | 10 |
+| `process` | Process identity, spawn, wait, signals, and limits. | 80 | 0 | 80 |
+| `random` | Secure entropy and deterministic random streams. | 0 | 13 | 13 |
+| `resource` | Runtime resource table and handle lifecycle management. | 0 | 4 | 4 |
+| `security` | Policy, capability checks, and security controls. | 0 | 11 | 11 |
+| `thread` | Thread local state, spawn, sync, and priority controls. | 30 | 0 | 30 |
+| `time` | Clocks, timestamps, and time source access. | 0 | 20 | 20 |
+| `tls` | Transport security sessions and certificate paths. | 20 | 0 | 20 |
+| `tty` | TTY mode, capabilities, and terminal controls. | 8 | 0 | 8 |
 
 Runtime scope ignores the world dimension.
-Only `os` and `hybrid` scopes branch on world.
+Only `host` scope branches on world.
 
 Execution mode behavior inside the replay gate is listed below.
 
@@ -192,18 +183,17 @@ Execution mode behavior inside the replay gate is listed below.
 ### Testing
 
 Binding tests assert binding level behavior, not adapter internals.
-Host and hybrid modules with non-trivial bindings should include a `tests/` harness.
+Host modules with non-trivial bindings should include a `tests/` harness.
 
 The required test matrix is listed below.
 
 | Scope | Required harness coverage |
 |-----------|--------|
-| `os` | run the same contract tests against `native` and `vm` adapters in host world |
-| `hybrid` | run the same contract tests against `native` and `vm` adapters in host world, then add targeted simulated world tests as implementations land |
+| `host` | run the same contract tests against `native` and `vm` adapters in host world |
 | `runtime` | run the same contract tests against `runtime/native` and `runtime/vm` adapters |
 
-Simulated backends may start as `notSupported` stubs.
-When simulated implementations become real, add parity tests against host behavior where semantics are shared.
+Simulation backends may start as `notSupported` stubs.
+When simulation implementations become real, add parity tests against host behavior where semantics are shared.
 
 Path encoding is explicit at the binding boundary through `OsPath`.
 On unix targets, `OsPath.Utf16` inputs are transcoded to UTF-8 bytes before syscall dispatch.

@@ -177,14 +177,14 @@ impl<'a> DomainWriter<'a> {
             if entry.scope == crate::model::BindingScope::Runtime {
                 output.push_str(&format!("        || {runtime_call},\n"));
             } else {
-                let simulated_call = if args.is_empty() {
+                let simulation_call = if args.is_empty() {
                     format!(
-                        "unsafe {{ platform_simulated_native::{}(context) }}",
+                        "unsafe {{ platform_simulation_native::{}(context) }}",
                         implementation_fn_name
                     )
                 } else {
                     format!(
-                        "unsafe {{ platform_simulated_native::{}(context, {}) }}",
+                        "unsafe {{ platform_simulation_native::{}(context, {}) }}",
                         implementation_fn_name,
                         args.join(", ")
                     )
@@ -192,7 +192,7 @@ impl<'a> DomainWriter<'a> {
                 output.push_str("        || match world {\n");
                 output.push_str(&format!("            RuntimeWorld::Host => {host_call},\n"));
                 output.push_str(&format!(
-                    "            RuntimeWorld::Simulated => {simulated_call},\n"
+                    "            RuntimeWorld::Simulated => {simulation_call},\n"
                 ));
                 output.push_str("        },\n");
             }
@@ -479,8 +479,8 @@ impl<'a> DomainWriter<'a> {
                     implementation_fn_name
                 ));
             } else {
-                let simulated_call = format!(
-                    "platform_simulated_vm::{}(runtime, context{invoke_args})",
+                let simulation_call = format!(
+                    "platform_simulation_vm::{}(runtime, context{invoke_args})",
                     implementation_fn_name
                 );
                 output.push_str("        |context| {\n");
@@ -490,7 +490,7 @@ impl<'a> DomainWriter<'a> {
                     implementation_fn_name
                 ));
                 output.push_str(&format!(
-                    "                RuntimeWorld::Simulated => {simulated_call},\n"
+                    "                RuntimeWorld::Simulated => {simulation_call},\n"
                 ));
                 output.push_str("            }\n");
                 output.push_str("        },\n");

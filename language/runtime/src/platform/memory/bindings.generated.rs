@@ -23,8 +23,8 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 use serde::{Deserialize, Serialize};
 
 use crate::platform::memory as platform_memory;
-use crate::platform::memory::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
+use crate::platform::memory::simulation::{
+    native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::memory::{native as platform_native, vm as platform_vm};
 
@@ -879,7 +879,7 @@ fn destack_memory_advise_advise_range_replay(
                 platform_native::destack_memory_advise(context, address, length, advice)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_memory_advise(context, address, length, advice)
+                platform_simulation_native::destack_memory_advise(context, address, length, advice)
             },
         },
         |result| {
@@ -928,7 +928,7 @@ fn destack_memory_advise_discard_replay(
                 platform_native::destack_memory_discard(context, address, length)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_memory_discard(context, address, length)
+                platform_simulation_native::destack_memory_discard(context, address, length)
             },
         },
         |result| {
@@ -978,7 +978,7 @@ fn destack_memory_advise_huge_page_replay(
                 platform_native::destack_memory_huge_page(context, address, length, enabled)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_memory_huge_page(
+                platform_simulation_native::destack_memory_huge_page(
                     context, address, length, enabled,
                 )
             },
@@ -1029,7 +1029,7 @@ fn destack_memory_lock_lock_range_replay(
                 platform_native::destack_memory_lock(context, address, length)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_memory_lock(context, address, length)
+                platform_simulation_native::destack_memory_lock(context, address, length)
             },
         },
         |result| {
@@ -1078,7 +1078,7 @@ fn destack_memory_lock_unlock_replay(
                 platform_native::destack_memory_unlock(context, address, length)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_memory_unlock(context, address, length)
+                platform_simulation_native::destack_memory_unlock(context, address, length)
             },
         },
         |result| {
@@ -1128,7 +1128,7 @@ fn destack_memory_map_commit_replay(
                 platform_native::destack_memory_commit(context, address, length, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_memory_commit(context, address, length, flags)
+                platform_simulation_native::destack_memory_commit(context, address, length, flags)
             },
         },
         |result| {
@@ -1177,7 +1177,7 @@ fn destack_memory_map_decommit_replay(
                 platform_native::destack_memory_decommit(context, address, length)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_memory_decommit(context, address, length)
+                platform_simulation_native::destack_memory_decommit(context, address, length)
             },
         },
         |result| {
@@ -1230,7 +1230,7 @@ fn destack_memory_map_numa_bind_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_memory_numa_bind(
+                platform_simulation_native::destack_memory_numa_bind(
                     context, address, length, policy, nodemask,
                 )
             },
@@ -1281,7 +1281,7 @@ fn destack_memory_map_release_replay(
                 platform_native::destack_memory_release(context, address, length)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_memory_release(context, address, length)
+                platform_simulation_native::destack_memory_release(context, address, length)
             },
         },
         |result| {
@@ -1331,7 +1331,7 @@ fn destack_memory_map_reserve_replay(
                 platform_native::destack_memory_reserve(context, out, length, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_memory_reserve(context, out, length, flags)
+                platform_simulation_native::destack_memory_reserve(context, out, length, flags)
             },
         },
         |result| {
@@ -1403,7 +1403,7 @@ fn destack_memory_protect_execute_replay(
                 platform_native::destack_memory_protect_execute(context, address, length, enabled)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_memory_protect_execute(
+                platform_simulation_native::destack_memory_protect_execute(
                     context, address, length, enabled,
                 )
             },
@@ -1454,7 +1454,7 @@ fn destack_memory_protect_flush_instruction_cache_replay(
                 platform_native::destack_memory_flush_instruction_cache(context, address, length)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_memory_flush_instruction_cache(
+                platform_simulation_native::destack_memory_flush_instruction_cache(
                     context, address, length,
                 )
             },
@@ -1506,7 +1506,7 @@ fn destack_memory_protect_protect_range_replay(
                 platform_native::destack_memory_protect(context, address, length, protection)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_memory_protect(
+                platform_simulation_native::destack_memory_protect(
                     context, address, length, protection,
                 )
             },
@@ -1562,7 +1562,7 @@ fn destack_memory_protect_remap_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_memory_remap(
+                platform_simulation_native::destack_memory_remap(
                     context, out, address, oldlength, newlength, flags,
                 )
             },
@@ -1842,7 +1842,7 @@ fn destack_memory_advise_advise_range_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_memory_advise(runtime, context, address, length, advice)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_memory_advise(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_advise(
                     runtime, context, address, length, advice,
                 ),
             },
@@ -1897,9 +1897,9 @@ fn destack_memory_advise_discard_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_memory_discard(runtime, context, address, length)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_memory_discard(runtime, context, address, length)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_discard(
+                    runtime, context, address, length,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -1953,7 +1953,7 @@ fn destack_memory_advise_huge_page_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_memory_huge_page(
                     runtime, context, address, length, enabled,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_memory_huge_page(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_huge_page(
                     runtime, context, address, length, enabled,
                 ),
             },
@@ -2009,7 +2009,7 @@ fn destack_memory_lock_lock_range_vm_replay(
                     platform_vm::destack_memory_lock(runtime, context, address, length)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_memory_lock(runtime, context, address, length)
+                    platform_simulation_vm::destack_memory_lock(runtime, context, address, length)
                 }
             },
             |context, result| {
@@ -2064,7 +2064,7 @@ fn destack_memory_lock_unlock_vm_replay(
                     platform_vm::destack_memory_unlock(runtime, context, address, length)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_memory_unlock(runtime, context, address, length)
+                    platform_simulation_vm::destack_memory_unlock(runtime, context, address, length)
                 }
             },
             |context, result| {
@@ -2119,7 +2119,7 @@ fn destack_memory_map_commit_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_memory_commit(runtime, context, address, length, flags)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_memory_commit(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_commit(
                     runtime, context, address, length, flags,
                 ),
             },
@@ -2174,7 +2174,7 @@ fn destack_memory_map_decommit_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_memory_decommit(runtime, context, address, length)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_memory_decommit(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_decommit(
                     runtime, context, address, length,
                 ),
             },
@@ -2231,7 +2231,7 @@ fn destack_memory_map_numa_bind_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_memory_numa_bind(
                     runtime, context, address, length, policy, nodemask,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_memory_numa_bind(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_numa_bind(
                     runtime, context, address, length, policy, nodemask,
                 ),
             },
@@ -2286,9 +2286,9 @@ fn destack_memory_map_release_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_memory_release(runtime, context, address, length)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_memory_release(runtime, context, address, length)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_release(
+                    runtime, context, address, length,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -2342,7 +2342,7 @@ fn destack_memory_map_reserve_vm_replay(
                     platform_vm::destack_memory_reserve(runtime, context, length, flags)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_memory_reserve(runtime, context, length, flags)
+                    platform_simulation_vm::destack_memory_reserve(runtime, context, length, flags)
                 }
             },
             |context, result| {
@@ -2411,7 +2411,7 @@ fn destack_memory_protect_execute_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_memory_protect_execute(
                     runtime, context, address, length, enabled,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_memory_protect_execute(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_protect_execute(
                     runtime, context, address, length, enabled,
                 ),
             },
@@ -2467,7 +2467,7 @@ fn destack_memory_protect_flush_instruction_cache_vm_replay(
                     runtime, context, address, length,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_memory_flush_instruction_cache(
+                    platform_simulation_vm::destack_memory_flush_instruction_cache(
                         runtime, context, address, length,
                     )
                 }
@@ -2524,7 +2524,7 @@ fn destack_memory_protect_protect_range_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_memory_protect(
                     runtime, context, address, length, protection,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_memory_protect(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_protect(
                     runtime, context, address, length, protection,
                 ),
             },
@@ -2581,7 +2581,7 @@ fn destack_memory_protect_remap_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_memory_remap(
                     runtime, context, address, oldlength, newlength, flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_memory_remap(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_memory_remap(
                     runtime, context, address, oldlength, newlength, flags,
                 ),
             },

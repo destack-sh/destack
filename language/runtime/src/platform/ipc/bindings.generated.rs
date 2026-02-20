@@ -27,8 +27,8 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::ipc::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
+use crate::platform::ipc::simulation::{
+    native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::ipc::{native as platform_native, vm as platform_vm};
 use crate::platform::{ipc as platform_ipc, resource as platform_resource, resource};
@@ -1271,7 +1271,7 @@ fn destack_ipc_message_queue_close_replay(
                 platform_native::destack_ipc_message_queue_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_message_queue_close(context, handle)
+                platform_simulation_native::destack_ipc_message_queue_close(context, handle)
             },
         },
         |result| {
@@ -1332,7 +1332,7 @@ fn destack_ipc_message_queue_open_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_message_queue_open(
+                platform_simulation_native::destack_ipc_message_queue_open(
                     context,
                     out,
                     name,
@@ -1405,7 +1405,7 @@ fn destack_ipc_message_queue_receive_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_message_queue_receive(
+                platform_simulation_native::destack_ipc_message_queue_receive(
                     context, out, handle, timeoutns, buffer,
                 )
             },
@@ -1486,7 +1486,7 @@ fn destack_ipc_message_queue_send_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_message_queue_send(
+                platform_simulation_native::destack_ipc_message_queue_send(
                     context,
                     handle,
                     priority,
@@ -1540,7 +1540,7 @@ fn destack_ipc_message_queue_unlink_replay(
                 platform_native::destack_ipc_message_queue_unlink(context, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_message_queue_unlink(context, name)
+                platform_simulation_native::destack_ipc_message_queue_unlink(context, name)
             },
         },
         |result| {
@@ -1588,7 +1588,7 @@ fn destack_ipc_pipe_close_replay(
                 platform_native::destack_ipc_pipe_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_pipe_close(context, handle)
+                platform_simulation_native::destack_ipc_pipe_close(context, handle)
             },
         },
         |result| {
@@ -1637,7 +1637,7 @@ fn destack_ipc_pipe_open_replay(
                 platform_native::destack_ipc_pipe_open(context, out, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_pipe_open(context, out, flags)
+                platform_simulation_native::destack_ipc_pipe_open(context, out, flags)
             },
         },
         |result| {
@@ -1709,7 +1709,7 @@ fn destack_ipc_pipe_read_replay(
                 platform_native::destack_ipc_pipe_read(context, out, handle, buffer)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_pipe_read(context, out, handle, buffer)
+                platform_simulation_native::destack_ipc_pipe_read(context, out, handle, buffer)
             },
         },
         |result| {
@@ -1771,7 +1771,7 @@ fn destack_ipc_pipe_write_replay(
                 platform_native::destack_ipc_pipe_write(context, out, handle, buffer)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_pipe_write(context, out, handle, buffer)
+                platform_simulation_native::destack_ipc_pipe_write(context, out, handle, buffer)
             },
         },
         |result| {
@@ -1831,7 +1831,7 @@ fn destack_ipc_shared_memory_close_replay(
                 platform_native::destack_ipc_shared_memory_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_shared_memory_close(context, handle)
+                platform_simulation_native::destack_ipc_shared_memory_close(context, handle)
             },
         },
         |result| {
@@ -1882,7 +1882,7 @@ fn destack_ipc_shared_memory_create_replay(
                 platform_native::destack_ipc_shared_memory_create(context, out, name, size, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_shared_memory_create(
+                platform_simulation_native::destack_ipc_shared_memory_create(
                     context, out, name, size, flags,
                 )
             },
@@ -1950,7 +1950,7 @@ fn destack_ipc_shared_memory_map_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_shared_memory_map(
+                platform_simulation_native::destack_ipc_shared_memory_map(
                     context, out, handle, offset, length, flags,
                 )
             },
@@ -2024,7 +2024,9 @@ fn destack_ipc_shared_memory_open_replay(
                 platform_native::destack_ipc_shared_memory_open(context, out, name, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_shared_memory_open(context, out, name, flags)
+                platform_simulation_native::destack_ipc_shared_memory_open(
+                    context, out, name, flags,
+                )
             },
         },
         |result| {
@@ -2085,7 +2087,9 @@ fn destack_ipc_shared_memory_unmap_replay(
                 platform_native::destack_ipc_shared_memory_unmap(context, address, length)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_shared_memory_unmap(context, address, length)
+                platform_simulation_native::destack_ipc_shared_memory_unmap(
+                    context, address, length,
+                )
             },
         },
         |result| {
@@ -2142,7 +2146,7 @@ fn destack_ipc_sync_futex_wait_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_futex_wait(
+                platform_simulation_native::destack_ipc_futex_wait(
                     context,
                     sharedmemory,
                     offset,
@@ -2199,7 +2203,7 @@ fn destack_ipc_sync_futex_wake_replay(
                 platform_native::destack_ipc_futex_wake(context, out, sharedmemory, offset, count)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_futex_wake(
+                platform_simulation_native::destack_ipc_futex_wake(
                     context,
                     out,
                     sharedmemory,
@@ -2268,7 +2272,7 @@ fn destack_ipc_sync_semaphore_create_replay(
                 platform_native::destack_ipc_semaphore_create(context, out, name, initial, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_semaphore_create(
+                platform_simulation_native::destack_ipc_semaphore_create(
                     context, out, name, initial, flags,
                 )
             },
@@ -2331,7 +2335,7 @@ fn destack_ipc_sync_semaphore_post_replay(
                 platform_native::destack_ipc_semaphore_post(context, handle, count)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_semaphore_post(context, handle, count)
+                platform_simulation_native::destack_ipc_semaphore_post(context, handle, count)
             },
         },
         |result| {
@@ -2380,7 +2384,7 @@ fn destack_ipc_sync_semaphore_wait_replay(
                 platform_native::destack_ipc_semaphore_wait(context, handle, timeoutns)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_semaphore_wait(context, handle, timeoutns)
+                platform_simulation_native::destack_ipc_semaphore_wait(context, handle, timeoutns)
             },
         },
         |result| {
@@ -2430,7 +2434,7 @@ fn destack_ipc_unix_receive_replay(
                 platform_native::destack_ipc_unix_receive(context, out, socket, maxhandles)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_unix_receive(
+                platform_simulation_native::destack_ipc_unix_receive(
                     context, out, socket, maxhandles,
                 )
             },
@@ -2541,7 +2545,7 @@ fn destack_ipc_unix_send_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_ipc_unix_send(
+                platform_simulation_native::destack_ipc_unix_send(
                     context,
                     out,
                     socket,
@@ -2977,9 +2981,9 @@ fn destack_ipc_message_queue_close_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_ipc_message_queue_close(runtime, context, handle)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_ipc_message_queue_close(runtime, context, handle)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_message_queue_close(
+                    runtime, context, handle,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -3041,7 +3045,7 @@ fn destack_ipc_message_queue_open_vm_replay(
                     maxmessages,
                     maxmessagebytes,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_ipc_message_queue_open(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_message_queue_open(
                     runtime,
                     context,
                     name,
@@ -3108,7 +3112,7 @@ fn destack_ipc_message_queue_receive_vm_replay(
                     runtime, context, handle, timeoutns, buffer,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_ipc_message_queue_receive(
+                    platform_simulation_vm::destack_ipc_message_queue_receive(
                         runtime, context, handle, timeoutns, buffer,
                     )
                 }
@@ -3185,7 +3189,7 @@ fn destack_ipc_message_queue_send_vm_replay(
                     timeoutns,
                     argument_payload,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_ipc_message_queue_send(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_message_queue_send(
                     runtime,
                     context,
                     handle,
@@ -3245,7 +3249,7 @@ fn destack_ipc_message_queue_unlink_vm_replay(
                     platform_vm::destack_ipc_message_queue_unlink(runtime, context, name)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_ipc_message_queue_unlink(runtime, context, name)
+                    platform_simulation_vm::destack_ipc_message_queue_unlink(runtime, context, name)
                 }
             },
             |context, result| {
@@ -3297,7 +3301,7 @@ fn destack_ipc_pipe_close_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_ipc_pipe_close(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_ipc_pipe_close(runtime, context, handle)
+                    platform_simulation_vm::destack_ipc_pipe_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -3349,7 +3353,7 @@ fn destack_ipc_pipe_open_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_ipc_pipe_open(runtime, context, flags),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_ipc_pipe_open(runtime, context, flags)
+                    platform_simulation_vm::destack_ipc_pipe_open(runtime, context, flags)
                 }
             },
             |context, result| {
@@ -3418,7 +3422,7 @@ fn destack_ipc_pipe_read_vm_replay(
                     platform_vm::destack_ipc_pipe_read(runtime, context, handle, buffer)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_ipc_pipe_read(runtime, context, handle, buffer)
+                    platform_simulation_vm::destack_ipc_pipe_read(runtime, context, handle, buffer)
                 }
             },
             |context, result| {
@@ -3477,7 +3481,7 @@ fn destack_ipc_pipe_write_vm_replay(
                     platform_vm::destack_ipc_pipe_write(runtime, context, handle, buffer)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_ipc_pipe_write(runtime, context, handle, buffer)
+                    platform_simulation_vm::destack_ipc_pipe_write(runtime, context, handle, buffer)
                 }
             },
             |context, result| {
@@ -3534,9 +3538,9 @@ fn destack_ipc_shared_memory_close_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_ipc_shared_memory_close(runtime, context, handle)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_ipc_shared_memory_close(runtime, context, handle)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_shared_memory_close(
+                    runtime, context, handle,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -3590,9 +3594,11 @@ fn destack_ipc_shared_memory_create_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_ipc_shared_memory_create(
                     runtime, context, name, size, flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_ipc_shared_memory_create(
-                    runtime, context, name, size, flags,
-                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulation_vm::destack_ipc_shared_memory_create(
+                        runtime, context, name, size, flags,
+                    )
+                }
             },
             |context, result| {
                 let _ = &context;
@@ -3651,7 +3657,7 @@ fn destack_ipc_shared_memory_map_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_ipc_shared_memory_map(
                     runtime, context, handle, offset, length, flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_ipc_shared_memory_map(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_shared_memory_map(
                     runtime, context, handle, offset, length, flags,
                 ),
             },
@@ -3720,7 +3726,7 @@ fn destack_ipc_shared_memory_open_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_ipc_shared_memory_open(runtime, context, name, flags)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_ipc_shared_memory_open(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_shared_memory_open(
                     runtime, context, name, flags,
                 ),
             },
@@ -3779,7 +3785,7 @@ fn destack_ipc_shared_memory_unmap_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_ipc_shared_memory_unmap(runtime, context, address, length)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_ipc_shared_memory_unmap(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_shared_memory_unmap(
                     runtime, context, address, length,
                 ),
             },
@@ -3841,7 +3847,7 @@ fn destack_ipc_sync_futex_wait_vm_replay(
                     expected,
                     timeoutns,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_ipc_futex_wait(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_futex_wait(
                     runtime,
                     context,
                     sharedmemory,
@@ -3906,7 +3912,7 @@ fn destack_ipc_sync_futex_wake_vm_replay(
                     offset,
                     count,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_ipc_futex_wake(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_futex_wake(
                     runtime,
                     context,
                     sharedmemory,
@@ -3970,7 +3976,7 @@ fn destack_ipc_sync_semaphore_create_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_ipc_semaphore_create(
                     runtime, context, name, initial, flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_ipc_semaphore_create(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_semaphore_create(
                     runtime, context, name, initial, flags,
                 ),
             },
@@ -4029,7 +4035,7 @@ fn destack_ipc_sync_semaphore_post_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_ipc_semaphore_post(runtime, context, handle, count)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_ipc_semaphore_post(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_semaphore_post(
                     runtime, context, handle, count,
                 ),
             },
@@ -4084,7 +4090,7 @@ fn destack_ipc_sync_semaphore_wait_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_ipc_semaphore_wait(runtime, context, handle, timeoutns)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_ipc_semaphore_wait(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_semaphore_wait(
                     runtime, context, handle, timeoutns,
                 ),
             },
@@ -4139,7 +4145,7 @@ fn destack_ipc_unix_receive_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_ipc_unix_receive(runtime, context, socket, maxhandles)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_ipc_unix_receive(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_unix_receive(
                     runtime, context, socket, maxhandles,
                 ),
             },
@@ -4253,7 +4259,7 @@ fn destack_ipc_unix_send_vm_replay(
                     argument_payload,
                     handles,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_ipc_unix_send(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_ipc_unix_send(
                     runtime,
                     context,
                     socket,

@@ -50,8 +50,8 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::input::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
+use crate::platform::input::simulation::{
+    native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::input::{native as platform_native, vm as platform_vm};
 use crate::platform::{input as platform_input, resource as platform_resource, resource};
@@ -3216,7 +3216,7 @@ fn destack_input_device_capabilities_replay(
                 platform_native::destack_input_capabilities(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_capabilities(context, out, handle)
+                platform_simulation_native::destack_input_capabilities(context, out, handle)
             },
         },
         |result| {
@@ -3432,7 +3432,7 @@ fn destack_input_device_close_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_input_close(context, handle) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_close(context, handle)
+                platform_simulation_native::destack_input_close(context, handle)
             },
         },
         |result| {
@@ -3476,7 +3476,7 @@ fn destack_input_device_list_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_input_list(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_list(context, out)
+                platform_simulation_native::destack_input_list(context, out)
             },
         },
         |result| {
@@ -3658,7 +3658,7 @@ fn destack_input_device_open_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_input_open(context, out, id) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_open(context, out, id)
+                platform_simulation_native::destack_input_open(context, out, id)
             },
         },
         |result| {
@@ -3718,7 +3718,7 @@ fn destack_input_event_monitor_close_replay(
                 platform_native::destack_input_monitor_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_monitor_close(context, handle)
+                platform_simulation_native::destack_input_monitor_close(context, handle)
             },
         },
         |result| {
@@ -3764,7 +3764,7 @@ fn destack_input_event_monitor_open_replay(
                 platform_native::destack_input_monitor_open(context, out)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_monitor_open(context, out)
+                platform_simulation_native::destack_input_monitor_open(context, out)
             },
         },
         |result| {
@@ -3825,7 +3825,7 @@ fn destack_input_event_monitor_read_replay(
                 platform_native::destack_input_monitor_read(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_monitor_read(context, out, handle)
+                platform_simulation_native::destack_input_monitor_read(context, out, handle)
             },
         },
         |result| {
@@ -3913,7 +3913,7 @@ fn destack_input_event_monitor_try_read_replay(
                 platform_native::destack_input_monitor_try_read(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_monitor_try_read(context, out, handle)
+                platform_simulation_native::destack_input_monitor_try_read(context, out, handle)
             },
         },
         |result| {
@@ -4001,7 +4001,7 @@ fn destack_input_event_read_replay(
                 platform_native::destack_input_read(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_read(context, out, handle)
+                platform_simulation_native::destack_input_read(context, out, handle)
             },
         },
         |result| {
@@ -4364,7 +4364,9 @@ fn destack_input_event_read_batch_replay(
                 platform_native::destack_input_read_batch(context, out, handle, maxevents)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_read_batch(context, out, handle, maxevents)
+                platform_simulation_native::destack_input_read_batch(
+                    context, out, handle, maxevents,
+                )
             },
         },
         |result| {
@@ -4803,7 +4805,9 @@ fn destack_input_event_set_exclusive_grab_replay(
                 platform_native::destack_input_set_exclusive_grab(context, handle, enable)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_set_exclusive_grab(context, handle, enable)
+                platform_simulation_native::destack_input_set_exclusive_grab(
+                    context, handle, enable,
+                )
             },
         },
         |result| {
@@ -4852,7 +4856,7 @@ fn destack_input_event_set_read_mode_replay(
                 platform_native::destack_input_set_read_mode(context, handle, mode)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_set_read_mode(context, handle, mode)
+                platform_simulation_native::destack_input_set_read_mode(context, handle, mode)
             },
         },
         |result| {
@@ -4901,7 +4905,7 @@ fn destack_input_event_try_read_replay(
                 platform_native::destack_input_try_read(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_try_read(context, out, handle)
+                platform_simulation_native::destack_input_try_read(context, out, handle)
             },
         },
         |result| {
@@ -5265,7 +5269,7 @@ fn destack_input_gamepad_set_light_replay(
                 platform_native::destack_input_gamepad_set_light(context, handle, red, green, blue)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_gamepad_set_light(
+                platform_simulation_native::destack_input_gamepad_set_light(
                     context, handle, red, green, blue,
                 )
             },
@@ -5320,7 +5324,7 @@ fn destack_input_gamepad_set_player_index_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_gamepad_set_player_index(
+                platform_simulation_native::destack_input_gamepad_set_player_index(
                     context,
                     handle,
                     playerindex,
@@ -5373,7 +5377,7 @@ fn destack_input_gamepad_state_replay(
                 platform_native::destack_input_gamepad_state(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_gamepad_state(context, out, handle)
+                platform_simulation_native::destack_input_gamepad_state(context, out, handle)
             },
         },
         |result| {
@@ -5573,7 +5577,7 @@ fn destack_input_haptics_effects_replay(
                 platform_native::destack_input_haptics_effects(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_haptics_effects(context, out, handle)
+                platform_simulation_native::destack_input_haptics_effects(context, out, handle)
             },
         },
         |result| {
@@ -5647,7 +5651,7 @@ fn destack_input_haptics_play_replay(
                 platform_native::destack_input_haptics_play(context, out, handle, effect, params)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_haptics_play(
+                platform_simulation_native::destack_input_haptics_play(
                     context, out, handle, effect, params,
                 )
             },
@@ -5709,7 +5713,7 @@ fn destack_input_haptics_stop_replay(
                 platform_native::destack_input_haptics_stop(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_haptics_stop(context, handle)
+                platform_simulation_native::destack_input_haptics_stop(context, handle)
             },
         },
         |result| {
@@ -5758,7 +5762,7 @@ fn destack_input_keyboard_state_replay(
                 platform_native::destack_input_keyboard_state(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_keyboard_state(context, out, handle)
+                platform_simulation_native::destack_input_keyboard_state(context, out, handle)
             },
         },
         |result| {
@@ -5888,7 +5892,7 @@ fn destack_input_pointer_capture_replay(
                 platform_native::destack_input_pointer_capture(context, handle, target, enabled)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_pointer_capture(
+                platform_simulation_native::destack_input_pointer_capture(
                     context, handle, target, enabled,
                 )
             },
@@ -5939,7 +5943,7 @@ fn destack_input_pointer_relative_state_replay(
                 platform_native::destack_input_pointer_relative_state(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_pointer_relative_state(
+                platform_simulation_native::destack_input_pointer_relative_state(
                     context, out, handle,
                 )
             },
@@ -6053,7 +6057,7 @@ fn destack_input_pointer_set_grab_mode_replay(
                 platform_native::destack_input_pointer_set_grab_mode(context, handle, target, mode)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_pointer_set_grab_mode(
+                platform_simulation_native::destack_input_pointer_set_grab_mode(
                     context, handle, target, mode,
                 )
             },
@@ -6104,7 +6108,7 @@ fn destack_input_pointer_set_relative_mode_replay(
                 platform_native::destack_input_pointer_set_relative_mode(context, handle, enabled)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_pointer_set_relative_mode(
+                platform_simulation_native::destack_input_pointer_set_relative_mode(
                     context, handle, enabled,
                 )
             },
@@ -6155,7 +6159,7 @@ fn destack_input_pointer_state_replay(
                 platform_native::destack_input_pointer_state(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_pointer_state(context, out, handle)
+                platform_simulation_native::destack_input_pointer_state(context, out, handle)
             },
         },
         |result| {
@@ -6268,7 +6272,9 @@ fn destack_input_pointer_warp_replay(
                 platform_native::destack_input_pointer_warp(context, handle, target, x, y)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_pointer_warp(context, handle, target, x, y)
+                platform_simulation_native::destack_input_pointer_warp(
+                    context, handle, target, x, y,
+                )
             },
         },
         |result| {
@@ -6321,7 +6327,7 @@ fn destack_input_rawhid_get_feature_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_raw_hid_get_feature(
+                platform_simulation_native::destack_input_raw_hid_get_feature(
                     context, out, handle, reportid, maxbytes,
                 )
             },
@@ -6399,7 +6405,7 @@ fn destack_input_rawhid_read_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_raw_hid_read(
+                platform_simulation_native::destack_input_raw_hid_read(
                     context, out, handle, maxbytes, timeoutns,
                 )
             },
@@ -6492,7 +6498,7 @@ fn destack_input_rawhid_set_feature_replay(
                 platform_native::destack_input_raw_hid_set_feature(context, handle, reportid, data)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_raw_hid_set_feature(
+                platform_simulation_native::destack_input_raw_hid_set_feature(
                     context, handle, reportid, data,
                 )
             },
@@ -6544,7 +6550,7 @@ fn destack_input_rawhid_try_read_replay(
                 platform_native::destack_input_raw_hid_try_read(context, out, handle, maxbytes)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_raw_hid_try_read(
+                platform_simulation_native::destack_input_raw_hid_try_read(
                     context, out, handle, maxbytes,
                 )
             },
@@ -6638,7 +6644,7 @@ fn destack_input_rawhid_write_replay(
                 platform_native::destack_input_raw_hid_write(context, out, handle, reportid, data)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_raw_hid_write(
+                platform_simulation_native::destack_input_raw_hid_write(
                     context, out, handle, reportid, data,
                 )
             },
@@ -6703,7 +6709,7 @@ fn destack_input_sensor_configure_replay(
                 platform_native::destack_input_sensor_configure(context, out, handle, kind, config)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_sensor_configure(
+                platform_simulation_native::destack_input_sensor_configure(
                     context, out, handle, kind, config,
                 )
             },
@@ -6784,7 +6790,7 @@ fn destack_input_sensor_list_replay(
                 platform_native::destack_input_sensor_list(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_sensor_list(context, out, handle)
+                platform_simulation_native::destack_input_sensor_list(context, out, handle)
             },
         },
         |result| {
@@ -6885,7 +6891,7 @@ fn destack_input_sensor_read_replay(
                 platform_native::destack_input_sensor_read(context, out, handle, kind)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_sensor_read(context, out, handle, kind)
+                platform_simulation_native::destack_input_sensor_read(context, out, handle, kind)
             },
         },
         |result| {
@@ -6977,7 +6983,9 @@ fn destack_input_sensor_try_read_replay(
                 platform_native::destack_input_sensor_try_read(context, out, handle, kind)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_sensor_try_read(context, out, handle, kind)
+                platform_simulation_native::destack_input_sensor_try_read(
+                    context, out, handle, kind,
+                )
             },
         },
         |result| {
@@ -7069,7 +7077,9 @@ fn destack_input_text_get_area_replay(
                 platform_native::destack_input_text_get_area(context, out, handle, target)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_text_get_area(context, out, handle, target)
+                platform_simulation_native::destack_input_text_get_area(
+                    context, out, handle, target,
+                )
             },
         },
         |result| {
@@ -7152,7 +7162,7 @@ fn destack_input_text_is_active_replay(
                 platform_native::destack_input_text_is_active(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_text_is_active(context, out, handle)
+                platform_simulation_native::destack_input_text_is_active(context, out, handle)
             },
         },
         |result| {
@@ -7213,7 +7223,9 @@ fn destack_input_text_read_composition_replay(
                 platform_native::destack_input_text_read_composition(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_text_read_composition(context, out, handle)
+                platform_simulation_native::destack_input_text_read_composition(
+                    context, out, handle,
+                )
             },
         },
         |result| {
@@ -7306,7 +7318,7 @@ fn destack_input_text_set_area_replay(
                 platform_native::destack_input_text_set_area(context, handle, target, area)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_text_set_area(
+                platform_simulation_native::destack_input_text_set_area(
                     context, handle, target, area,
                 )
             },
@@ -7358,7 +7370,7 @@ fn destack_input_text_start_replay(
                 platform_native::destack_input_text_start(context, handle, target, inputtype)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_text_start(
+                platform_simulation_native::destack_input_text_start(
                     context, handle, target, inputtype,
                 )
             },
@@ -7409,7 +7421,7 @@ fn destack_input_text_stop_replay(
                 platform_native::destack_input_text_stop(context, handle, target)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_text_stop(context, handle, target)
+                platform_simulation_native::destack_input_text_stop(context, handle, target)
             },
         },
         |result| {
@@ -7458,7 +7470,7 @@ fn destack_input_text_try_read_composition_replay(
                 platform_native::destack_input_text_try_read_composition(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_text_try_read_composition(
+                platform_simulation_native::destack_input_text_try_read_composition(
                     context, out, handle,
                 )
             },
@@ -7552,7 +7564,7 @@ fn destack_input_touch_state_replay(
                 platform_native::destack_input_touch_state(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_input_touch_state(context, out, handle)
+                platform_simulation_native::destack_input_touch_state(context, out, handle)
             },
         },
         |result| {
@@ -8404,7 +8416,7 @@ fn destack_input_device_capabilities_vm_replay(
                     platform_vm::destack_input_capabilities(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_capabilities(runtime, context, handle)
+                    platform_simulation_vm::destack_input_capabilities(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -8773,7 +8785,7 @@ fn destack_input_device_close_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_input_close(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_close(runtime, context, handle)
+                    platform_simulation_vm::destack_input_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -8824,7 +8836,7 @@ fn destack_input_device_list_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_input_list(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_list(runtime, context)
+                    platform_simulation_vm::destack_input_list(runtime, context)
                 }
             },
             |context, result| {
@@ -9248,7 +9260,7 @@ fn destack_input_device_open_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_input_open(runtime, context, id),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_open(runtime, context, id)
+                    platform_simulation_vm::destack_input_open(runtime, context, id)
                 }
             },
             |context, result| {
@@ -9306,7 +9318,7 @@ fn destack_input_event_monitor_close_vm_replay(
                     platform_vm::destack_input_monitor_close(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_monitor_close(runtime, context, handle)
+                    platform_simulation_vm::destack_input_monitor_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -9357,7 +9369,7 @@ fn destack_input_event_monitor_open_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_input_monitor_open(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_monitor_open(runtime, context)
+                    platform_simulation_vm::destack_input_monitor_open(runtime, context)
                 }
             },
             |context, result| {
@@ -9415,7 +9427,7 @@ fn destack_input_event_monitor_read_vm_replay(
                     platform_vm::destack_input_monitor_read(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_monitor_read(runtime, context, handle)
+                    platform_simulation_vm::destack_input_monitor_read(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -9506,7 +9518,7 @@ fn destack_input_event_monitor_try_read_vm_replay(
                     platform_vm::destack_input_monitor_try_read(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_monitor_try_read(runtime, context, handle)
+                    platform_simulation_vm::destack_input_monitor_try_read(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -9595,7 +9607,7 @@ fn destack_input_event_read_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_input_read(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_read(runtime, context, handle)
+                    platform_simulation_vm::destack_input_read(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -9975,7 +9987,7 @@ fn destack_input_event_read_batch_vm_replay(
         |context| {
             match world {
                 RuntimeWorld::Host => platform_vm::destack_input_read_batch(runtime, context, handle, maxevents),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_read_batch(runtime, context, handle, maxevents),
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_read_batch(runtime, context, handle, maxevents),
             }
         },
         |context, result| {
@@ -10513,9 +10525,11 @@ fn destack_input_event_set_exclusive_grab_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_input_set_exclusive_grab(runtime, context, handle, enable)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_set_exclusive_grab(
-                    runtime, context, handle, enable,
-                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulation_vm::destack_input_set_exclusive_grab(
+                        runtime, context, handle, enable,
+                    )
+                }
             },
             |context, result| {
                 let _ = &context;
@@ -10568,7 +10582,7 @@ fn destack_input_event_set_read_mode_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_input_set_read_mode(runtime, context, handle, mode)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_set_read_mode(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_set_read_mode(
                     runtime, context, handle, mode,
                 ),
             },
@@ -10621,7 +10635,7 @@ fn destack_input_event_try_read_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_input_try_read(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_try_read(runtime, context, handle)
+                    platform_simulation_vm::destack_input_try_read(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -11006,7 +11020,7 @@ fn destack_input_gamepad_set_light_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_input_gamepad_set_light(
                     runtime, context, handle, red, green, blue,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_gamepad_set_light(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_gamepad_set_light(
                     runtime, context, handle, red, green, blue,
                 ),
             },
@@ -11065,7 +11079,7 @@ fn destack_input_gamepad_set_player_index_vm_replay(
                     playerindex,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_gamepad_set_player_index(
+                    platform_simulation_vm::destack_input_gamepad_set_player_index(
                         runtime,
                         context,
                         handle,
@@ -11124,7 +11138,7 @@ fn destack_input_gamepad_state_vm_replay(
                     platform_vm::destack_input_gamepad_state(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_gamepad_state(runtime, context, handle)
+                    platform_simulation_vm::destack_input_gamepad_state(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -11459,7 +11473,7 @@ fn destack_input_haptics_effects_vm_replay(
                     platform_vm::destack_input_haptics_effects(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_haptics_effects(runtime, context, handle)
+                    platform_simulation_vm::destack_input_haptics_effects(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -11547,7 +11561,7 @@ fn destack_input_haptics_play_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_input_haptics_play(
                     runtime, context, handle, effect, params,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_haptics_play(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_haptics_play(
                     runtime, context, handle, effect, params,
                 ),
             },
@@ -11606,7 +11620,7 @@ fn destack_input_haptics_stop_vm_replay(
                     platform_vm::destack_input_haptics_stop(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_haptics_stop(runtime, context, handle)
+                    platform_simulation_vm::destack_input_haptics_stop(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -11660,7 +11674,7 @@ fn destack_input_keyboard_state_vm_replay(
                     platform_vm::destack_input_keyboard_state(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_keyboard_state(runtime, context, handle)
+                    platform_simulation_vm::destack_input_keyboard_state(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -11803,7 +11817,7 @@ fn destack_input_pointer_capture_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_input_pointer_capture(
                     runtime, context, handle, target, enabled,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_pointer_capture(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_pointer_capture(
                     runtime, context, handle, target, enabled,
                 ),
             },
@@ -11858,7 +11872,7 @@ fn destack_input_pointer_relative_state_vm_replay(
                     platform_vm::destack_input_pointer_relative_state(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_pointer_relative_state(
+                    platform_simulation_vm::destack_input_pointer_relative_state(
                         runtime, context, handle,
                     )
                 }
@@ -11970,7 +11984,7 @@ fn destack_input_pointer_set_grab_mode_vm_replay(
                     runtime, context, handle, target, mode,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_pointer_set_grab_mode(
+                    platform_simulation_vm::destack_input_pointer_set_grab_mode(
                         runtime, context, handle, target, mode,
                     )
                 }
@@ -12027,7 +12041,7 @@ fn destack_input_pointer_set_relative_mode_vm_replay(
                     runtime, context, handle, enabled,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_pointer_set_relative_mode(
+                    platform_simulation_vm::destack_input_pointer_set_relative_mode(
                         runtime, context, handle, enabled,
                     )
                 }
@@ -12083,7 +12097,7 @@ fn destack_input_pointer_state_vm_replay(
                     platform_vm::destack_input_pointer_state(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_pointer_state(runtime, context, handle)
+                    platform_simulation_vm::destack_input_pointer_state(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -12193,7 +12207,7 @@ fn destack_input_pointer_warp_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_input_pointer_warp(runtime, context, handle, target, x, y)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_pointer_warp(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_pointer_warp(
                     runtime, context, handle, target, x, y,
                 ),
             },
@@ -12250,7 +12264,7 @@ fn destack_input_rawhid_get_feature_vm_replay(
                     runtime, context, handle, reportid, maxbytes,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_raw_hid_get_feature(
+                    platform_simulation_vm::destack_input_raw_hid_get_feature(
                         runtime, context, handle, reportid, maxbytes,
                     )
                 }
@@ -12311,7 +12325,7 @@ fn destack_input_rawhid_read_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_input_raw_hid_read(
                     runtime, context, handle, maxbytes, timeoutns,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_raw_hid_read(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_raw_hid_read(
                     runtime, context, handle, maxbytes, timeoutns,
                 ),
             },
@@ -12390,7 +12404,7 @@ fn destack_input_rawhid_set_feature_vm_replay(
                     runtime, context, handle, reportid, data,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_raw_hid_set_feature(
+                    platform_simulation_vm::destack_input_raw_hid_set_feature(
                         runtime, context, handle, reportid, data,
                     )
                 }
@@ -12446,7 +12460,7 @@ fn destack_input_rawhid_try_read_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_input_raw_hid_try_read(runtime, context, handle, maxbytes)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_raw_hid_try_read(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_raw_hid_try_read(
                     runtime, context, handle, maxbytes,
                 ),
             },
@@ -12524,7 +12538,7 @@ fn destack_input_rawhid_write_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_input_raw_hid_write(
                     runtime, context, handle, reportid, data,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_raw_hid_write(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_raw_hid_write(
                     runtime, context, handle, reportid, data,
                 ),
             },
@@ -12584,7 +12598,7 @@ fn destack_input_sensor_configure_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_input_sensor_configure(
                     runtime, context, handle, kind, config,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_sensor_configure(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_sensor_configure(
                     runtime, context, handle, kind, config,
                 ),
             },
@@ -12661,7 +12675,7 @@ fn destack_input_sensor_list_vm_replay(
                     platform_vm::destack_input_sensor_list(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_sensor_list(runtime, context, handle)
+                    platform_simulation_vm::destack_input_sensor_list(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -12846,9 +12860,9 @@ fn destack_input_sensor_read_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_input_sensor_read(runtime, context, handle, kind)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_sensor_read(runtime, context, handle, kind)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_sensor_read(
+                    runtime, context, handle, kind,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -12935,7 +12949,7 @@ fn destack_input_sensor_try_read_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_input_sensor_try_read(runtime, context, handle, kind)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_sensor_try_read(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_sensor_try_read(
                     runtime, context, handle, kind,
                 ),
             },
@@ -13024,7 +13038,7 @@ fn destack_input_text_get_area_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_input_text_get_area(runtime, context, handle, target)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_text_get_area(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_text_get_area(
                     runtime, context, handle, target,
                 ),
             },
@@ -13105,7 +13119,7 @@ fn destack_input_text_is_active_vm_replay(
                     platform_vm::destack_input_text_is_active(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_text_is_active(runtime, context, handle)
+                    platform_simulation_vm::destack_input_text_is_active(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -13163,7 +13177,7 @@ fn destack_input_text_read_composition_vm_replay(
                     platform_vm::destack_input_text_read_composition(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_text_read_composition(
+                    platform_simulation_vm::destack_input_text_read_composition(
                         runtime, context, handle,
                     )
                 }
@@ -13267,7 +13281,7 @@ fn destack_input_text_set_area_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_input_text_set_area(runtime, context, handle, target, area)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_text_set_area(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_text_set_area(
                     runtime, context, handle, target, area,
                 ),
             },
@@ -13323,7 +13337,7 @@ fn destack_input_text_start_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_input_text_start(
                     runtime, context, handle, target, inputtype,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_input_text_start(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_text_start(
                     runtime, context, handle, target, inputtype,
                 ),
             },
@@ -13378,9 +13392,9 @@ fn destack_input_text_stop_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_input_text_stop(runtime, context, handle, target)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_text_stop(runtime, context, handle, target)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_input_text_stop(
+                    runtime, context, handle, target,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -13433,7 +13447,7 @@ fn destack_input_text_try_read_composition_vm_replay(
                     platform_vm::destack_input_text_try_read_composition(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_text_try_read_composition(
+                    platform_simulation_vm::destack_input_text_try_read_composition(
                         runtime, context, handle,
                     )
                 }
@@ -13536,7 +13550,7 @@ fn destack_input_touch_state_vm_replay(
                     platform_vm::destack_input_touch_state(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_input_touch_state(runtime, context, handle)
+                    platform_simulation_vm::destack_input_touch_state(runtime, context, handle)
                 }
             },
             |context, result| {

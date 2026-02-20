@@ -25,8 +25,8 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::display::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
+use crate::platform::display::simulation::{
+    native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::display::{native as platform_native, vm as platform_vm};
 use crate::platform::{display as platform_display, resource as platform_resource, resource};
@@ -856,7 +856,7 @@ fn destack_display_monitor_close_replay(
                 platform_native::destack_display_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_display_close(context, handle)
+                platform_simulation_native::destack_display_close(context, handle)
             },
         },
         |result| {
@@ -900,7 +900,7 @@ fn destack_display_monitor_list_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_display_list(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_display_list(context, out)
+                platform_simulation_native::destack_display_list(context, out)
             },
         },
         |result| {
@@ -998,7 +998,7 @@ fn destack_display_monitor_modes_replay(
                 platform_native::destack_display_modes(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_display_modes(context, out, handle)
+                platform_simulation_native::destack_display_modes(context, out, handle)
             },
         },
         |result| {
@@ -1090,7 +1090,7 @@ fn destack_display_monitor_open_replay(
                 platform_native::destack_display_open(context, out, id)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_display_open(context, out, id)
+                platform_simulation_native::destack_display_open(context, out, id)
             },
         },
         |result| {
@@ -1150,7 +1150,7 @@ fn destack_display_window_close_replay(
                 platform_native::destack_display_window_close(context, window)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_display_window_close(context, window)
+                platform_simulation_native::destack_display_window_close(context, window)
             },
         },
         |result| {
@@ -1199,7 +1199,7 @@ fn destack_display_window_event_replay(
                 platform_native::destack_display_window_event(context, out, window)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_display_window_event(context, out, window)
+                platform_simulation_native::destack_display_window_event(context, out, window)
             },
         },
         |result| {
@@ -1279,7 +1279,7 @@ fn destack_display_window_open_replay(
                 platform_native::destack_display_window_open(context, out, display, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_display_window_open(
+                platform_simulation_native::destack_display_window_open(
                     context, out, display, options,
                 )
             },
@@ -1342,7 +1342,7 @@ fn destack_display_window_set_title_replay(
                 platform_native::destack_display_window_set_title(context, window, title)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_display_window_set_title(context, window, title)
+                platform_simulation_native::destack_display_window_set_title(context, window, title)
             },
         },
         |result| {
@@ -1391,7 +1391,7 @@ fn destack_display_window_try_event_replay(
                 platform_native::destack_display_window_try_event(context, out, window)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_display_window_try_event(context, out, window)
+                platform_simulation_native::destack_display_window_try_event(context, out, window)
             },
         },
         |result| {
@@ -1470,7 +1470,7 @@ fn destack_display_window_vsync_wait_replay(
                 platform_native::destack_display_window_vsync_wait(context, window, timeoutns)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_display_window_vsync_wait(
+                platform_simulation_native::destack_display_window_vsync_wait(
                     context, window, timeoutns,
                 )
             },
@@ -1584,7 +1584,7 @@ pub unsafe extern "C" fn destack_display_monitor_set_mode(
                     platform_native::destack_display_set_mode(context, handle, mode)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_display_set_mode(context, handle, mode)
+                    platform_simulation_native::destack_display_set_mode(context, handle, mode)
                 },
             }
         }
@@ -1701,7 +1701,7 @@ fn destack_display_monitor_close_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_display_close(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_display_close(runtime, context, handle)
+                    platform_simulation_vm::destack_display_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -1752,7 +1752,7 @@ fn destack_display_monitor_list_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_display_list(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_display_list(runtime, context)
+                    platform_simulation_vm::destack_display_list(runtime, context)
                 }
             },
             |context, result| {
@@ -1921,7 +1921,7 @@ fn destack_display_monitor_modes_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_display_modes(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_display_modes(runtime, context, handle)
+                    platform_simulation_vm::destack_display_modes(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -2066,7 +2066,7 @@ fn destack_display_monitor_open_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_display_open(runtime, context, id),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_display_open(runtime, context, id)
+                    platform_simulation_vm::destack_display_open(runtime, context, id)
                 }
             },
             |context, result| {
@@ -2124,7 +2124,7 @@ fn destack_display_window_close_vm_replay(
                     platform_vm::destack_display_window_close(runtime, context, window)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_display_window_close(runtime, context, window)
+                    platform_simulation_vm::destack_display_window_close(runtime, context, window)
                 }
             },
             |context, result| {
@@ -2178,7 +2178,7 @@ fn destack_display_window_event_vm_replay(
                     platform_vm::destack_display_window_event(runtime, context, window)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_display_window_event(runtime, context, window)
+                    platform_simulation_vm::destack_display_window_event(runtime, context, window)
                 }
             },
             |context, result| {
@@ -2254,7 +2254,7 @@ fn destack_display_window_open_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_display_window_open(runtime, context, display, options)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_display_window_open(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_display_window_open(
                     runtime, context, display, options,
                 ),
             },
@@ -2313,9 +2313,11 @@ fn destack_display_window_set_title_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_display_window_set_title(runtime, context, window, title)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_display_window_set_title(
-                    runtime, context, window, title,
-                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulation_vm::destack_display_window_set_title(
+                        runtime, context, window, title,
+                    )
+                }
             },
             |context, result| {
                 let _ = &context;
@@ -2367,9 +2369,11 @@ fn destack_display_window_try_event_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_display_window_try_event(runtime, context, window)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_display_window_try_event(
-                    runtime, context, window,
-                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulation_vm::destack_display_window_try_event(
+                        runtime, context, window,
+                    )
+                }
             },
             |context, result| {
                 let _ = &context;
@@ -2445,7 +2449,7 @@ fn destack_display_window_vsync_wait_vm_replay(
                     runtime, context, window, timeoutns,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_display_window_vsync_wait(
+                    platform_simulation_vm::destack_display_window_vsync_wait(
                         runtime, context, window, timeoutns,
                     )
                 }
@@ -2578,7 +2582,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                                 runtime, context, handle, mode,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_display_set_mode(
+                                platform_simulation_vm::destack_display_set_mode(
                                     runtime, context, handle, mode,
                                 )
                             }

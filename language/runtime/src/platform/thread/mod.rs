@@ -12,7 +12,7 @@ pub(crate) mod core;
 mod host;
 pub mod native;
 pub(crate) mod resource;
-pub(crate) mod simulated;
+pub(crate) mod simulation;
 #[cfg(test)]
 mod tests;
 pub mod vm;

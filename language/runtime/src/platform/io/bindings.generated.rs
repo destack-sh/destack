@@ -29,8 +29,8 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::io::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
+use crate::platform::io::simulation::{
+    native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::io::{native as platform_native, vm as platform_vm};
 use crate::platform::{
@@ -2367,7 +2367,7 @@ fn destack_io_completion_cancel_replay(
                 platform_native::destack_io_completion_cancel(context, out, handle, target)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_completion_cancel(
+                platform_simulation_native::destack_io_completion_cancel(
                     context, out, handle, target,
                 )
             },
@@ -2429,7 +2429,7 @@ fn destack_io_completion_close_replay(
                 platform_native::destack_io_completion_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_completion_close(context, handle)
+                platform_simulation_native::destack_io_completion_close(context, handle)
             },
         },
         |result| {
@@ -2488,7 +2488,7 @@ fn destack_io_completion_enter_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_completion_enter(
+                platform_simulation_native::destack_io_completion_enter(
                     context,
                     out,
                     handle,
@@ -2556,7 +2556,7 @@ fn destack_io_completion_open_replay(
                 platform_native::destack_io_completion_open(context, out, entries)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_completion_open(context, out, entries)
+                platform_simulation_native::destack_io_completion_open(context, out, entries)
             },
         },
         |result| {
@@ -2617,7 +2617,7 @@ fn destack_io_completion_submit_replay(
                 platform_native::destack_io_completion_submit(context, handle, operation)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_completion_submit(context, handle, operation)
+                platform_simulation_native::destack_io_completion_submit(context, handle, operation)
             },
         },
         |result| {
@@ -2681,7 +2681,7 @@ fn destack_io_completion_submit_batch_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_completion_submit_batch(
+                platform_simulation_native::destack_io_completion_submit_batch(
                     context,
                     out,
                     handle,
@@ -2753,7 +2753,7 @@ fn destack_io_completion_wait_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_completion_wait(
+                platform_simulation_native::destack_io_completion_wait(
                     context, out, handle, timeoutns, maxevents,
                 )
             },
@@ -2846,7 +2846,7 @@ fn destack_io_control_fcntl_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_control_fcntl(
+                platform_simulation_native::destack_io_control_fcntl(
                     context, out, handle, command, argument, flags,
                 )
             },
@@ -2910,7 +2910,7 @@ fn destack_io_control_ioctl_replay(
                 platform_native::destack_io_control_ioctl(context, out, handle, request)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_control_ioctl(context, out, handle, request)
+                platform_simulation_native::destack_io_control_ioctl(context, out, handle, request)
             },
         },
         |result| {
@@ -2992,7 +2992,7 @@ fn destack_io_device_close_replay(
                 platform_native::destack_io_device_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_device_close(context, handle)
+                platform_simulation_native::destack_io_device_close(context, handle)
             },
         },
         |result| {
@@ -3042,7 +3042,7 @@ fn destack_io_device_control_replay(
                 platform_native::destack_io_device_control(context, out, handle, request)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_device_control(context, out, handle, request)
+                platform_simulation_native::destack_io_device_control(context, out, handle, request)
             },
         },
         |result| {
@@ -3127,7 +3127,7 @@ fn destack_io_device_open_replay(
                 platform_native::destack_io_device_open(context, out, path, flags, mode)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_device_open(context, out, path, flags, mode)
+                platform_simulation_native::destack_io_device_open(context, out, path, flags, mode)
             },
         },
         |result| {
@@ -3189,7 +3189,7 @@ fn destack_io_device_read_replay(
                 platform_native::destack_io_device_read(context, out, handle, buffer)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_device_read(context, out, handle, buffer)
+                platform_simulation_native::destack_io_device_read(context, out, handle, buffer)
             },
         },
         |result| {
@@ -3251,7 +3251,7 @@ fn destack_io_device_write_replay(
                 platform_native::destack_io_device_write(context, out, handle, buffer)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_device_write(context, out, handle, buffer)
+                platform_simulation_native::destack_io_device_write(context, out, handle, buffer)
             },
         },
         |result| {
@@ -3313,7 +3313,7 @@ fn destack_io_event_attach_replay(
                 platform_native::destack_io_event_attach(context, token, target, key)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_event_attach(context, token, target, key)
+                platform_simulation_native::destack_io_event_attach(context, token, target, key)
             },
         },
         |result| {
@@ -3361,7 +3361,7 @@ fn destack_io_event_close_replay(
                 platform_native::destack_io_event_close(context, token)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_event_close(context, token)
+                platform_simulation_native::destack_io_event_close(context, token)
             },
         },
         |result| {
@@ -3410,7 +3410,7 @@ fn destack_io_event_open_replay(
                 platform_native::destack_io_event_open(context, out, initial)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_event_open(context, out, initial)
+                platform_simulation_native::destack_io_event_open(context, out, initial)
             },
         },
         |result| {
@@ -3471,7 +3471,7 @@ fn destack_io_event_signal_replay(
                 platform_native::destack_io_event_signal(context, token, argument_value)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_event_signal(context, token, argument_value)
+                platform_simulation_native::destack_io_event_signal(context, token, argument_value)
             },
         },
         |result| {
@@ -3519,7 +3519,7 @@ fn destack_io_poll_close_replay(
                 platform_native::destack_io_poll_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_poll_close(context, handle)
+                platform_simulation_native::destack_io_poll_close(context, handle)
             },
         },
         |result| {
@@ -3568,7 +3568,7 @@ fn destack_io_poll_deregister_replay(
                 platform_native::destack_io_poll_deregister(context, handle, target)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_poll_deregister(context, handle, target)
+                platform_simulation_native::destack_io_poll_deregister(context, handle, target)
             },
         },
         |result| {
@@ -3617,7 +3617,7 @@ fn destack_io_poll_open_replay(
                 platform_native::destack_io_poll_open(context, out, backend)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_poll_open(context, out, backend)
+                platform_simulation_native::destack_io_poll_open(context, out, backend)
             },
         },
         |result| {
@@ -3680,7 +3680,7 @@ fn destack_io_poll_register_replay(
                 platform_native::destack_io_poll_register(context, handle, target, key, interest)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_poll_register(
+                platform_simulation_native::destack_io_poll_register(
                     context, handle, target, key, interest,
                 )
             },
@@ -3733,7 +3733,7 @@ fn destack_io_poll_update_replay(
                 platform_native::destack_io_poll_update(context, handle, target, key, interest)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_poll_update(
+                platform_simulation_native::destack_io_poll_update(
                     context, handle, target, key, interest,
                 )
             },
@@ -3786,7 +3786,7 @@ fn destack_io_poll_wait_replay(
                 platform_native::destack_io_poll_wait(context, out, handle, timeoutns, maxevents)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_poll_wait(
+                platform_simulation_native::destack_io_poll_wait(
                     context, out, handle, timeoutns, maxevents,
                 )
             },
@@ -3873,7 +3873,7 @@ fn destack_io_timerfd_close_replay(
                 platform_native::destack_io_timer_fd_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_timer_fd_close(context, handle)
+                platform_simulation_native::destack_io_timer_fd_close(context, handle)
             },
         },
         |result| {
@@ -3922,7 +3922,7 @@ fn destack_io_timerfd_get_replay(
                 platform_native::destack_io_timer_fd_get(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_timer_fd_get(context, out, handle)
+                platform_simulation_native::destack_io_timer_fd_get(context, out, handle)
             },
         },
         |result| {
@@ -3994,7 +3994,7 @@ fn destack_io_timerfd_open_replay(
                 platform_native::destack_io_timer_fd_open(context, out, clock, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_timer_fd_open(context, out, clock, flags)
+                platform_simulation_native::destack_io_timer_fd_open(context, out, clock, flags)
             },
         },
         |result| {
@@ -4055,7 +4055,7 @@ fn destack_io_timerfd_read_replay(
                 platform_native::destack_io_timer_fd_read(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_timer_fd_read(context, out, handle)
+                platform_simulation_native::destack_io_timer_fd_read(context, out, handle)
             },
         },
         |result| {
@@ -4117,7 +4117,7 @@ fn destack_io_timerfd_set_replay(
                 platform_native::destack_io_timer_fd_set(context, handle, spec, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_timer_fd_set(context, handle, spec, flags)
+                platform_simulation_native::destack_io_timer_fd_set(context, handle, spec, flags)
             },
         },
         |result| {
@@ -4165,7 +4165,7 @@ fn destack_io_uring_close_replay(
                 platform_native::destack_io_uring_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_uring_close(context, handle)
+                platform_simulation_native::destack_io_uring_close(context, handle)
             },
         },
         |result| {
@@ -4214,7 +4214,7 @@ fn destack_io_uring_features_replay(
                 platform_native::destack_io_uring_features(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_uring_features(context, out, handle)
+                platform_simulation_native::destack_io_uring_features(context, out, handle)
             },
         },
         |result| {
@@ -4297,7 +4297,7 @@ fn destack_io_uring_open_replay(
                 platform_native::destack_io_uring_open(context, out, parameters)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_uring_open(context, out, parameters)
+                platform_simulation_native::destack_io_uring_open(context, out, parameters)
             },
         },
         |result| {
@@ -4361,7 +4361,7 @@ fn destack_io_uring_register_buffers_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_uring_register_buffers(
+                platform_simulation_native::destack_io_uring_register_buffers(
                     context, handle, addresses, lengths,
                 )
             },
@@ -4412,7 +4412,7 @@ fn destack_io_uring_register_files_replay(
                 platform_native::destack_io_uring_register_files(context, handle, files)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_uring_register_files(context, handle, files)
+                platform_simulation_native::destack_io_uring_register_files(context, handle, files)
             },
         },
         |result| {
@@ -4460,7 +4460,7 @@ fn destack_io_uring_unregister_buffers_replay(
                 platform_native::destack_io_uring_unregister_buffers(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_uring_unregister_buffers(context, handle)
+                platform_simulation_native::destack_io_uring_unregister_buffers(context, handle)
             },
         },
         |result| {
@@ -4508,7 +4508,7 @@ fn destack_io_uring_unregister_files_replay(
                 platform_native::destack_io_uring_unregister_files(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_uring_unregister_files(context, handle)
+                platform_simulation_native::destack_io_uring_unregister_files(context, handle)
             },
         },
         |result| {
@@ -5155,7 +5155,7 @@ fn destack_io_completion_cancel_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_io_completion_cancel(runtime, context, handle, target)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_completion_cancel(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_completion_cancel(
                     runtime, context, handle, target,
                 ),
             },
@@ -5214,7 +5214,7 @@ fn destack_io_completion_close_vm_replay(
                     platform_vm::destack_io_completion_close(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_completion_close(runtime, context, handle)
+                    platform_simulation_vm::destack_io_completion_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -5275,7 +5275,7 @@ fn destack_io_completion_enter_vm_replay(
                     timeoutns,
                     flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_completion_enter(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_completion_enter(
                     runtime,
                     context,
                     handle,
@@ -5339,7 +5339,7 @@ fn destack_io_completion_open_vm_replay(
                     platform_vm::destack_io_completion_open(runtime, context, entries)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_completion_open(runtime, context, entries)
+                    platform_simulation_vm::destack_io_completion_open(runtime, context, entries)
                 }
             },
             |context, result| {
@@ -5397,7 +5397,7 @@ fn destack_io_completion_submit_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_io_completion_submit(runtime, context, handle, operation)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_completion_submit(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_completion_submit(
                     runtime, context, handle, operation,
                 ),
             },
@@ -5460,7 +5460,7 @@ fn destack_io_completion_submit_batch_vm_replay(
                     operationwordstride,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_completion_submit_batch(
+                    platform_simulation_vm::destack_io_completion_submit_batch(
                         runtime,
                         context,
                         handle,
@@ -5526,7 +5526,7 @@ fn destack_io_completion_wait_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_io_completion_wait(
                     runtime, context, handle, timeoutns, maxevents,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_completion_wait(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_completion_wait(
                     runtime, context, handle, timeoutns, maxevents,
                 ),
             },
@@ -5659,7 +5659,7 @@ fn destack_io_control_fcntl_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_io_control_fcntl(
                     runtime, context, handle, command, argument, flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_control_fcntl(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_control_fcntl(
                     runtime, context, handle, command, argument, flags,
                 ),
             },
@@ -5718,7 +5718,7 @@ fn destack_io_control_ioctl_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_io_control_ioctl(runtime, context, handle, request)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_control_ioctl(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_control_ioctl(
                     runtime, context, handle, request,
                 ),
             },
@@ -5788,7 +5788,7 @@ fn destack_io_device_close_vm_replay(
                     platform_vm::destack_io_device_close(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_device_close(runtime, context, handle)
+                    platform_simulation_vm::destack_io_device_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -5842,7 +5842,7 @@ fn destack_io_device_control_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_io_device_control(runtime, context, handle, request)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_device_control(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_device_control(
                     runtime, context, handle, request,
                 ),
             },
@@ -5913,7 +5913,7 @@ fn destack_io_device_open_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_io_device_open(runtime, context, path, flags, mode)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_device_open(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_device_open(
                     runtime, context, path, flags, mode,
                 ),
             },
@@ -5973,7 +5973,7 @@ fn destack_io_device_read_vm_replay(
                     platform_vm::destack_io_device_read(runtime, context, handle, buffer)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_device_read(runtime, context, handle, buffer)
+                    platform_simulation_vm::destack_io_device_read(runtime, context, handle, buffer)
                 }
             },
             |context, result| {
@@ -6031,9 +6031,9 @@ fn destack_io_device_write_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_io_device_write(runtime, context, handle, buffer)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_device_write(runtime, context, handle, buffer)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_device_write(
+                    runtime, context, handle, buffer,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -6091,7 +6091,7 @@ fn destack_io_event_attach_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_io_event_attach(runtime, context, token, target, key)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_event_attach(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_event_attach(
                     runtime, context, token, target, key,
                 ),
             },
@@ -6144,7 +6144,7 @@ fn destack_io_event_close_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_io_event_close(runtime, context, token),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_event_close(runtime, context, token)
+                    platform_simulation_vm::destack_io_event_close(runtime, context, token)
                 }
             },
             |context, result| {
@@ -6196,7 +6196,7 @@ fn destack_io_event_open_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_io_event_open(runtime, context, initial),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_event_open(runtime, context, initial)
+                    platform_simulation_vm::destack_io_event_open(runtime, context, initial)
                 }
             },
             |context, result| {
@@ -6254,7 +6254,7 @@ fn destack_io_event_signal_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_io_event_signal(runtime, context, token, argument_value)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_event_signal(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_event_signal(
                     runtime,
                     context,
                     token,
@@ -6310,7 +6310,7 @@ fn destack_io_poll_close_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_io_poll_close(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_poll_close(runtime, context, handle)
+                    platform_simulation_vm::destack_io_poll_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -6364,7 +6364,7 @@ fn destack_io_poll_deregister_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_io_poll_deregister(runtime, context, handle, target)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_poll_deregister(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_poll_deregister(
                     runtime, context, handle, target,
                 ),
             },
@@ -6417,7 +6417,7 @@ fn destack_io_poll_open_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_io_poll_open(runtime, context, backend),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_poll_open(runtime, context, backend)
+                    platform_simulation_vm::destack_io_poll_open(runtime, context, backend)
                 }
             },
             |context, result| {
@@ -6477,7 +6477,7 @@ fn destack_io_poll_register_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_io_poll_register(
                     runtime, context, handle, target, key, interest,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_poll_register(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_poll_register(
                     runtime, context, handle, target, key, interest,
                 ),
             },
@@ -6534,7 +6534,7 @@ fn destack_io_poll_update_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_io_poll_update(
                     runtime, context, handle, target, key, interest,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_poll_update(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_poll_update(
                     runtime, context, handle, target, key, interest,
                 ),
             },
@@ -6590,7 +6590,7 @@ fn destack_io_poll_wait_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_io_poll_wait(
                     runtime, context, handle, timeoutns, maxevents,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_poll_wait(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_poll_wait(
                     runtime, context, handle, timeoutns, maxevents,
                 ),
             },
@@ -6726,7 +6726,7 @@ fn destack_io_timerfd_close_vm_replay(
                     platform_vm::destack_io_timer_fd_close(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_timer_fd_close(runtime, context, handle)
+                    platform_simulation_vm::destack_io_timer_fd_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -6780,7 +6780,7 @@ fn destack_io_timerfd_get_vm_replay(
                     platform_vm::destack_io_timer_fd_get(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_timer_fd_get(runtime, context, handle)
+                    platform_simulation_vm::destack_io_timer_fd_get(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -6849,7 +6849,7 @@ fn destack_io_timerfd_open_vm_replay(
                     platform_vm::destack_io_timer_fd_open(runtime, context, clock, flags)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_timer_fd_open(runtime, context, clock, flags)
+                    platform_simulation_vm::destack_io_timer_fd_open(runtime, context, clock, flags)
                 }
             },
             |context, result| {
@@ -6907,7 +6907,7 @@ fn destack_io_timerfd_read_vm_replay(
                     platform_vm::destack_io_timer_fd_read(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_timer_fd_read(runtime, context, handle)
+                    platform_simulation_vm::destack_io_timer_fd_read(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -6966,7 +6966,7 @@ fn destack_io_timerfd_set_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_io_timer_fd_set(runtime, context, handle, spec, flags)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_timer_fd_set(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_timer_fd_set(
                     runtime, context, handle, spec, flags,
                 ),
             },
@@ -7019,7 +7019,7 @@ fn destack_io_uring_close_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_io_uring_close(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_uring_close(runtime, context, handle)
+                    platform_simulation_vm::destack_io_uring_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -7073,7 +7073,7 @@ fn destack_io_uring_features_vm_replay(
                     platform_vm::destack_io_uring_features(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_uring_features(runtime, context, handle)
+                    platform_simulation_vm::destack_io_uring_features(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -7154,7 +7154,7 @@ fn destack_io_uring_open_vm_replay(
                     platform_vm::destack_io_uring_open(runtime, context, parameters)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_uring_open(runtime, context, parameters)
+                    platform_simulation_vm::destack_io_uring_open(runtime, context, parameters)
                 }
             },
             |context, result| {
@@ -7214,7 +7214,7 @@ fn destack_io_uring_register_buffers_vm_replay(
                     runtime, context, handle, addresses, lengths,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_uring_register_buffers(
+                    platform_simulation_vm::destack_io_uring_register_buffers(
                         runtime, context, handle, addresses, lengths,
                     )
                 }
@@ -7270,7 +7270,7 @@ fn destack_io_uring_register_files_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_io_uring_register_files(runtime, context, handle, files)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_uring_register_files(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_uring_register_files(
                     runtime, context, handle, files,
                 ),
             },
@@ -7325,7 +7325,7 @@ fn destack_io_uring_unregister_buffers_vm_replay(
                     platform_vm::destack_io_uring_unregister_buffers(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_uring_unregister_buffers(
+                    platform_simulation_vm::destack_io_uring_unregister_buffers(
                         runtime, context, handle,
                     )
                 }
@@ -7381,7 +7381,7 @@ fn destack_io_uring_unregister_files_vm_replay(
                     platform_vm::destack_io_uring_unregister_files(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_uring_unregister_files(
+                    platform_simulation_vm::destack_io_uring_unregister_files(
                         runtime, context, handle,
                     )
                 }

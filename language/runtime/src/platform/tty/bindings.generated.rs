@@ -20,8 +20,8 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::tty::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
+use crate::platform::tty::simulation::{
+    native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::tty::{native as platform_native, vm as platform_vm};
 use crate::platform::{resource as platform_resource, resource, tty as platform_tty};
@@ -673,7 +673,7 @@ fn destack_tty_io_read_replay(
                 platform_native::destack_tty_read(context, out, handle, buffer)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tty_read(context, out, handle, buffer)
+                platform_simulation_native::destack_tty_read(context, out, handle, buffer)
             },
         },
         |result| {
@@ -735,7 +735,7 @@ fn destack_tty_io_write_replay(
                 platform_native::destack_tty_write(context, out, handle, buffer)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tty_write(context, out, handle, buffer)
+                platform_simulation_native::destack_tty_write(context, out, handle, buffer)
             },
         },
         |result| {
@@ -796,7 +796,7 @@ fn destack_tty_mode_get_mode_replay(
                 platform_native::destack_tty_get_mode(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tty_get_mode(context, out, handle)
+                platform_simulation_native::destack_tty_get_mode(context, out, handle)
             },
         },
         |result| {
@@ -875,7 +875,7 @@ fn destack_tty_mode_set_mode_replay(
                 platform_native::destack_tty_set_mode(context, handle, mode)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tty_set_mode(context, handle, mode)
+                platform_simulation_native::destack_tty_set_mode(context, handle, mode)
             },
         },
         |result| {
@@ -923,7 +923,7 @@ fn destack_tty_pty_close_replay(
                 platform_native::destack_tty_pty_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tty_pty_close(context, handle)
+                platform_simulation_native::destack_tty_pty_close(context, handle)
             },
         },
         |result| {
@@ -974,7 +974,7 @@ fn destack_tty_pty_open_replay(
                 platform_native::destack_tty_pty_open(context, out, rows, columns, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tty_pty_open(context, out, rows, columns, flags)
+                platform_simulation_native::destack_tty_pty_open(context, out, rows, columns, flags)
             },
         },
         |result| {
@@ -1045,7 +1045,7 @@ fn destack_tty_size_get_size_replay(
                 platform_native::destack_tty_get_size(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tty_get_size(context, out, handle)
+                platform_simulation_native::destack_tty_get_size(context, out, handle)
             },
         },
         |result| {
@@ -1124,7 +1124,7 @@ fn destack_tty_size_set_size_replay(
                 platform_native::destack_tty_set_size(context, handle, size)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_tty_set_size(context, handle, size)
+                platform_simulation_native::destack_tty_set_size(context, handle, size)
             },
         },
         |result| {
@@ -1305,7 +1305,7 @@ fn destack_tty_io_read_vm_replay(
                     platform_vm::destack_tty_read(runtime, context, handle, buffer)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_tty_read(runtime, context, handle, buffer)
+                    platform_simulation_vm::destack_tty_read(runtime, context, handle, buffer)
                 }
             },
             |context, result| {
@@ -1364,7 +1364,7 @@ fn destack_tty_io_write_vm_replay(
                     platform_vm::destack_tty_write(runtime, context, handle, buffer)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_tty_write(runtime, context, handle, buffer)
+                    platform_simulation_vm::destack_tty_write(runtime, context, handle, buffer)
                 }
             },
             |context, result| {
@@ -1420,7 +1420,7 @@ fn destack_tty_mode_get_mode_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_tty_get_mode(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_tty_get_mode(runtime, context, handle)
+                    platform_simulation_vm::destack_tty_get_mode(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -1497,7 +1497,7 @@ fn destack_tty_mode_set_mode_vm_replay(
                     platform_vm::destack_tty_set_mode(runtime, context, handle, mode)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_tty_set_mode(runtime, context, handle, mode)
+                    platform_simulation_vm::destack_tty_set_mode(runtime, context, handle, mode)
                 }
             },
             |context, result| {
@@ -1549,7 +1549,7 @@ fn destack_tty_pty_close_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_tty_pty_close(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_tty_pty_close(runtime, context, handle)
+                    platform_simulation_vm::destack_tty_pty_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -1604,7 +1604,7 @@ fn destack_tty_pty_open_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_tty_pty_open(runtime, context, rows, columns, flags)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_tty_pty_open(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_tty_pty_open(
                     runtime, context, rows, columns, flags,
                 ),
             },
@@ -1671,7 +1671,7 @@ fn destack_tty_size_get_size_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_tty_get_size(runtime, context, handle),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_tty_get_size(runtime, context, handle)
+                    platform_simulation_vm::destack_tty_get_size(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -1748,7 +1748,7 @@ fn destack_tty_size_set_size_vm_replay(
                     platform_vm::destack_tty_set_size(runtime, context, handle, size)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_tty_set_size(runtime, context, handle, size)
+                    platform_simulation_vm::destack_tty_set_size(runtime, context, handle, size)
                 }
             },
             |context, result| {

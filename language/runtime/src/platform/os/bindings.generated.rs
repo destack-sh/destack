@@ -25,8 +25,8 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::os::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
+use crate::platform::os::simulation::{
+    native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::os::{native as platform_native, vm as platform_vm};
 use crate::platform::{fs as platform_fs, fs, os as platform_os};
@@ -799,7 +799,7 @@ fn destack_os_host_identity_replay(
                 platform_native::destack_os_host_identity(context, out)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_os_host_identity(context, out)
+                platform_simulation_native::destack_os_host_identity(context, out)
             },
         },
         |result| {
@@ -877,7 +877,7 @@ fn destack_os_info_boot_time_unix_ns_replay(
                 platform_native::destack_os_boot_time_unix_ns(context, out)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_os_boot_time_unix_ns(context, out)
+                platform_simulation_native::destack_os_boot_time_unix_ns(context, out)
             },
         },
         |result| {
@@ -933,7 +933,7 @@ fn destack_os_info_load_average_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_os_load_average(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_os_load_average(context, out)
+                platform_simulation_native::destack_os_load_average(context, out)
             },
         },
         |result| {
@@ -1005,7 +1005,7 @@ fn destack_os_info_system_snapshot_replay(
                 platform_native::destack_os_system_snapshot(context, out)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_os_system_snapshot(context, out)
+                platform_simulation_native::destack_os_system_snapshot(context, out)
             },
         },
         |result| {
@@ -1079,7 +1079,7 @@ fn destack_os_info_uptime_ns_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_os_uptime_ns(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_os_uptime_ns(context, out)
+                platform_simulation_native::destack_os_uptime_ns(context, out)
             },
         },
         |result| {
@@ -1143,7 +1143,7 @@ fn destack_os_mount_add_replay(
                 platform_native::destack_os_add(context, source, target, filesystem, flags, data)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_os_add(
+                platform_simulation_native::destack_os_add(
                     context, source, target, filesystem, flags, data,
                 )
             },
@@ -1189,7 +1189,7 @@ fn destack_os_mount_list_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_os_list(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_os_list(context, out)
+                platform_simulation_native::destack_os_list(context, out)
             },
         },
         |result| {
@@ -1355,7 +1355,7 @@ fn destack_os_mount_remove_replay(
                 platform_native::destack_os_remove(context, target, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_os_remove(context, target, flags)
+                platform_simulation_native::destack_os_remove(context, target, flags)
             },
         },
         |result| {
@@ -1399,7 +1399,7 @@ fn destack_os_power_state_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_os_power_state(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_os_power_state(context, out)
+                platform_simulation_native::destack_os_power_state(context, out)
             },
         },
         |result| {
@@ -1580,7 +1580,7 @@ pub unsafe extern "C" fn destack_os_power_suspend() -> RuntimeStatus {
         match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_os_suspend(context) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_os_suspend(context)
+                platform_simulation_native::destack_os_suspend(context)
             },
         }
     })
@@ -1602,7 +1602,7 @@ fn destack_os_host_identity_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_os_host_identity(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_os_host_identity(runtime, context)
+                    platform_simulation_vm::destack_os_host_identity(runtime, context)
                 }
             },
             |context, result| {
@@ -1702,7 +1702,7 @@ fn destack_os_info_boot_time_unix_ns_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_os_boot_time_unix_ns(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_os_boot_time_unix_ns(runtime, context)
+                    platform_simulation_vm::destack_os_boot_time_unix_ns(runtime, context)
                 }
             },
             |context, result| {
@@ -1757,7 +1757,7 @@ fn destack_os_info_load_average_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_os_load_average(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_os_load_average(runtime, context)
+                    platform_simulation_vm::destack_os_load_average(runtime, context)
                 }
             },
             |context, result| {
@@ -1826,7 +1826,7 @@ fn destack_os_info_system_snapshot_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_os_system_snapshot(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_os_system_snapshot(runtime, context)
+                    platform_simulation_vm::destack_os_system_snapshot(runtime, context)
                 }
             },
             |context, result| {
@@ -1899,7 +1899,7 @@ fn destack_os_info_uptime_ns_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_os_uptime_ns(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_os_uptime_ns(runtime, context)
+                    platform_simulation_vm::destack_os_uptime_ns(runtime, context)
                 }
             },
             |context, result| {
@@ -1960,7 +1960,7 @@ fn destack_os_mount_add_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_os_add(
                     runtime, context, source, target, filesystem, flags, data,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_os_add(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_os_add(
                     runtime, context, source, target, filesystem, flags, data,
                 ),
             },
@@ -2011,7 +2011,9 @@ fn destack_os_mount_list_vm_replay(
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_os_list(runtime, context),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_os_list(runtime, context),
+                RuntimeWorld::Simulated => {
+                    platform_simulation_vm::destack_os_list(runtime, context)
+                }
             },
             |context, result| {
                 let _ = &context;
@@ -2313,7 +2315,7 @@ fn destack_os_mount_remove_vm_replay(
                     platform_vm::destack_os_remove(runtime, context, target, flags)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_os_remove(runtime, context, target, flags)
+                    platform_simulation_vm::destack_os_remove(runtime, context, target, flags)
                 }
             },
             |context, result| {
@@ -2364,7 +2366,7 @@ fn destack_os_power_state_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_os_power_state(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_os_power_state(runtime, context)
+                    platform_simulation_vm::destack_os_power_state(runtime, context)
                 }
             },
             |context, result| {
@@ -2553,7 +2555,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_suspend(runtime, context),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_os_suspend(runtime, context)
+                                platform_simulation_vm::destack_os_suspend(runtime, context)
                             }
                         }
                     };

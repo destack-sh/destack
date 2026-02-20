@@ -31,8 +31,8 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::process::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
+use crate::platform::process::simulation::{
+    native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::process::{native as platform_native, vm as platform_vm};
 use crate::platform::{
@@ -5174,7 +5174,7 @@ fn destack_process_args_list_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_process_args(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_args(context, out)
+                platform_simulation_native::destack_process_args(context, out)
             },
         },
         |result| {
@@ -5243,7 +5243,7 @@ fn destack_process_cwd_chdir_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_process_chdir(context, path) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_chdir(context, path)
+                platform_simulation_native::destack_process_chdir(context, path)
             },
         },
         |result| {
@@ -5287,7 +5287,7 @@ fn destack_process_cwd_get_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_process_cwd(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_cwd(context, out)
+                platform_simulation_native::destack_process_cwd(context, out)
             },
         },
         |result| {
@@ -5391,7 +5391,7 @@ fn destack_process_env_delete_replay(
                 platform_native::destack_process_env_delete(context, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_env_delete(context, name)
+                platform_simulation_native::destack_process_env_delete(context, name)
             },
         },
         |result| {
@@ -5439,7 +5439,7 @@ fn destack_process_env_delete_bytes_replay(
                 platform_native::destack_process_env_delete_bytes(context, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_env_delete_bytes(context, name)
+                platform_simulation_native::destack_process_env_delete_bytes(context, name)
             },
         },
         |result| {
@@ -5488,7 +5488,7 @@ fn destack_process_env_get_replay(
                 platform_native::destack_process_env_get(context, out, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_env_get(context, out, name)
+                platform_simulation_native::destack_process_env_get(context, out, name)
             },
         },
         |result| {
@@ -5549,7 +5549,7 @@ fn destack_process_env_get_bytes_replay(
                 platform_native::destack_process_env_get_bytes(context, out, name)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_env_get_bytes(context, out, name)
+                platform_simulation_native::destack_process_env_get_bytes(context, out, name)
             },
         },
         |result| {
@@ -5621,7 +5621,7 @@ fn destack_process_env_set_replay(
                 platform_native::destack_process_env_set(context, name, argument_value)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_env_set(context, name, argument_value)
+                platform_simulation_native::destack_process_env_set(context, name, argument_value)
             },
         },
         |result| {
@@ -5670,7 +5670,7 @@ fn destack_process_env_set_bytes_replay(
                 platform_native::destack_process_env_set_bytes(context, name, argument_value)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_env_set_bytes(
+                platform_simulation_native::destack_process_env_set_bytes(
                     context,
                     name,
                     argument_value,
@@ -5724,7 +5724,7 @@ fn destack_process_exec_fexec_replay(
                 platform_native::destack_process_fexec(context, executable, arguments, environment)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_fexec(
+                platform_simulation_native::destack_process_fexec(
                     context,
                     executable,
                     arguments,
@@ -5779,7 +5779,7 @@ fn destack_process_exec_path_replay(
                 platform_native::destack_process_exec(context, command, arguments, environment)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_exec(
+                platform_simulation_native::destack_process_exec(
                     context,
                     command,
                     arguments,
@@ -5843,7 +5843,7 @@ fn destack_process_exec_pathat_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_execat(
+                platform_simulation_native::destack_process_execat(
                     context,
                     directory,
                     path,
@@ -5896,7 +5896,7 @@ fn destack_process_exit_terminate_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_process_exit(context, code) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_exit(context, code)
+                platform_simulation_native::destack_process_exit(context, code)
             },
         },
         |result| {
@@ -5944,7 +5944,7 @@ fn destack_process_fd_process_fd_close_replay(
                 platform_native::destack_process_process_fd_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_process_fd_close(context, handle)
+                platform_simulation_native::destack_process_process_fd_close(context, handle)
             },
         },
         |result| {
@@ -5994,7 +5994,9 @@ fn destack_process_fd_process_fd_open_replay(
                 platform_native::destack_process_process_fd_open(context, out, pid, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_process_fd_open(context, out, pid, flags)
+                platform_simulation_native::destack_process_process_fd_open(
+                    context, out, pid, flags,
+                )
             },
         },
         |result| {
@@ -6058,7 +6060,7 @@ fn destack_process_fd_process_fd_send_signal_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_process_fd_send_signal(
+                platform_simulation_native::destack_process_process_fd_send_signal(
                     context, handle, signal, flags,
                 )
             },
@@ -6109,7 +6111,9 @@ fn destack_process_fd_process_fd_try_wait_replay(
                 platform_native::destack_process_process_fd_try_wait(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_process_fd_try_wait(context, out, handle)
+                platform_simulation_native::destack_process_process_fd_try_wait(
+                    context, out, handle,
+                )
             },
         },
         |result| {
@@ -6193,7 +6197,7 @@ fn destack_process_fd_process_fd_wait_replay(
                 platform_native::destack_process_process_fd_wait(context, out, handle, timeoutns)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_process_fd_wait(
+                platform_simulation_native::destack_process_process_fd_wait(
                     context, out, handle, timeoutns,
                 )
             },
@@ -6277,7 +6281,7 @@ fn destack_process_fd_signal_fd_close_replay(
                 platform_native::destack_process_signal_fd_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_signal_fd_close(context, handle)
+                platform_simulation_native::destack_process_signal_fd_close(context, handle)
             },
         },
         |result| {
@@ -6327,7 +6331,7 @@ fn destack_process_fd_signal_fd_open_replay(
                 platform_native::destack_process_signal_fd_open(context, out, signals, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_signal_fd_open(
+                platform_simulation_native::destack_process_signal_fd_open(
                     context, out, signals, flags,
                 )
             },
@@ -6390,7 +6394,7 @@ fn destack_process_fd_signal_fd_read_replay(
                 platform_native::destack_process_signal_fd_read(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_signal_fd_read(context, out, handle)
+                platform_simulation_native::destack_process_signal_fd_read(context, out, handle)
             },
         },
         |result| {
@@ -6461,7 +6465,7 @@ fn destack_process_fd_signal_fd_set_mask_replay(
                 platform_native::destack_process_signal_fd_set_mask(context, handle, signals)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_signal_fd_set_mask(
+                platform_simulation_native::destack_process_signal_fd_set_mask(
                     context, handle, signals,
                 )
             },
@@ -6512,7 +6516,7 @@ fn destack_process_fd_signal_fd_try_read_replay(
                 platform_native::destack_process_signal_fd_try_read(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_signal_fd_try_read(context, out, handle)
+                platform_simulation_native::destack_process_signal_fd_try_read(context, out, handle)
             },
         },
         |result| {
@@ -6580,7 +6584,7 @@ fn destack_process_fd_stdio_stderr_replay(
                 platform_native::destack_process_stdio_stderr(context, out)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_stdio_stderr(context, out)
+                platform_simulation_native::destack_process_stdio_stderr(context, out)
             },
         },
         |result| {
@@ -6638,7 +6642,7 @@ fn destack_process_fd_stdio_stdin_replay(
                 platform_native::destack_process_stdio_stdin(context, out)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_stdio_stdin(context, out)
+                platform_simulation_native::destack_process_stdio_stdin(context, out)
             },
         },
         |result| {
@@ -6696,7 +6700,7 @@ fn destack_process_fd_stdio_stdout_replay(
                 platform_native::destack_process_stdio_stdout(context, out)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_stdio_stdout(context, out)
+                platform_simulation_native::destack_process_stdio_stdout(context, out)
             },
         },
         |result| {
@@ -6752,7 +6756,7 @@ fn destack_process_ids_egid_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_process_egid(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_egid(context, out)
+                platform_simulation_native::destack_process_egid(context, out)
             },
         },
         |result| {
@@ -6808,7 +6812,7 @@ fn destack_process_ids_euid_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_process_euid(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_euid(context, out)
+                platform_simulation_native::destack_process_euid(context, out)
             },
         },
         |result| {
@@ -6864,7 +6868,7 @@ fn destack_process_ids_gid_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_process_gid(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_gid(context, out)
+                platform_simulation_native::destack_process_gid(context, out)
             },
         },
         |result| {
@@ -6922,7 +6926,7 @@ fn destack_process_ids_group_ids_replay(
                 platform_native::destack_process_group_ids(context, out)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_group_ids(context, out)
+                platform_simulation_native::destack_process_group_ids(context, out)
             },
         },
         |result| {
@@ -6992,7 +6996,7 @@ fn destack_process_ids_groups_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_process_groups(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_groups(context, out)
+                platform_simulation_native::destack_process_groups(context, out)
             },
         },
         |result| {
@@ -7059,7 +7063,7 @@ fn destack_process_ids_pid_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_process_pid(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_pid(context, out)
+                platform_simulation_native::destack_process_pid(context, out)
             },
         },
         |result| {
@@ -7115,7 +7119,7 @@ fn destack_process_ids_ppid_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_process_ppid(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_ppid(context, out)
+                platform_simulation_native::destack_process_ppid(context, out)
             },
         },
         |result| {
@@ -7175,7 +7179,7 @@ fn destack_process_ids_set_egid_replay(
                 platform_native::destack_process_set_egid(context, groupid)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_set_egid(context, groupid)
+                platform_simulation_native::destack_process_set_egid(context, groupid)
             },
         },
         |result| {
@@ -7223,7 +7227,7 @@ fn destack_process_ids_set_euid_replay(
                 platform_native::destack_process_set_euid(context, userid)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_set_euid(context, userid)
+                platform_simulation_native::destack_process_set_euid(context, userid)
             },
         },
         |result| {
@@ -7271,7 +7275,7 @@ fn destack_process_ids_set_gid_replay(
                 platform_native::destack_process_set_gid(context, groupid)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_set_gid(context, groupid)
+                platform_simulation_native::destack_process_set_gid(context, groupid)
             },
         },
         |result| {
@@ -7319,7 +7323,7 @@ fn destack_process_ids_set_group_ids_replay(
                 platform_native::destack_process_set_group_ids(context, ids)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_set_group_ids(context, ids)
+                platform_simulation_native::destack_process_set_group_ids(context, ids)
             },
         },
         |result| {
@@ -7367,7 +7371,7 @@ fn destack_process_ids_set_groups_replay(
                 platform_native::destack_process_set_groups(context, groups)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_set_groups(context, groups)
+                platform_simulation_native::destack_process_set_groups(context, groups)
             },
         },
         |result| {
@@ -7415,7 +7419,7 @@ fn destack_process_ids_set_uid_replay(
                 platform_native::destack_process_set_uid(context, userid)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_set_uid(context, userid)
+                platform_simulation_native::destack_process_set_uid(context, userid)
             },
         },
         |result| {
@@ -7463,7 +7467,7 @@ fn destack_process_ids_set_user_ids_replay(
                 platform_native::destack_process_set_user_ids(context, ids)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_set_user_ids(context, ids)
+                platform_simulation_native::destack_process_set_user_ids(context, ids)
             },
         },
         |result| {
@@ -7507,7 +7511,7 @@ fn destack_process_ids_uid_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_process_uid(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_uid(context, out)
+                platform_simulation_native::destack_process_uid(context, out)
             },
         },
         |result| {
@@ -7565,7 +7569,7 @@ fn destack_process_ids_user_ids_replay(
                 platform_native::destack_process_user_ids(context, out)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_user_ids(context, out)
+                platform_simulation_native::destack_process_user_ids(context, out)
             },
         },
         |result| {
@@ -7640,7 +7644,7 @@ fn destack_process_limits_get_limit_replay(
                 platform_native::destack_process_get_limit(context, out, resource)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_get_limit(context, out, resource)
+                platform_simulation_native::destack_process_get_limit(context, out, resource)
             },
         },
         |result| {
@@ -7711,7 +7715,7 @@ fn destack_process_limits_set_limit_replay(
                 platform_native::destack_process_set_limit(context, resource, limit)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_set_limit(context, resource, limit)
+                platform_simulation_native::destack_process_set_limit(context, resource, limit)
             },
         },
         |result| {
@@ -7760,7 +7764,7 @@ fn destack_process_sched_get_affinity_replay(
                 platform_native::destack_process_get_affinity(context, out, pid)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_get_affinity(context, out, pid)
+                platform_simulation_native::destack_process_get_affinity(context, out, pid)
             },
         },
         |result| {
@@ -7838,7 +7842,7 @@ fn destack_process_sched_get_priority_replay(
                 platform_native::destack_process_get_priority(context, out, pid)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_get_priority(context, out, pid)
+                platform_simulation_native::destack_process_get_priority(context, out, pid)
             },
         },
         |result| {
@@ -7899,7 +7903,7 @@ fn destack_process_sched_get_scheduler_replay(
                 platform_native::destack_process_get_scheduler(context, out, pid)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_get_scheduler(context, out, pid)
+                platform_simulation_native::destack_process_get_scheduler(context, out, pid)
             },
         },
         |result| {
@@ -7974,7 +7978,7 @@ fn destack_process_sched_set_affinity_replay(
                 platform_native::destack_process_set_affinity(context, pid, cpus)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_set_affinity(context, pid, cpus)
+                platform_simulation_native::destack_process_set_affinity(context, pid, cpus)
             },
         },
         |result| {
@@ -8023,7 +8027,7 @@ fn destack_process_sched_set_priority_replay(
                 platform_native::destack_process_set_priority(context, pid, priority)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_set_priority(context, pid, priority)
+                platform_simulation_native::destack_process_set_priority(context, pid, priority)
             },
         },
         |result| {
@@ -8072,7 +8076,7 @@ fn destack_process_sched_set_scheduler_replay(
                 platform_native::destack_process_set_scheduler(context, pid, config)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_set_scheduler(context, pid, config)
+                platform_simulation_native::destack_process_set_scheduler(context, pid, config)
             },
         },
         |result| {
@@ -8115,7 +8119,7 @@ fn destack_process_sched_yield_now_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_process_yield_now(context) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_yield_now(context)
+                platform_simulation_native::destack_process_yield_now(context)
             },
         },
         |result| {
@@ -8164,7 +8168,7 @@ fn destack_process_session_getpgid_replay(
                 platform_native::destack_process_getpgid(context, out, pid)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_getpgid(context, out, pid)
+                platform_simulation_native::destack_process_getpgid(context, out, pid)
             },
         },
         |result| {
@@ -8225,7 +8229,7 @@ fn destack_process_session_setpgid_replay(
                 platform_native::destack_process_setpgid(context, pid, pgid)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_setpgid(context, pid, pgid)
+                platform_simulation_native::destack_process_setpgid(context, pid, pgid)
             },
         },
         |result| {
@@ -8269,7 +8273,7 @@ fn destack_process_session_setsid_replay(
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_process_setsid(context, out) },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_setsid(context, out)
+                platform_simulation_native::destack_process_setsid(context, out)
             },
         },
         |result| {
@@ -8330,7 +8334,7 @@ fn destack_process_signals_kill_replay(
                 platform_native::destack_process_kill(context, pid, signal)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_kill(context, pid, signal)
+                platform_simulation_native::destack_process_kill(context, pid, signal)
             },
         },
         |result| {
@@ -8376,7 +8380,7 @@ fn destack_process_signals_signal_mask_read_replay(
                 platform_native::destack_process_signal_mask_read(context, out)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_signal_mask_read(context, out)
+                platform_simulation_native::destack_process_signal_mask_read(context, out)
             },
         },
         |result| {
@@ -8448,7 +8452,9 @@ fn destack_process_signals_signal_mask_update_replay(
                 platform_native::destack_process_signal_mask_update(context, how, signals)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_signal_mask_update(context, how, signals)
+                platform_simulation_native::destack_process_signal_mask_update(
+                    context, how, signals,
+                )
             },
         },
         |result| {
@@ -8497,7 +8503,7 @@ fn destack_process_signals_signal_receive_replay(
                 platform_native::destack_process_signal_receive(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_signal_receive(context, out, handle)
+                platform_simulation_native::destack_process_signal_receive(context, out, handle)
             },
         },
         |result| {
@@ -8568,7 +8574,7 @@ fn destack_process_signals_signal_subscribe_replay(
                 platform_native::destack_process_signal_subscribe(context, out, signal)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_signal_subscribe(context, out, signal)
+                platform_simulation_native::destack_process_signal_subscribe(context, out, signal)
             },
         },
         |result| {
@@ -8629,7 +8635,7 @@ fn destack_process_signals_signal_try_receive_replay(
                 platform_native::destack_process_signal_try_receive(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_signal_try_receive(context, out, handle)
+                platform_simulation_native::destack_process_signal_try_receive(context, out, handle)
             },
         },
         |result| {
@@ -8700,7 +8706,7 @@ fn destack_process_signals_signal_try_wait_replay(
                 platform_native::destack_process_signal_try_wait(context, out, signals)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_signal_try_wait(context, out, signals)
+                platform_simulation_native::destack_process_signal_try_wait(context, out, signals)
             },
         },
         |result| {
@@ -8770,7 +8776,7 @@ fn destack_process_signals_signal_unsubscribe_replay(
                 platform_native::destack_process_signal_unsubscribe(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_signal_unsubscribe(context, handle)
+                platform_simulation_native::destack_process_signal_unsubscribe(context, handle)
             },
         },
         |result| {
@@ -8819,7 +8825,7 @@ fn destack_process_signals_signal_wait_replay(
                 platform_native::destack_process_signal_wait(context, out, signals)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_signal_wait(context, out, signals)
+                platform_simulation_native::destack_process_signal_wait(context, out, signals)
             },
         },
         |result| {
@@ -8900,7 +8906,7 @@ fn destack_process_spawn_start_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_spawn(
+                platform_simulation_native::destack_process_spawn(
                     context,
                     out,
                     command,
@@ -8989,7 +8995,7 @@ fn destack_process_spawn_with_actions_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_spawn_with_actions(
+                platform_simulation_native::destack_process_spawn_with_actions(
                     context,
                     out,
                     command,
@@ -9059,7 +9065,7 @@ fn destack_process_umask_set_replay(
                 platform_native::destack_process_umask(context, out, mask)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_umask(context, out, mask)
+                platform_simulation_native::destack_process_umask(context, out, mask)
             },
         },
         |result| {
@@ -9121,7 +9127,7 @@ fn destack_process_wait_handle_replay(
                 platform_native::destack_process_wait(context, out, handle, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_wait(context, out, handle, flags)
+                platform_simulation_native::destack_process_wait(context, out, handle, flags)
             },
         },
         |result| {
@@ -9205,7 +9211,7 @@ fn destack_process_wait_pid_replay(
                 platform_native::destack_process_wait_pid(context, out, pid, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_wait_pid(context, out, pid, flags)
+                platform_simulation_native::destack_process_wait_pid(context, out, pid, flags)
             },
         },
         |result| {
@@ -9288,7 +9294,7 @@ fn destack_process_wait_try_wait_replay(
                 platform_native::destack_process_try_wait(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_process_try_wait(context, out, handle)
+                platform_simulation_native::destack_process_try_wait(context, out, handle)
             },
         },
         |result| {
@@ -9772,7 +9778,7 @@ pub unsafe extern "C" fn destack_process_group_cgroup_get_limit(
                     platform_native::destack_process_cgroup_get_limit(context, out, path, resource)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_process_cgroup_get_limit(
+                    platform_simulation_native::destack_process_cgroup_get_limit(
                         context, out, path, resource,
                     )
                 },
@@ -9794,7 +9800,7 @@ pub unsafe extern "C" fn destack_process_group_cgroup_join(path: NativeStringRef
                     platform_native::destack_process_cgroup_join(context, path)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_process_cgroup_join(context, path)
+                    platform_simulation_native::destack_process_cgroup_join(context, path)
                 },
             }
         }
@@ -9820,7 +9826,7 @@ pub unsafe extern "C" fn destack_process_group_cgroup_set_limit(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_process_cgroup_set_limit(
+                    platform_simulation_native::destack_process_cgroup_set_limit(
                         context, path, resource, limit,
                     )
                 },
@@ -9845,7 +9851,7 @@ pub unsafe extern "C" fn destack_process_group_job_assign(
                     platform_native::destack_process_job_assign(context, name, pids)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_process_job_assign(context, name, pids)
+                    platform_simulation_native::destack_process_job_assign(context, name, pids)
                 },
             }
         }
@@ -9869,7 +9875,7 @@ pub unsafe extern "C" fn destack_process_group_job_set_limit(
                     platform_native::destack_process_job_set_limit(context, name, resource, limit)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_process_job_set_limit(
+                    platform_simulation_native::destack_process_job_set_limit(
                         context, name, resource, limit,
                     )
                 },
@@ -10098,7 +10104,7 @@ pub unsafe extern "C" fn destack_process_isolation_chroot(path: fs::OsPath) -> R
                     platform_native::destack_process_chroot(context, path)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_process_chroot(context, path)
+                    platform_simulation_native::destack_process_chroot(context, path)
                 },
             }
         }
@@ -10122,7 +10128,7 @@ pub unsafe extern "C" fn destack_process_isolation_install_syscall_filter(
                     platform_native::destack_process_install_syscall_filter(context, program, flags)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_process_install_syscall_filter(
+                    platform_simulation_native::destack_process_install_syscall_filter(
                         context, program, flags,
                     )
                 },
@@ -10146,7 +10152,7 @@ pub unsafe extern "C" fn destack_process_isolation_set_host_name(
                     platform_native::destack_process_set_host_name(context, name)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_process_set_host_name(context, name)
+                    platform_simulation_native::destack_process_set_host_name(context, name)
                 },
             }
         }
@@ -10168,7 +10174,7 @@ pub unsafe extern "C" fn destack_process_isolation_set_network_namespace(
                     platform_native::destack_process_set_network_namespace(context, path)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_process_set_network_namespace(context, path)
+                    platform_simulation_native::destack_process_set_network_namespace(context, path)
                 },
             }
         }
@@ -10191,7 +10197,7 @@ pub unsafe extern "C" fn destack_process_isolation_setns(
                     platform_native::destack_process_setns(context, pid, namespace)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_process_setns(context, pid, namespace)
+                    platform_simulation_native::destack_process_setns(context, pid, namespace)
                 },
             }
         }
@@ -10213,7 +10219,7 @@ pub unsafe extern "C" fn destack_process_isolation_unshare(
                     platform_native::destack_process_unshare(context, flags)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_process_unshare(context, flags)
+                    platform_simulation_native::destack_process_unshare(context, flags)
                 },
             }
         }
@@ -10691,7 +10697,7 @@ fn destack_process_args_list_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_args(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_args(runtime, context)
+                    platform_simulation_vm::destack_process_args(runtime, context)
                 }
             },
             |context, result| {
@@ -10770,7 +10776,7 @@ fn destack_process_cwd_chdir_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_chdir(runtime, context, path),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_chdir(runtime, context, path)
+                    platform_simulation_vm::destack_process_chdir(runtime, context, path)
                 }
             },
             |context, result| {
@@ -10821,7 +10827,7 @@ fn destack_process_cwd_get_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_cwd(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_cwd(runtime, context)
+                    platform_simulation_vm::destack_process_cwd(runtime, context)
                 }
             },
             |context, result| {
@@ -10921,7 +10927,7 @@ fn destack_process_env_delete_vm_replay(
                     platform_vm::destack_process_env_delete(runtime, context, name)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_env_delete(runtime, context, name)
+                    platform_simulation_vm::destack_process_env_delete(runtime, context, name)
                 }
             },
             |context, result| {
@@ -10975,7 +10981,7 @@ fn destack_process_env_delete_bytes_vm_replay(
                     platform_vm::destack_process_env_delete_bytes(runtime, context, name)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_env_delete_bytes(runtime, context, name)
+                    platform_simulation_vm::destack_process_env_delete_bytes(runtime, context, name)
                 }
             },
             |context, result| {
@@ -11027,7 +11033,7 @@ fn destack_process_env_get_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_env_get(runtime, context, name),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_env_get(runtime, context, name)
+                    platform_simulation_vm::destack_process_env_get(runtime, context, name)
                 }
             },
             |context, result| {
@@ -11091,7 +11097,7 @@ fn destack_process_env_get_bytes_vm_replay(
                     platform_vm::destack_process_env_get_bytes(runtime, context, name)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_env_get_bytes(runtime, context, name)
+                    platform_simulation_vm::destack_process_env_get_bytes(runtime, context, name)
                 }
             },
             |context, result| {
@@ -11149,7 +11155,7 @@ fn destack_process_env_set_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_process_env_set(runtime, context, name, argument_value)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_env_set(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_process_env_set(
                     runtime,
                     context,
                     name,
@@ -11210,7 +11216,7 @@ fn destack_process_env_set_bytes_vm_replay(
                     name,
                     argument_value,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_env_set_bytes(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_process_env_set_bytes(
                     runtime,
                     context,
                     name,
@@ -11273,7 +11279,7 @@ fn destack_process_exec_fexec_vm_replay(
                     arguments,
                     environment,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_fexec(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_process_fexec(
                     runtime,
                     context,
                     executable,
@@ -11337,7 +11343,7 @@ fn destack_process_exec_path_vm_replay(
                     arguments,
                     environment,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_exec(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_process_exec(
                     runtime,
                     context,
                     command,
@@ -11405,7 +11411,7 @@ fn destack_process_exec_pathat_vm_replay(
                     environment,
                     flags,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_execat(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_process_execat(
                     runtime,
                     context,
                     directory,
@@ -11464,7 +11470,7 @@ fn destack_process_exit_terminate_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_exit(runtime, context, code),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_exit(runtime, context, code)
+                    platform_simulation_vm::destack_process_exit(runtime, context, code)
                 }
             },
             |context, result| {
@@ -11517,9 +11523,11 @@ fn destack_process_fd_process_fd_close_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_process_process_fd_close(runtime, context, handle)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_process_fd_close(
-                    runtime, context, handle,
-                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulation_vm::destack_process_process_fd_close(
+                        runtime, context, handle,
+                    )
+                }
             },
             |context, result| {
                 let _ = &context;
@@ -11572,7 +11580,7 @@ fn destack_process_fd_process_fd_open_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_process_process_fd_open(runtime, context, pid, flags)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_process_fd_open(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_process_process_fd_open(
                     runtime, context, pid, flags,
                 ),
             },
@@ -11633,7 +11641,7 @@ fn destack_process_fd_process_fd_send_signal_vm_replay(
                     runtime, context, handle, signal, flags,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_process_fd_send_signal(
+                    platform_simulation_vm::destack_process_process_fd_send_signal(
                         runtime, context, handle, signal, flags,
                     )
                 }
@@ -11689,7 +11697,7 @@ fn destack_process_fd_process_fd_try_wait_vm_replay(
                     platform_vm::destack_process_process_fd_try_wait(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_process_fd_try_wait(
+                    platform_simulation_vm::destack_process_process_fd_try_wait(
                         runtime, context, handle,
                     )
                 }
@@ -11771,7 +11779,7 @@ fn destack_process_fd_process_fd_wait_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_process_process_fd_wait(
                     runtime, context, handle, timeoutns,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_process_fd_wait(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_process_process_fd_wait(
                     runtime, context, handle, timeoutns,
                 ),
             },
@@ -11851,9 +11859,9 @@ fn destack_process_fd_signal_fd_close_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_process_signal_fd_close(runtime, context, handle)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_signal_fd_close(runtime, context, handle)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_process_signal_fd_close(
+                    runtime, context, handle,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -11906,7 +11914,7 @@ fn destack_process_fd_signal_fd_open_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_process_signal_fd_open(runtime, context, signals, flags)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_signal_fd_open(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_process_signal_fd_open(
                     runtime, context, signals, flags,
                 ),
             },
@@ -11965,7 +11973,7 @@ fn destack_process_fd_signal_fd_read_vm_replay(
                     platform_vm::destack_process_signal_fd_read(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_signal_fd_read(runtime, context, handle)
+                    platform_simulation_vm::destack_process_signal_fd_read(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -12034,7 +12042,7 @@ fn destack_process_fd_signal_fd_set_mask_vm_replay(
                     runtime, context, handle, signals,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_signal_fd_set_mask(
+                    platform_simulation_vm::destack_process_signal_fd_set_mask(
                         runtime, context, handle, signals,
                     )
                 }
@@ -12090,7 +12098,7 @@ fn destack_process_fd_signal_fd_try_read_vm_replay(
                     platform_vm::destack_process_signal_fd_try_read(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_signal_fd_try_read(
+                    platform_simulation_vm::destack_process_signal_fd_try_read(
                         runtime, context, handle,
                     )
                 }
@@ -12157,7 +12165,7 @@ fn destack_process_fd_stdio_stderr_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_stdio_stderr(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_stdio_stderr(runtime, context)
+                    platform_simulation_vm::destack_process_stdio_stderr(runtime, context)
                 }
             },
             |context, result| {
@@ -12212,7 +12220,7 @@ fn destack_process_fd_stdio_stdin_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_stdio_stdin(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_stdio_stdin(runtime, context)
+                    platform_simulation_vm::destack_process_stdio_stdin(runtime, context)
                 }
             },
             |context, result| {
@@ -12267,7 +12275,7 @@ fn destack_process_fd_stdio_stdout_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_stdio_stdout(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_stdio_stdout(runtime, context)
+                    platform_simulation_vm::destack_process_stdio_stdout(runtime, context)
                 }
             },
             |context, result| {
@@ -12322,7 +12330,7 @@ fn destack_process_ids_egid_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_egid(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_egid(runtime, context)
+                    platform_simulation_vm::destack_process_egid(runtime, context)
                 }
             },
             |context, result| {
@@ -12377,7 +12385,7 @@ fn destack_process_ids_euid_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_euid(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_euid(runtime, context)
+                    platform_simulation_vm::destack_process_euid(runtime, context)
                 }
             },
             |context, result| {
@@ -12432,7 +12440,7 @@ fn destack_process_ids_gid_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_gid(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_gid(runtime, context)
+                    platform_simulation_vm::destack_process_gid(runtime, context)
                 }
             },
             |context, result| {
@@ -12487,7 +12495,7 @@ fn destack_process_ids_group_ids_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_group_ids(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_group_ids(runtime, context)
+                    platform_simulation_vm::destack_process_group_ids(runtime, context)
                 }
             },
             |context, result| {
@@ -12556,7 +12564,7 @@ fn destack_process_ids_groups_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_groups(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_groups(runtime, context)
+                    platform_simulation_vm::destack_process_groups(runtime, context)
                 }
             },
             |context, result| {
@@ -12628,7 +12636,7 @@ fn destack_process_ids_pid_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_pid(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_pid(runtime, context)
+                    platform_simulation_vm::destack_process_pid(runtime, context)
                 }
             },
             |context, result| {
@@ -12683,7 +12691,7 @@ fn destack_process_ids_ppid_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_ppid(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_ppid(runtime, context)
+                    platform_simulation_vm::destack_process_ppid(runtime, context)
                 }
             },
             |context, result| {
@@ -12741,7 +12749,7 @@ fn destack_process_ids_set_egid_vm_replay(
                     platform_vm::destack_process_set_egid(runtime, context, groupid)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_set_egid(runtime, context, groupid)
+                    platform_simulation_vm::destack_process_set_egid(runtime, context, groupid)
                 }
             },
             |context, result| {
@@ -12795,7 +12803,7 @@ fn destack_process_ids_set_euid_vm_replay(
                     platform_vm::destack_process_set_euid(runtime, context, userid)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_set_euid(runtime, context, userid)
+                    platform_simulation_vm::destack_process_set_euid(runtime, context, userid)
                 }
             },
             |context, result| {
@@ -12849,7 +12857,7 @@ fn destack_process_ids_set_gid_vm_replay(
                     platform_vm::destack_process_set_gid(runtime, context, groupid)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_set_gid(runtime, context, groupid)
+                    platform_simulation_vm::destack_process_set_gid(runtime, context, groupid)
                 }
             },
             |context, result| {
@@ -12903,7 +12911,7 @@ fn destack_process_ids_set_group_ids_vm_replay(
                     platform_vm::destack_process_set_group_ids(runtime, context, ids)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_set_group_ids(runtime, context, ids)
+                    platform_simulation_vm::destack_process_set_group_ids(runtime, context, ids)
                 }
             },
             |context, result| {
@@ -12957,7 +12965,7 @@ fn destack_process_ids_set_groups_vm_replay(
                     platform_vm::destack_process_set_groups(runtime, context, groups)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_set_groups(runtime, context, groups)
+                    platform_simulation_vm::destack_process_set_groups(runtime, context, groups)
                 }
             },
             |context, result| {
@@ -13011,7 +13019,7 @@ fn destack_process_ids_set_uid_vm_replay(
                     platform_vm::destack_process_set_uid(runtime, context, userid)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_set_uid(runtime, context, userid)
+                    platform_simulation_vm::destack_process_set_uid(runtime, context, userid)
                 }
             },
             |context, result| {
@@ -13065,7 +13073,7 @@ fn destack_process_ids_set_user_ids_vm_replay(
                     platform_vm::destack_process_set_user_ids(runtime, context, ids)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_set_user_ids(runtime, context, ids)
+                    platform_simulation_vm::destack_process_set_user_ids(runtime, context, ids)
                 }
             },
             |context, result| {
@@ -13116,7 +13124,7 @@ fn destack_process_ids_uid_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_uid(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_uid(runtime, context)
+                    platform_simulation_vm::destack_process_uid(runtime, context)
                 }
             },
             |context, result| {
@@ -13171,7 +13179,7 @@ fn destack_process_ids_user_ids_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_user_ids(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_user_ids(runtime, context)
+                    platform_simulation_vm::destack_process_user_ids(runtime, context)
                 }
             },
             |context, result| {
@@ -13243,7 +13251,7 @@ fn destack_process_limits_get_limit_vm_replay(
                     platform_vm::destack_process_get_limit(runtime, context, resource)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_get_limit(runtime, context, resource)
+                    platform_simulation_vm::destack_process_get_limit(runtime, context, resource)
                 }
             },
             |context, result| {
@@ -13311,7 +13319,7 @@ fn destack_process_limits_set_limit_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_process_set_limit(runtime, context, resource, limit)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_set_limit(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_process_set_limit(
                     runtime, context, resource, limit,
                 ),
             },
@@ -13366,7 +13374,7 @@ fn destack_process_sched_get_affinity_vm_replay(
                     platform_vm::destack_process_get_affinity(runtime, context, pid)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_get_affinity(runtime, context, pid)
+                    platform_simulation_vm::destack_process_get_affinity(runtime, context, pid)
                 }
             },
             |context, result| {
@@ -13447,7 +13455,7 @@ fn destack_process_sched_get_priority_vm_replay(
                     platform_vm::destack_process_get_priority(runtime, context, pid)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_get_priority(runtime, context, pid)
+                    platform_simulation_vm::destack_process_get_priority(runtime, context, pid)
                 }
             },
             |context, result| {
@@ -13505,7 +13513,7 @@ fn destack_process_sched_get_scheduler_vm_replay(
                     platform_vm::destack_process_get_scheduler(runtime, context, pid)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_get_scheduler(runtime, context, pid)
+                    platform_simulation_vm::destack_process_get_scheduler(runtime, context, pid)
                 }
             },
             |context, result| {
@@ -13577,9 +13585,9 @@ fn destack_process_sched_set_affinity_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_process_set_affinity(runtime, context, pid, cpus)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_set_affinity(runtime, context, pid, cpus)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_process_set_affinity(
+                    runtime, context, pid, cpus,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -13632,7 +13640,7 @@ fn destack_process_sched_set_priority_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_process_set_priority(runtime, context, pid, priority)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_set_priority(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_process_set_priority(
                     runtime, context, pid, priority,
                 ),
             },
@@ -13687,7 +13695,7 @@ fn destack_process_sched_set_scheduler_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_process_set_scheduler(runtime, context, pid, config)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_set_scheduler(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_process_set_scheduler(
                     runtime, context, pid, config,
                 ),
             },
@@ -13739,7 +13747,7 @@ fn destack_process_sched_yield_now_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_yield_now(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_yield_now(runtime, context)
+                    platform_simulation_vm::destack_process_yield_now(runtime, context)
                 }
             },
             |context, result| {
@@ -13791,7 +13799,7 @@ fn destack_process_session_getpgid_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_getpgid(runtime, context, pid),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_getpgid(runtime, context, pid)
+                    platform_simulation_vm::destack_process_getpgid(runtime, context, pid)
                 }
             },
             |context, result| {
@@ -13850,7 +13858,7 @@ fn destack_process_session_setpgid_vm_replay(
                     platform_vm::destack_process_setpgid(runtime, context, pid, pgid)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_setpgid(runtime, context, pid, pgid)
+                    platform_simulation_vm::destack_process_setpgid(runtime, context, pid, pgid)
                 }
             },
             |context, result| {
@@ -13901,7 +13909,7 @@ fn destack_process_session_setsid_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_setsid(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_setsid(runtime, context)
+                    platform_simulation_vm::destack_process_setsid(runtime, context)
                 }
             },
             |context, result| {
@@ -13960,7 +13968,7 @@ fn destack_process_signals_kill_vm_replay(
                     platform_vm::destack_process_kill(runtime, context, pid, signal)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_kill(runtime, context, pid, signal)
+                    platform_simulation_vm::destack_process_kill(runtime, context, pid, signal)
                 }
             },
             |context, result| {
@@ -14013,7 +14021,7 @@ fn destack_process_signals_signal_mask_read_vm_replay(
                     platform_vm::destack_process_signal_mask_read(runtime, context)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_signal_mask_read(runtime, context)
+                    platform_simulation_vm::destack_process_signal_mask_read(runtime, context)
                 }
             },
             |context, result| {
@@ -14089,7 +14097,7 @@ fn destack_process_signals_signal_mask_update_vm_replay(
                     platform_vm::destack_process_signal_mask_update(runtime, context, how, signals)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_signal_mask_update(
+                    platform_simulation_vm::destack_process_signal_mask_update(
                         runtime, context, how, signals,
                     )
                 }
@@ -14145,7 +14153,7 @@ fn destack_process_signals_signal_receive_vm_replay(
                     platform_vm::destack_process_signal_receive(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_signal_receive(runtime, context, handle)
+                    platform_simulation_vm::destack_process_signal_receive(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -14212,9 +14220,11 @@ fn destack_process_signals_signal_subscribe_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_process_signal_subscribe(runtime, context, signal)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_signal_subscribe(
-                    runtime, context, signal,
-                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulation_vm::destack_process_signal_subscribe(
+                        runtime, context, signal,
+                    )
+                }
             },
             |context, result| {
                 let _ = &context;
@@ -14271,7 +14281,7 @@ fn destack_process_signals_signal_try_receive_vm_replay(
                     platform_vm::destack_process_signal_try_receive(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_signal_try_receive(
+                    platform_simulation_vm::destack_process_signal_try_receive(
                         runtime, context, handle,
                     )
                 }
@@ -14340,7 +14350,7 @@ fn destack_process_signals_signal_try_wait_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_process_signal_try_wait(runtime, context, signals)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_signal_try_wait(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_process_signal_try_wait(
                     runtime, context, signals,
                 ),
             },
@@ -14409,7 +14419,7 @@ fn destack_process_signals_signal_unsubscribe_vm_replay(
                     platform_vm::destack_process_signal_unsubscribe(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_signal_unsubscribe(
+                    platform_simulation_vm::destack_process_signal_unsubscribe(
                         runtime, context, handle,
                     )
                 }
@@ -14465,7 +14475,7 @@ fn destack_process_signals_signal_wait_vm_replay(
                     platform_vm::destack_process_signal_wait(runtime, context, signals)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_signal_wait(runtime, context, signals)
+                    platform_simulation_vm::destack_process_signal_wait(runtime, context, signals)
                 }
             },
             |context, result| {
@@ -14540,7 +14550,7 @@ fn destack_process_spawn_start_vm_replay(
                     environment,
                     options,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_process_spawn(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_process_spawn(
                     runtime,
                     context,
                     command,
@@ -14616,7 +14626,7 @@ fn destack_process_spawn_with_actions_vm_replay(
                     actions,
                 ),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_spawn_with_actions(
+                    platform_simulation_vm::destack_process_spawn_with_actions(
                         runtime,
                         context,
                         command,
@@ -14681,7 +14691,7 @@ fn destack_process_umask_set_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_process_umask(runtime, context, mask),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_umask(runtime, context, mask)
+                    platform_simulation_vm::destack_process_umask(runtime, context, mask)
                 }
             },
             |context, result| {
@@ -14740,7 +14750,7 @@ fn destack_process_wait_handle_vm_replay(
                     platform_vm::destack_process_wait(runtime, context, handle, flags)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_wait(runtime, context, handle, flags)
+                    platform_simulation_vm::destack_process_wait(runtime, context, handle, flags)
                 }
             },
             |context, result| {
@@ -14821,7 +14831,7 @@ fn destack_process_wait_pid_vm_replay(
                     platform_vm::destack_process_wait_pid(runtime, context, pid, flags)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_wait_pid(runtime, context, pid, flags)
+                    platform_simulation_vm::destack_process_wait_pid(runtime, context, pid, flags)
                 }
             },
             |context, result| {
@@ -14901,7 +14911,7 @@ fn destack_process_wait_try_wait_vm_replay(
                     platform_vm::destack_process_try_wait(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_process_try_wait(runtime, context, handle)
+                    platform_simulation_vm::destack_process_try_wait(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -15503,7 +15513,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                                 runtime, context, path, resource,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_process_cgroup_get_limit(
+                                platform_simulation_vm::destack_process_cgroup_get_limit(
                                     runtime, context, path, resource,
                                 )
                             }
@@ -15534,7 +15544,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                                 platform_vm::destack_process_cgroup_join(runtime, context, path)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_process_cgroup_join(
+                                platform_simulation_vm::destack_process_cgroup_join(
                                     runtime, context, path,
                                 )
                             }
@@ -15567,7 +15577,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                                 runtime, context, path, resource, limit,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_process_cgroup_set_limit(
+                                platform_simulation_vm::destack_process_cgroup_set_limit(
                                     runtime, context, path, resource, limit,
                                 )
                             }
@@ -15598,7 +15608,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                                 runtime, context, name, pids,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_process_job_assign(
+                                platform_simulation_vm::destack_process_job_assign(
                                     runtime, context, name, pids,
                                 )
                             }
@@ -15630,7 +15640,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                                 runtime, context, name, resource, limit,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_process_job_set_limit(
+                                platform_simulation_vm::destack_process_job_set_limit(
                                     runtime, context, name, resource, limit,
                                 )
                             }
@@ -15923,7 +15933,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                                 platform_vm::destack_process_chroot(runtime, context, path)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_process_chroot(
+                                platform_simulation_vm::destack_process_chroot(
                                     runtime, context, path,
                                 )
                             }
@@ -15960,7 +15970,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                                 )
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_process_install_syscall_filter(
+                                platform_simulation_vm::destack_process_install_syscall_filter(
                                     runtime, context, program, flags,
                                 )
                             }
@@ -15993,7 +16003,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                                 platform_vm::destack_process_set_host_name(runtime, context, name)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_process_set_host_name(
+                                platform_simulation_vm::destack_process_set_host_name(
                                     runtime, context, name,
                                 )
                             }
@@ -16028,7 +16038,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                                 )
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_process_set_network_namespace(
+                                platform_simulation_vm::destack_process_set_network_namespace(
                                     runtime, context, path,
                                 )
                             }
@@ -16060,7 +16070,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                                 platform_vm::destack_process_setns(runtime, context, pid, namespace)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_process_setns(
+                                platform_simulation_vm::destack_process_setns(
                                     runtime, context, pid, namespace,
                                 )
                             }
@@ -16091,7 +16101,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                                 platform_vm::destack_process_unshare(runtime, context, flags)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_process_unshare(
+                                platform_simulation_vm::destack_process_unshare(
                                     runtime, context, flags,
                                 )
                             }

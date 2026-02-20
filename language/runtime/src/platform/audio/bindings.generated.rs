@@ -31,8 +31,8 @@ use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::audio::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
+use crate::platform::audio::simulation::{
+    native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::audio::{native as platform_native, vm as platform_vm};
 use crate::platform::{audio as platform_audio, resource as platform_resource, resource};
@@ -1961,7 +1961,7 @@ fn destack_audio_clock_now_replay(
                 platform_native::destack_audio_clock_now(context, out, domain)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_clock_now(context, out, domain)
+                platform_simulation_native::destack_audio_clock_now(context, out, domain)
             },
         },
         |result| {
@@ -2023,7 +2023,7 @@ fn destack_audio_clock_stream_replay(
                 platform_native::destack_audio_stream_clock(context, out, handle, domain)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_clock(context, out, handle, domain)
+                platform_simulation_native::destack_audio_stream_clock(context, out, handle, domain)
             },
         },
         |result| {
@@ -2097,7 +2097,7 @@ fn destack_audio_device_close_replay(
                 platform_native::destack_audio_device_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_device_close(context, handle)
+                platform_simulation_native::destack_audio_device_close(context, handle)
             },
         },
         |result| {
@@ -2146,7 +2146,7 @@ fn destack_audio_device_default_replay(
                 platform_native::destack_audio_device_default(context, out, direction)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_device_default(context, out, direction)
+                platform_simulation_native::destack_audio_device_default(context, out, direction)
             },
         },
         |result| {
@@ -2207,7 +2207,7 @@ fn destack_audio_device_descriptor_replay(
                 platform_native::destack_audio_device_descriptor(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_device_descriptor(context, out, handle)
+                platform_simulation_native::destack_audio_device_descriptor(context, out, handle)
             },
         },
         |result| {
@@ -2342,7 +2342,7 @@ fn destack_audio_device_list_replay(
                 platform_native::destack_audio_device_list(context, out, request)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_device_list(context, out, request)
+                platform_simulation_native::destack_audio_device_list(context, out, request)
             },
         },
         |result| {
@@ -2518,7 +2518,7 @@ fn destack_audio_device_open_replay(
                 platform_native::destack_audio_device_open(context, out, id, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_device_open(context, out, id, options)
+                platform_simulation_native::destack_audio_device_open(context, out, id, options)
             },
         },
         |result| {
@@ -2578,7 +2578,7 @@ fn destack_audio_event_close_replay(
                 platform_native::destack_audio_event_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_event_close(context, handle)
+                platform_simulation_native::destack_audio_event_close(context, handle)
             },
         },
         |result| {
@@ -2624,7 +2624,7 @@ fn destack_audio_event_open_replay(
                 platform_native::destack_audio_event_open(context, out)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_event_open(context, out)
+                platform_simulation_native::destack_audio_event_open(context, out)
             },
         },
         |result| {
@@ -2686,7 +2686,9 @@ fn destack_audio_event_read_replay(
                 platform_native::destack_audio_event_read(context, out, handle, timeoutns)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_event_read(context, out, handle, timeoutns)
+                platform_simulation_native::destack_audio_event_read(
+                    context, out, handle, timeoutns,
+                )
             },
         },
         |result| {
@@ -2766,7 +2768,7 @@ fn destack_audio_event_try_read_replay(
                 platform_native::destack_audio_event_try_read(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_event_try_read(context, out, handle)
+                platform_simulation_native::destack_audio_event_try_read(context, out, handle)
             },
         },
         |result| {
@@ -2846,7 +2848,7 @@ fn destack_audio_stream_availability_replay(
                 platform_native::destack_audio_stream_availability(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_availability(context, out, handle)
+                platform_simulation_native::destack_audio_stream_availability(context, out, handle)
             },
         },
         |result| {
@@ -2920,7 +2922,7 @@ fn destack_audio_stream_close_replay(
                 platform_native::destack_audio_stream_close(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_close(context, handle)
+                platform_simulation_native::destack_audio_stream_close(context, handle)
             },
         },
         |result| {
@@ -2969,7 +2971,7 @@ fn destack_audio_stream_drain_replay(
                 platform_native::destack_audio_stream_drain(context, handle, timeoutns)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_drain(context, handle, timeoutns)
+                platform_simulation_native::destack_audio_stream_drain(context, handle, timeoutns)
             },
         },
         |result| {
@@ -3017,7 +3019,7 @@ fn destack_audio_stream_flush_replay(
                 platform_native::destack_audio_stream_flush(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_flush(context, handle)
+                platform_simulation_native::destack_audio_stream_flush(context, handle)
             },
         },
         |result| {
@@ -3067,7 +3069,7 @@ fn destack_audio_stream_open_replay(
                 platform_native::destack_audio_stream_open(context, out, device, config)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_open(context, out, device, config)
+                platform_simulation_native::destack_audio_stream_open(context, out, device, config)
             },
         },
         |result| {
@@ -3129,7 +3131,9 @@ fn destack_audio_stream_read_replay(
                 platform_native::destack_audio_stream_read(context, out, handle, maxbytes)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_read(context, out, handle, maxbytes)
+                platform_simulation_native::destack_audio_stream_read(
+                    context, out, handle, maxbytes,
+                )
             },
         },
         |result| {
@@ -3201,7 +3205,7 @@ fn destack_audio_stream_set_mute_replay(
                 platform_native::destack_audio_stream_set_mute(context, handle, muted)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_set_mute(context, handle, muted)
+                platform_simulation_native::destack_audio_stream_set_mute(context, handle, muted)
             },
         },
         |result| {
@@ -3250,7 +3254,7 @@ fn destack_audio_stream_set_volume_replay(
                 platform_native::destack_audio_stream_set_volume(context, handle, lineargain)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_set_volume(
+                platform_simulation_native::destack_audio_stream_set_volume(
                     context, handle, lineargain,
                 )
             },
@@ -3301,7 +3305,7 @@ fn destack_audio_stream_snapshot_replay(
                 platform_native::destack_audio_stream_snapshot(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_snapshot(context, out, handle)
+                platform_simulation_native::destack_audio_stream_snapshot(context, out, handle)
             },
         },
         |result| {
@@ -3404,7 +3408,7 @@ fn destack_audio_stream_start_replay(
                 platform_native::destack_audio_stream_start(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_start(context, handle)
+                platform_simulation_native::destack_audio_stream_start(context, handle)
             },
         },
         |result| {
@@ -3453,7 +3457,7 @@ fn destack_audio_stream_state_replay(
                 platform_native::destack_audio_stream_state(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_state(context, out, handle)
+                platform_simulation_native::destack_audio_stream_state(context, out, handle)
             },
         },
         |result| {
@@ -3535,7 +3539,7 @@ fn destack_audio_stream_stop_replay(
                 platform_native::destack_audio_stream_stop(context, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_stop(context, handle)
+                platform_simulation_native::destack_audio_stream_stop(context, handle)
             },
         },
         |result| {
@@ -3584,7 +3588,7 @@ fn destack_audio_stream_timing_replay(
                 platform_native::destack_audio_stream_timing(context, out, handle)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_timing(context, out, handle)
+                platform_simulation_native::destack_audio_stream_timing(context, out, handle)
             },
         },
         |result| {
@@ -3664,7 +3668,7 @@ fn destack_audio_stream_try_read_replay(
                 platform_native::destack_audio_stream_try_read(context, out, handle, maxbytes)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_try_read(
+                platform_simulation_native::destack_audio_stream_try_read(
                     context, out, handle, maxbytes,
                 )
             },
@@ -3739,7 +3743,7 @@ fn destack_audio_stream_try_write_replay(
                 platform_native::destack_audio_stream_try_write(context, out, handle, data)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_try_write(
+                platform_simulation_native::destack_audio_stream_try_write(
                     context, out, handle, data,
                 )
             },
@@ -3803,7 +3807,7 @@ fn destack_audio_stream_write_replay(
                 platform_native::destack_audio_stream_write(context, out, handle, data)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_write(context, out, handle, data)
+                platform_simulation_native::destack_audio_stream_write(context, out, handle, data)
             },
         },
         |result| {
@@ -3872,7 +3876,7 @@ fn destack_audio_stream_write_at_replay(
                 )
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_stream_write_at(
+                platform_simulation_native::destack_audio_stream_write_at(
                     context,
                     out,
                     handle,
@@ -4394,7 +4398,7 @@ fn destack_audio_clock_now_vm_replay(
                     platform_vm::destack_audio_clock_now(runtime, context, domain)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_clock_now(runtime, context, domain)
+                    platform_simulation_vm::destack_audio_clock_now(runtime, context, domain)
                 }
             },
             |context, result| {
@@ -4452,7 +4456,7 @@ fn destack_audio_clock_stream_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_audio_stream_clock(runtime, context, handle, domain)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_clock(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_clock(
                     runtime, context, handle, domain,
                 ),
             },
@@ -4525,7 +4529,7 @@ fn destack_audio_device_close_vm_replay(
                     platform_vm::destack_audio_device_close(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_device_close(runtime, context, handle)
+                    platform_simulation_vm::destack_audio_device_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -4578,9 +4582,9 @@ fn destack_audio_device_default_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_audio_device_default(runtime, context, direction)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_device_default(runtime, context, direction)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_device_default(
+                    runtime, context, direction,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -4642,9 +4646,9 @@ fn destack_audio_device_descriptor_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_audio_device_descriptor(runtime, context, handle)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_device_descriptor(runtime, context, handle)
-                }
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_device_descriptor(
+                    runtime, context, handle,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -4789,7 +4793,7 @@ fn destack_audio_device_list_vm_replay(
                     platform_vm::destack_audio_device_list(runtime, context, request)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_device_list(runtime, context, request)
+                    platform_simulation_vm::destack_audio_device_list(runtime, context, request)
                 }
             },
             |context, result| {
@@ -5220,7 +5224,7 @@ fn destack_audio_device_open_vm_replay(
                     platform_vm::destack_audio_device_open(runtime, context, id, options)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_device_open(runtime, context, id, options)
+                    platform_simulation_vm::destack_audio_device_open(runtime, context, id, options)
                 }
             },
             |context, result| {
@@ -5278,7 +5282,7 @@ fn destack_audio_event_close_vm_replay(
                     platform_vm::destack_audio_event_close(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_event_close(runtime, context, handle)
+                    platform_simulation_vm::destack_audio_event_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -5329,7 +5333,7 @@ fn destack_audio_event_open_vm_replay(
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_audio_event_open(runtime, context),
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_event_open(runtime, context)
+                    platform_simulation_vm::destack_audio_event_open(runtime, context)
                 }
             },
             |context, result| {
@@ -5387,7 +5391,7 @@ fn destack_audio_event_read_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_audio_event_read(runtime, context, handle, timeoutns)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_event_read(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_event_read(
                     runtime, context, handle, timeoutns,
                 ),
             },
@@ -5471,7 +5475,7 @@ fn destack_audio_event_try_read_vm_replay(
                     platform_vm::destack_audio_event_try_read(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_event_try_read(runtime, context, handle)
+                    platform_simulation_vm::destack_audio_event_try_read(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -5554,7 +5558,7 @@ fn destack_audio_stream_availability_vm_replay(
                     platform_vm::destack_audio_stream_availability(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_stream_availability(
+                    platform_simulation_vm::destack_audio_stream_availability(
                         runtime, context, handle,
                     )
                 }
@@ -5628,7 +5632,7 @@ fn destack_audio_stream_close_vm_replay(
                     platform_vm::destack_audio_stream_close(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_stream_close(runtime, context, handle)
+                    platform_simulation_vm::destack_audio_stream_close(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -5682,7 +5686,7 @@ fn destack_audio_stream_drain_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_audio_stream_drain(runtime, context, handle, timeoutns)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_drain(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_drain(
                     runtime, context, handle, timeoutns,
                 ),
             },
@@ -5737,7 +5741,7 @@ fn destack_audio_stream_flush_vm_replay(
                     platform_vm::destack_audio_stream_flush(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_stream_flush(runtime, context, handle)
+                    platform_simulation_vm::destack_audio_stream_flush(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -5791,7 +5795,7 @@ fn destack_audio_stream_open_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_audio_stream_open(runtime, context, device, config)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_open(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_open(
                     runtime, context, device, config,
                 ),
             },
@@ -5850,7 +5854,7 @@ fn destack_audio_stream_read_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_audio_stream_read(runtime, context, handle, maxbytes)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_read(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_read(
                     runtime, context, handle, maxbytes,
                 ),
             },
@@ -5909,7 +5913,7 @@ fn destack_audio_stream_set_mute_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_audio_stream_set_mute(runtime, context, handle, muted)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_set_mute(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_set_mute(
                     runtime, context, handle, muted,
                 ),
             },
@@ -5964,7 +5968,7 @@ fn destack_audio_stream_set_volume_vm_replay(
                 RuntimeWorld::Host => platform_vm::destack_audio_stream_set_volume(
                     runtime, context, handle, lineargain,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_set_volume(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_set_volume(
                     runtime, context, handle, lineargain,
                 ),
             },
@@ -6019,7 +6023,7 @@ fn destack_audio_stream_snapshot_vm_replay(
                     platform_vm::destack_audio_stream_snapshot(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_stream_snapshot(runtime, context, handle)
+                    platform_simulation_vm::destack_audio_stream_snapshot(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -6127,7 +6131,7 @@ fn destack_audio_stream_start_vm_replay(
                     platform_vm::destack_audio_stream_start(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_stream_start(runtime, context, handle)
+                    platform_simulation_vm::destack_audio_stream_start(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -6181,7 +6185,7 @@ fn destack_audio_stream_state_vm_replay(
                     platform_vm::destack_audio_stream_state(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_stream_state(runtime, context, handle)
+                    platform_simulation_vm::destack_audio_stream_state(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -6261,7 +6265,7 @@ fn destack_audio_stream_stop_vm_replay(
                     platform_vm::destack_audio_stream_stop(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_stream_stop(runtime, context, handle)
+                    platform_simulation_vm::destack_audio_stream_stop(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -6315,7 +6319,7 @@ fn destack_audio_stream_timing_vm_replay(
                     platform_vm::destack_audio_stream_timing(runtime, context, handle)
                 }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_stream_timing(runtime, context, handle)
+                    platform_simulation_vm::destack_audio_stream_timing(runtime, context, handle)
                 }
             },
             |context, result| {
@@ -6391,7 +6395,7 @@ fn destack_audio_stream_try_read_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_audio_stream_try_read(runtime, context, handle, maxbytes)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_try_read(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_try_read(
                     runtime, context, handle, maxbytes,
                 ),
             },
@@ -6450,7 +6454,7 @@ fn destack_audio_stream_try_write_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_audio_stream_try_write(runtime, context, handle, data)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_try_write(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_try_write(
                     runtime, context, handle, data,
                 ),
             },
@@ -6509,7 +6513,7 @@ fn destack_audio_stream_write_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_audio_stream_write(runtime, context, handle, data)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_write(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_write(
                     runtime, context, handle, data,
                 ),
             },
@@ -6573,7 +6577,7 @@ fn destack_audio_stream_write_at_vm_replay(
                     data,
                     presentationtimens,
                 ),
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_write_at(
+                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_write_at(
                     runtime,
                     context,
                     handle,

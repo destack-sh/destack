@@ -29,8 +29,8 @@ use destack_vm::Isolate;
 use crate::binding;
 use crate::runtime::with_runtime_call_context;
 
-use crate::platform::crypto::simulated::{
-    native as platform_simulated_native, vm as platform_simulated_vm,
+use crate::platform::crypto::simulation::{
+    native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::crypto::{native as platform_native, vm as platform_vm};
 use crate::platform::{crypto as platform_crypto, resource as platform_resource, resource};
@@ -1299,7 +1299,7 @@ pub unsafe extern "C" fn destack_crypto_certificate_delete(
                     platform_native::destack_crypto_certificate_delete(context, handle)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_certificate_delete(context, handle)
+                    platform_simulation_native::destack_crypto_certificate_delete(context, handle)
                 },
             }
         }
@@ -1326,7 +1326,7 @@ pub unsafe extern "C" fn destack_crypto_certificate_export(
                     platform_native::destack_crypto_certificate_export(context, out, handle, format)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_certificate_export(
+                    platform_simulation_native::destack_crypto_certificate_export(
                         context, out, handle, format,
                     )
                 },
@@ -1362,7 +1362,7 @@ pub unsafe extern "C" fn destack_crypto_certificate_import(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_certificate_import(
+                    platform_simulation_native::destack_crypto_certificate_import(
                         context,
                         out,
                         store,
@@ -1394,7 +1394,7 @@ pub unsafe extern "C" fn destack_crypto_certificate_metadata(
                     platform_native::destack_crypto_certificate_metadata(context, out, handle)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_certificate_metadata(
+                    platform_simulation_native::destack_crypto_certificate_metadata(
                         context, out, handle,
                     )
                 },
@@ -1422,7 +1422,7 @@ pub unsafe extern "C" fn destack_crypto_certificate_verify(
                     platform_native::destack_crypto_certificate_verify(context, out, request)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_certificate_verify(
+                    platform_simulation_native::destack_crypto_certificate_verify(
                         context, out, request,
                     )
                 },
@@ -1458,7 +1458,7 @@ pub unsafe extern "C" fn destack_crypto_key_decrypt(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_key_decrypt(
+                    platform_simulation_native::destack_crypto_key_decrypt(
                         context,
                         out,
                         handle,
@@ -1486,7 +1486,7 @@ pub unsafe extern "C" fn destack_crypto_key_delete(
                     platform_native::destack_crypto_key_delete(context, handle)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_key_delete(context, handle)
+                    platform_simulation_native::destack_crypto_key_delete(context, handle)
                 },
             }
         }
@@ -1520,7 +1520,7 @@ pub unsafe extern "C" fn destack_crypto_key_encrypt(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_key_encrypt(
+                    platform_simulation_native::destack_crypto_key_encrypt(
                         context,
                         out,
                         handle,
@@ -1553,7 +1553,7 @@ pub unsafe extern "C" fn destack_crypto_key_export_public(
                     platform_native::destack_crypto_key_export_public(context, out, handle, format)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_key_export_public(
+                    platform_simulation_native::destack_crypto_key_export_public(
                         context, out, handle, format,
                     )
                 },
@@ -1582,7 +1582,7 @@ pub unsafe extern "C" fn destack_crypto_key_generate(
                     platform_native::destack_crypto_key_generate(context, out, store, spec)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_key_generate(
+                    platform_simulation_native::destack_crypto_key_generate(
                         context, out, store, spec,
                     )
                 },
@@ -1622,7 +1622,7 @@ pub unsafe extern "C" fn destack_crypto_key_import(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_key_import(
+                    platform_simulation_native::destack_crypto_key_import(
                         context,
                         out,
                         store,
@@ -1656,7 +1656,7 @@ pub unsafe extern "C" fn destack_crypto_key_metadata(
                     platform_native::destack_crypto_key_metadata(context, out, handle)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_key_metadata(context, out, handle)
+                    platform_simulation_native::destack_crypto_key_metadata(context, out, handle)
                 },
             }
         }
@@ -1690,7 +1690,7 @@ pub unsafe extern "C" fn destack_crypto_key_sign(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_key_sign(
+                    platform_simulation_native::destack_crypto_key_sign(
                         context,
                         out,
                         handle,
@@ -1732,7 +1732,7 @@ pub unsafe extern "C" fn destack_crypto_key_verify(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_key_verify(
+                    platform_simulation_native::destack_crypto_key_verify(
                         context,
                         out,
                         handle,
@@ -1761,7 +1761,7 @@ pub unsafe extern "C" fn destack_crypto_store_close(
                     platform_native::destack_crypto_store_close(context, handle)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_store_close(context, handle)
+                    platform_simulation_native::destack_crypto_store_close(context, handle)
                 },
             }
         }
@@ -1790,7 +1790,7 @@ pub unsafe extern "C" fn destack_crypto_store_list_certificates(
                     )
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_store_list_certificates(
+                    platform_simulation_native::destack_crypto_store_list_certificates(
                         context, out, handle, query,
                     )
                 },
@@ -1819,7 +1819,7 @@ pub unsafe extern "C" fn destack_crypto_store_list_keys(
                     platform_native::destack_crypto_store_list_keys(context, out, handle, query)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_store_list_keys(
+                    platform_simulation_native::destack_crypto_store_list_keys(
                         context, out, handle, query,
                     )
                 },
@@ -1847,7 +1847,7 @@ pub unsafe extern "C" fn destack_crypto_store_open(
                     platform_native::destack_crypto_store_open(context, out, options)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_crypto_store_open(context, out, options)
+                    platform_simulation_native::destack_crypto_store_open(context, out, options)
                 },
             }
         }
@@ -1875,7 +1875,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, handle,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_certificate_delete(
+                                platform_simulation_vm::destack_crypto_certificate_delete(
                                     runtime, context, handle,
                                 )
                             }
@@ -1907,7 +1907,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, handle, format,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_certificate_export(
+                                platform_simulation_vm::destack_crypto_certificate_export(
                                     runtime, context, handle, format,
                                 )
                             }
@@ -1943,7 +1943,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 certificate,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_certificate_import(
+                                platform_simulation_vm::destack_crypto_certificate_import(
                                     runtime,
                                     context,
                                     store,
@@ -1978,7 +1978,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, handle,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_certificate_metadata(
+                                platform_simulation_vm::destack_crypto_certificate_metadata(
                                     runtime, context, handle,
                                 )
                             }
@@ -2009,7 +2009,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, request,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_certificate_verify(
+                                platform_simulation_vm::destack_crypto_certificate_verify(
                                     runtime, context, request,
                                 )
                             }
@@ -2045,7 +2045,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 argument_payload,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_key_decrypt(
+                                platform_simulation_vm::destack_crypto_key_decrypt(
                                     runtime,
                                     context,
                                     handle,
@@ -2080,7 +2080,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 platform_vm::destack_crypto_key_delete(runtime, context, handle)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_key_delete(
+                                platform_simulation_vm::destack_crypto_key_delete(
                                     runtime, context, handle,
                                 )
                             }
@@ -2116,7 +2116,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 argument_payload,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_key_encrypt(
+                                platform_simulation_vm::destack_crypto_key_encrypt(
                                     runtime,
                                     context,
                                     handle,
@@ -2152,7 +2152,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, handle, format,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_key_export_public(
+                                platform_simulation_vm::destack_crypto_key_export_public(
                                     runtime, context, handle, format,
                                 )
                             }
@@ -2183,7 +2183,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, store, spec,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_key_generate(
+                                platform_simulation_vm::destack_crypto_key_generate(
                                     runtime, context, store, spec,
                                 )
                             }
@@ -2221,7 +2221,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 label,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_key_import(
+                                platform_simulation_vm::destack_crypto_key_import(
                                     runtime,
                                     context,
                                     store,
@@ -2258,7 +2258,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 platform_vm::destack_crypto_key_metadata(runtime, context, handle)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_key_metadata(
+                                platform_simulation_vm::destack_crypto_key_metadata(
                                     runtime, context, handle,
                                 )
                             }
@@ -2289,7 +2289,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             scheme,
                             argument_payload,
                         ),
-                        RuntimeWorld::Simulated => platform_simulated_vm::destack_crypto_key_sign(
+                        RuntimeWorld::Simulated => platform_simulation_vm::destack_crypto_key_sign(
                             runtime,
                             context,
                             handle,
@@ -2328,7 +2328,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 signature,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_key_verify(
+                                platform_simulation_vm::destack_crypto_key_verify(
                                     runtime,
                                     context,
                                     handle,
@@ -2364,7 +2364,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 platform_vm::destack_crypto_store_close(runtime, context, handle)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_store_close(
+                                platform_simulation_vm::destack_crypto_store_close(
                                     runtime, context, handle,
                                 )
                             }
@@ -2399,7 +2399,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 )
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_store_list_certificates(
+                                platform_simulation_vm::destack_crypto_store_list_certificates(
                                     runtime, context, handle, query,
                                 )
                             }
@@ -2431,7 +2431,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime, context, handle, query,
                             ),
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_store_list_keys(
+                                platform_simulation_vm::destack_crypto_store_list_keys(
                                     runtime, context, handle, query,
                                 )
                             }
@@ -2462,7 +2462,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 platform_vm::destack_crypto_store_open(runtime, context, options)
                             }
                             RuntimeWorld::Simulated => {
-                                platform_simulated_vm::destack_crypto_store_open(
+                                platform_simulation_vm::destack_crypto_store_open(
                                     runtime, context, options,
                                 )
                             }
