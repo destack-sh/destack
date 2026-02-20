@@ -3,7 +3,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::ffi::FfiPointer;
 use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 /// Call one foreign symbol using raw ABI argument and result buffers.
@@ -24,7 +24,7 @@ use destack_vm as vm;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_ffi_call(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     symbol: resource::SymbolHandle,
     abi: u32,
@@ -54,7 +54,7 @@ pub(crate) fn destack_ffi_call(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_ffi_close(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::LibraryHandle,
 ) -> RuntimeResult<()> {
@@ -80,7 +80,7 @@ pub(crate) fn destack_ffi_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_ffi_open(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     path: fs::OsPathVm,
     flags: u32,
@@ -107,7 +107,7 @@ pub(crate) fn destack_ffi_open(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_ffi_address(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     pointer: FfiPointer,
 ) -> RuntimeResult<u64> {
@@ -133,7 +133,7 @@ pub(crate) fn destack_ffi_address(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_ffi_from_address(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
 ) -> RuntimeResult<FfiPointer> {
@@ -162,7 +162,7 @@ pub(crate) fn destack_ffi_from_address(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_ffi_symbol_address(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     symbol: resource::SymbolHandle,
 ) -> RuntimeResult<u64> {
@@ -188,7 +188,7 @@ pub(crate) fn destack_ffi_symbol_address(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_ffi_symbol_lookup(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     library: resource::LibraryHandle,
     name: vm::StringHandle,

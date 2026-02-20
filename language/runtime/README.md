@@ -1,7 +1,7 @@
 # Runtime
 
 The runtime is how Destack actually does anything meaningful beyond pure computation.
-It wraps VM and/or native execution with scheduling, bindings, record/replay, and policy checks.
+It wraps VM and/or native execution with scheduling, bindings, record/replay, and runtime rules.
 In effect, the runtime is where we marry Node/Bun/Deno-level semantics _with_ V8/JSC-runtime features.
 
 ## Overview
@@ -9,14 +9,13 @@ In effect, the runtime is where we marry Node/Bun/Deno-level semantics _with_ V8
 Destack has a single runtime that can drive both VM and native execution (even within the same process).
 The runtime owns everything outside of pure computation (and userland external bindings): time, randomness, scheduling, external bindings, resource tracking, and GC coordination.
 VM and native are "engines" that run until they yield back to the runtime (microtask-style).
-
 Runtime behavior is modeled along three basic dimensions:
 
 | Dimension | Values | Purpose |
 |-----------|--------|---------|
 | engine | `vm`, `native` | chooses the execution engine |
 | execution | `fast`, `deterministic`, `record`, `replay` | chooses determinism and replay behavior |
-| world | `host`, `simulated` | chooses host-backed or simulated bindings |
+| world | `host`, `simulation` | chooses host-backed or simulation-backed bindings |
 
 ## Components
 
@@ -24,7 +23,7 @@ Runtime behavior is modeled along three basic dimensions:
 |-----------|-------------|
 | runtime | primary runtime instance and orchestration |
 | scheduler | event loop, tasks, microtasks, and runnables |
-| bindings | bindings and effects |
+| bindings | bindings, dispatch, and rule enforcement |
 | time | virtual, monotonic, and wall clocks |
 | random | deterministic streams and entropy control |
 | memory | heap coordination and GC safepoints |
@@ -44,7 +43,7 @@ The runnable can be a VM continuation or a native continuation, and the schedule
 (This keeps one scheduling model for both VM and native execution.)
 
 VM entry points are single threaded per isolate, and only run one "tick" at a time.
-The runtime decides when to run, yield, and resume, and it owns the scheduling policy.
+The runtime decides when to run, yield, and resume, and it owns scheduling behavior.
 
 ## Bindings
 
@@ -53,7 +52,7 @@ Platform code implements the actual OS integration and resource stuff.
 Blocking work yields through the scheduler and resumes through the same bindings as everything else.
 
 Binding dispatch is driven by binding scope.
-Scope is per binding descriptor, not per module.
+Scope is declared per binding descriptor metadata, and generator validation enforces one effective scope per module.
 
 ## Modules
 
@@ -102,7 +101,7 @@ World and execution dispatch belongs to generated wrappers only
 |-----------|--------|
 | decode or encode ABI values | `bindings.generated.rs`, then adapter helpers in `vm.rs` or `native.rs` |
 | execution mode (`fast`, `deterministic`, `record`, `replay`) | `bindings.generated.rs` replay wrapper |
-| world (`host` or `simulated`) | `bindings.generated.rs` for `host` bindings only |
+| world (`host` or `simulation`) | `bindings.generated.rs` for `host` bindings only |
 | host OS target (`unix`, `windows`, `unsupported`) | `host.rs` cfg routing |
 | shared semantic helper logic | `core.rs` |
 
@@ -110,7 +109,7 @@ All bindings follow one stage pipeline.
 The exact backend target depends on scope.
 
 1. entry at generated exported wrapper in `bindings.generated.rs`.
-2. decode args, validate pointers, and check policy.
+2. decode args, validate pointers, and run rule and dispatch checks.
 3. run replay gate for the active execution mode.
 4. dispatch backend by scope and world.
 5. run backend adapter and implementation.
@@ -133,7 +132,7 @@ runtime scope:
 
 host scope:
   bindings.generated.rs
-    -> resolve world (host|simulated)
+    -> resolve world (host|simulation)
       -> {vm,native}.rs or simulation/{vm,native}.rs
         -> host.rs cfg route or simulation backend
 ```
@@ -209,15 +208,20 @@ Other targets use a buffered copy fallback so behavior remains available.
 
 ## Rules, Effects, and Faults
 
-Rules are evaluated in declaration order (first match wins) with glob-style files for bindings, capabilities, arguments, etc. to apply "effects" that modify the runtime behavior in some way.
+Runtime options expose one ordered `rules` list.
+Rules are evaluated in declaration order with first-match semantics at each decision site.
+Each rule has one `when` filter and one `action`.
+`Dispatch` actions update binding access, world routing, or replay payload behavior.
+`Effect` actions inject runtime behavior changes such as faults, control operations, or mocks.
+Effect rules may optionally declare `on` to target one hook such as `bindingBefore` or `schedulerDequeue`.
 
-Fault effects are split into two categories:
- - Operation-level faults apply at binding boundaries, such as runtime delay, runtime error, and runtime timeout.
- - Component-level faults apply inside subsystem logic, such as net route partition or scheduler timer skew.
+Fault effects are split into two categories.
+Operation-level faults apply at binding boundaries, such as runtime delay, runtime error, and runtime timeout.
+Component-level faults apply inside subsystem logic, such as net route partition or scheduler timer skew.
 
 Host world supports operation-level faults directly in wrappers.
 Host world supports component-level faults only when the target subsystem has explicit host-side injection points.
-Simulated world supports both categories fully through `SimulationState` and deterministic schedulers.
+Simulation world supports both categories through `SimulationState` once the corresponding simulation subsystems are implemented.
 
 ## Determinism and Replay
 

@@ -3,12 +3,12 @@ use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{OsPath, PathBytes, PathBytesAbi, PathEncoding, PathUtf16, PathUtf16Abi};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, ResourceId};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Resolve a file or directory handle to its resource entry.
 #[cfg_attr(not(any(unix, windows)), allow(dead_code))]
 pub(crate) fn require_resource<T>(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     id: ResourceId,
     kind: ResourceKind,
     label: &str,
@@ -99,7 +99,7 @@ pub(crate) fn os_path_to_utf8_string(path: OsPath, label: &str) -> RuntimeResult
 }
 
 /// Encode a UTF-8 path string into an `OsPath`.
-pub(crate) fn os_path_from_utf8_string(context: &RuntimeCallContext, value: String) -> OsPath {
+pub(crate) fn os_path_from_utf8_string(context: &BindingCallContext, value: String) -> OsPath {
     #[cfg(unix)]
     {
         let bytes = PathBytesAbi::<NativeAbi>(context.store_array(value.into_bytes()));
@@ -204,7 +204,7 @@ pub(crate) fn with_utf16_pair_as_bytes<T>(
 /// Convert one byte path into UTF-16 data for UTF-16 handlers.
 #[allow(dead_code)]
 pub(crate) fn path_utf16_from_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: PathBytes,
     label: &str,
 ) -> RuntimeResult<PathUtf16> {

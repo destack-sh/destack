@@ -5,7 +5,7 @@ use crate::platform::fs::OsPath;
 use crate::platform::io::{TimerFdClock, TimerFdFlags, TimerFdSetFlags, TimerFdSpec};
 use crate::platform::{NativeArray, NativeSlice, PlatformError};
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use crate::platform::io::{
     CompletionEvent, CompletionOperation, DescriptorControlCommand, DescriptorControlFlags,
@@ -25,7 +25,7 @@ pub(crate) fn host_completion_create_proactor(entries: u32) -> RuntimeResult<Box
 
 /// Return one unsupported error for fcntl descriptor controls.
 pub(crate) fn host_control_fcntl(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::ResourceId,
     command: DescriptorControlCommand,
     argument: u64,
@@ -38,7 +38,7 @@ pub(crate) fn host_control_fcntl(
 
 /// Return one unsupported error for ioctl descriptor controls.
 pub(crate) fn host_control_ioctl(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::ResourceId,
     request: DescriptorRequest,
 ) -> RuntimeResult<DescriptorResult> {
@@ -59,7 +59,7 @@ pub(crate) const fn host_map_poll_backend(backend: PollBackend) -> PlatformPolle
 
 /// Return one unsupported error for poll target handle resolution.
 pub(crate) fn host_poll_resolve_target_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     target: resource::ResourceId,
 ) -> RuntimeResult<PlatformHandle> {
     let _ = (context, target);
@@ -69,7 +69,7 @@ pub(crate) fn host_poll_resolve_target_handle(
 
 /// Return one unsupported error for completion target handle resolution.
 pub(crate) fn host_completion_resolve_target_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     target: resource::ResourceId,
     operation: &'static str,
 ) -> RuntimeResult<PlatformHandle> {
@@ -80,7 +80,7 @@ pub(crate) fn host_completion_resolve_target_handle(
 
 /// Return one unsupported error for accepted handle registration.
 pub(crate) fn host_completion_register_accepted_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: PlatformHandle,
 ) -> RuntimeResult<i64> {
     let _ = (context, handle);
@@ -90,7 +90,7 @@ pub(crate) fn host_completion_register_accepted_handle(
 
 /// Return one unsupported error for event token open.
 pub(crate) fn host_event_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     initial: u64,
 ) -> RuntimeResult<EventToken> {
     let _ = (context, initial);
@@ -100,7 +100,7 @@ pub(crate) fn host_event_open(
 
 /// Return one unsupported error for event token close.
 pub(crate) fn host_event_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     token: EventToken,
 ) -> RuntimeResult<()> {
     let _ = (context, token);
@@ -110,7 +110,7 @@ pub(crate) fn host_event_close(
 
 /// Return one unsupported error for event token signal.
 pub(crate) fn host_event_signal(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     token: EventToken,
     value: u64,
 ) -> RuntimeResult<()> {
@@ -137,7 +137,7 @@ pub(crate) fn host_event_signal(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_cancel(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u32,
     handle: resource::CompletionHandle,
     target: resource::ResourceId,
@@ -168,7 +168,7 @@ pub(crate) unsafe fn destack_io_completion_cancel(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_close(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -194,7 +194,7 @@ pub(crate) unsafe fn destack_io_completion_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_enter(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u32,
     handle: resource::CompletionHandle,
     mincomplete: u32,
@@ -227,7 +227,7 @@ pub(crate) unsafe fn destack_io_completion_enter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_open(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut resource::CompletionHandle,
     entries: u32,
 ) -> RuntimeResult<()> {
@@ -257,7 +257,7 @@ pub(crate) unsafe fn destack_io_completion_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_submit(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::CompletionHandle,
     operation: CompletionOperation,
 ) -> RuntimeResult<()> {
@@ -284,7 +284,7 @@ pub(crate) unsafe fn destack_io_completion_submit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_submit_batch(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u32,
     handle: resource::CompletionHandle,
     operationwords: NativeSlice<u64>,
@@ -326,7 +326,7 @@ pub(crate) unsafe fn destack_io_completion_submit_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_wait(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut NativeArray<CompletionEvent>,
     handle: resource::CompletionHandle,
     timeoutns: u64,
@@ -358,7 +358,7 @@ pub(crate) unsafe fn destack_io_completion_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_control_fcntl(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut i64,
     handle: resource::ResourceId,
     command: DescriptorControlCommand,
@@ -391,7 +391,7 @@ pub(crate) unsafe fn destack_io_control_fcntl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_control_ioctl(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut DescriptorResult,
     handle: resource::ResourceId,
     request: DescriptorRequest,
@@ -422,7 +422,7 @@ pub(crate) unsafe fn destack_io_control_ioctl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_device_close(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::DeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -447,7 +447,7 @@ pub(crate) unsafe fn destack_io_device_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_device_control(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut DescriptorResult,
     handle: resource::DeviceHandle,
     request: DescriptorRequest,
@@ -477,7 +477,7 @@ pub(crate) unsafe fn destack_io_device_control(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_device_open(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut resource::DeviceHandle,
     path: OsPath,
     flags: u32,
@@ -508,7 +508,7 @@ pub(crate) unsafe fn destack_io_device_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_device_read(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u64,
     handle: resource::DeviceHandle,
     buffer: NativeSlice<u8>,
@@ -538,7 +538,7 @@ pub(crate) unsafe fn destack_io_device_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_device_write(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u64,
     handle: resource::DeviceHandle,
     buffer: NativeSlice<u8>,
@@ -568,7 +568,7 @@ pub(crate) unsafe fn destack_io_device_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_attach(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     token: EventToken,
     target: resource::ResourceId,
     key: u64,
@@ -596,7 +596,7 @@ pub(crate) unsafe fn destack_io_event_attach(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_close(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     token: EventToken,
 ) -> RuntimeResult<()> {
     let _ = token;
@@ -622,7 +622,7 @@ pub(crate) unsafe fn destack_io_event_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_open(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut EventToken,
     initial: u64,
 ) -> RuntimeResult<()> {
@@ -653,7 +653,7 @@ pub(crate) unsafe fn destack_io_event_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_signal(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     token: EventToken,
     argument_value: u64,
 ) -> RuntimeResult<()> {
@@ -680,7 +680,7 @@ pub(crate) unsafe fn destack_io_event_signal(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_close(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::PollHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -706,7 +706,7 @@ pub(crate) unsafe fn destack_io_poll_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_deregister(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::PollHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<()> {
@@ -733,7 +733,7 @@ pub(crate) unsafe fn destack_io_poll_deregister(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_open(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut resource::PollHandle,
     backend: PollBackend,
 ) -> RuntimeResult<()> {
@@ -763,7 +763,7 @@ pub(crate) unsafe fn destack_io_poll_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_register(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
@@ -792,7 +792,7 @@ pub(crate) unsafe fn destack_io_poll_register(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_update(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
@@ -821,7 +821,7 @@ pub(crate) unsafe fn destack_io_poll_update(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_wait(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut NativeArray<PollEvent>,
     handle: resource::PollHandle,
     timeoutns: u64,
@@ -853,7 +853,7 @@ pub(crate) unsafe fn destack_io_poll_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_close(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -879,7 +879,7 @@ pub(crate) unsafe fn destack_io_uring_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_features(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut UringFeatures,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
@@ -909,7 +909,7 @@ pub(crate) unsafe fn destack_io_uring_features(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_open(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut resource::UringHandle,
     parameters: UringParameters,
 ) -> RuntimeResult<()> {
@@ -939,7 +939,7 @@ pub(crate) unsafe fn destack_io_uring_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_register_buffers(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::UringHandle,
     addresses: NativeSlice<u64>,
     lengths: NativeSlice<u32>,
@@ -970,7 +970,7 @@ pub(crate) unsafe fn destack_io_uring_register_buffers(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_register_files(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::UringHandle,
     files: NativeSlice<resource::ResourceId>,
 ) -> RuntimeResult<()> {
@@ -1000,7 +1000,7 @@ pub(crate) unsafe fn destack_io_uring_register_files(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_unregister_buffers(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1029,7 +1029,7 @@ pub(crate) unsafe fn destack_io_uring_unregister_buffers(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_unregister_files(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1058,7 +1058,7 @@ pub(crate) unsafe fn destack_io_uring_unregister_files(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_close(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.timerfd.close")).boxed())
@@ -1082,7 +1082,7 @@ pub(crate) unsafe fn destack_io_timer_fd_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_get(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _out: *mut TimerFdSpec,
     _handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
@@ -1107,7 +1107,7 @@ pub(crate) unsafe fn destack_io_timer_fd_get(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_open(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _out: *mut resource::TimerFdHandle,
     _clock: TimerFdClock,
     _flags: TimerFdFlags,
@@ -1133,7 +1133,7 @@ pub(crate) unsafe fn destack_io_timer_fd_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_read(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _out: *mut u64,
     _handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
@@ -1158,7 +1158,7 @@ pub(crate) unsafe fn destack_io_timer_fd_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_set(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _handle: resource::TimerFdHandle,
     _spec: TimerFdSpec,
     _flags: TimerFdSetFlags,

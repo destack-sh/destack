@@ -15,7 +15,7 @@ use crate::platform::net::{
 };
 use crate::platform::resource::TransferredHandle;
 use crate::platform::{NativeArray, NativeSlice, PlatformError, core as core_platform};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Resolve the `WSARecvMsg` extension pointer for a socket.
 fn receive_message_extension(socket: usize) -> RuntimeResult<LPFN_WSARECVMSG> {
@@ -71,7 +71,7 @@ fn receive_message_extension(socket: usize) -> RuntimeResult<LPFN_WSARECVMSG> {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_read(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -126,7 +126,7 @@ pub(crate) unsafe fn destack_net_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_write(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -181,7 +181,7 @@ pub(crate) unsafe fn destack_net_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_readv(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -228,7 +228,7 @@ pub(crate) unsafe fn destack_net_readv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_writev(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -275,7 +275,7 @@ pub(crate) unsafe fn destack_net_writev(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_recv_msg(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketRecvMessage,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -412,7 +412,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_recv_mmsg(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<u64>,
     handle: SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -475,7 +475,7 @@ pub(crate) unsafe fn destack_net_recv_mmsg(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_send_msg(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -566,7 +566,7 @@ pub(crate) unsafe fn destack_net_send_msg(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_send_mmsg(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -616,7 +616,7 @@ pub(crate) unsafe fn destack_net_send_mmsg(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_recv_from(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketRecvFrom,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -690,7 +690,7 @@ pub(crate) unsafe fn destack_net_recv_from(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_send_to(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,

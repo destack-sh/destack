@@ -9,7 +9,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::NativeStringRef;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::thread::{ThreadOptions, ThreadOptionsVm};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 
 /// Return canonical thread spawn options used by tests.
@@ -74,7 +74,7 @@ pub(crate) fn assert_platform_error_codes<T>(
 /// Test harness context used by tests.
 pub(crate) struct ThreadHarnessContext<'call> {
     /// Runtime call context active for this operation.
-    pub(super) call_context: &'call RuntimeCallContext,
+    pub(super) call_context: &'call BindingCallContext,
     /// VM context when running VM bindings.
     pub(super) vm_context: Option<*mut ()>,
 }

@@ -12,11 +12,11 @@ use crate::platform::input::{
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Enumerate windows input devices and raw-input devices.
 pub(super) fn list_devices(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
 ) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
     // append console input when available for this process
     let mut devices = Vec::new();
@@ -83,7 +83,7 @@ pub(super) fn list_devices(
 
 /// Open one windows input endpoint by identifier.
 pub(super) fn open_device(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     id: &str,
 ) -> RuntimeResult<resource::InputDeviceHandle> {
     // normalize the input identifier into one backend selector
@@ -245,7 +245,7 @@ pub(super) fn open_device(
 
 /// Close one windows input handle and run any finalizer.
 pub(super) fn close_device(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -263,7 +263,7 @@ pub(super) fn close_device(
 
 /// Return capability metadata for one opened windows input handle.
 pub(super) fn device_capabilities(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<InputDeviceCapabilities> {
@@ -375,7 +375,7 @@ pub(super) fn device_capabilities(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     close_device(context, handle, "destack.input.device.close")
@@ -403,7 +403,7 @@ pub(crate) unsafe fn destack_input_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_list(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<InputDeviceDescriptor>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -439,7 +439,7 @@ pub(crate) unsafe fn destack_input_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::InputDeviceHandle,
     id: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -477,7 +477,7 @@ pub(crate) unsafe fn destack_input_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_capabilities(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputDeviceCapabilities,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {

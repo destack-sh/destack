@@ -9,7 +9,7 @@ use crate::platform::audio::{
     AudioStreamStateVm, AudioStreamTimingVm, AudioStreamTransferMode,
 };
 use crate::platform::{PlatformError, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 /// Read one timestamp in one selected clock domain.
@@ -30,7 +30,7 @@ use destack_vm as vm;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_clock_now(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     domain: AudioClockDomain,
 ) -> RuntimeResult<u64> {
@@ -59,7 +59,7 @@ pub(crate) fn destack_audio_clock_now(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_clock(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     domain: AudioClockDomain,
@@ -89,7 +89,7 @@ pub(crate) fn destack_audio_stream_clock(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_device_close(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -118,7 +118,7 @@ pub(crate) fn destack_audio_device_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_device_default(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     direction: AudioDeviceDirection,
 ) -> RuntimeResult<vm::StringHandle> {
@@ -147,7 +147,7 @@ pub(crate) fn destack_audio_device_default(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_device_descriptor(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<AudioDeviceDescriptorVm> {
@@ -176,7 +176,7 @@ pub(crate) fn destack_audio_device_descriptor(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_device_list(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     request: AudioDeviceListRequestVm,
 ) -> RuntimeResult<VmSlice<AudioDeviceDescriptorVm>> {
@@ -205,7 +205,7 @@ pub(crate) fn destack_audio_device_list(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_device_open(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
     options: AudioDeviceOpenOptionsVm,
@@ -235,7 +235,7 @@ pub(crate) fn destack_audio_device_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_event_close(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<()> {
@@ -264,7 +264,7 @@ pub(crate) fn destack_audio_event_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_event_open(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<resource::AudioEventHandle> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -291,7 +291,7 @@ pub(crate) fn destack_audio_event_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_event_read(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioEventHandle,
     timeoutns: u64,
@@ -321,7 +321,7 @@ pub(crate) fn destack_audio_event_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_event_try_read(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<AudioDeviceEventVm> {
@@ -350,7 +350,7 @@ pub(crate) fn destack_audio_event_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_availability(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<AudioStreamAvailabilityVm> {
@@ -379,7 +379,7 @@ pub(crate) fn destack_audio_stream_availability(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_close(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
@@ -408,7 +408,7 @@ pub(crate) fn destack_audio_stream_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_drain(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     timeoutns: u64,
@@ -438,7 +438,7 @@ pub(crate) fn destack_audio_stream_drain(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_flush(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
@@ -467,7 +467,7 @@ pub(crate) fn destack_audio_stream_flush(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_snapshot(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<AudioStreamSnapshotVm> {
@@ -496,7 +496,7 @@ pub(crate) fn destack_audio_stream_snapshot(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_open(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfigVm,
@@ -526,7 +526,7 @@ pub(crate) fn destack_audio_stream_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_read(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
@@ -556,7 +556,7 @@ pub(crate) fn destack_audio_stream_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_set_mute(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     muted: bool,
@@ -586,7 +586,7 @@ pub(crate) fn destack_audio_stream_set_mute(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_set_volume(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     lineargain: f64,
@@ -616,7 +616,7 @@ pub(crate) fn destack_audio_stream_set_volume(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_start(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
@@ -645,7 +645,7 @@ pub(crate) fn destack_audio_stream_start(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_state(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<AudioStreamStateVm> {
@@ -674,7 +674,7 @@ pub(crate) fn destack_audio_stream_state(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_stop(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
@@ -703,7 +703,7 @@ pub(crate) fn destack_audio_stream_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_timing(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<AudioStreamTimingVm> {
@@ -732,7 +732,7 @@ pub(crate) fn destack_audio_stream_timing(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_try_read(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
@@ -762,7 +762,7 @@ pub(crate) fn destack_audio_stream_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_try_write(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
@@ -792,7 +792,7 @@ pub(crate) fn destack_audio_stream_try_write(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_write(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
@@ -823,7 +823,7 @@ pub(crate) fn destack_audio_stream_write(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_audio_stream_write_at(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,

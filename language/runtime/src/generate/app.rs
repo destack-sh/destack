@@ -28,7 +28,7 @@ use crate::binding::{
     runtime_domain_windows_mod_path, runtime_platform_generated_path, write_domain_bindings,
 };
 use crate::catalog::collect_platform_bindings;
-use crate::model::{BindingEntry, BindingScope};
+use crate::model::{BindingEntry, CatalogBindingScope};
 use crate::option::parse_generator_options;
 use crate::refresh::{refresh_domain_binding_docs, write_missing_stub_file, write_stub_file};
 
@@ -368,10 +368,10 @@ fn generate_bindings(
         if let Some(bindings) = catalog.get(domain) {
             let has_host_dispatch = bindings
                 .values()
-                .any(|entry| entry.scope != BindingScope::Runtime);
+                .any(|entry| entry.scope != CatalogBindingScope::Runtime);
             let has_runtime_dispatch = bindings
                 .values()
-                .any(|entry| entry.scope == BindingScope::Runtime);
+                .any(|entry| entry.scope == CatalogBindingScope::Runtime);
 
             // enforce one scope family per module
             if has_host_dispatch && has_runtime_dispatch {
@@ -550,12 +550,12 @@ fn render_domain_tests_stub(domain: &str) -> String {
     output.push_str("mod harness;\n\n");
     output.push_str("use destack_vm as vm;\n\n");
     output.push_str("use crate::diagnostic::RuntimeResult;\n");
-    output.push_str("use crate::runtime::RuntimeCallContext;\n");
+    output.push_str("use crate::runtime::BindingCallContext;\n");
     output.push_str("use crate::tests::runtime::TestRuntime;\n\n");
     output.push_str("/// Test harness context used by tests.\n");
     output.push_str(&format!("pub(crate) struct {context_name}<'call> {{\n"));
     output.push_str("    /// Runtime call context active for this operation.\n");
-    output.push_str("    pub(super) call_context: &'call RuntimeCallContext,\n");
+    output.push_str("    pub(super) call_context: &'call BindingCallContext,\n");
     output.push_str("    /// VM context when running VM bindings.\n");
     output.push_str("    pub(super) vm_context: Option<*mut ()>,\n");
     output.push_str("}\n\n");

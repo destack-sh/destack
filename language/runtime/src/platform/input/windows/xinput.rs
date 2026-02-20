@@ -26,7 +26,7 @@ use crate::platform::input::{
     InputGamepadButtonState, InputGamepadConnectionType, InputGamepadMappingType,
     InputGamepadState, InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult,
 };
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Prefix for stable xinput device identifiers.
 pub(super) const XINPUT_DEVICE_ID_PREFIX: &str = "xinput:";
@@ -395,7 +395,7 @@ fn supports_rumble(capabilities: Option<XINPUT_CAPABILITIES>) -> bool {
 }
 
 /// Enumerate connected xinput gamepads.
-pub(super) fn list_xinput_devices(context: &RuntimeCallContext) -> Vec<InputDeviceDescriptor> {
+pub(super) fn list_xinput_devices(context: &BindingCallContext) -> Vec<InputDeviceDescriptor> {
     let mut devices = Vec::new();
 
     for user_index in 0..XINPUT_USER_SLOT_COUNT {
@@ -449,7 +449,7 @@ pub(super) fn xinput_packet_number(user_index: u8, operation: &'static str) -> R
 
 /// Build one capability payload for one xinput device.
 pub(super) fn capabilities_for_xinput_device(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     user_index: u8,
     operation: &'static str,
 ) -> RuntimeResult<InputDeviceCapabilities> {
@@ -530,7 +530,7 @@ pub(super) fn capabilities_for_xinput_device(
 
 /// Build one full gamepad-state snapshot from one xinput user index.
 pub(super) fn gamepad_state_for_xinput(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     user_index: u8,
     player_index: u8,
     operation: &'static str,

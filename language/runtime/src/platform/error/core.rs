@@ -16,7 +16,7 @@ use crate::platform::error::{
     PlatformPathPayloadVm, PlatformSystemSource, PlatformSystemSourceKind, PlatformSystemSourceVm,
 };
 use crate::platform::{NativeArray, NativeStringRef, VmArray};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Empty byte array sentinel for absent path payloads in native ABI values.
 const EMPTY_NATIVE_BYTE_ARRAY: NativeArray<u8> = NativeArray {
@@ -29,12 +29,12 @@ const EMPTY_NATIVE_BYTE_ARRAY: NativeArray<u8> = NativeArray {
 #[derive(Debug)]
 pub struct NativeStringStore<'a> {
     /// Runtime call context for the current binding call.
-    context: &'a RuntimeCallContext,
+    context: &'a BindingCallContext,
 }
 
 impl<'a> NativeStringStore<'a> {
     /// Create a native string store for the runtime context.
-    pub fn new(context: &'a RuntimeCallContext) -> Self {
+    pub fn new(context: &'a BindingCallContext) -> Self {
         Self { context }
     }
 

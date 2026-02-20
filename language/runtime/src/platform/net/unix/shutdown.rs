@@ -8,7 +8,7 @@ use crate::platform::fs::OsPath;
 use crate::platform::net::{core as core_net, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -32,7 +32,7 @@ use std::os::unix::io::RawFd;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_shutdown(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     how: SocketShutdown,
 ) -> RuntimeResult<()> {

@@ -7,7 +7,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 use std::ffi::{CStr, CString};
 
@@ -77,7 +77,7 @@ enum ResolvedStdioDescriptor {
 
 /// Resolve a file handle into a unix descriptor.
 fn resolve_file_fd(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::FileHandle,
 ) -> RuntimeResult<i32> {
     core_fs::require_resource(
@@ -189,7 +189,7 @@ fn resolve_fd_actions(actions: &[ProcessFdAction]) -> RuntimeResult<Vec<Resolved
 
 /// Resolve explicit stdio descriptors into child setup payloads.
 fn resolve_spawn_stdio(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     stdio: &[ProcessStdio],
 ) -> RuntimeResult<[ResolvedStdioDescriptor; 3]> {
     if stdio.len() > 3 {
@@ -592,7 +592,7 @@ fn execute_spawn_command(
 
 /// Spawn a child process and register its handle payload.
 fn spawn_process(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::ProcessHandle,
     command: String,
     arguments: Vec<String>,
@@ -707,7 +707,7 @@ fn spawn_process(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_spawn(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::ProcessHandle,
     command: fs::OsPath,
     arguments: NativeStringSlice,
@@ -750,7 +750,7 @@ pub(crate) unsafe fn destack_process_spawn(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_spawn_with_actions(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::ProcessHandle,
     command: fs::OsPath,
     arguments: NativeStringSlice,

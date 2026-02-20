@@ -8,7 +8,7 @@ use destack_vm as vm;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::time::{ClockMetadata, ClockMetadataVm};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 
 /// Assert one result failed with one exact platform error code.
@@ -65,7 +65,7 @@ pub(crate) fn clock_info_from_value(
 /// Test harness context used by tests.
 pub(crate) struct TimeHarnessContext<'call> {
     /// Runtime call context active for this operation.
-    pub(crate) call_context: &'call RuntimeCallContext,
+    pub(crate) call_context: &'call BindingCallContext,
     /// VM context when running VM bindings.
     pub(crate) vm_context: Option<*mut ()>,
 }

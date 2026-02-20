@@ -3,7 +3,7 @@ use windows_sys::Win32::Networking::WinSock::{SD_BOTH, SD_RECEIVE, SD_SEND, shut
 use super::util::*;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::net::{SocketHandle, SocketShutdown};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Shut down a socket for reads, writes, or both.
 ///
@@ -23,7 +23,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_shutdown(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     how: SocketShutdown,
 ) -> RuntimeResult<()> {

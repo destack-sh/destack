@@ -13,7 +13,7 @@ use crate::platform::resource::ThreadHandle;
 use crate::platform::thread::{ThreadOptions, core as core_thread, resource as resource_thread};
 use crate::platform::{NativeStringRef, PlatformError, core as core_platform};
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Thread bootstrap payload passed to one native Windows thread.
 struct ThreadStartPayload {
@@ -49,7 +49,7 @@ unsafe extern "system" fn thread_start(payload: *mut c_void) -> u32 {
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_detach(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ThreadHandle,
 ) -> RuntimeResult<()> {
     // remove and validate the thread resource
@@ -87,7 +87,7 @@ pub(crate) unsafe fn destack_thread_detach(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_join(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     handle: ThreadHandle,
 ) -> RuntimeResult<()> {
@@ -163,7 +163,7 @@ pub(crate) unsafe fn destack_thread_join(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_spawn(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ThreadHandle,
     entry: NativeStringRef,
     argument: u64,

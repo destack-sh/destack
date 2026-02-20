@@ -8,7 +8,7 @@ use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{core as core_fs, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, net as platform_net, *};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStrExt;
@@ -33,7 +33,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_link_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     existingpath: PathBytes,
     newpath: PathBytes,
 ) -> RuntimeResult<()> {
@@ -66,7 +66,7 @@ pub(crate) unsafe fn destack_fs_link_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_link_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     existingpath: PathUtf16,
     newpath: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -93,7 +93,7 @@ pub(crate) unsafe fn destack_fs_link_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlink_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut PathBytes,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -130,7 +130,7 @@ pub(crate) unsafe fn destack_fs_readlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlink_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut PathUtf16,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -162,7 +162,7 @@ pub(crate) unsafe fn destack_fs_readlink_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_realpath_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut PathBytes,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -207,7 +207,7 @@ pub(crate) unsafe fn destack_fs_realpath_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_realpath_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut PathUtf16,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -239,7 +239,7 @@ pub(crate) unsafe fn destack_fs_realpath_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rename_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     from: PathBytes,
     to: PathBytes,
 ) -> RuntimeResult<()> {
@@ -272,7 +272,7 @@ pub(crate) unsafe fn destack_fs_rename_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rename_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -299,7 +299,7 @@ pub(crate) unsafe fn destack_fs_rename_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     target: PathBytes,
     path: PathBytes,
     _kind: SymlinkType,
@@ -333,7 +333,7 @@ pub(crate) unsafe fn destack_fs_symlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     target: PathUtf16,
     path: PathUtf16,
     _kind: SymlinkType,
@@ -361,7 +361,7 @@ pub(crate) unsafe fn destack_fs_symlink_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: PathBytes,
 ) -> RuntimeResult<()> {
     // unlink the file on unix platforms
@@ -392,7 +392,7 @@ pub(crate) unsafe fn destack_fs_unlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _path: PathUtf16,
 ) -> RuntimeResult<()> {
     // report unsupported unlink calls on non-windows platforms
@@ -417,7 +417,7 @@ pub(crate) unsafe fn destack_fs_unlink_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathBytes,
     to_dir: DirectoryHandle,
@@ -454,7 +454,7 @@ pub(crate) unsafe fn destack_fs_renameat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathUtf16,
     to_dir: DirectoryHandle,
@@ -483,7 +483,7 @@ pub(crate) unsafe fn destack_fs_renameat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat2_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathBytes,
     to_dir: DirectoryHandle,
@@ -543,7 +543,7 @@ pub(crate) unsafe fn destack_fs_renameat2_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat2_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathUtf16,
     to_dir: DirectoryHandle,
@@ -573,7 +573,7 @@ pub(crate) unsafe fn destack_fs_renameat2_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlinkat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     flags: AtFlags,
@@ -606,7 +606,7 @@ pub(crate) unsafe fn destack_fs_unlinkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlinkat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     flags: AtFlags,
@@ -634,7 +634,7 @@ pub(crate) unsafe fn destack_fs_unlinkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_linkat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     existing_dir: DirectoryHandle,
     existing_path: PathBytes,
     new_dir: DirectoryHandle,
@@ -679,7 +679,7 @@ pub(crate) unsafe fn destack_fs_linkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_linkat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     existing_dir: DirectoryHandle,
     existing_path: PathUtf16,
     new_dir: DirectoryHandle,
@@ -716,7 +716,7 @@ pub(crate) unsafe fn destack_fs_linkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlinkat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     target: PathBytes,
     dir: DirectoryHandle,
     path: PathBytes,
@@ -751,7 +751,7 @@ pub(crate) unsafe fn destack_fs_symlinkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlinkat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     target: PathUtf16,
     dir: DirectoryHandle,
     path: PathUtf16,
@@ -780,7 +780,7 @@ pub(crate) unsafe fn destack_fs_symlinkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlinkat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut PathBytes,
     dir: DirectoryHandle,
     path: PathBytes,
@@ -819,7 +819,7 @@ pub(crate) unsafe fn destack_fs_readlinkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlinkat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut PathUtf16,
     dir: DirectoryHandle,
     path: PathUtf16,
@@ -852,7 +852,7 @@ pub(crate) unsafe fn destack_fs_readlinkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rename(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from: OsPath,
     to: OsPath,
 ) -> RuntimeResult<()> {
@@ -883,7 +883,7 @@ pub(crate) unsafe fn destack_fs_rename(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: OsPath,
     to_dir: DirectoryHandle,
@@ -916,7 +916,7 @@ pub(crate) unsafe fn destack_fs_renameat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat2(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: OsPath,
     to_dir: DirectoryHandle,
@@ -954,7 +954,7 @@ pub(crate) unsafe fn destack_fs_renameat2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     path: OsPath,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
@@ -983,7 +983,7 @@ pub(crate) unsafe fn destack_fs_unlink(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlinkat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     flags: AtFlags,
@@ -1014,7 +1014,7 @@ pub(crate) unsafe fn destack_fs_unlinkat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_link(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     existing_path: OsPath,
     new_path: OsPath,
 ) -> RuntimeResult<()> {
@@ -1049,7 +1049,7 @@ pub(crate) unsafe fn destack_fs_link(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_linkat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     existing_dir: DirectoryHandle,
     existing_path: OsPath,
     new_dir: DirectoryHandle,
@@ -1101,7 +1101,7 @@ pub(crate) unsafe fn destack_fs_linkat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     target: OsPath,
     path: OsPath,
     kind: SymlinkType,
@@ -1133,7 +1133,7 @@ pub(crate) unsafe fn destack_fs_symlink(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlinkat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     target: OsPath,
     dir: DirectoryHandle,
     path: OsPath,
@@ -1166,7 +1166,7 @@ pub(crate) unsafe fn destack_fs_symlinkat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlink(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut OsPath,
     path: OsPath,
 ) -> RuntimeResult<()> {
@@ -1239,7 +1239,7 @@ pub(crate) unsafe fn destack_fs_readlink(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlinkat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut OsPath,
     dir: DirectoryHandle,
     path: OsPath,
@@ -1313,7 +1313,7 @@ pub(crate) unsafe fn destack_fs_readlinkat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_realpath(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut OsPath,
     path: OsPath,
 ) -> RuntimeResult<()> {
@@ -1386,7 +1386,7 @@ pub(crate) unsafe fn destack_fs_realpath(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkfifo(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -1433,7 +1433,7 @@ pub(crate) unsafe fn destack_fs_mkfifo(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkfifoat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     mode: FileMode,
@@ -1486,7 +1486,7 @@ pub(crate) unsafe fn destack_fs_mkfifoat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mknod(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     path: OsPath,
     mode: FileMode,
     device: NodeDevice,
@@ -1540,7 +1540,7 @@ pub(crate) unsafe fn destack_fs_mknod(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mknodat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     mode: FileMode,

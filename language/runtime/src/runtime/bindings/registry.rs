@@ -5,41 +5,39 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::platform;
-use crate::platform::bindings::{
-    BindingDescriptor, BindingId, BindingPolicy, NativeBinding, NativeBindingSet, PolicyEngine,
+use crate::runtime::bindings::{
+    BindingDescriptor, BindingEngine, BindingId, BindingPolicy, NativeBinding, NativeBindingSet,
     VmBindingSet,
 };
-use crate::runtime::scheduler::Scheduler;
-use crate::runtime::{
-    RuntimeCallContext, RuntimeContext, RuntimeState, enter_runtime_call_context,
-};
+use crate::runtime::scheduler::EventLoop;
+use crate::runtime::{BindingCallContext, RuntimeState, enter_binding_call_context};
 use destack_workspace::RuntimeOptions;
 
 /// Raw pointers captured for binding calls.
 #[derive(Debug, Clone, Copy)]
-struct RuntimeHandle {
+struct BindingRuntimeHandle {
     /// Pointer to the shared runtime state.
     runtime: *const RuntimeState,
-    /// Pointer to the scheduler instance.
-    scheduler: *const Scheduler,
+    /// Pointer to the event loop instance.
+    event_loop: *const EventLoop,
 }
 
-impl RuntimeHandle {
+impl BindingRuntimeHandle {
     /// Return the runtime state pointer.
     pub(crate) const fn runtime_ptr(self) -> *const RuntimeState {
         self.runtime
     }
 
-    /// Return the scheduler pointer.
-    pub(crate) const fn scheduler_ptr(self) -> *const Scheduler {
-        self.scheduler
+    /// Return the event loop pointer.
+    pub(crate) const fn event_loop_ptr(self) -> *const EventLoop {
+        self.event_loop
     }
 }
 
 // safety: pointers are immutable and outlive the registered handlers
-unsafe impl Send for RuntimeHandle {}
+unsafe impl Send for BindingRuntimeHandle {}
 // safety: pointers are immutable and outlive the registered handlers
-unsafe impl Sync for RuntimeHandle {}
+unsafe impl Sync for BindingRuntimeHandle {}
 
 /// Registry for external bindings and shims.
 #[derive(Debug, Default)]
@@ -54,8 +52,8 @@ pub struct BindingRegistry {
     native_bindings: Vec<NativeBinding>,
     /// Policy configuration for external bindings.
     policy: BindingPolicy,
-    /// Runtime handle for binding calls.
-    runtime_handle: Option<RuntimeHandle>,
+    /// Runtime handles for binding calls.
+    binding_runtime_handles: Option<BindingRuntimeHandle>,
 }
 
 impl BindingRegistry {
@@ -74,7 +72,7 @@ impl BindingRegistry {
     }
 
     /// Get the binding policy for this registry.
-    pub fn policy(&self) -> BindingPolicy {
+    pub fn policy_snapshot(&self) -> BindingPolicy {
         self.policy.clone()
     }
 
@@ -85,11 +83,11 @@ impl BindingRegistry {
     }
 
     /// Set runtime handles for binding calls.
-    pub fn set_runtime_handle(&mut self, runtime: &RuntimeContext, scheduler: &Scheduler) {
+    pub fn set_runtime_handles(&mut self, runtime: &Arc<RuntimeState>, event_loop: &EventLoop) {
         // record runtime state pointers for call contexts
-        self.runtime_handle = Some(RuntimeHandle {
-            runtime: runtime.state_ptr(),
-            scheduler: scheduler as *const Scheduler,
+        self.binding_runtime_handles = Some(BindingRuntimeHandle {
+            runtime: Arc::as_ptr(runtime),
+            event_loop: event_loop as *const EventLoop,
         });
     }
 
@@ -164,7 +162,7 @@ impl BindingRegistry {
 
         // snapshot policy for the installed handler
         let policy = Arc::new(self.policy.clone());
-        let handles = self.runtime_handle.unwrap_or_else(|| {
+        let handles = self.binding_runtime_handles.unwrap_or_else(|| {
             panic!(
                 "binding registry missing runtime handles for {}",
                 descriptor.name
@@ -175,13 +173,13 @@ impl BindingRegistry {
         // register the external handler with policy enforcement
         isolate.register_vm_binding(descriptor.name, move |context, args| {
             policy.check(descriptor)?;
-            let call_context = RuntimeCallContext::from_raw(
+            let call_context = BindingCallContext::from_raw(
                 handles.runtime_ptr(),
-                handles.scheduler_ptr(),
+                handles.event_loop_ptr(),
                 policy.clone(),
-                PolicyEngine::Vm,
+                BindingEngine::Vm,
             );
-            let _guard = enter_runtime_call_context(&call_context);
+            let _guard = enter_binding_call_context(&call_context);
             handler(context, args)
         });
 

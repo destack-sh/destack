@@ -1,11 +1,11 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::{
-    BindingDescriptor, BindingReplayKind, ExecutionMode, ReplayPayload,
-};
+use crate::runtime::bindings::{BindingDescriptor, BindingReplayKind, BindingReplayPayload};
 use crate::runtime::replay::{
     BindingCallEvent, RandomEventKind, ReplayEvent, ReplayHeader, ReplayLog, ReplayLogReader,
     TimeEventKind,
 };
+use crate::runtime::{RuntimeHookState, with_current_binding_call_context};
+use destack_workspace::ExecutionMode;
 use parking_lot::Mutex;
 use postcard::experimental::serialized_size;
 use serde::Serialize;
@@ -14,8 +14,8 @@ use serde::de::DeserializeOwned;
 /// Validation state for replay event ordering.
 #[derive(Debug, Default)]
 struct ReplayValidator {
-    /// Last observed scheduler sequence.
-    last_scheduler_sequence: Option<u64>,
+    /// Last observed task queue sequence.
+    last_task_queue_sequence: Option<u64>,
     /// Last observed monotonic time sample.
     last_monotonic_nanos: Option<u64>,
 }
@@ -24,16 +24,16 @@ impl ReplayValidator {
     /// Validate a replay event against ordering invariants.
     fn validate(&mut self, event: &ReplayEvent) -> RuntimeResult<()> {
         match event {
-            ReplayEvent::SchedulerEvent(event) => {
-                if let Some(last) = self.last_scheduler_sequence
+            ReplayEvent::TaskQueueEvent(event) => {
+                if let Some(last) = self.last_task_queue_sequence
                     && event.sequence < last
                 {
                     return Err(RuntimeError::ReplayMismatch {
-                        name: "scheduler".to_string(),
+                        name: "event_loop".to_string(),
                     }
                     .boxed());
                 }
-                self.last_scheduler_sequence = Some(event.sequence);
+                self.last_task_queue_sequence = Some(event.sequence);
             }
             ReplayEvent::TimeEvent(event) => {
                 if event.kind == TimeEventKind::MonotonicSample {
@@ -81,7 +81,7 @@ pub struct ReplayController {
     /// Active execution mode.
     mode: ExecutionMode,
     /// Replay payload policy for record mode.
-    payload_policy: ReplayPayload,
+    payload_policy: BindingReplayPayload,
     /// Replay log backing store.
     log: ReplayLog,
     /// Replay reader for log playback.
@@ -93,8 +93,21 @@ pub struct ReplayController {
 }
 
 impl ReplayController {
+    /// Run post-call binding hooks for the current TLS call context.
+    fn run_after_binding_hook(spec: BindingDescriptor) {
+        let _ = with_current_binding_call_context(|context| {
+            context
+                .rules()
+                .on_after_binding(spec, RuntimeHookState::from_engine(Some(context.engine())))
+        });
+    }
+
     /// Create a replay controller with an explicit execution mode.
-    pub fn new(mode: ExecutionMode, payload_policy: ReplayPayload, header: ReplayHeader) -> Self {
+    pub fn new(
+        mode: ExecutionMode,
+        payload_policy: BindingReplayPayload,
+        header: ReplayHeader,
+    ) -> Self {
         let log = ReplayLog::new(header);
         let reader = match mode {
             ExecutionMode::Replay => Some(log.reader()),
@@ -112,7 +125,11 @@ impl ReplayController {
     }
 
     /// Create a replay controller with an existing log and execution mode.
-    pub fn from_log(mode: ExecutionMode, payload_policy: ReplayPayload, log: ReplayLog) -> Self {
+    pub fn from_log(
+        mode: ExecutionMode,
+        payload_policy: BindingReplayPayload,
+        log: ReplayLog,
+    ) -> Self {
         let reader = match mode {
             ExecutionMode::Replay => Some(log.reader()),
             _ => None,
@@ -137,7 +154,7 @@ impl ReplayController {
     }
 
     /// Return the replay payload policy.
-    pub fn payload_policy(&self) -> ReplayPayload {
+    pub fn payload_policy(&self) -> BindingReplayPayload {
         self.payload_policy
     }
 
@@ -156,7 +173,10 @@ impl ReplayController {
     }
 
     /// Resolve the payload policy for a binding descriptor.
-    pub fn payload_policy_for(&self, spec: BindingDescriptor) -> RuntimeResult<ReplayPayload> {
+    pub fn payload_policy_for(
+        &self,
+        spec: BindingDescriptor,
+    ) -> RuntimeResult<BindingReplayPayload> {
         self.payload_policy_for_requested(spec, self.payload_policy)
     }
 
@@ -164,11 +184,13 @@ impl ReplayController {
     pub fn payload_policy_for_requested(
         &self,
         spec: BindingDescriptor,
-        requested: ReplayPayload,
-    ) -> RuntimeResult<ReplayPayload> {
+        requested: BindingReplayPayload,
+    ) -> RuntimeResult<BindingReplayPayload> {
         let supported = spec.replay_payload();
 
-        if requested == ReplayPayload::ArgumentsAndResults && supported == ReplayPayload::Results {
+        if requested == BindingReplayPayload::ArgumentsAndResults
+            && supported == BindingReplayPayload::Results
+        {
             return Err(RuntimeError::ReplayPayloadUnsupported {
                 name: spec.name.to_string(),
             }
@@ -176,8 +198,8 @@ impl ReplayController {
         }
 
         match requested {
-            ReplayPayload::Results => Ok(ReplayPayload::Results),
-            ReplayPayload::ArgumentsAndResults => Ok(supported),
+            BindingReplayPayload::Results => Ok(BindingReplayPayload::Results),
+            BindingReplayPayload::ArgumentsAndResults => Ok(supported),
         }
     }
 
@@ -355,15 +377,15 @@ impl ReplayController {
         Encode: FnOnce(&RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
         Decode: FnOnce(Payload) -> RuntimeResult<Value>,
     {
-        self.run_binding_with_payload_policy(spec, self.payload_policy, call, encode, decode)
+        self.run_binding_with_policy(spec, self.payload_policy, call, encode, decode)
     }
 
     /// Run a binding with replay handling and one requested payload policy.
     #[inline]
-    pub fn run_binding_with_payload_policy<Payload, Value, Call, Encode, Decode>(
+    pub fn run_binding_with_policy<Payload, Value, Call, Encode, Decode>(
         &self,
         spec: BindingDescriptor,
-        requested_payload: ReplayPayload,
+        requested_payload: BindingReplayPayload,
         call: Call,
         encode: Encode,
         decode: Decode,
@@ -385,13 +407,17 @@ impl ReplayController {
 
         // fast path
         if !cfg!(feature = "replay") || mode == ExecutionMode::Fast {
-            return call();
+            let result = call();
+            Self::run_after_binding_hook(spec);
+            return result;
         }
 
         // replay path
         if mode == ExecutionMode::Replay {
             let payload = self.read_binding_payload(spec)?;
-            return decode(payload);
+            let result = decode(payload);
+            Self::run_after_binding_hook(spec);
+            return result;
         }
 
         // record path
@@ -404,6 +430,7 @@ impl ReplayController {
             }
         }
 
+        Self::run_after_binding_hook(spec);
         result
     }
 
@@ -423,7 +450,7 @@ impl ReplayController {
         Encode: FnOnce(&mut Context, &RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
         Decode: FnOnce(&mut Context, Payload) -> RuntimeResult<Value>,
     {
-        self.run_binding_with_context_and_payload_policy(
+        self.run_binding_with_context_policy(
             spec,
             self.payload_policy,
             context,
@@ -435,17 +462,10 @@ impl ReplayController {
 
     /// Run a binding with replay handling, context, and one requested payload policy.
     #[inline]
-    pub fn run_binding_with_context_and_payload_policy<
-        Payload,
-        Value,
-        Context,
-        Call,
-        Encode,
-        Decode,
-    >(
+    pub fn run_binding_with_context_policy<Payload, Value, Context, Call, Encode, Decode>(
         &self,
         spec: BindingDescriptor,
-        requested_payload: ReplayPayload,
+        requested_payload: BindingReplayPayload,
         context: &mut Context,
         call: Call,
         encode: Encode,
@@ -468,13 +488,17 @@ impl ReplayController {
 
         // fast path
         if !cfg!(feature = "replay") || mode == ExecutionMode::Fast {
-            return call(context);
+            let result = call(context);
+            Self::run_after_binding_hook(spec);
+            return result;
         }
 
         // replay path
         if mode == ExecutionMode::Replay {
             let payload = self.read_binding_payload(spec)?;
-            return decode(context, payload);
+            let result = decode(context, payload);
+            Self::run_after_binding_hook(spec);
+            return result;
         }
 
         // record path
@@ -487,6 +511,7 @@ impl ReplayController {
             }
         }
 
+        Self::run_after_binding_hook(spec);
         result
     }
 }
@@ -495,7 +520,7 @@ impl Default for ReplayController {
     fn default() -> Self {
         Self::new(
             ExecutionMode::Fast,
-            ReplayPayload::Results,
+            BindingReplayPayload::Results,
             ReplayHeader::default(),
         )
     }
@@ -504,10 +529,11 @@ impl Default for ReplayController {
 #[cfg(test)]
 mod tests {
     use super::ReplayController;
-    use crate::platform::bindings::{
-        BindingDescriptor, BindingReplayKind, ExecutionMode, ReplayPayload, ReplayPolicy,
+    use crate::runtime::bindings::{
+        BindingDescriptor, BindingReplayKind, BindingReplayPayload, BindingReplayPolicy,
     };
     use crate::runtime::replay::ReplayHeader;
+    use destack_workspace::ExecutionMode;
 
     #[test]
     /// Recordable binding calls replay in order.
@@ -516,14 +542,14 @@ mod tests {
         let descriptor = BindingDescriptor::external(
             "destack.test.call",
             "test() -> u64",
-            ReplayPolicy::Recordable,
+            BindingReplayPolicy::Recordable,
             BindingReplayKind::Regular,
         );
 
         // record a binding call
         let record_state = ReplayController::new(
             ExecutionMode::Record,
-            ReplayPayload::Results,
+            BindingReplayPayload::Results,
             ReplayHeader::default(),
         );
         record_state
@@ -533,7 +559,7 @@ mod tests {
         // replay the binding call from the same log
         let replay_state = ReplayController::from_log(
             ExecutionMode::Replay,
-            ReplayPayload::Results,
+            BindingReplayPayload::Results,
             record_state.log().clone(),
         );
         let call = replay_state
@@ -550,7 +576,7 @@ mod tests {
         // record a stream allocation
         let record_state = ReplayController::new(
             ExecutionMode::Record,
-            ReplayPayload::Results,
+            BindingReplayPayload::Results,
             ReplayHeader::default(),
         );
         let stream_id = record_state
@@ -561,7 +587,7 @@ mod tests {
         // replay the stream allocation
         let replay_state = ReplayController::from_log(
             ExecutionMode::Replay,
-            ReplayPayload::Results,
+            BindingReplayPayload::Results,
             record_state.log().clone(),
         );
         let replayed = replay_state

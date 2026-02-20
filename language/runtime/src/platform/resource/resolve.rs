@@ -1,13 +1,13 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{PlatformError, ResourceId};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use super::{ResourceEntry, ResourceKind};
 
 /// Resolve a resource entry for the requested handle and kind.
 #[allow(dead_code)]
 pub(crate) fn require_resource<T>(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ResourceId,
     kind: ResourceKind,
     label: &str,

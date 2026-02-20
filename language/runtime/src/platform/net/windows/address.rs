@@ -10,7 +10,7 @@ use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::net::{ResolveFlags, SocketAddress, SocketFamily, SocketHandle};
 use crate::platform::{NativeArray, NativeStringRef, PlatformError};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Free one address-info chain on drop.
 struct AddrInfoGuard {
@@ -38,7 +38,7 @@ fn wide_with_nul(value: &str) -> Vec<u16> {
 
 /// Return the local address bytes for a socket.
 pub(crate) unsafe fn destack_net_local_address_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketAddress,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -70,7 +70,7 @@ pub(crate) unsafe fn destack_net_local_address_raw(
 
 /// Return the peer address bytes for a socket.
 pub(crate) unsafe fn destack_net_peer_address_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketAddress,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -103,7 +103,7 @@ pub(crate) unsafe fn destack_net_peer_address_raw(
 /// Resolve host and port into raw socket addresses.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_resolve_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<SocketAddress>,
     host: NativeStringRef,
     port: u16,
@@ -206,7 +206,7 @@ pub(crate) unsafe fn destack_net_resolve_raw(
 /// Reverse lookup a raw socket address into hostnames.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_reverse_lookup_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     address: SocketAddress,
 ) -> RuntimeResult<()> {

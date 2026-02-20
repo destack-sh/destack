@@ -3,7 +3,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::thread::ThreadOptionsVm;
 use crate::platform::{PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 /// Create one thread-local key.
@@ -24,7 +24,7 @@ use destack_vm as vm;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<resource::ThreadLocalKey> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.create")).boxed())
@@ -48,7 +48,7 @@ pub(crate) fn destack_thread_local_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_delete(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _key: resource::ThreadLocalKey,
 ) -> RuntimeResult<()> {
@@ -73,7 +73,7 @@ pub(crate) fn destack_thread_local_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_get(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _key: resource::ThreadLocalKey,
 ) -> RuntimeResult<u64> {
@@ -98,7 +98,7 @@ pub(crate) fn destack_thread_local_get(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_set(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     key: resource::ThreadLocalKey,
     argument_value: u64,
@@ -125,7 +125,7 @@ pub(crate) fn destack_thread_local_set(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_get_affinity(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _handle: resource::ThreadHandle,
 ) -> RuntimeResult<u64> {
@@ -153,7 +153,7 @@ pub(crate) fn destack_thread_get_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_get_priority(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _handle: resource::ThreadHandle,
 ) -> RuntimeResult<i32> {
@@ -181,7 +181,7 @@ pub(crate) fn destack_thread_get_priority(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_set_affinity(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ThreadHandle,
     mask: u64,
@@ -211,7 +211,7 @@ pub(crate) fn destack_thread_set_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_set_priority(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ThreadHandle,
     priority: i32,
@@ -241,7 +241,7 @@ pub(crate) fn destack_thread_set_priority(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_detach(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _handle: resource::ThreadHandle,
 ) -> RuntimeResult<()> {
@@ -266,7 +266,7 @@ pub(crate) fn destack_thread_detach(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_join(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _handle: resource::ThreadHandle,
 ) -> RuntimeResult<u32> {
@@ -291,7 +291,7 @@ pub(crate) fn destack_thread_join(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_spawn(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     entry: vm::StringHandle,
     argument: u64,
@@ -319,7 +319,7 @@ pub(crate) fn destack_thread_spawn(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_address_wait(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     expected: u32,
@@ -350,7 +350,7 @@ pub(crate) fn destack_thread_address_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_address_wake_all(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _address: u64,
 ) -> RuntimeResult<()> {
@@ -378,7 +378,7 @@ pub(crate) fn destack_thread_address_wake_all(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_address_wake_one(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _address: u64,
 ) -> RuntimeResult<()> {
@@ -406,7 +406,7 @@ pub(crate) fn destack_thread_address_wake_one(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_barrier_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     participants: u32,
     flags: u32,
@@ -436,7 +436,7 @@ pub(crate) fn destack_thread_barrier_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_barrier_wait(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BarrierHandle,
     timeoutns: u64,
@@ -466,7 +466,7 @@ pub(crate) fn destack_thread_barrier_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_cond_var_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _flags: u32,
 ) -> RuntimeResult<resource::CondVarHandle> {
@@ -494,7 +494,7 @@ pub(crate) fn destack_thread_cond_var_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_cond_var_notify_all(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _condvar: resource::CondVarHandle,
 ) -> RuntimeResult<()> {
@@ -522,7 +522,7 @@ pub(crate) fn destack_thread_cond_var_notify_all(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_cond_var_notify_one(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _condvar: resource::CondVarHandle,
 ) -> RuntimeResult<()> {
@@ -550,7 +550,7 @@ pub(crate) fn destack_thread_cond_var_notify_one(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_cond_var_wait(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     condvar: resource::CondVarHandle,
     mutex: resource::MutexHandle,
@@ -581,7 +581,7 @@ pub(crate) fn destack_thread_cond_var_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_mutex_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _flags: u32,
 ) -> RuntimeResult<resource::MutexHandle> {
@@ -609,7 +609,7 @@ pub(crate) fn destack_thread_mutex_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_mutex_lock(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::MutexHandle,
     timeoutns: u64,
@@ -639,7 +639,7 @@ pub(crate) fn destack_thread_mutex_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_mutex_unlock(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _handle: resource::MutexHandle,
 ) -> RuntimeResult<()> {
@@ -667,7 +667,7 @@ pub(crate) fn destack_thread_mutex_unlock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_rwlock_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _flags: u32,
 ) -> RuntimeResult<resource::RwLockHandle> {
@@ -695,7 +695,7 @@ pub(crate) fn destack_thread_rwlock_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_rwlock_read_lock(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::RwLockHandle,
     timeoutns: u64,
@@ -725,7 +725,7 @@ pub(crate) fn destack_thread_rwlock_read_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_rwlock_unlock(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _handle: resource::RwLockHandle,
 ) -> RuntimeResult<()> {
@@ -753,7 +753,7 @@ pub(crate) fn destack_thread_rwlock_unlock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_rwlock_write_lock(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::RwLockHandle,
     timeoutns: u64,
@@ -783,7 +783,7 @@ pub(crate) fn destack_thread_rwlock_write_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_semaphore_create(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     initial: u32,
     maximum: u32,
@@ -814,7 +814,7 @@ pub(crate) fn destack_thread_semaphore_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_semaphore_post(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ThreadSemaphoreHandle,
     count: u32,
@@ -844,7 +844,7 @@ pub(crate) fn destack_thread_semaphore_post(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_semaphore_wait(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ThreadSemaphoreHandle,
     timeoutns: u64,

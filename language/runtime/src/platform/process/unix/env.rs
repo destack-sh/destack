@@ -7,7 +7,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
@@ -39,7 +39,7 @@ use std::ffi::CStr;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_delete(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let name = unsafe { name.as_str()? };
@@ -73,7 +73,7 @@ pub(crate) unsafe fn destack_process_env_delete(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_delete_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let name = unsafe { name.as_slice()? };
@@ -107,7 +107,7 @@ pub(crate) unsafe fn destack_process_env_delete_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_get(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeStringRef,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -155,7 +155,7 @@ pub(crate) unsafe fn destack_process_env_get(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_get_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<u8>,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -205,7 +205,7 @@ pub(crate) unsafe fn destack_process_env_get_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_set(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     name: NativeStringRef,
     argument_value: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -243,7 +243,7 @@ pub(crate) unsafe fn destack_process_env_set(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_set_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     name: NativeSlice<u8>,
     argument_value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {

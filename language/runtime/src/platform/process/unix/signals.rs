@@ -7,7 +7,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, PlatformErrorCode,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
@@ -37,7 +37,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_kill(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     pid: ProcessId,
     signal: Signal,
 ) -> RuntimeResult<()> {
@@ -62,7 +62,7 @@ pub(crate) unsafe fn destack_process_kill(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_mask_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<Signal>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -108,7 +108,7 @@ pub(crate) unsafe fn destack_process_signal_mask_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_mask_update(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     how: SignalMaskHow,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
@@ -150,7 +150,7 @@ pub(crate) unsafe fn destack_process_signal_mask_update(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_receive(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SignalEvent,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
@@ -184,7 +184,7 @@ pub(crate) unsafe fn destack_process_signal_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_subscribe(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::SignalHandle,
     signal: Signal,
 ) -> RuntimeResult<()> {
@@ -231,7 +231,7 @@ pub(crate) unsafe fn destack_process_signal_subscribe(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_try_receive(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SignalEvent,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
@@ -265,7 +265,7 @@ pub(crate) unsafe fn destack_process_signal_try_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_try_wait(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut SignalEvent,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
@@ -299,7 +299,7 @@ pub(crate) unsafe fn destack_process_signal_try_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_unsubscribe(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
     let _ = core_process::resolve_signal_subscription(context, handle)?;
@@ -334,7 +334,7 @@ pub(crate) unsafe fn destack_process_signal_unsubscribe(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_wait(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut SignalEvent,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {

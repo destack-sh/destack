@@ -1,37 +1,14 @@
 use std::collections::HashMap;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::{
-    BindingDescriptor, BindingEffectMask, BindingId, BindingScope, ReplayPayload,
+use crate::runtime::bindings::{
+    BindingDescriptor, BindingEffectMask, BindingId, BindingReplayPayload, BindingScope,
 };
 use crate::runtime::rules::matches_runtime_filter;
 use destack_workspace::{
-    ReplayPayloadMode, RuntimeAccess, RuntimeEffect, RuntimeFilter, RuntimeOptions,
-    RuntimePolicyEffect, RuntimeRule, RuntimeWorld,
+    BindingEngine, ExecutionMode, ReplayPayloadMode, RuntimeAccess, RuntimeAction,
+    RuntimeDispatchAction, RuntimeFilter, RuntimeOptions, RuntimeRule, RuntimeWorld,
 };
-
-/// Execution mode for the runtime.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
-pub enum ExecutionMode {
-    /// Fast execution without determinism guarantees.
-    #[default]
-    Fast,
-    /// Deterministic scheduling with controlled randomness.
-    Deterministic,
-    /// Record external effects for deterministic replay.
-    Record,
-    /// Replay external effects from the log.
-    Replay,
-}
-
-/// Engine kind for one binding call.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PolicyEngine {
-    /// VM engine call.
-    Vm,
-    /// Native engine call.
-    Native,
-}
 
 /// Access rule derived from runtime configuration.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,7 +34,7 @@ struct ReplayPayloadRule {
     /// Filter clause for this rule.
     when: RuntimeFilter,
     /// Replay payload policy when the rule matches.
-    payload: ReplayPayload,
+    payload: BindingReplayPayload,
 }
 
 /// Policy configuration for external bindings.
@@ -72,7 +49,7 @@ pub struct BindingPolicy {
     /// Default world for unmatched bindings.
     default_world: RuntimeWorld,
     /// Default replay payload for unmatched bindings.
-    default_replay_payload: ReplayPayload,
+    default_replay_payload: BindingReplayPayload,
     /// Ordered access rules with first-match-wins semantics.
     access_rules: Vec<AccessRule>,
     /// Ordered world rules with first-match-wins semantics.
@@ -92,11 +69,11 @@ pub struct BindingPolicy {
     /// Compiled world decisions for native calls.
     world_compiled_native: HashMap<BindingId, RuntimeWorld>,
     /// Compiled replay payload decisions for any-engine calls.
-    replay_payload_compiled_any: HashMap<BindingId, ReplayPayload>,
+    replay_payload_compiled_any: HashMap<BindingId, BindingReplayPayload>,
     /// Compiled replay payload decisions for VM calls.
-    replay_payload_compiled_vm: HashMap<BindingId, ReplayPayload>,
+    replay_payload_compiled_vm: HashMap<BindingId, BindingReplayPayload>,
     /// Compiled replay payload decisions for native calls.
-    replay_payload_compiled_native: HashMap<BindingId, ReplayPayload>,
+    replay_payload_compiled_native: HashMap<BindingId, BindingReplayPayload>,
 }
 
 impl BindingPolicy {
@@ -108,7 +85,7 @@ impl BindingPolicy {
             allowed,
             default_access: RuntimeAccess::Allow,
             default_world: RuntimeWorld::Host,
-            default_replay_payload: ReplayPayload::Results,
+            default_replay_payload: BindingReplayPayload::Results,
             access_rules: Vec::new(),
             world_rules: Vec::new(),
             replay_payload_rules: Vec::new(),
@@ -127,7 +104,7 @@ impl BindingPolicy {
     /// Apply runtime options to this policy.
     pub fn apply_runtime_options(&mut self, options: &RuntimeOptions) {
         // align execution mode derived behavior
-        self.mode = options.execution.into();
+        self.mode = options.execution;
         self.allowed = allowed_effects_for_mode(self.mode);
 
         // apply default access policy
@@ -158,8 +135,8 @@ impl BindingPolicy {
     pub fn compile_descriptor(&mut self, spec: BindingDescriptor) {
         // compile access decisions for all engine variants
         let access_any = self.resolve_access_uncached(spec, None);
-        let access_vm = self.resolve_access_uncached(spec, Some(PolicyEngine::Vm));
-        let access_native = self.resolve_access_uncached(spec, Some(PolicyEngine::Native));
+        let access_vm = self.resolve_access_uncached(spec, Some(BindingEngine::Vm));
+        let access_native = self.resolve_access_uncached(spec, Some(BindingEngine::Native));
 
         // store access decisions in the compiled caches
         self.access_compiled_any.insert(spec.id, access_any);
@@ -168,8 +145,8 @@ impl BindingPolicy {
 
         // compile world decisions for all engine variants
         let world_any = self.resolve_world_uncached(spec, None);
-        let world_vm = self.resolve_world_uncached(spec, Some(PolicyEngine::Vm));
-        let world_native = self.resolve_world_uncached(spec, Some(PolicyEngine::Native));
+        let world_vm = self.resolve_world_uncached(spec, Some(BindingEngine::Vm));
+        let world_native = self.resolve_world_uncached(spec, Some(BindingEngine::Native));
 
         // store world decisions in the compiled caches
         self.world_compiled_any.insert(spec.id, world_any);
@@ -178,9 +155,9 @@ impl BindingPolicy {
 
         // compile replay payload decisions for all engine variants
         let replay_payload_any = self.resolve_replay_payload_uncached(spec, None);
-        let replay_payload_vm = self.resolve_replay_payload_uncached(spec, Some(PolicyEngine::Vm));
+        let replay_payload_vm = self.resolve_replay_payload_uncached(spec, Some(BindingEngine::Vm));
         let replay_payload_native =
-            self.resolve_replay_payload_uncached(spec, Some(PolicyEngine::Native));
+            self.resolve_replay_payload_uncached(spec, Some(BindingEngine::Native));
 
         // store replay payload decisions in the compiled caches
         self.replay_payload_compiled_any
@@ -224,7 +201,7 @@ impl BindingPolicy {
     pub fn check_for_engine(
         &self,
         spec: BindingDescriptor,
-        engine: Option<PolicyEngine>,
+        engine: Option<BindingEngine>,
     ) -> RuntimeResult<()> {
         self.check_and_resolve_world_for_engine(spec, engine)?;
         Ok(())
@@ -235,7 +212,7 @@ impl BindingPolicy {
     pub fn check_and_resolve_world_for_engine(
         &self,
         spec: BindingDescriptor,
-        engine: Option<PolicyEngine>,
+        engine: Option<BindingEngine>,
     ) -> RuntimeResult<RuntimeWorld> {
         // reject disallowed effect classes first
         if !self.allowed.allows(spec.effect_mask) {
@@ -262,7 +239,7 @@ impl BindingPolicy {
     pub fn resolve_world_for_engine(
         &self,
         spec: BindingDescriptor,
-        engine: Option<PolicyEngine>,
+        engine: Option<BindingEngine>,
     ) -> RuntimeWorld {
         self.resolve_world(spec, engine)
     }
@@ -272,8 +249,8 @@ impl BindingPolicy {
     pub fn resolve_replay_payload_for_engine(
         &self,
         spec: BindingDescriptor,
-        engine: Option<PolicyEngine>,
-    ) -> ReplayPayload {
+        engine: Option<BindingEngine>,
+    ) -> BindingReplayPayload {
         self.resolve_replay_payload(spec, engine)
     }
 
@@ -293,7 +270,7 @@ impl BindingPolicy {
     fn resolve_access(
         &self,
         spec: BindingDescriptor,
-        engine: Option<PolicyEngine>,
+        engine: Option<BindingEngine>,
     ) -> RuntimeAccess {
         // return compiled decisions when available
         if let Some(access) = self.lookup_compiled_access(spec.id, engine) {
@@ -304,7 +281,11 @@ impl BindingPolicy {
         self.resolve_access_uncached(spec, engine)
     }
 
-    fn resolve_world(&self, spec: BindingDescriptor, engine: Option<PolicyEngine>) -> RuntimeWorld {
+    fn resolve_world(
+        &self,
+        spec: BindingDescriptor,
+        engine: Option<BindingEngine>,
+    ) -> RuntimeWorld {
         // return compiled decisions when available
         if let Some(world) = self.lookup_compiled_world(spec.id, engine) {
             return world;
@@ -317,8 +298,8 @@ impl BindingPolicy {
     fn resolve_replay_payload(
         &self,
         spec: BindingDescriptor,
-        engine: Option<PolicyEngine>,
-    ) -> ReplayPayload {
+        engine: Option<BindingEngine>,
+    ) -> BindingReplayPayload {
         // return compiled decisions when available
         if let Some(payload) = self.lookup_compiled_replay_payload(spec.id, engine) {
             return payload;
@@ -331,11 +312,11 @@ impl BindingPolicy {
     fn resolve_access_uncached(
         &self,
         spec: BindingDescriptor,
-        engine: Option<PolicyEngine>,
+        engine: Option<BindingEngine>,
     ) -> RuntimeAccess {
         // apply matching rules in declaration order
         for rule in &self.access_rules {
-            if matches_runtime_filter(&rule.when, spec, self.mode, engine) {
+            if matches_runtime_filter(&rule.when, Some(spec), self.mode, engine) {
                 return rule.access;
             }
         }
@@ -347,7 +328,7 @@ impl BindingPolicy {
     fn resolve_world_uncached(
         &self,
         spec: BindingDescriptor,
-        engine: Option<PolicyEngine>,
+        engine: Option<BindingEngine>,
     ) -> RuntimeWorld {
         // runtime-scope bindings are always runtime-owned and do not world-route
         if spec.scope == BindingScope::Runtime {
@@ -356,7 +337,7 @@ impl BindingPolicy {
 
         // apply matching world rules in declaration order
         for rule in &self.world_rules {
-            if matches_runtime_filter(&rule.when, spec, self.mode, engine) {
+            if matches_runtime_filter(&rule.when, Some(spec), self.mode, engine) {
                 return rule.world;
             }
         }
@@ -368,11 +349,11 @@ impl BindingPolicy {
     fn resolve_replay_payload_uncached(
         &self,
         spec: BindingDescriptor,
-        engine: Option<PolicyEngine>,
-    ) -> ReplayPayload {
+        engine: Option<BindingEngine>,
+    ) -> BindingReplayPayload {
         // apply matching replay payload rules in declaration order
         for rule in &self.replay_payload_rules {
-            if matches_runtime_filter(&rule.when, spec, self.mode, engine) {
+            if matches_runtime_filter(&rule.when, Some(spec), self.mode, engine) {
                 return rule.payload;
             }
         }
@@ -384,12 +365,12 @@ impl BindingPolicy {
     fn lookup_compiled_access(
         &self,
         id: BindingId,
-        engine: Option<PolicyEngine>,
+        engine: Option<BindingEngine>,
     ) -> Option<RuntimeAccess> {
         // select cache by engine
         let cache = match engine {
-            Some(PolicyEngine::Vm) => &self.access_compiled_vm,
-            Some(PolicyEngine::Native) => &self.access_compiled_native,
+            Some(BindingEngine::Vm) => &self.access_compiled_vm,
+            Some(BindingEngine::Native) => &self.access_compiled_native,
             None => &self.access_compiled_any,
         };
 
@@ -400,12 +381,12 @@ impl BindingPolicy {
     fn lookup_compiled_world(
         &self,
         id: BindingId,
-        engine: Option<PolicyEngine>,
+        engine: Option<BindingEngine>,
     ) -> Option<RuntimeWorld> {
         // select cache by engine
         let cache = match engine {
-            Some(PolicyEngine::Vm) => &self.world_compiled_vm,
-            Some(PolicyEngine::Native) => &self.world_compiled_native,
+            Some(BindingEngine::Vm) => &self.world_compiled_vm,
+            Some(BindingEngine::Native) => &self.world_compiled_native,
             None => &self.world_compiled_any,
         };
 
@@ -416,12 +397,12 @@ impl BindingPolicy {
     fn lookup_compiled_replay_payload(
         &self,
         id: BindingId,
-        engine: Option<PolicyEngine>,
-    ) -> Option<ReplayPayload> {
+        engine: Option<BindingEngine>,
+    ) -> Option<BindingReplayPayload> {
         // select cache by engine
         let cache = match engine {
-            Some(PolicyEngine::Vm) => &self.replay_payload_compiled_vm,
-            Some(PolicyEngine::Native) => &self.replay_payload_compiled_native,
+            Some(BindingEngine::Vm) => &self.replay_payload_compiled_vm,
+            Some(BindingEngine::Native) => &self.replay_payload_compiled_native,
             None => &self.replay_payload_compiled_any,
         };
 
@@ -438,9 +419,9 @@ impl Default for BindingPolicy {
 
 fn rule_to_access_rule(rule: &RuntimeRule) -> Option<AccessRule> {
     // keep only access action rules for policy checks
-    let RuntimeEffect::Policy {
-        policy: RuntimePolicyEffect::SetAccess { access },
-    } = &rule.effect
+    let RuntimeAction::Dispatch {
+        dispatch: RuntimeDispatchAction::SetAccess { access },
+    } = &rule.action
     else {
         return None;
     };
@@ -453,9 +434,9 @@ fn rule_to_access_rule(rule: &RuntimeRule) -> Option<AccessRule> {
 
 fn rule_to_world_rule(rule: &RuntimeRule) -> Option<WorldRule> {
     // keep only world action rules for world routing
-    let RuntimeEffect::Policy {
-        policy: RuntimePolicyEffect::SetWorld { world },
-    } = &rule.effect
+    let RuntimeAction::Dispatch {
+        dispatch: RuntimeDispatchAction::SetWorld { world },
+    } = &rule.action
     else {
         return None;
     };
@@ -468,9 +449,9 @@ fn rule_to_world_rule(rule: &RuntimeRule) -> Option<WorldRule> {
 
 fn rule_to_replay_payload_rule(rule: &RuntimeRule) -> Option<ReplayPayloadRule> {
     // keep only replay payload policy rules
-    let RuntimeEffect::Policy {
-        policy: RuntimePolicyEffect::SetReplay { payload },
-    } = &rule.effect
+    let RuntimeAction::Dispatch {
+        dispatch: RuntimeDispatchAction::SetReplay { payload },
+    } = &rule.action
     else {
         return None;
     };
@@ -479,28 +460,6 @@ fn rule_to_replay_payload_rule(rule: &RuntimeRule) -> Option<ReplayPayloadRule> 
         when: rule.when.clone(),
         payload: replay_payload_from_mode(*payload),
     })
-}
-
-impl From<destack_workspace::ExecutionMode> for ExecutionMode {
-    fn from(mode: destack_workspace::ExecutionMode) -> Self {
-        match mode {
-            destack_workspace::ExecutionMode::Fast => ExecutionMode::Fast,
-            destack_workspace::ExecutionMode::Deterministic => ExecutionMode::Deterministic,
-            destack_workspace::ExecutionMode::Record => ExecutionMode::Record,
-            destack_workspace::ExecutionMode::Replay => ExecutionMode::Replay,
-        }
-    }
-}
-
-impl From<ExecutionMode> for destack_workspace::ExecutionMode {
-    fn from(mode: ExecutionMode) -> Self {
-        match mode {
-            ExecutionMode::Fast => destack_workspace::ExecutionMode::Fast,
-            ExecutionMode::Deterministic => destack_workspace::ExecutionMode::Deterministic,
-            ExecutionMode::Record => destack_workspace::ExecutionMode::Record,
-            ExecutionMode::Replay => destack_workspace::ExecutionMode::Replay,
-        }
-    }
 }
 
 /// Calculate the allowed effects for a mode.
@@ -523,9 +482,9 @@ const fn allowed_effects_for_mode(mode: ExecutionMode) -> BindingEffectMask {
 }
 
 /// Convert workspace replay payload mode to runtime replay payload policy.
-const fn replay_payload_from_mode(mode: ReplayPayloadMode) -> ReplayPayload {
+const fn replay_payload_from_mode(mode: ReplayPayloadMode) -> BindingReplayPayload {
     match mode {
-        ReplayPayloadMode::ResultsOnly => ReplayPayload::Results,
-        ReplayPayloadMode::ArgumentsAndResults => ReplayPayload::ArgumentsAndResults,
+        ReplayPayloadMode::ResultsOnly => BindingReplayPayload::Results,
+        ReplayPayloadMode::ArgumentsAndResults => BindingReplayPayload::ArgumentsAndResults,
     }
 }

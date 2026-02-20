@@ -12,7 +12,7 @@ use crate::platform::net::{
     AcceptFlags, SocketAddress, SocketFamily, SocketPair, SocketProtocol, SocketType,
 };
 use crate::platform::resource::{ListenerHandle, ResourceEntry, ResourceKind, SocketHandle};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 const IPV4_LOOPBACK: [u8; 4] = [127, 0, 0, 1];
 const IPV6_LOOPBACK: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
@@ -94,7 +94,7 @@ fn local_socket_address(socket: usize) -> RuntimeResult<(SOCKADDR_STORAGE, i32)>
 
 /// Register two sockets as one runtime socket pair.
 fn register_socket_pair(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketPair,
     first_socket: usize,
     second_socket: usize,
@@ -122,7 +122,7 @@ fn register_socket_pair(
 
 /// Build a connected stream socket pair over loopback.
 fn socket_pair_stream_loopback(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketPair,
     family: i32,
     protocol: i32,
@@ -225,7 +225,7 @@ fn socket_pair_stream_loopback(
 
 /// Build a connected datagram socket pair over loopback.
 fn socket_pair_dgram_loopback(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketPair,
     family: i32,
     protocol: i32,
@@ -341,7 +341,7 @@ fn socket_pair_dgram_loopback(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_accept(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketHandle,
     listener: ListenerHandle,
     _flags: AcceptFlags,
@@ -390,7 +390,7 @@ pub(crate) unsafe fn destack_net_accept(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
     // remove the resource entry
@@ -430,7 +430,7 @@ pub(crate) unsafe fn destack_net_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_close_listener(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
     // remove the resource entry
@@ -455,7 +455,7 @@ pub(crate) unsafe fn destack_net_close_listener(
 /// Connect an existing socket to a raw remote address.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_connect_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -495,7 +495,7 @@ pub(crate) unsafe fn destack_net_connect_raw(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_bind(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -519,7 +519,7 @@ pub(crate) unsafe fn destack_net_bind(
 /// Start listening on a raw local socket address.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_listen_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ListenerHandle,
     address: SocketAddress,
     backlog: u32,
@@ -625,7 +625,7 @@ pub(crate) unsafe fn destack_net_listen_raw(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_socket(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketHandle,
     family: SocketFamily,
     socket_type: SocketType,
@@ -677,7 +677,7 @@ pub(crate) unsafe fn destack_net_socket(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_socket_pair(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketPair,
     family: SocketFamily,
     socket_type: SocketType,

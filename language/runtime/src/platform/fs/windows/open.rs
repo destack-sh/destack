@@ -19,7 +19,7 @@ use crate::platform::fs::{
     core as core_fs,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Open flag value for directory-only opens.
 const O_DIRECTORY: u32 = 0o200000;
@@ -42,7 +42,7 @@ const O_DIRECTORY: u32 = 0o200000;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_open_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     path: PathBytes,
     flags: OpenFlags,
@@ -121,7 +121,7 @@ pub(crate) unsafe fn destack_fs_open_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_open_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     path: PathUtf16,
     flags: OpenFlags,
@@ -200,7 +200,7 @@ pub(crate) unsafe fn destack_fs_open_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathBytes,
@@ -285,7 +285,7 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathUtf16,
@@ -370,7 +370,7 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathBytes,
@@ -403,7 +403,7 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathUtf16,
@@ -436,7 +436,7 @@ pub(crate) unsafe fn destack_fs_openat2_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     path: OsPath,
     flags: OpenFlags,
@@ -468,7 +468,7 @@ pub(crate) unsafe fn destack_fs_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     dir: DirectoryHandle,
     path: OsPath,
@@ -501,7 +501,7 @@ pub(crate) unsafe fn destack_fs_openat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     dir: DirectoryHandle,
     path: OsPath,

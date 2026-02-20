@@ -5,10 +5,6 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
-    NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
-};
 use crate::platform::fs::{
     AccessMode, AllocFlags, AtFlags, CopyFlags, Dirent, DirentKind, DirentNext,
     DirentNextReplayRecord, DirentNextVm, DirentReplayRecord, DirentVm, FdFlags, FileAdvice,
@@ -24,12 +20,16 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
     abi as platform_abi,
 };
+use crate::runtime::bindings::{
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
+    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
+use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
 
@@ -6846,7 +6846,7 @@ pub const FS_ATTRS_ACCESS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.attrs.access",
         "export function access(path: OsPath, mode: AccessMode): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.metadata"],
         BindingScope::Host,
@@ -6871,7 +6871,7 @@ pub const FS_ATTRS_ACCESS: BindingDescriptor =
 pub const FS_ATTRS_ACCESSAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.accessat",
     "export function accessat(dir: DirectoryHandle, path: OsPath, mode: AccessMode, flags: AtFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
     BindingScope::Host,
@@ -6884,7 +6884,7 @@ pub const FS_ATTRS_CHMOD: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.attrs.chmod",
         "export function chmod(path: OsPath, mode: FileMode): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.chmod"],
         BindingScope::Host,
@@ -6909,7 +6909,7 @@ pub const FS_ATTRS_CHMOD: BindingDescriptor =
 pub const FS_ATTRS_CHOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.chown",
     "export function chown(path: OsPath, uid: uint32, gid: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.chown"],
     BindingScope::Host,
@@ -6922,7 +6922,7 @@ pub const FS_ATTRS_FCHMOD: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.attrs.fchmod",
         "export function fchmod(handle: FileHandle, mode: FileMode): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.chmod"],
         BindingScope::Host,
@@ -6947,7 +6947,7 @@ pub const FS_ATTRS_FCHMOD: BindingDescriptor =
 pub const FS_ATTRS_FCHMODAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.fchmodat",
     "export function fchmodat(dir: DirectoryHandle, path: OsPath, mode: FileMode, flags: AtFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.chmod"],
     BindingScope::Host,
@@ -6959,7 +6959,7 @@ pub const FS_ATTRS_FCHMODAT: BindingDescriptor = BindingDescriptor::external_wit
 pub const FS_ATTRS_FCHOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.fchown",
     "export function fchown(handle: FileHandle, uid: uint32, gid: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.chown"],
     BindingScope::Host,
@@ -6971,7 +6971,7 @@ pub const FS_ATTRS_FCHOWN: BindingDescriptor = BindingDescriptor::external_with_
 pub const FS_ATTRS_FCHOWNAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.fchownat",
     "export function fchownat(dir: DirectoryHandle, path: OsPath, uid: uint32, gid: uint32, flags: AtFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.chown"],
     BindingScope::Host,
@@ -6983,7 +6983,7 @@ pub const FS_ATTRS_FCHOWNAT: BindingDescriptor = BindingDescriptor::external_wit
 pub const FS_ATTRS_FUTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.futimes",
     "export function futimes(handle: FileHandle, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
     BindingScope::Host,
@@ -6995,7 +6995,7 @@ pub const FS_ATTRS_FUTIMES: BindingDescriptor = BindingDescriptor::external_with
 pub const FS_ATTRS_LUTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.lutimes",
     "export function lutimes(path: OsPath, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
     BindingScope::Host,
@@ -7007,7 +7007,7 @@ pub const FS_ATTRS_LUTIMES: BindingDescriptor = BindingDescriptor::external_with
 pub const FS_ATTRS_UTIMENSAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.utimensat",
     "export function utimensat(dir: DirectoryHandle, path: OsPath, atimeNs: uint64, mtimeNs: uint64, flags: AtFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
     BindingScope::Host,
@@ -7019,7 +7019,7 @@ pub const FS_ATTRS_UTIMENSAT: BindingDescriptor = BindingDescriptor::external_wi
 pub const FS_ATTRS_UTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.utimes",
     "export function utimes(path: OsPath, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
     BindingScope::Host,
@@ -7032,7 +7032,7 @@ pub const FS_DIR_CLOSEDIR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.dir.closedir",
         "export function closedir(handle: DirectoryHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.handle"],
         BindingScope::Host,
@@ -7057,7 +7057,7 @@ pub const FS_DIR_CLOSEDIR: BindingDescriptor =
 pub const FS_DIR_DIRFD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.dir.dirfd",
     "export function dirfd(handle: DirectoryHandle): Result<FileHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.handle"],
     BindingScope::Host,
@@ -7082,7 +7082,7 @@ pub const FS_DIR_DIRFD: BindingDescriptor = BindingDescriptor::external_with_req
 pub const FS_DIR_MKDIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.dir.mkdir",
     "export function mkdir(path: OsPath, mode: FileMode): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
     BindingScope::Host,
@@ -7107,7 +7107,7 @@ pub const FS_DIR_MKDIR: BindingDescriptor = BindingDescriptor::external_with_req
 pub const FS_DIR_MKDIRAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.dir.mkdirat",
     "export function mkdirat(dir: DirectoryHandle, path: OsPath, mode: FileMode): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
     BindingScope::Host,
@@ -7120,7 +7120,7 @@ pub const FS_DIR_MKDTEMP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.dir.mkdtemp",
         "export function mkdtemp(template: OsPath): Result<OsPath, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.temp"],
         BindingScope::Host,
@@ -7146,7 +7146,7 @@ pub const FS_DIR_OPENDIR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.dir.opendir",
         "export function opendir(path: OsPath): Result<DirectoryHandle, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.read"],
         BindingScope::Host,
@@ -7172,7 +7172,7 @@ pub const FS_DIR_READDIR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.dir.readdir",
         "export function readdir(handle: DirectoryHandle): Result<Dirent[], PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.read"],
         BindingScope::Host,
@@ -7198,7 +7198,7 @@ pub const FS_DIR_READDIR_NEXT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.dir.readdirNext",
         "export function readdirNext(handle: DirectoryHandle): Result<DirentNext, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.read"],
         BindingScope::Host,
@@ -7224,7 +7224,7 @@ pub const FS_DIR_REWINDDIR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.dir.rewinddir",
         "export function rewinddir(handle: DirectoryHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.read"],
         BindingScope::Host,
@@ -7249,7 +7249,7 @@ pub const FS_DIR_REWINDDIR: BindingDescriptor =
 pub const FS_DIR_RMDIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.dir.rmdir",
     "export function rmdir(path: OsPath): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
     BindingScope::Host,
@@ -7275,7 +7275,7 @@ pub const FS_FILE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.close",
         "export function close(handle: FileHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.handle"],
         BindingScope::Host,
@@ -7300,7 +7300,7 @@ pub const FS_FILE_CLOSE: BindingDescriptor =
 pub const FS_FILE_COPY_FILE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.copyFileRange",
     "export function copyFileRange(src: FileHandle, srcOffset: FileOffset, dst: FileHandle, dstOffset: FileOffset, length: FileSize): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read", "fs.write"],
     BindingScope::Host,
@@ -7312,7 +7312,7 @@ pub const FS_FILE_COPY_FILE_RANGE: BindingDescriptor = BindingDescriptor::extern
 pub const FS_FILE_DUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.dup",
     "export function dup(handle: FileHandle): Result<FileHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.handle"],
     BindingScope::Host,
@@ -7337,7 +7337,7 @@ pub const FS_FILE_DUP: BindingDescriptor = BindingDescriptor::external_with_requ
 pub const FS_FILE_DUP2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.dup2",
     "export function dup2(handle: FileHandle, target: FileHandle): Result<FileHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.handle"],
     BindingScope::Host,
@@ -7349,7 +7349,7 @@ pub const FS_FILE_DUP2: BindingDescriptor = BindingDescriptor::external_with_req
 pub const FS_FILE_DUP3: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.dup3",
     "export function dup3(handle: FileHandle, target: FileHandle, flags: OpenFlags): Result<FileHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.handle"],
     BindingScope::Host,
@@ -7361,7 +7361,7 @@ pub const FS_FILE_DUP3: BindingDescriptor = BindingDescriptor::external_with_req
 pub const FS_FILE_FADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.fadvise",
     "export function fadvise(handle: FileHandle, offset: FileOffset, length: FileSize, advice: FileAdvice): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
     BindingScope::Host,
@@ -7373,7 +7373,7 @@ pub const FS_FILE_FADVISE: BindingDescriptor = BindingDescriptor::external_with_
 pub const FS_FILE_FALLOCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.fallocate",
     "export function fallocate(handle: FileHandle, offset: FileOffset, length: FileSize, flags: AllocFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
     BindingScope::Host,
@@ -7386,7 +7386,7 @@ pub const FS_FILE_FDATASYNC: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.fdatasync",
         "export function fdatasync(handle: FileHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.sync"],
         BindingScope::Host,
@@ -7412,7 +7412,7 @@ pub const FS_FILE_FSYNC: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.fsync",
         "export function fsync(handle: FileHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.sync"],
         BindingScope::Host,
@@ -7437,7 +7437,7 @@ pub const FS_FILE_FSYNC: BindingDescriptor =
 pub const FS_FILE_FTRUNCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.ftruncate",
     "export function ftruncate(handle: FileHandle, size: FileOffset): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
     BindingScope::Host,
@@ -7450,7 +7450,7 @@ pub const FS_FILE_GET_FD_FLAGS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.getFdFlags",
         "export function getFdFlags(handle: FileHandle): Result<FdFlags, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.handle"],
         BindingScope::Host,
@@ -7476,7 +7476,7 @@ pub const FS_FILE_GET_STATUS_FLAGS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.getStatusFlags",
         "export function getStatusFlags(handle: FileHandle): Result<StatusFlags, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.handle"],
         BindingScope::Host,
@@ -7501,7 +7501,7 @@ pub const FS_FILE_GET_STATUS_FLAGS: BindingDescriptor =
 pub const FS_FILE_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.lock",
     "export function lock(handle: FileHandle, flags: FileLockFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.lock"],
     BindingScope::Host,
@@ -7526,7 +7526,7 @@ pub const FS_FILE_LOCK: BindingDescriptor = BindingDescriptor::external_with_req
 pub const FS_FILE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.open",
     "export function open(path: OsPath, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read", "fs.write"],
     BindingScope::Host,
@@ -7538,7 +7538,7 @@ pub const FS_FILE_OPEN: BindingDescriptor = BindingDescriptor::external_with_req
 pub const FS_FILE_OPENAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.openat",
     "export function openat(dir: DirectoryHandle, path: OsPath, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read", "fs.write"],
     BindingScope::Host,
@@ -7550,7 +7550,7 @@ pub const FS_FILE_OPENAT: BindingDescriptor = BindingDescriptor::external_with_r
 pub const FS_FILE_OPENAT2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.openat2",
     "export function openat2(dir: DirectoryHandle, path: OsPath, how: OpenOptions): Result<FileHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read", "fs.write"],
     BindingScope::Host,
@@ -7562,7 +7562,7 @@ pub const FS_FILE_OPENAT2: BindingDescriptor = BindingDescriptor::external_with_
 pub const FS_FILE_PREAD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.pread",
     "export function pread(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read"],
     BindingScope::Host,
@@ -7574,7 +7574,7 @@ pub const FS_FILE_PREAD: BindingDescriptor = BindingDescriptor::external_with_re
 pub const FS_FILE_PREADV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.preadv",
     "export function preadv(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read"],
     BindingScope::Host,
@@ -7586,7 +7586,7 @@ pub const FS_FILE_PREADV: BindingDescriptor = BindingDescriptor::external_with_r
 pub const FS_FILE_PREADV2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.preadv2",
     "export function preadv2(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset, flags: ReadWriteFlags): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read"],
     BindingScope::Host,
@@ -7598,7 +7598,7 @@ pub const FS_FILE_PREADV2: BindingDescriptor = BindingDescriptor::external_with_
 pub const FS_FILE_PWRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.pwrite",
     "export function pwrite(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
     BindingScope::Host,
@@ -7610,7 +7610,7 @@ pub const FS_FILE_PWRITE: BindingDescriptor = BindingDescriptor::external_with_r
 pub const FS_FILE_PWRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.pwritev",
     "export function pwritev(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
     BindingScope::Host,
@@ -7622,7 +7622,7 @@ pub const FS_FILE_PWRITEV: BindingDescriptor = BindingDescriptor::external_with_
 pub const FS_FILE_PWRITEV2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.pwritev2",
     "export function pwritev2(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset, flags: ReadWriteFlags): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
     BindingScope::Host,
@@ -7634,7 +7634,7 @@ pub const FS_FILE_PWRITEV2: BindingDescriptor = BindingDescriptor::external_with
 pub const FS_FILE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.read",
     "export function read(handle: FileHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read"],
     BindingScope::Host,
@@ -7659,7 +7659,7 @@ pub const FS_FILE_READ: BindingDescriptor = BindingDescriptor::external_with_req
 pub const FS_FILE_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.readv",
     "export function readv(handle: FileHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read"],
     BindingScope::Host,
@@ -7671,7 +7671,7 @@ pub const FS_FILE_READV: BindingDescriptor = BindingDescriptor::external_with_re
 pub const FS_FILE_SEEK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.seek",
     "export function seek(handle: FileHandle, offset: FileOffset, whence: SeekWhence): Result<FileOffset, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.handle"],
     BindingScope::Host,
@@ -7683,7 +7683,7 @@ pub const FS_FILE_SEEK: BindingDescriptor = BindingDescriptor::external_with_req
 pub const FS_FILE_SENDFILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.sendfile",
     "export function sendfile(socket: SocketHandle, file: FileHandle, offset: FileOffset, length: FileSize): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read", "fs.write"],
     BindingScope::Host,
@@ -7695,7 +7695,7 @@ pub const FS_FILE_SENDFILE: BindingDescriptor = BindingDescriptor::external_with
 pub const FS_FILE_SET_FD_FLAGS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.setFdFlags",
     "export function setFdFlags(handle: FileHandle, flags: FdFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.handle"],
     BindingScope::Host,
@@ -7707,7 +7707,7 @@ pub const FS_FILE_SET_FD_FLAGS: BindingDescriptor = BindingDescriptor::external_
 pub const FS_FILE_SET_STATUS_FLAGS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.setStatusFlags",
     "export function setStatusFlags(handle: FileHandle, flags: StatusFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.handle"],
     BindingScope::Host,
@@ -7719,7 +7719,7 @@ pub const FS_FILE_SET_STATUS_FLAGS: BindingDescriptor = BindingDescriptor::exter
 pub const FS_FILE_SPLICE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.splice",
     "export function splice(source: ResourceId, sourceCursor: SpliceCursor, target: ResourceId, targetCursor: SpliceCursor, length: FileSize, flags: SpliceFlags): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.zero.copy"],
     BindingScope::Host,
@@ -7731,7 +7731,7 @@ pub const FS_FILE_SPLICE: BindingDescriptor = BindingDescriptor::external_with_r
 pub const FS_FILE_SYNC_FILE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.syncFileRange",
     "export function syncFileRange(handle: FileHandle, offset: FileOffset, length: FileSize, flags: SyncFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.sync"],
     BindingScope::Host,
@@ -7744,7 +7744,7 @@ pub const FS_FILE_SYNCFS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.syncfs",
         "export function syncfs(handle: FileHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.sync"],
         BindingScope::Host,
@@ -7769,7 +7769,7 @@ pub const FS_FILE_SYNCFS: BindingDescriptor =
 pub const FS_FILE_TEE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.tee",
     "export function tee(sourcePipe: PipeHandle, targetPipe: PipeHandle, length: FileSize, flags: SpliceFlags): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.zero.copy"],
     BindingScope::Host,
@@ -7782,7 +7782,7 @@ pub const FS_FILE_TRUNCATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.truncate",
         "export function truncate(path: OsPath, size: FileOffset): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.write"],
         BindingScope::Host,
@@ -7807,7 +7807,7 @@ pub const FS_FILE_TRUNCATE: BindingDescriptor =
 pub const FS_FILE_VMSPLICE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.vmsplice",
     "export function vmsplice(pipe: PipeHandle, buffers: Slice<Slice<uint8>>, flags: SpliceFlags): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.zero.copy"],
     BindingScope::Host,
@@ -7819,7 +7819,7 @@ pub const FS_FILE_VMSPLICE: BindingDescriptor = BindingDescriptor::external_with
 pub const FS_FILE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.write",
     "export function write(handle: FileHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
     BindingScope::Host,
@@ -7831,7 +7831,7 @@ pub const FS_FILE_WRITE: BindingDescriptor = BindingDescriptor::external_with_re
 pub const FS_FILE_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.writev",
     "export function writev(handle: FileHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
     BindingScope::Host,
@@ -7843,7 +7843,7 @@ pub const FS_FILE_WRITEV: BindingDescriptor = BindingDescriptor::external_with_r
 pub const FS_MMAP_MADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.mmap.madvise",
     "export function madvise(mapping: Slice<uint8>, advice: MmapAdvice): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.mmap"],
     BindingScope::Host,
@@ -7855,7 +7855,7 @@ pub const FS_MMAP_MADVISE: BindingDescriptor = BindingDescriptor::external_with_
 pub const FS_MMAP_MMAP_ANONYMOUS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.mmap.mmapAnonymous",
     "export function mmapAnonymous(length: FileSize, prot: MmapProt, flags: MmapFlags): Result<Slice<uint8>, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.mmap"],
     BindingScope::Host,
@@ -7867,7 +7867,7 @@ pub const FS_MMAP_MMAP_ANONYMOUS: BindingDescriptor = BindingDescriptor::externa
 pub const FS_MMAP_MMAP_FILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.mmap.mmapFile",
     "export function mmapFile(handle: FileHandle, offset: FileOffset, length: FileSize, prot: MmapProt, flags: MmapFlags): Result<Slice<uint8>, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.mmap"],
     BindingScope::Host,
@@ -7879,7 +7879,7 @@ pub const FS_MMAP_MMAP_FILE: BindingDescriptor = BindingDescriptor::external_wit
 pub const FS_MMAP_MPROTECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.mmap.mprotect",
     "export function mprotect(mapping: Slice<uint8>, prot: MmapProt): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.mmap"],
     BindingScope::Host,
@@ -7891,7 +7891,7 @@ pub const FS_MMAP_MPROTECT: BindingDescriptor = BindingDescriptor::external_with
 pub const FS_MMAP_MSYNC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.mmap.msync",
     "export function msync(mapping: Slice<uint8>, flags: MmapSyncFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.mmap"],
     BindingScope::Host,
@@ -7904,7 +7904,7 @@ pub const FS_MMAP_MUNMAP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.mmap.munmap",
         "export function munmap(mapping: Slice<uint8>): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.mmap"],
         BindingScope::Host,
@@ -7929,7 +7929,7 @@ pub const FS_MMAP_MUNMAP: BindingDescriptor =
 pub const FS_PATH_COPYFILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.copyfile",
     "export function copyfile(from: OsPath, to: OsPath, flags: CopyFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read", "fs.write"],
     BindingScope::Host,
@@ -7941,7 +7941,7 @@ pub const FS_PATH_COPYFILE: BindingDescriptor = BindingDescriptor::external_with
 pub const FS_PATH_LINK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.link",
     "export function link(existingPath: OsPath, newPath: OsPath): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.link"],
     BindingScope::Host,
@@ -7966,7 +7966,7 @@ pub const FS_PATH_LINK: BindingDescriptor = BindingDescriptor::external_with_req
 pub const FS_PATH_LINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.linkat",
     "export function linkat(existingDir: DirectoryHandle, existingPath: OsPath, newDir: DirectoryHandle, newPath: OsPath, flags: AtFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.link"],
     BindingScope::Host,
@@ -7979,7 +7979,7 @@ pub const FS_PATH_MKFIFO: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.path.mkfifo",
         "export function mkfifo(path: OsPath, mode: FileMode): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.special"],
         BindingScope::Host,
@@ -8003,7 +8003,7 @@ pub const FS_PATH_MKFIFO: BindingDescriptor =
 pub const FS_PATH_MKFIFOAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.mkfifoat",
     "export function mkfifoat(dir: DirectoryHandle, path: OsPath, mode: FileMode): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.special"],
     BindingScope::Host,
@@ -8015,7 +8015,7 @@ pub const FS_PATH_MKFIFOAT: BindingDescriptor = BindingDescriptor::external_with
 pub const FS_PATH_MKNOD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.mknod",
     "export function mknod(path: OsPath, mode: FileMode, device: NodeDevice): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.special"],
     BindingScope::Host,
@@ -8027,7 +8027,7 @@ pub const FS_PATH_MKNOD: BindingDescriptor = BindingDescriptor::external_with_re
 pub const FS_PATH_MKNODAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.mknodat",
     "export function mknodat(dir: DirectoryHandle, path: OsPath, mode: FileMode, device: NodeDevice): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.special"],
     BindingScope::Host,
@@ -8040,7 +8040,7 @@ pub const FS_PATH_READLINK: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.path.readlink",
         "export function readlink(path: OsPath): Result<OsPath, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.read"],
         BindingScope::Host,
@@ -8065,7 +8065,7 @@ pub const FS_PATH_READLINK: BindingDescriptor =
 pub const FS_PATH_READLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.readlinkat",
     "export function readlinkat(dir: DirectoryHandle, path: OsPath): Result<OsPath, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.read"],
     BindingScope::Host,
@@ -8078,7 +8078,7 @@ pub const FS_PATH_REALPATH: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.path.realpath",
         "export function realpath(path: OsPath): Result<OsPath, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.metadata"],
         BindingScope::Host,
@@ -8104,7 +8104,7 @@ pub const FS_PATH_RENAME: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.path.rename",
         "export function rename(from: OsPath, to: OsPath): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.write"],
         BindingScope::Host,
@@ -8129,7 +8129,7 @@ pub const FS_PATH_RENAME: BindingDescriptor =
 pub const FS_PATH_RENAMEAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.renameat",
     "export function renameat(fromDir: DirectoryHandle, from: OsPath, toDir: DirectoryHandle, to: OsPath): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
     BindingScope::Host,
@@ -8141,7 +8141,7 @@ pub const FS_PATH_RENAMEAT: BindingDescriptor = BindingDescriptor::external_with
 pub const FS_PATH_RENAMEAT2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.renameat2",
     "export function renameat2(fromDir: DirectoryHandle, from: OsPath, toDir: DirectoryHandle, to: OsPath, flags: RenameFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
     BindingScope::Host,
@@ -8153,7 +8153,7 @@ pub const FS_PATH_RENAMEAT2: BindingDescriptor = BindingDescriptor::external_wit
 pub const FS_PATH_SYMLINK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.symlink",
     "export function symlink(target: OsPath, path: OsPath, kind: SymlinkType): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.link"],
     BindingScope::Host,
@@ -8165,7 +8165,7 @@ pub const FS_PATH_SYMLINK: BindingDescriptor = BindingDescriptor::external_with_
 pub const FS_PATH_SYMLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.symlinkat",
     "export function symlinkat(target: OsPath, dir: DirectoryHandle, path: OsPath, kind: SymlinkType): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.link"],
     BindingScope::Host,
@@ -8178,7 +8178,7 @@ pub const FS_PATH_UNLINK: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.path.unlink",
         "export function unlink(path: OsPath): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.write"],
         BindingScope::Host,
@@ -8203,7 +8203,7 @@ pub const FS_PATH_UNLINK: BindingDescriptor =
 pub const FS_PATH_UNLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.unlinkat",
     "export function unlinkat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.write"],
     BindingScope::Host,
@@ -8216,7 +8216,7 @@ pub const FS_STAT_FSTAT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.stat.fstat",
         "export function fstat(handle: FileHandle): Result<Stat, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.metadata"],
         BindingScope::Host,
@@ -8242,7 +8242,7 @@ pub const FS_STAT_FSTATFS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.stat.fstatfs",
         "export function fstatfs(handle: FileHandle): Result<StatFs, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.metadata"],
         BindingScope::Host,
@@ -8268,7 +8268,7 @@ pub const FS_STAT_LSTAT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.stat.lstat",
         "export function lstat(path: OsPath): Result<Stat, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.metadata"],
         BindingScope::Host,
@@ -8293,7 +8293,7 @@ pub const FS_STAT_LSTAT: BindingDescriptor =
 pub const FS_STAT_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.stat.path",
     "export function stat(path: OsPath): Result<Stat, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
     BindingScope::Host,
@@ -8318,7 +8318,7 @@ pub const FS_STAT_PATH: BindingDescriptor = BindingDescriptor::external_with_req
 pub const FS_STAT_PATHAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.stat.pathat",
     "export function statat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<Stat, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
     BindingScope::Host,
@@ -8331,7 +8331,7 @@ pub const FS_STAT_PATHFS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.stat.pathfs",
         "export function statfs(path: OsPath): Result<StatFs, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.metadata"],
         BindingScope::Host,
@@ -8356,7 +8356,7 @@ pub const FS_STAT_PATHFS: BindingDescriptor =
 pub const FS_STAT_PATHX: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.stat.pathx",
     "export function statx(dir: DirectoryHandle, path: OsPath, flags: StatxFlags, mask: StatxMask): Result<Statx, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.metadata"],
     BindingScope::Host,
@@ -8368,7 +8368,7 @@ pub const FS_STAT_PATHX: BindingDescriptor = BindingDescriptor::external_with_re
 pub const FS_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.watch.open",
     "export function watch(path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.watch"],
     BindingScope::Host,
@@ -8381,7 +8381,7 @@ pub const FS_WATCH_OPEN_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.watch.openClose",
         "export function watchClose(handle: WatchHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.watch"],
         BindingScope::Host,
@@ -8402,7 +8402,7 @@ pub const FS_WATCH_OPEN_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.watch.openRead",
         "export function watchRead(handle: WatchHandle): Result<WatchBatch, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.watch"],
         BindingScope::Host,
@@ -8422,7 +8422,7 @@ pub const FS_WATCH_OPEN_READ: BindingDescriptor =
 pub const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.watch.openat",
     "export function watchat(directory: DirectoryHandle, path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.watch"],
     BindingScope::Host,
@@ -8434,7 +8434,7 @@ pub const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::external_with_
 pub const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fgetxattr",
     "export function fgetxattr(handle: FileHandle, name: string): Result<uint8[], PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
     BindingScope::Host,
@@ -8446,7 +8446,7 @@ pub const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::external_wi
 pub const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fgetxattrBytes",
     "export function fgetxattrBytes(handle: FileHandle, name: Slice<uint8>): Result<uint8[], PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
     BindingScope::Host,
@@ -8459,7 +8459,7 @@ pub const FS_XATTR_FLISTXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.flistxattr",
         "export function flistxattr(handle: FileHandle): Result<string[], PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
         BindingScope::Host,
@@ -8485,7 +8485,7 @@ pub const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.flistxattrBytes",
         "export function flistxattrBytes(handle: FileHandle): Result<uint8[][], PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
         BindingScope::Host,
@@ -8510,7 +8510,7 @@ pub const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor =
 pub const FS_XATTR_FREMOVEXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fremovexattr",
     "export function fremovexattr(handle: FileHandle, name: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
     BindingScope::Host,
@@ -8522,7 +8522,7 @@ pub const FS_XATTR_FREMOVEXATTR: BindingDescriptor = BindingDescriptor::external
 pub const FS_XATTR_FREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fremovexattrBytes",
     "export function fremovexattrBytes(handle: FileHandle, name: Slice<uint8>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
     BindingScope::Host,
@@ -8534,7 +8534,7 @@ pub const FS_XATTR_FREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::ex
 pub const FS_XATTR_FSETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fsetxattr",
     "export function fsetxattr(handle: FileHandle, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
     BindingScope::Host,
@@ -8546,7 +8546,7 @@ pub const FS_XATTR_FSETXATTR: BindingDescriptor = BindingDescriptor::external_wi
 pub const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fsetxattrBytes",
     "export function fsetxattrBytes(handle: FileHandle, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
     BindingScope::Host,
@@ -8559,7 +8559,7 @@ pub const FS_XATTR_GETXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.getxattr",
         "export function getxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
         BindingScope::Host,
@@ -8584,7 +8584,7 @@ pub const FS_XATTR_GETXATTR: BindingDescriptor =
 pub const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.getxattrBytes",
     "export function getxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
     BindingScope::Host,
@@ -8597,7 +8597,7 @@ pub const FS_XATTR_LGETXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.lgetxattr",
         "export function lgetxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
         BindingScope::Host,
@@ -8622,7 +8622,7 @@ pub const FS_XATTR_LGETXATTR: BindingDescriptor =
 pub const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.lgetxattrBytes",
     "export function lgetxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
     BindingScope::Host,
@@ -8635,7 +8635,7 @@ pub const FS_XATTR_LISTXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.listxattr",
         "export function listxattr(path: OsPath): Result<string[], PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
         BindingScope::Host,
@@ -8661,7 +8661,7 @@ pub const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.listxattrBytes",
         "export function listxattrBytes(path: OsPath): Result<uint8[][], PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
         BindingScope::Host,
@@ -8687,7 +8687,7 @@ pub const FS_XATTR_LLISTXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.llistxattr",
         "export function llistxattr(path: OsPath): Result<string[], PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
         BindingScope::Host,
@@ -8713,7 +8713,7 @@ pub const FS_XATTR_LLISTXATTR_BYTES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.llistxattrBytes",
         "export function llistxattrBytes(path: OsPath): Result<uint8[][], PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
         BindingScope::Host,
@@ -8739,7 +8739,7 @@ pub const FS_XATTR_LREMOVEXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.lremovexattr",
         "export function lremovexattr(path: OsPath, name: string): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
         BindingScope::Host,
@@ -8764,7 +8764,7 @@ pub const FS_XATTR_LREMOVEXATTR: BindingDescriptor =
 pub const FS_XATTR_LREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.lremovexattrBytes",
     "export function lremovexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
     BindingScope::Host,
@@ -8776,7 +8776,7 @@ pub const FS_XATTR_LREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::ex
 pub const FS_XATTR_LSETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.lsetxattr",
     "export function lsetxattr(path: OsPath, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
     BindingScope::Host,
@@ -8788,7 +8788,7 @@ pub const FS_XATTR_LSETXATTR: BindingDescriptor = BindingDescriptor::external_wi
 pub const FS_XATTR_LSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.lsetxattrBytes",
     "export function lsetxattrBytes(path: OsPath, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
     BindingScope::Host,
@@ -8801,7 +8801,7 @@ pub const FS_XATTR_REMOVEXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.removexattr",
         "export function removexattr(path: OsPath, name: string): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["fs.xattr"],
         BindingScope::Host,
@@ -8826,7 +8826,7 @@ pub const FS_XATTR_REMOVEXATTR: BindingDescriptor =
 pub const FS_XATTR_REMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.removexattrBytes",
     "export function removexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
     BindingScope::Host,
@@ -8838,7 +8838,7 @@ pub const FS_XATTR_REMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::ext
 pub const FS_XATTR_SETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.setxattr",
     "export function setxattr(path: OsPath, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
     BindingScope::Host,
@@ -8850,7 +8850,7 @@ pub const FS_XATTR_SETXATTR: BindingDescriptor = BindingDescriptor::external_wit
 pub const FS_XATTR_SETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.setxattrBytes",
     "export function setxattrBytes(path: OsPath, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["fs.xattr"],
     BindingScope::Host,
@@ -9568,21 +9568,21 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for fs bindings.
 #[inline]
 fn destack_fs_attrs_access_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_ATTRS_ACCESS,
         context.replay_payload_for(FS_ATTRS_ACCESS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_access(context, path, mode)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_access(context, path, mode)
             },
         },
@@ -9617,7 +9617,7 @@ fn destack_fs_attrs_access_replay(
 
 #[inline]
 fn destack_fs_attrs_accessat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -9626,14 +9626,14 @@ fn destack_fs_attrs_accessat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_ATTRS_ACCESSAT,
         context.replay_payload_for(FS_ATTRS_ACCESSAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_accessat(context, dir, path, mode, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_accessat(context, dir, path, mode, flags)
             },
         },
@@ -9668,19 +9668,19 @@ fn destack_fs_attrs_accessat_replay(
 
 #[inline]
 fn destack_fs_attrs_chmod_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_ATTRS_CHMOD,
         context.replay_payload_for(FS_ATTRS_CHMOD)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_chmod(context, path, mode) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_chmod(context, path, mode)
             },
         },
@@ -9715,7 +9715,7 @@ fn destack_fs_attrs_chmod_replay(
 
 #[inline]
 fn destack_fs_attrs_chown_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     uid: u32,
@@ -9723,14 +9723,14 @@ fn destack_fs_attrs_chown_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &uid, &gid);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_ATTRS_CHOWN,
         context.replay_payload_for(FS_ATTRS_CHOWN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_chown(context, path, uid, gid)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_chown(context, path, uid, gid)
             },
         },
@@ -9765,21 +9765,21 @@ fn destack_fs_attrs_chown_replay(
 
 #[inline]
 fn destack_fs_attrs_fchmod_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_ATTRS_FCHMOD,
         context.replay_payload_for(FS_ATTRS_FCHMOD)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_fchmod(context, handle, mode)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fchmod(context, handle, mode)
             },
         },
@@ -9814,7 +9814,7 @@ fn destack_fs_attrs_fchmod_replay(
 
 #[inline]
 fn destack_fs_attrs_fchmodat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -9823,14 +9823,14 @@ fn destack_fs_attrs_fchmodat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_ATTRS_FCHMODAT,
         context.replay_payload_for(FS_ATTRS_FCHMODAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_fchmodat(context, dir, path, mode, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fchmodat(context, dir, path, mode, flags)
             },
         },
@@ -9865,7 +9865,7 @@ fn destack_fs_attrs_fchmodat_replay(
 
 #[inline]
 fn destack_fs_attrs_fchown_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     uid: u32,
@@ -9873,14 +9873,14 @@ fn destack_fs_attrs_fchown_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &uid, &gid);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_ATTRS_FCHOWN,
         context.replay_payload_for(FS_ATTRS_FCHOWN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_fchown(context, handle, uid, gid)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fchown(context, handle, uid, gid)
             },
         },
@@ -9915,7 +9915,7 @@ fn destack_fs_attrs_fchown_replay(
 
 #[inline]
 fn destack_fs_attrs_fchownat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -9925,14 +9925,14 @@ fn destack_fs_attrs_fchownat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &uid, &gid, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_ATTRS_FCHOWNAT,
         context.replay_payload_for(FS_ATTRS_FCHOWNAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_fchownat(context, dir, path, uid, gid, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fchownat(context, dir, path, uid, gid, flags)
             },
         },
@@ -9967,7 +9967,7 @@ fn destack_fs_attrs_fchownat_replay(
 
 #[inline]
 fn destack_fs_attrs_futimes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     atimens: u64,
@@ -9975,14 +9975,14 @@ fn destack_fs_attrs_futimes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &atimens, &mtimens);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_ATTRS_FUTIMES,
         context.replay_payload_for(FS_ATTRS_FUTIMES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_futimes(context, handle, atimens, mtimens)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_futimes(context, handle, atimens, mtimens)
             },
         },
@@ -10017,7 +10017,7 @@ fn destack_fs_attrs_futimes_replay(
 
 #[inline]
 fn destack_fs_attrs_lutimes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     atimens: u64,
@@ -10025,14 +10025,14 @@ fn destack_fs_attrs_lutimes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &atimens, &mtimens);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_ATTRS_LUTIMES,
         context.replay_payload_for(FS_ATTRS_LUTIMES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_lutimes(context, path, atimens, mtimens)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_lutimes(context, path, atimens, mtimens)
             },
         },
@@ -10067,7 +10067,7 @@ fn destack_fs_attrs_lutimes_replay(
 
 #[inline]
 fn destack_fs_attrs_utimensat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -10077,14 +10077,14 @@ fn destack_fs_attrs_utimensat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &atimens, &mtimens, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_ATTRS_UTIMENSAT,
         context.replay_payload_for(FS_ATTRS_UTIMENSAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_utimensat(context, dir, path, atimens, mtimens, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_utimensat(
                     context, dir, path, atimens, mtimens, flags,
                 )
@@ -10121,7 +10121,7 @@ fn destack_fs_attrs_utimensat_replay(
 
 #[inline]
 fn destack_fs_attrs_utimes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     atimens: u64,
@@ -10129,14 +10129,14 @@ fn destack_fs_attrs_utimes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &atimens, &mtimens);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_ATTRS_UTIMES,
         context.replay_payload_for(FS_ATTRS_UTIMES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_utimes(context, path, atimens, mtimens)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_utimes(context, path, atimens, mtimens)
             },
         },
@@ -10171,18 +10171,18 @@ fn destack_fs_attrs_utimes_replay(
 
 #[inline]
 fn destack_fs_dir_closedir_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_DIR_CLOSEDIR,
         context.replay_payload_for(FS_DIR_CLOSEDIR)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_closedir(context, handle) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_closedir(context, handle)
             },
         },
@@ -10217,21 +10217,21 @@ fn destack_fs_dir_closedir_replay(
 
 #[inline]
 fn destack_fs_dir_dirfd_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_DIR_DIRFD,
         context.replay_payload_for(FS_DIR_DIRFD)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_dirfd(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_dirfd(context, out, handle)
             },
         },
@@ -10278,19 +10278,19 @@ fn destack_fs_dir_dirfd_replay(
 
 #[inline]
 fn destack_fs_dir_mkdir_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_DIR_MKDIR,
         context.replay_payload_for(FS_DIR_MKDIR)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_mkdir(context, path, mode) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_mkdir(context, path, mode)
             },
         },
@@ -10325,7 +10325,7 @@ fn destack_fs_dir_mkdir_replay(
 
 #[inline]
 fn destack_fs_dir_mkdirat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -10333,14 +10333,14 @@ fn destack_fs_dir_mkdirat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_DIR_MKDIRAT,
         context.replay_payload_for(FS_DIR_MKDIRAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_mkdirat(context, dir, path, mode)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_mkdirat(context, dir, path, mode)
             },
         },
@@ -10375,21 +10375,21 @@ fn destack_fs_dir_mkdirat_replay(
 
 #[inline]
 fn destack_fs_dir_mkdtemp_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut OsPath,
     template: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &template;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_DIR_MKDTEMP,
         context.replay_payload_for(FS_DIR_MKDTEMP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_mkdtemp(context, out, template)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_mkdtemp(context, out, template)
             },
         },
@@ -10480,21 +10480,21 @@ fn destack_fs_dir_mkdtemp_replay(
 
 #[inline]
 fn destack_fs_dir_opendir_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::DirectoryHandle,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_DIR_OPENDIR,
         context.replay_payload_for(FS_DIR_OPENDIR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_opendir(context, out, path)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_opendir(context, out, path)
             },
         },
@@ -10541,21 +10541,21 @@ fn destack_fs_dir_opendir_replay(
 
 #[inline]
 fn destack_fs_dir_readdir_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<Dirent>,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_DIR_READDIR,
         context.replay_payload_for(FS_DIR_READDIR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_readdir(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_readdir(context, out, handle)
             },
         },
@@ -10695,21 +10695,21 @@ fn destack_fs_dir_readdir_replay(
 
 #[inline]
 fn destack_fs_dir_readdir_next_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut DirentNext,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_DIR_READDIR_NEXT,
         context.replay_payload_for(FS_DIR_READDIR_NEXT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_readdir_next(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_readdir_next(context, out, handle)
             },
         },
@@ -10842,18 +10842,18 @@ fn destack_fs_dir_readdir_next_replay(
 
 #[inline]
 fn destack_fs_dir_rewinddir_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_DIR_REWINDDIR,
         context.replay_payload_for(FS_DIR_REWINDDIR)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_rewinddir(context, handle) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_rewinddir(context, handle)
             },
         },
@@ -10888,18 +10888,18 @@ fn destack_fs_dir_rewinddir_replay(
 
 #[inline]
 fn destack_fs_dir_rmdir_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_DIR_RMDIR,
         context.replay_payload_for(FS_DIR_RMDIR)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_rmdir(context, path) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_rmdir(context, path)
             },
         },
@@ -10934,18 +10934,18 @@ fn destack_fs_dir_rmdir_replay(
 
 #[inline]
 fn destack_fs_file_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_CLOSE,
         context.replay_payload_for(FS_FILE_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_close(context, handle) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_close(context, handle)
             },
         },
@@ -10980,7 +10980,7 @@ fn destack_fs_file_close_replay(
 
 #[inline]
 fn destack_fs_file_copy_file_range_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     src: resource::FileHandle,
@@ -10991,7 +10991,7 @@ fn destack_fs_file_copy_file_range_replay(
 ) -> RuntimeResult<()> {
     let _ = (&src, &srcoffset, &dst, &dstoffset, &length);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_COPY_FILE_RANGE,
         context.replay_payload_for(FS_FILE_COPY_FILE_RANGE)?,
         || match world {
@@ -11000,7 +11000,7 @@ fn destack_fs_file_copy_file_range_replay(
                     context, out, src, srcoffset, dst, dstoffset, length,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_copy_file_range(
                     context, out, src, srcoffset, dst, dstoffset, length,
                 )
@@ -11049,19 +11049,19 @@ fn destack_fs_file_copy_file_range_replay(
 
 #[inline]
 fn destack_fs_file_dup_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_DUP,
         context.replay_payload_for(FS_FILE_DUP)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_dup(context, out, handle) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_dup(context, out, handle)
             },
         },
@@ -11108,7 +11108,7 @@ fn destack_fs_file_dup_replay(
 
 #[inline]
 fn destack_fs_file_dup2_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
@@ -11116,14 +11116,14 @@ fn destack_fs_file_dup2_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_DUP2,
         context.replay_payload_for(FS_FILE_DUP2)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_dup2(context, out, handle, target)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_dup2(context, out, handle, target)
             },
         },
@@ -11170,7 +11170,7 @@ fn destack_fs_file_dup2_replay(
 
 #[inline]
 fn destack_fs_file_dup3_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
@@ -11179,14 +11179,14 @@ fn destack_fs_file_dup3_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_DUP3,
         context.replay_payload_for(FS_FILE_DUP3)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_dup3(context, out, handle, target, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_dup3(context, out, handle, target, flags)
             },
         },
@@ -11233,7 +11233,7 @@ fn destack_fs_file_dup3_replay(
 
 #[inline]
 fn destack_fs_file_fadvise_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     offset: FileOffset,
@@ -11242,14 +11242,14 @@ fn destack_fs_file_fadvise_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &advice);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_FADVISE,
         context.replay_payload_for(FS_FILE_FADVISE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_fadvise(context, handle, offset, length, advice)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fadvise(
                     context, handle, offset, length, advice,
                 )
@@ -11286,7 +11286,7 @@ fn destack_fs_file_fadvise_replay(
 
 #[inline]
 fn destack_fs_file_fallocate_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     offset: FileOffset,
@@ -11295,14 +11295,14 @@ fn destack_fs_file_fallocate_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_FALLOCATE,
         context.replay_payload_for(FS_FILE_FALLOCATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_fallocate(context, handle, offset, length, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fallocate(
                     context, handle, offset, length, flags,
                 )
@@ -11339,18 +11339,18 @@ fn destack_fs_file_fallocate_replay(
 
 #[inline]
 fn destack_fs_file_fdatasync_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_FDATASYNC,
         context.replay_payload_for(FS_FILE_FDATASYNC)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_fdatasync(context, handle) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fdatasync(context, handle)
             },
         },
@@ -11385,18 +11385,18 @@ fn destack_fs_file_fdatasync_replay(
 
 #[inline]
 fn destack_fs_file_fsync_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_FSYNC,
         context.replay_payload_for(FS_FILE_FSYNC)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_fsync(context, handle) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fsync(context, handle)
             },
         },
@@ -11431,21 +11431,21 @@ fn destack_fs_file_fsync_replay(
 
 #[inline]
 fn destack_fs_file_ftruncate_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     size: FileOffset,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &size);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_FTRUNCATE,
         context.replay_payload_for(FS_FILE_FTRUNCATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_ftruncate(context, handle, size)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_ftruncate(context, handle, size)
             },
         },
@@ -11480,21 +11480,21 @@ fn destack_fs_file_ftruncate_replay(
 
 #[inline]
 fn destack_fs_file_get_fd_flags_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut FdFlags,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_GET_FD_FLAGS,
         context.replay_payload_for(FS_FILE_GET_FD_FLAGS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_get_fd_flags(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_get_fd_flags(context, out, handle)
             },
         },
@@ -11541,21 +11541,21 @@ fn destack_fs_file_get_fd_flags_replay(
 
 #[inline]
 fn destack_fs_file_get_status_flags_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut StatusFlags,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_GET_STATUS_FLAGS,
         context.replay_payload_for(FS_FILE_GET_STATUS_FLAGS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_get_status_flags(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_get_status_flags(context, out, handle)
             },
         },
@@ -11602,21 +11602,21 @@ fn destack_fs_file_get_status_flags_replay(
 
 #[inline]
 fn destack_fs_file_lock_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_LOCK,
         context.replay_payload_for(FS_FILE_LOCK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_lock(context, handle, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_lock(context, handle, flags)
             },
         },
@@ -11651,7 +11651,7 @@ fn destack_fs_file_lock_replay(
 
 #[inline]
 fn destack_fs_file_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
     path: OsPath,
@@ -11660,14 +11660,14 @@ fn destack_fs_file_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &flags, &mode);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_OPEN,
         context.replay_payload_for(FS_FILE_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_open(context, out, path, flags, mode)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_open(context, out, path, flags, mode)
             },
         },
@@ -11714,7 +11714,7 @@ fn destack_fs_file_open_replay(
 
 #[inline]
 fn destack_fs_file_openat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
     dir: resource::DirectoryHandle,
@@ -11724,14 +11724,14 @@ fn destack_fs_file_openat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &flags, &mode);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_OPENAT,
         context.replay_payload_for(FS_FILE_OPENAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_openat(context, out, dir, path, flags, mode)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_openat(context, out, dir, path, flags, mode)
             },
         },
@@ -11778,7 +11778,7 @@ fn destack_fs_file_openat_replay(
 
 #[inline]
 fn destack_fs_file_openat2_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
     dir: resource::DirectoryHandle,
@@ -11787,14 +11787,14 @@ fn destack_fs_file_openat2_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &how);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_OPENAT2,
         context.replay_payload_for(FS_FILE_OPENAT2)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_openat2(context, out, dir, path, how)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_openat2(context, out, dir, path, how)
             },
         },
@@ -11841,7 +11841,7 @@ fn destack_fs_file_openat2_replay(
 
 #[inline]
 fn destack_fs_file_pread_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -11850,14 +11850,14 @@ fn destack_fs_file_pread_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_PREAD,
         context.replay_payload_for(FS_FILE_PREAD)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_pread(context, out, handle, buffer, offset)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_pread(context, out, handle, buffer, offset)
             },
         },
@@ -11904,7 +11904,7 @@ fn destack_fs_file_pread_replay(
 
 #[inline]
 fn destack_fs_file_preadv_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -11913,14 +11913,14 @@ fn destack_fs_file_preadv_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers, &offset);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_PREADV,
         context.replay_payload_for(FS_FILE_PREADV)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_preadv(context, out, handle, buffers, offset)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_preadv(context, out, handle, buffers, offset)
             },
         },
@@ -11967,7 +11967,7 @@ fn destack_fs_file_preadv_replay(
 
 #[inline]
 fn destack_fs_file_preadv2_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -11977,14 +11977,14 @@ fn destack_fs_file_preadv2_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers, &offset, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_PREADV2,
         context.replay_payload_for(FS_FILE_PREADV2)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_preadv2(context, out, handle, buffers, offset, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_preadv2(
                     context, out, handle, buffers, offset, flags,
                 )
@@ -12033,7 +12033,7 @@ fn destack_fs_file_preadv2_replay(
 
 #[inline]
 fn destack_fs_file_pwrite_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -12042,14 +12042,14 @@ fn destack_fs_file_pwrite_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_PWRITE,
         context.replay_payload_for(FS_FILE_PWRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_pwrite(context, out, handle, buffer, offset)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_pwrite(context, out, handle, buffer, offset)
             },
         },
@@ -12096,7 +12096,7 @@ fn destack_fs_file_pwrite_replay(
 
 #[inline]
 fn destack_fs_file_pwritev_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -12105,14 +12105,14 @@ fn destack_fs_file_pwritev_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers, &offset);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_PWRITEV,
         context.replay_payload_for(FS_FILE_PWRITEV)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_pwritev(context, out, handle, buffers, offset)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_pwritev(
                     context, out, handle, buffers, offset,
                 )
@@ -12161,7 +12161,7 @@ fn destack_fs_file_pwritev_replay(
 
 #[inline]
 fn destack_fs_file_pwritev2_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -12171,14 +12171,14 @@ fn destack_fs_file_pwritev2_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers, &offset, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_PWRITEV2,
         context.replay_payload_for(FS_FILE_PWRITEV2)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_pwritev2(context, out, handle, buffers, offset, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_pwritev2(
                     context, out, handle, buffers, offset, flags,
                 )
@@ -12227,7 +12227,7 @@ fn destack_fs_file_pwritev2_replay(
 
 #[inline]
 fn destack_fs_file_read_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -12235,14 +12235,14 @@ fn destack_fs_file_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_READ,
         context.replay_payload_for(FS_FILE_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_read(context, out, handle, buffer)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_read(context, out, handle, buffer)
             },
         },
@@ -12289,7 +12289,7 @@ fn destack_fs_file_read_replay(
 
 #[inline]
 fn destack_fs_file_readv_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -12297,14 +12297,14 @@ fn destack_fs_file_readv_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_READV,
         context.replay_payload_for(FS_FILE_READV)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_readv(context, out, handle, buffers)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_readv(context, out, handle, buffers)
             },
         },
@@ -12351,7 +12351,7 @@ fn destack_fs_file_readv_replay(
 
 #[inline]
 fn destack_fs_file_seek_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut FileOffset,
     handle: resource::FileHandle,
@@ -12360,14 +12360,14 @@ fn destack_fs_file_seek_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &whence);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_SEEK,
         context.replay_payload_for(FS_FILE_SEEK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_seek(context, out, handle, offset, whence)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_seek(context, out, handle, offset, whence)
             },
         },
@@ -12414,7 +12414,7 @@ fn destack_fs_file_seek_replay(
 
 #[inline]
 fn destack_fs_file_sendfile_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     socket: resource::SocketHandle,
@@ -12424,14 +12424,14 @@ fn destack_fs_file_sendfile_replay(
 ) -> RuntimeResult<()> {
     let _ = (&socket, &file, &offset, &length);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_SENDFILE,
         context.replay_payload_for(FS_FILE_SENDFILE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_sendfile(context, out, socket, file, offset, length)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_sendfile(
                     context, out, socket, file, offset, length,
                 )
@@ -12480,21 +12480,21 @@ fn destack_fs_file_sendfile_replay(
 
 #[inline]
 fn destack_fs_file_set_fd_flags_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     flags: FdFlags,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_SET_FD_FLAGS,
         context.replay_payload_for(FS_FILE_SET_FD_FLAGS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_set_fd_flags(context, handle, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_set_fd_flags(context, handle, flags)
             },
         },
@@ -12529,21 +12529,21 @@ fn destack_fs_file_set_fd_flags_replay(
 
 #[inline]
 fn destack_fs_file_set_status_flags_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     flags: StatusFlags,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_SET_STATUS_FLAGS,
         context.replay_payload_for(FS_FILE_SET_STATUS_FLAGS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_set_status_flags(context, handle, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_set_status_flags(context, handle, flags)
             },
         },
@@ -12578,7 +12578,7 @@ fn destack_fs_file_set_status_flags_replay(
 
 #[inline]
 fn destack_fs_file_splice_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     source: resource::ResourceId,
@@ -12597,7 +12597,7 @@ fn destack_fs_file_splice_replay(
         &flags,
     );
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_SPLICE,
         context.replay_payload_for(FS_FILE_SPLICE)?,
         || match world {
@@ -12613,7 +12613,7 @@ fn destack_fs_file_splice_replay(
                     flags,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_splice(
                     context,
                     out,
@@ -12669,7 +12669,7 @@ fn destack_fs_file_splice_replay(
 
 #[inline]
 fn destack_fs_file_sync_file_range_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     offset: FileOffset,
@@ -12678,14 +12678,14 @@ fn destack_fs_file_sync_file_range_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_SYNC_FILE_RANGE,
         context.replay_payload_for(FS_FILE_SYNC_FILE_RANGE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_sync_file_range(context, handle, offset, length, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_sync_file_range(
                     context, handle, offset, length, flags,
                 )
@@ -12722,18 +12722,18 @@ fn destack_fs_file_sync_file_range_replay(
 
 #[inline]
 fn destack_fs_file_syncfs_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_SYNCFS,
         context.replay_payload_for(FS_FILE_SYNCFS)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_syncfs(context, handle) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_syncfs(context, handle)
             },
         },
@@ -12768,7 +12768,7 @@ fn destack_fs_file_syncfs_replay(
 
 #[inline]
 fn destack_fs_file_tee_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     sourcepipe: resource::PipeHandle,
@@ -12778,14 +12778,14 @@ fn destack_fs_file_tee_replay(
 ) -> RuntimeResult<()> {
     let _ = (&sourcepipe, &targetpipe, &length, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_TEE,
         context.replay_payload_for(FS_FILE_TEE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_tee(context, out, sourcepipe, targetpipe, length, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_tee(
                     context, out, sourcepipe, targetpipe, length, flags,
                 )
@@ -12834,21 +12834,21 @@ fn destack_fs_file_tee_replay(
 
 #[inline]
 fn destack_fs_file_truncate_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     size: FileOffset,
 ) -> RuntimeResult<()> {
     let _ = (&path, &size);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_TRUNCATE,
         context.replay_payload_for(FS_FILE_TRUNCATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_truncate(context, path, size)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_truncate(context, path, size)
             },
         },
@@ -12883,7 +12883,7 @@ fn destack_fs_file_truncate_replay(
 
 #[inline]
 fn destack_fs_file_vmsplice_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     pipe: resource::PipeHandle,
@@ -12892,14 +12892,14 @@ fn destack_fs_file_vmsplice_replay(
 ) -> RuntimeResult<()> {
     let _ = (&pipe, &buffers, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_VMSPLICE,
         context.replay_payload_for(FS_FILE_VMSPLICE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_vmsplice(context, out, pipe, buffers, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_vmsplice(context, out, pipe, buffers, flags)
             },
         },
@@ -12946,7 +12946,7 @@ fn destack_fs_file_vmsplice_replay(
 
 #[inline]
 fn destack_fs_file_write_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -12954,14 +12954,14 @@ fn destack_fs_file_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_WRITE,
         context.replay_payload_for(FS_FILE_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_write(context, out, handle, buffer)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_write(context, out, handle, buffer)
             },
         },
@@ -13008,7 +13008,7 @@ fn destack_fs_file_write_replay(
 
 #[inline]
 fn destack_fs_file_writev_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -13016,14 +13016,14 @@ fn destack_fs_file_writev_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_FILE_WRITEV,
         context.replay_payload_for(FS_FILE_WRITEV)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_writev(context, out, handle, buffers)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_writev(context, out, handle, buffers)
             },
         },
@@ -13070,21 +13070,21 @@ fn destack_fs_file_writev_replay(
 
 #[inline]
 fn destack_fs_mmap_madvise_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     mapping: NativeSlice<u8>,
     advice: MmapAdvice,
 ) -> RuntimeResult<()> {
     let _ = (&mapping, &advice);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_MMAP_MADVISE,
         context.replay_payload_for(FS_MMAP_MADVISE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_madvise(context, mapping, advice)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_madvise(context, mapping, advice)
             },
         },
@@ -13119,7 +13119,7 @@ fn destack_fs_mmap_madvise_replay(
 
 #[inline]
 fn destack_fs_mmap_mmap_anonymous_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     length: FileSize,
@@ -13128,14 +13128,14 @@ fn destack_fs_mmap_mmap_anonymous_replay(
 ) -> RuntimeResult<()> {
     let _ = (&length, &prot, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_MMAP_MMAP_ANONYMOUS,
         context.replay_payload_for(FS_MMAP_MMAP_ANONYMOUS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_mmap_anonymous(context, out, length, prot, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_mmap_anonymous(
                     context, out, length, prot, flags,
                 )
@@ -13195,7 +13195,7 @@ fn destack_fs_mmap_mmap_anonymous_replay(
 
 #[inline]
 fn destack_fs_mmap_mmap_file_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::FileHandle,
@@ -13206,7 +13206,7 @@ fn destack_fs_mmap_mmap_file_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &prot, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_MMAP_MMAP_FILE,
         context.replay_payload_for(FS_MMAP_MMAP_FILE)?,
         || match world {
@@ -13215,7 +13215,7 @@ fn destack_fs_mmap_mmap_file_replay(
                     context, out, handle, offset, length, prot, flags,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_mmap_file(
                     context, out, handle, offset, length, prot, flags,
                 )
@@ -13275,21 +13275,21 @@ fn destack_fs_mmap_mmap_file_replay(
 
 #[inline]
 fn destack_fs_mmap_mprotect_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     mapping: NativeSlice<u8>,
     prot: MmapProt,
 ) -> RuntimeResult<()> {
     let _ = (&mapping, &prot);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_MMAP_MPROTECT,
         context.replay_payload_for(FS_MMAP_MPROTECT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_mprotect(context, mapping, prot)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_mprotect(context, mapping, prot)
             },
         },
@@ -13324,21 +13324,21 @@ fn destack_fs_mmap_mprotect_replay(
 
 #[inline]
 fn destack_fs_mmap_msync_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     mapping: NativeSlice<u8>,
     flags: MmapSyncFlags,
 ) -> RuntimeResult<()> {
     let _ = (&mapping, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_MMAP_MSYNC,
         context.replay_payload_for(FS_MMAP_MSYNC)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_msync(context, mapping, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_msync(context, mapping, flags)
             },
         },
@@ -13373,18 +13373,18 @@ fn destack_fs_mmap_msync_replay(
 
 #[inline]
 fn destack_fs_mmap_munmap_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     mapping: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = &mapping;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_MMAP_MUNMAP,
         context.replay_payload_for(FS_MMAP_MUNMAP)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_munmap(context, mapping) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_munmap(context, mapping)
             },
         },
@@ -13419,7 +13419,7 @@ fn destack_fs_mmap_munmap_replay(
 
 #[inline]
 fn destack_fs_path_copyfile_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     from: OsPath,
     to: OsPath,
@@ -13427,14 +13427,14 @@ fn destack_fs_path_copyfile_replay(
 ) -> RuntimeResult<()> {
     let _ = (&from, &to, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_COPYFILE,
         context.replay_payload_for(FS_PATH_COPYFILE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_copyfile(context, from, to, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_copyfile(context, from, to, flags)
             },
         },
@@ -13469,21 +13469,21 @@ fn destack_fs_path_copyfile_replay(
 
 #[inline]
 fn destack_fs_path_link_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     existingpath: OsPath,
     newpath: OsPath,
 ) -> RuntimeResult<()> {
     let _ = (&existingpath, &newpath);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_LINK,
         context.replay_payload_for(FS_PATH_LINK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_link(context, existingpath, newpath)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_link(context, existingpath, newpath)
             },
         },
@@ -13518,7 +13518,7 @@ fn destack_fs_path_link_replay(
 
 #[inline]
 fn destack_fs_path_linkat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     existingdir: resource::DirectoryHandle,
     existingpath: OsPath,
@@ -13528,7 +13528,7 @@ fn destack_fs_path_linkat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&existingdir, &existingpath, &newdir, &newpath, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_LINKAT,
         context.replay_payload_for(FS_PATH_LINKAT)?,
         || match world {
@@ -13542,7 +13542,7 @@ fn destack_fs_path_linkat_replay(
                     flags,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_linkat(
                     context,
                     existingdir,
@@ -13584,21 +13584,21 @@ fn destack_fs_path_linkat_replay(
 
 #[inline]
 fn destack_fs_path_mkfifo_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_MKFIFO,
         context.replay_payload_for(FS_PATH_MKFIFO)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_mkfifo(context, path, mode)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_mkfifo(context, path, mode)
             },
         },
@@ -13633,7 +13633,7 @@ fn destack_fs_path_mkfifo_replay(
 
 #[inline]
 fn destack_fs_path_mkfifoat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -13641,14 +13641,14 @@ fn destack_fs_path_mkfifoat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_MKFIFOAT,
         context.replay_payload_for(FS_PATH_MKFIFOAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_mkfifoat(context, dir, path, mode)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_mkfifoat(context, dir, path, mode)
             },
         },
@@ -13683,7 +13683,7 @@ fn destack_fs_path_mkfifoat_replay(
 
 #[inline]
 fn destack_fs_path_mknod_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     mode: FileMode,
@@ -13691,14 +13691,14 @@ fn destack_fs_path_mknod_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode, &device);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_MKNOD,
         context.replay_payload_for(FS_PATH_MKNOD)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_mknod(context, path, mode, device)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_mknod(context, path, mode, device)
             },
         },
@@ -13733,7 +13733,7 @@ fn destack_fs_path_mknod_replay(
 
 #[inline]
 fn destack_fs_path_mknodat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -13742,14 +13742,14 @@ fn destack_fs_path_mknodat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode, &device);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_MKNODAT,
         context.replay_payload_for(FS_PATH_MKNODAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_mknodat(context, dir, path, mode, device)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_mknodat(context, dir, path, mode, device)
             },
         },
@@ -13784,21 +13784,21 @@ fn destack_fs_path_mknodat_replay(
 
 #[inline]
 fn destack_fs_path_readlink_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut OsPath,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_READLINK,
         context.replay_payload_for(FS_PATH_READLINK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_readlink(context, out, path)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_readlink(context, out, path)
             },
         },
@@ -13889,7 +13889,7 @@ fn destack_fs_path_readlink_replay(
 
 #[inline]
 fn destack_fs_path_readlinkat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut OsPath,
     dir: resource::DirectoryHandle,
@@ -13897,14 +13897,14 @@ fn destack_fs_path_readlinkat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_READLINKAT,
         context.replay_payload_for(FS_PATH_READLINKAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_readlinkat(context, out, dir, path)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_readlinkat(context, out, dir, path)
             },
         },
@@ -13995,21 +13995,21 @@ fn destack_fs_path_readlinkat_replay(
 
 #[inline]
 fn destack_fs_path_realpath_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut OsPath,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_REALPATH,
         context.replay_payload_for(FS_PATH_REALPATH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_realpath(context, out, path)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_realpath(context, out, path)
             },
         },
@@ -14100,19 +14100,19 @@ fn destack_fs_path_realpath_replay(
 
 #[inline]
 fn destack_fs_path_rename_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     from: OsPath,
     to: OsPath,
 ) -> RuntimeResult<()> {
     let _ = (&from, &to);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_RENAME,
         context.replay_payload_for(FS_PATH_RENAME)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_rename(context, from, to) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_rename(context, from, to)
             },
         },
@@ -14147,7 +14147,7 @@ fn destack_fs_path_rename_replay(
 
 #[inline]
 fn destack_fs_path_renameat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     fromdir: resource::DirectoryHandle,
     from: OsPath,
@@ -14156,14 +14156,14 @@ fn destack_fs_path_renameat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&fromdir, &from, &todir, &to);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_RENAMEAT,
         context.replay_payload_for(FS_PATH_RENAMEAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_renameat(context, fromdir, from, todir, to)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_renameat(context, fromdir, from, todir, to)
             },
         },
@@ -14198,7 +14198,7 @@ fn destack_fs_path_renameat_replay(
 
 #[inline]
 fn destack_fs_path_renameat2_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     fromdir: resource::DirectoryHandle,
     from: OsPath,
@@ -14208,14 +14208,14 @@ fn destack_fs_path_renameat2_replay(
 ) -> RuntimeResult<()> {
     let _ = (&fromdir, &from, &todir, &to, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_RENAMEAT2,
         context.replay_payload_for(FS_PATH_RENAMEAT2)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_renameat2(context, fromdir, from, todir, to, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_renameat2(
                     context, fromdir, from, todir, to, flags,
                 )
@@ -14252,7 +14252,7 @@ fn destack_fs_path_renameat2_replay(
 
 #[inline]
 fn destack_fs_path_symlink_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     target: OsPath,
     path: OsPath,
@@ -14260,14 +14260,14 @@ fn destack_fs_path_symlink_replay(
 ) -> RuntimeResult<()> {
     let _ = (&target, &path, &kind);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_SYMLINK,
         context.replay_payload_for(FS_PATH_SYMLINK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_symlink(context, target, path, kind)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_symlink(context, target, path, kind)
             },
         },
@@ -14302,7 +14302,7 @@ fn destack_fs_path_symlink_replay(
 
 #[inline]
 fn destack_fs_path_symlinkat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     target: OsPath,
     dir: resource::DirectoryHandle,
@@ -14311,14 +14311,14 @@ fn destack_fs_path_symlinkat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&target, &dir, &path, &kind);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_SYMLINKAT,
         context.replay_payload_for(FS_PATH_SYMLINKAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_symlinkat(context, target, dir, path, kind)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_symlinkat(context, target, dir, path, kind)
             },
         },
@@ -14353,18 +14353,18 @@ fn destack_fs_path_symlinkat_replay(
 
 #[inline]
 fn destack_fs_path_unlink_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_UNLINK,
         context.replay_payload_for(FS_PATH_UNLINK)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_unlink(context, path) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_unlink(context, path)
             },
         },
@@ -14399,7 +14399,7 @@ fn destack_fs_path_unlink_replay(
 
 #[inline]
 fn destack_fs_path_unlinkat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -14407,14 +14407,14 @@ fn destack_fs_path_unlinkat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_PATH_UNLINKAT,
         context.replay_payload_for(FS_PATH_UNLINKAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_unlinkat(context, dir, path, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_unlinkat(context, dir, path, flags)
             },
         },
@@ -14449,21 +14449,21 @@ fn destack_fs_path_unlinkat_replay(
 
 #[inline]
 fn destack_fs_stat_fstat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut Stat,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_STAT_FSTAT,
         context.replay_payload_for(FS_STAT_FSTAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_fstat(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fstat(context, out, handle)
             },
         },
@@ -14568,21 +14568,21 @@ fn destack_fs_stat_fstat_replay(
 
 #[inline]
 fn destack_fs_stat_fstatfs_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut StatFs,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_STAT_FSTATFS,
         context.replay_payload_for(FS_STAT_FSTATFS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_fstatfs(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fstatfs(context, out, handle)
             },
         },
@@ -14671,19 +14671,19 @@ fn destack_fs_stat_fstatfs_replay(
 
 #[inline]
 fn destack_fs_stat_lstat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut Stat,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_STAT_LSTAT,
         context.replay_payload_for(FS_STAT_LSTAT)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_lstat(context, out, path) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_lstat(context, out, path)
             },
         },
@@ -14788,19 +14788,19 @@ fn destack_fs_stat_lstat_replay(
 
 #[inline]
 fn destack_fs_stat_path_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut Stat,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_STAT_PATH,
         context.replay_payload_for(FS_STAT_PATH)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_stat(context, out, path) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_stat(context, out, path)
             },
         },
@@ -14905,7 +14905,7 @@ fn destack_fs_stat_path_replay(
 
 #[inline]
 fn destack_fs_stat_pathat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut Stat,
     dir: resource::DirectoryHandle,
@@ -14914,14 +14914,14 @@ fn destack_fs_stat_pathat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_STAT_PATHAT,
         context.replay_payload_for(FS_STAT_PATHAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_statat(context, out, dir, path, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_statat(context, out, dir, path, flags)
             },
         },
@@ -15026,19 +15026,19 @@ fn destack_fs_stat_pathat_replay(
 
 #[inline]
 fn destack_fs_stat_pathfs_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut StatFs,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_STAT_PATHFS,
         context.replay_payload_for(FS_STAT_PATHFS)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_statfs(context, out, path) },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_statfs(context, out, path)
             },
         },
@@ -15127,7 +15127,7 @@ fn destack_fs_stat_pathfs_replay(
 
 #[inline]
 fn destack_fs_stat_pathx_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut Statx,
     dir: resource::DirectoryHandle,
@@ -15137,14 +15137,14 @@ fn destack_fs_stat_pathx_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &flags, &mask);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_STAT_PATHX,
         context.replay_payload_for(FS_STAT_PATHX)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_statx(context, out, dir, path, flags, mask)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_statx(context, out, dir, path, flags, mask)
             },
         },
@@ -15265,7 +15265,7 @@ fn destack_fs_stat_pathx_replay(
 
 #[inline]
 fn destack_fs_watch_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::WatchHandle,
     path: OsPath,
@@ -15273,14 +15273,14 @@ fn destack_fs_watch_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_WATCH_OPEN,
         context.replay_payload_for(FS_WATCH_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_watch(context, out, path, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_watch(context, out, path, options)
             },
         },
@@ -15327,20 +15327,20 @@ fn destack_fs_watch_open_replay(
 
 #[inline]
 fn destack_fs_watch_open_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::WatchHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_WATCH_OPEN_CLOSE,
         context.replay_payload_for(FS_WATCH_OPEN_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_watch_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_watch_close(context, handle)
             },
         },
@@ -15375,19 +15375,19 @@ fn destack_fs_watch_open_close_replay(
 
 #[inline]
 fn destack_fs_watch_open_read_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut WatchBatch,
     handle: resource::WatchHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_WATCH_OPEN_READ,
         context.replay_payload_for(FS_WATCH_OPEN_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_fs_watch_read(context, out, handle) },
-            RuntimeWorld::Simulated => unsafe { platform_simulation_native::destack_fs_watch_read(context, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_fs_watch_read(context, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -15545,7 +15545,7 @@ fn destack_fs_watch_open_read_replay(
 
 #[inline]
 fn destack_fs_watch_openat_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::WatchHandle,
     directory: resource::DirectoryHandle,
@@ -15554,14 +15554,14 @@ fn destack_fs_watch_openat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&directory, &path, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_WATCH_OPENAT,
         context.replay_payload_for(FS_WATCH_OPENAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_watchat(context, out, directory, path, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_watchat(
                     context, out, directory, path, options,
                 )
@@ -15610,7 +15610,7 @@ fn destack_fs_watch_openat_replay(
 
 #[inline]
 fn destack_fs_xattr_fgetxattr_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<u8>,
     handle: resource::FileHandle,
@@ -15618,14 +15618,14 @@ fn destack_fs_xattr_fgetxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_FGETXATTR,
         context.replay_payload_for(FS_XATTR_FGETXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_fgetxattr(context, out, handle, name)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fgetxattr(context, out, handle, name)
             },
         },
@@ -15683,7 +15683,7 @@ fn destack_fs_xattr_fgetxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_fgetxattr_bytes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<u8>,
     handle: resource::FileHandle,
@@ -15691,14 +15691,14 @@ fn destack_fs_xattr_fgetxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_FGETXATTR_BYTES,
         context.replay_payload_for(FS_XATTR_FGETXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_fgetxattr_bytes(context, out, handle, name)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fgetxattr_bytes(context, out, handle, name)
             },
         },
@@ -15756,21 +15756,21 @@ fn destack_fs_xattr_fgetxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_flistxattr_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<NativeStringRef>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_FLISTXATTR,
         context.replay_payload_for(FS_XATTR_FLISTXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_flistxattr(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_flistxattr(context, out, handle)
             },
         },
@@ -15829,21 +15829,21 @@ fn destack_fs_xattr_flistxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_flistxattr_bytes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<NativeArray<u8>>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_FLISTXATTR_BYTES,
         context.replay_payload_for(FS_XATTR_FLISTXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_flistxattr_bytes(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_flistxattr_bytes(context, out, handle)
             },
         },
@@ -15923,21 +15923,21 @@ fn destack_fs_xattr_flistxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_fremovexattr_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_FREMOVEXATTR,
         context.replay_payload_for(FS_XATTR_FREMOVEXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_fremovexattr(context, handle, name)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fremovexattr(context, handle, name)
             },
         },
@@ -15972,21 +15972,21 @@ fn destack_fs_xattr_fremovexattr_replay(
 
 #[inline]
 fn destack_fs_xattr_fremovexattr_bytes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_FREMOVEXATTR_BYTES,
         context.replay_payload_for(FS_XATTR_FREMOVEXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_fremovexattr_bytes(context, handle, name)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fremovexattr_bytes(context, handle, name)
             },
         },
@@ -16021,7 +16021,7 @@ fn destack_fs_xattr_fremovexattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_fsetxattr_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: NativeStringRef,
@@ -16030,14 +16030,14 @@ fn destack_fs_xattr_fsetxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name, &argument_value, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_FSETXATTR,
         context.replay_payload_for(FS_XATTR_FSETXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_fsetxattr(context, handle, name, argument_value, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fsetxattr(
                     context,
                     handle,
@@ -16078,7 +16078,7 @@ fn destack_fs_xattr_fsetxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_fsetxattr_bytes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: NativeSlice<u8>,
@@ -16087,7 +16087,7 @@ fn destack_fs_xattr_fsetxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name, &argument_value, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_FSETXATTR_BYTES,
         context.replay_payload_for(FS_XATTR_FSETXATTR_BYTES)?,
         || match world {
@@ -16100,7 +16100,7 @@ fn destack_fs_xattr_fsetxattr_bytes_replay(
                     flags,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fsetxattr_bytes(
                     context,
                     handle,
@@ -16141,7 +16141,7 @@ fn destack_fs_xattr_fsetxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_getxattr_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<u8>,
     path: OsPath,
@@ -16149,14 +16149,14 @@ fn destack_fs_xattr_getxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_GETXATTR,
         context.replay_payload_for(FS_XATTR_GETXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_getxattr(context, out, path, name)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_getxattr(context, out, path, name)
             },
         },
@@ -16214,7 +16214,7 @@ fn destack_fs_xattr_getxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_getxattr_bytes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<u8>,
     path: OsPath,
@@ -16222,14 +16222,14 @@ fn destack_fs_xattr_getxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_GETXATTR_BYTES,
         context.replay_payload_for(FS_XATTR_GETXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_getxattr_bytes(context, out, path, name)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_getxattr_bytes(context, out, path, name)
             },
         },
@@ -16287,7 +16287,7 @@ fn destack_fs_xattr_getxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_lgetxattr_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<u8>,
     path: OsPath,
@@ -16295,14 +16295,14 @@ fn destack_fs_xattr_lgetxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_LGETXATTR,
         context.replay_payload_for(FS_XATTR_LGETXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_lgetxattr(context, out, path, name)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_lgetxattr(context, out, path, name)
             },
         },
@@ -16360,7 +16360,7 @@ fn destack_fs_xattr_lgetxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_lgetxattr_bytes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<u8>,
     path: OsPath,
@@ -16368,14 +16368,14 @@ fn destack_fs_xattr_lgetxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_LGETXATTR_BYTES,
         context.replay_payload_for(FS_XATTR_LGETXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_lgetxattr_bytes(context, out, path, name)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_lgetxattr_bytes(context, out, path, name)
             },
         },
@@ -16433,21 +16433,21 @@ fn destack_fs_xattr_lgetxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_listxattr_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_LISTXATTR,
         context.replay_payload_for(FS_XATTR_LISTXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_listxattr(context, out, path)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_listxattr(context, out, path)
             },
         },
@@ -16506,21 +16506,21 @@ fn destack_fs_xattr_listxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_listxattr_bytes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<NativeArray<u8>>,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_LISTXATTR_BYTES,
         context.replay_payload_for(FS_XATTR_LISTXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_listxattr_bytes(context, out, path)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_listxattr_bytes(context, out, path)
             },
         },
@@ -16600,21 +16600,21 @@ fn destack_fs_xattr_listxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_llistxattr_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_LLISTXATTR,
         context.replay_payload_for(FS_XATTR_LLISTXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_llistxattr(context, out, path)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_llistxattr(context, out, path)
             },
         },
@@ -16673,21 +16673,21 @@ fn destack_fs_xattr_llistxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_llistxattr_bytes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<NativeArray<u8>>,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_LLISTXATTR_BYTES,
         context.replay_payload_for(FS_XATTR_LLISTXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_llistxattr_bytes(context, out, path)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_llistxattr_bytes(context, out, path)
             },
         },
@@ -16767,21 +16767,21 @@ fn destack_fs_xattr_llistxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_lremovexattr_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_LREMOVEXATTR,
         context.replay_payload_for(FS_XATTR_LREMOVEXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_lremovexattr(context, path, name)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_lremovexattr(context, path, name)
             },
         },
@@ -16816,21 +16816,21 @@ fn destack_fs_xattr_lremovexattr_replay(
 
 #[inline]
 fn destack_fs_xattr_lremovexattr_bytes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_LREMOVEXATTR_BYTES,
         context.replay_payload_for(FS_XATTR_LREMOVEXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_lremovexattr_bytes(context, path, name)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_lremovexattr_bytes(context, path, name)
             },
         },
@@ -16865,7 +16865,7 @@ fn destack_fs_xattr_lremovexattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_lsetxattr_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeStringRef,
@@ -16874,14 +16874,14 @@ fn destack_fs_xattr_lsetxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name, &argument_value, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_LSETXATTR,
         context.replay_payload_for(FS_XATTR_LSETXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_lsetxattr(context, path, name, argument_value, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_lsetxattr(
                     context,
                     path,
@@ -16922,7 +16922,7 @@ fn destack_fs_xattr_lsetxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_lsetxattr_bytes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeSlice<u8>,
@@ -16931,7 +16931,7 @@ fn destack_fs_xattr_lsetxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name, &argument_value, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_LSETXATTR_BYTES,
         context.replay_payload_for(FS_XATTR_LSETXATTR_BYTES)?,
         || match world {
@@ -16944,7 +16944,7 @@ fn destack_fs_xattr_lsetxattr_bytes_replay(
                     flags,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_lsetxattr_bytes(
                     context,
                     path,
@@ -16985,21 +16985,21 @@ fn destack_fs_xattr_lsetxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_removexattr_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_REMOVEXATTR,
         context.replay_payload_for(FS_XATTR_REMOVEXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_removexattr(context, path, name)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_removexattr(context, path, name)
             },
         },
@@ -17034,21 +17034,21 @@ fn destack_fs_xattr_removexattr_replay(
 
 #[inline]
 fn destack_fs_xattr_removexattr_bytes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_REMOVEXATTR_BYTES,
         context.replay_payload_for(FS_XATTR_REMOVEXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_removexattr_bytes(context, path, name)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_removexattr_bytes(context, path, name)
             },
         },
@@ -17083,7 +17083,7 @@ fn destack_fs_xattr_removexattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_setxattr_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeStringRef,
@@ -17092,14 +17092,14 @@ fn destack_fs_xattr_setxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name, &argument_value, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_SETXATTR,
         context.replay_payload_for(FS_XATTR_SETXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_setxattr(context, path, name, argument_value, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_setxattr(
                     context,
                     path,
@@ -17140,7 +17140,7 @@ fn destack_fs_xattr_setxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_setxattr_bytes_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeSlice<u8>,
@@ -17149,7 +17149,7 @@ fn destack_fs_xattr_setxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name, &argument_value, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         FS_XATTR_SETXATTR_BYTES,
         context.replay_payload_for(FS_XATTR_SETXATTR_BYTES)?,
         || match world {
@@ -17162,7 +17162,7 @@ fn destack_fs_xattr_setxattr_bytes_replay(
                     flags,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_setxattr_bytes(
                     context,
                     path,
@@ -19083,60 +19083,58 @@ pub unsafe extern "C" fn destack_fs_xattr_setxattr_bytes(
 /// VM replay implementations for fs bindings.
 #[inline]
 fn destack_fs_attrs_access_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     mode: AccessMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_ATTRS_ACCESS,
-            runtime.replay_payload_for(FS_ATTRS_ACCESS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_access(runtime, context, path, mode),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_access(runtime, context, path, mode)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsAttrsAccessReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_ATTRS_ACCESS,
+        runtime.replay_payload_for(FS_ATTRS_ACCESS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_access(runtime, context, path, mode),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_access(runtime, context, path, mode)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsAttrsAccessReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsAttrsAccessReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsAttrsAccessReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_attrs_access_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_attrs_accessat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
@@ -19144,220 +19142,208 @@ fn destack_fs_attrs_accessat_vm_replay(
     mode: AccessMode,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_ATTRS_ACCESSAT,
-            runtime.replay_payload_for(FS_ATTRS_ACCESSAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_accessat(runtime, context, dir, path, mode, flags)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_accessat(
-                    runtime, context, dir, path, mode, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsAttrsAccessatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_ATTRS_ACCESSAT,
+        runtime.replay_payload_for(FS_ATTRS_ACCESSAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_accessat(runtime, context, dir, path, mode, flags)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_accessat(
+                runtime, context, dir, path, mode, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsAttrsAccessatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsAttrsAccessatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsAttrsAccessatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_attrs_accessat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_attrs_chmod_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_ATTRS_CHMOD,
-            runtime.replay_payload_for(FS_ATTRS_CHMOD)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_chmod(runtime, context, path, mode),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_chmod(runtime, context, path, mode)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsAttrsChmodReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_ATTRS_CHMOD,
+        runtime.replay_payload_for(FS_ATTRS_CHMOD)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_chmod(runtime, context, path, mode),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_chmod(runtime, context, path, mode)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsAttrsChmodReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsAttrsChmodReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsAttrsChmodReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_attrs_chmod_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_attrs_chown_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_ATTRS_CHOWN,
-            runtime.replay_payload_for(FS_ATTRS_CHOWN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_chown(runtime, context, path, uid, gid)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_chown(runtime, context, path, uid, gid)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsAttrsChownReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_ATTRS_CHOWN,
+        runtime.replay_payload_for(FS_ATTRS_CHOWN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_chown(runtime, context, path, uid, gid),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_chown(runtime, context, path, uid, gid)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsAttrsChownReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsAttrsChownReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsAttrsChownReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_attrs_chown_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_attrs_fchmod_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_ATTRS_FCHMOD,
-            runtime.replay_payload_for(FS_ATTRS_FCHMOD)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_fchmod(runtime, context, handle, mode)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_fchmod(runtime, context, handle, mode)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsAttrsFchmodReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_ATTRS_FCHMOD,
+        runtime.replay_payload_for(FS_ATTRS_FCHMOD)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_fchmod(runtime, context, handle, mode),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_fchmod(runtime, context, handle, mode)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsAttrsFchmodReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsAttrsFchmodReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsAttrsFchmodReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_attrs_fchmod_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_attrs_fchmodat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
@@ -19365,112 +19351,108 @@ fn destack_fs_attrs_fchmodat_vm_replay(
     mode: FileMode,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_ATTRS_FCHMODAT,
-            runtime.replay_payload_for(FS_ATTRS_FCHMODAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_fchmodat(runtime, context, dir, path, mode, flags)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fchmodat(
-                    runtime, context, dir, path, mode, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsAttrsFchmodatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_ATTRS_FCHMODAT,
+        runtime.replay_payload_for(FS_ATTRS_FCHMODAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_fchmodat(runtime, context, dir, path, mode, flags)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_fchmodat(
+                runtime, context, dir, path, mode, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsAttrsFchmodatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsAttrsFchmodatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsAttrsFchmodatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_attrs_fchmodat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_attrs_fchown_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_ATTRS_FCHOWN,
-            runtime.replay_payload_for(FS_ATTRS_FCHOWN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_fchown(runtime, context, handle, uid, gid)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_fchown(runtime, context, handle, uid, gid)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsAttrsFchownReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_ATTRS_FCHOWN,
+        runtime.replay_payload_for(FS_ATTRS_FCHOWN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_fchown(runtime, context, handle, uid, gid)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_fchown(runtime, context, handle, uid, gid)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsAttrsFchownReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsAttrsFchownReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsAttrsFchownReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_attrs_fchown_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_attrs_fchownat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
@@ -19479,168 +19461,162 @@ fn destack_fs_attrs_fchownat_vm_replay(
     gid: u32,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_ATTRS_FCHOWNAT,
-            runtime.replay_payload_for(FS_ATTRS_FCHOWNAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_fchownat(runtime, context, dir, path, uid, gid, flags)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fchownat(
-                    runtime, context, dir, path, uid, gid, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsAttrsFchownatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_ATTRS_FCHOWNAT,
+        runtime.replay_payload_for(FS_ATTRS_FCHOWNAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_fchownat(runtime, context, dir, path, uid, gid, flags)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_fchownat(
+                runtime, context, dir, path, uid, gid, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsAttrsFchownatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsAttrsFchownatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsAttrsFchownatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_attrs_fchownat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_attrs_futimes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_ATTRS_FUTIMES,
-            runtime.replay_payload_for(FS_ATTRS_FUTIMES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_futimes(runtime, context, handle, atimens, mtimens)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_futimes(
-                    runtime, context, handle, atimens, mtimens,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsAttrsFutimesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_ATTRS_FUTIMES,
+        runtime.replay_payload_for(FS_ATTRS_FUTIMES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_futimes(runtime, context, handle, atimens, mtimens)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_futimes(
+                runtime, context, handle, atimens, mtimens,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsAttrsFutimesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsAttrsFutimesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsAttrsFutimesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_attrs_futimes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_attrs_lutimes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_ATTRS_LUTIMES,
-            runtime.replay_payload_for(FS_ATTRS_LUTIMES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_lutimes(runtime, context, path, atimens, mtimens)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_lutimes(
-                    runtime, context, path, atimens, mtimens,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsAttrsLutimesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_ATTRS_LUTIMES,
+        runtime.replay_payload_for(FS_ATTRS_LUTIMES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_lutimes(runtime, context, path, atimens, mtimens)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_lutimes(runtime, context, path, atimens, mtimens)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsAttrsLutimesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsAttrsLutimesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsAttrsLutimesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_attrs_lutimes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_attrs_utimensat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
@@ -19649,766 +19625,738 @@ fn destack_fs_attrs_utimensat_vm_replay(
     mtimens: u64,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_ATTRS_UTIMENSAT,
-            runtime.replay_payload_for(FS_ATTRS_UTIMENSAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_utimensat(
-                    runtime, context, dir, path, atimens, mtimens, flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_utimensat(
-                    runtime, context, dir, path, atimens, mtimens, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsAttrsUtimensatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_ATTRS_UTIMENSAT,
+        runtime.replay_payload_for(FS_ATTRS_UTIMENSAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_utimensat(
+                runtime, context, dir, path, atimens, mtimens, flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_utimensat(
+                runtime, context, dir, path, atimens, mtimens, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsAttrsUtimensatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsAttrsUtimensatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsAttrsUtimensatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_attrs_utimensat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_attrs_utimes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_ATTRS_UTIMES,
-            runtime.replay_payload_for(FS_ATTRS_UTIMES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_utimes(runtime, context, path, atimens, mtimens)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_utimes(
-                    runtime, context, path, atimens, mtimens,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsAttrsUtimesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_ATTRS_UTIMES,
+        runtime.replay_payload_for(FS_ATTRS_UTIMES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_utimes(runtime, context, path, atimens, mtimens)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_utimes(runtime, context, path, atimens, mtimens)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsAttrsUtimesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsAttrsUtimesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsAttrsUtimesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_attrs_utimes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_dir_closedir_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_DIR_CLOSEDIR,
-            runtime.replay_payload_for(FS_DIR_CLOSEDIR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_closedir(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_closedir(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsDirClosedirReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_DIR_CLOSEDIR,
+        runtime.replay_payload_for(FS_DIR_CLOSEDIR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_closedir(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_closedir(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsDirClosedirReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsDirClosedirReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsDirClosedirReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_dir_closedir_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_dir_dirfd_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_DIR_DIRFD,
-            runtime.replay_payload_for(FS_DIR_DIRFD)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_dirfd(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_dirfd(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::FileHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsDirDirfdReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_DIR_DIRFD,
+        runtime.replay_payload_for(FS_DIR_DIRFD)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_dirfd(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_dirfd(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::FileHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = FsDirDirfdReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsDirDirfdReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsDirDirfdReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_dir_dirfd_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_dir_mkdir_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_DIR_MKDIR,
-            runtime.replay_payload_for(FS_DIR_MKDIR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_mkdir(runtime, context, path, mode),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_mkdir(runtime, context, path, mode)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsDirMkdirReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_DIR_MKDIR,
+        runtime.replay_payload_for(FS_DIR_MKDIR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_mkdir(runtime, context, path, mode),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_mkdir(runtime, context, path, mode)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsDirMkdirReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsDirMkdirReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsDirMkdirReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_dir_mkdir_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_dir_mkdirat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_DIR_MKDIRAT,
-            runtime.replay_payload_for(FS_DIR_MKDIRAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_mkdirat(runtime, context, dir, path, mode)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_mkdirat(runtime, context, dir, path, mode)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsDirMkdiratReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_DIR_MKDIRAT,
+        runtime.replay_payload_for(FS_DIR_MKDIRAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_mkdirat(runtime, context, dir, path, mode)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_mkdirat(runtime, context, dir, path, mode)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsDirMkdiratReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsDirMkdiratReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsDirMkdiratReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_dir_mkdirat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_dir_mkdtemp_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     template: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_DIR_MKDTEMP,
-            runtime.replay_payload_for(FS_DIR_MKDTEMP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_mkdtemp(runtime, context, template),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_mkdtemp(runtime, context, template)
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_DIR_MKDTEMP,
+        runtime.replay_payload_for(FS_DIR_MKDTEMP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_mkdtemp(runtime, context, template),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_mkdtemp(runtime, context, template)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: OsPathVm = value.clone();
+                let result_recorded_encoding = result_value.encoding;
+                let result_recorded_bytes_inner = result_value.bytes.0.read_bytes(context)?;
+                let result_recorded_bytes = result_recorded_bytes_inner;
+                let result_recorded_utf16_inner_raw = result_value.utf16.0.raw_values(context)?;
+                let mut result_recorded_utf16_inner =
+                    Vec::with_capacity(result_recorded_utf16_inner_raw.len());
+                for result_recorded_utf16_inner_item_value in result_recorded_utf16_inner_raw {
+                    let result_recorded_utf16_inner_item = decode_uint16(
+                        result_recorded_utf16_inner_item_value,
+                        "result_recorded_utf16_inner_item",
+                        "item",
+                    )?;
+                    let result_recorded_utf16_inner_item_recorded =
+                        result_recorded_utf16_inner_item;
+                    result_recorded_utf16_inner.push(result_recorded_utf16_inner_item_recorded);
                 }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: OsPathVm = value.clone();
-                    let result_recorded_encoding = result_value.encoding;
-                    let result_recorded_bytes_inner = result_value.bytes.0.read_bytes(context)?;
-                    let result_recorded_bytes = result_recorded_bytes_inner;
-                    let result_recorded_utf16_inner_raw =
-                        result_value.utf16.0.raw_values(context)?;
-                    let mut result_recorded_utf16_inner =
-                        Vec::with_capacity(result_recorded_utf16_inner_raw.len());
-                    for result_recorded_utf16_inner_item_value in result_recorded_utf16_inner_raw {
-                        let result_recorded_utf16_inner_item = decode_uint16(
-                            result_recorded_utf16_inner_item_value,
-                            "result_recorded_utf16_inner_item",
-                            "item",
-                        )?;
-                        let result_recorded_utf16_inner_item_recorded =
-                            result_recorded_utf16_inner_item;
-                        result_recorded_utf16_inner.push(result_recorded_utf16_inner_item_recorded);
-                    }
-                    let result_recorded_utf16 = result_recorded_utf16_inner;
-                    let result_recorded = OsPathReplayRecord {
-                        encoding: result_recorded_encoding,
-                        bytes: result_recorded_bytes,
-                        utf16: result_recorded_utf16,
-                    };
-                    let payload = FsDirMkdtempReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                let result_recorded_utf16 = result_recorded_utf16_inner;
+                let result_recorded = OsPathReplayRecord {
+                    encoding: result_recorded_encoding,
+                    bytes: result_recorded_bytes,
+                    utf16: result_recorded_utf16,
+                };
+                let payload = FsDirMkdtempReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsDirMkdtempReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsDirMkdtempReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_encoding = value.encoding;
-                        let vm_result_bytes_inner =
-                            VmArray::from_bytes(context, value.bytes.as_slice());
-                        let vm_result_bytes =
-                            platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_bytes_inner);
-                        let mut vm_result_utf16_inner_values =
-                            Vec::with_capacity(value.utf16.len());
-                        for vm_result_utf16_inner_item in value.utf16.iter() {
-                            let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
-                            let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
-                            vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
-                        }
-                        let vm_result_utf16_inner =
-                            VmArray::from_values(context, &vm_result_utf16_inner_values)?;
-                        let vm_result_utf16 =
-                            platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_utf16_inner);
-                        let vm_result = OsPathVm {
-                            encoding: vm_result_encoding,
-                            bytes: vm_result_bytes,
-                            utf16: vm_result_utf16,
-                        };
-                        Ok(vm_result)
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_encoding = value.encoding;
+                    let vm_result_bytes_inner =
+                        VmArray::from_bytes(context, value.bytes.as_slice());
+                    let vm_result_bytes =
+                        platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_bytes_inner);
+                    let mut vm_result_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                    for vm_result_utf16_inner_item in value.utf16.iter() {
+                        let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
+                        let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
+                        vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    let vm_result_utf16_inner =
+                        VmArray::from_values(context, &vm_result_utf16_inner_values)?;
+                    let vm_result_utf16 =
+                        platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_utf16_inner);
+                    let vm_result = OsPathVm {
+                        encoding: vm_result_encoding,
+                        bytes: vm_result_bytes,
+                        utf16: vm_result_utf16,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_dir_mkdtemp_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_dir_opendir_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_DIR_OPENDIR,
-            runtime.replay_payload_for(FS_DIR_OPENDIR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_opendir(runtime, context, path),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_opendir(runtime, context, path)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::DirectoryHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsDirOpendirReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_DIR_OPENDIR,
+        runtime.replay_payload_for(FS_DIR_OPENDIR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_opendir(runtime, context, path),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_opendir(runtime, context, path)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::DirectoryHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = FsDirOpendirReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsDirOpendirReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsDirOpendirReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_dir_opendir_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_dir_readdir_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_DIR_READDIR,
-            runtime.replay_payload_for(FS_DIR_READDIR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_readdir(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_readdir(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<DirentVm> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item = {
-                            if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_DIR_READDIR,
+        runtime.replay_payload_for(FS_DIR_READDIR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_readdir(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_readdir(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<DirentVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_item",
+                                "item",
+                            ))
+                            .boxed());
+                        }
+                        let slots = context
+                            .aggregate_slots(result_recorded_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 2 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "expected 2 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_item_name = {
+                            if slots[0].tag() != vm::ValueTag::Aggregate {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_type(
-                                        "result_recorded_item",
-                                        "item",
+                                        "result_recorded_item_name",
+                                        "name",
                                     ),
                                 )
                                 .boxed());
                             }
                             let slots = context
-                                .aggregate_slots(result_recorded_item_value)
+                                .aggregate_slots(slots[0])
                                 .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 2 {
+                            if slots.len() != 3 {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_recorded_item",
-                                        "expected 2 fields",
+                                        "result_recorded_item_name",
+                                        "expected 3 fields",
                                     ),
                                 )
                                 .boxed());
                             }
-                            let result_recorded_item_name = {
-                                if slots[0].tag() != vm::ValueTag::Aggregate {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_type(
-                                            "result_recorded_item_name",
-                                            "name",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                                let slots = context
-                                    .aggregate_slots(slots[0])
-                                    .map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 3 {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_value(
-                                            "result_recorded_item_name",
-                                            "expected 3 fields",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                                let result_recorded_item_name_encoding_raw = decode_uint8(
-                                    slots[0],
-                                    "result_recorded_item_name_encoding_raw",
-                                    "encoding",
-                                )?;
-                                let result_recorded_item_name_encoding =
-                                    match result_recorded_item_name_encoding_raw {
-                                        1u8 => PathEncoding::Bytes,
-                                        2u8 => PathEncoding::Utf16,
-                                        _ => {
-                                            return Err(RuntimeError::from(
-                                                PlatformError::invalid_argument_value(
-                                                    "result_recorded_item_name_encoding",
-                                                    "unknown PathEncoding value",
-                                                ),
-                                            )
-                                            .boxed());
-                                        }
-                                    };
-                                let result_recorded_item_name_bytes_inner = decode_array::<u8>(
-                                    context,
-                                    slots[1],
-                                    "result_recorded_item_name_bytes_inner",
-                                    "bytes",
-                                )?;
-                                let result_recorded_item_name_bytes =
-                                    platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
-                                        result_recorded_item_name_bytes_inner,
-                                    );
-                                let result_recorded_item_name_utf16_inner = decode_array::<u16>(
-                                    context,
-                                    slots[2],
-                                    "result_recorded_item_name_utf16_inner",
-                                    "utf16",
-                                )?;
-                                let result_recorded_item_name_utf16 =
-                                    platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
-                                        result_recorded_item_name_utf16_inner,
-                                    );
-                                OsPathVm {
-                                    encoding: result_recorded_item_name_encoding,
-                                    bytes: result_recorded_item_name_bytes,
-                                    utf16: result_recorded_item_name_utf16,
-                                }
-                            };
-                            let result_recorded_item_kind_raw =
-                                decode_uint8(slots[1], "result_recorded_item_kind_raw", "kind")?;
-                            let result_recorded_item_kind = match result_recorded_item_kind_raw {
-                                1u8 => DirentKind::File,
-                                2u8 => DirentKind::Directory,
-                                3u8 => DirentKind::Symlink,
-                                4u8 => DirentKind::BlockDevice,
-                                5u8 => DirentKind::CharDevice,
-                                6u8 => DirentKind::Fifo,
-                                7u8 => DirentKind::Socket,
-                                255u8 => DirentKind::Unknown,
-                                _ => {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_value(
-                                            "result_recorded_item_kind",
-                                            "unknown DirentKind value",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                            };
-                            DirentVm {
-                                name: result_recorded_item_name,
-                                kind: result_recorded_item_kind,
-                            }
-                        };
-                        let result_recorded_item_recorded_name_encoding =
-                            result_recorded_item.name.encoding;
-                        let result_recorded_item_recorded_name_bytes_inner =
-                            result_recorded_item.name.bytes.0.read_bytes(context)?;
-                        let result_recorded_item_recorded_name_bytes =
-                            result_recorded_item_recorded_name_bytes_inner;
-                        let result_recorded_item_recorded_name_utf16_inner_raw =
-                            result_recorded_item.name.utf16.0.raw_values(context)?;
-                        let mut result_recorded_item_recorded_name_utf16_inner = Vec::with_capacity(
-                            result_recorded_item_recorded_name_utf16_inner_raw.len(),
-                        );
-                        for result_recorded_item_recorded_name_utf16_inner_item_value in
-                            result_recorded_item_recorded_name_utf16_inner_raw
-                        {
-                            let result_recorded_item_recorded_name_utf16_inner_item =
-                                decode_uint16(
-                                    result_recorded_item_recorded_name_utf16_inner_item_value,
-                                    "result_recorded_item_recorded_name_utf16_inner_item",
-                                    "item",
-                                )?;
-                            let result_recorded_item_recorded_name_utf16_inner_item_recorded =
-                                result_recorded_item_recorded_name_utf16_inner_item;
-                            result_recorded_item_recorded_name_utf16_inner
-                                .push(result_recorded_item_recorded_name_utf16_inner_item_recorded);
-                        }
-                        let result_recorded_item_recorded_name_utf16 =
-                            result_recorded_item_recorded_name_utf16_inner;
-                        let result_recorded_item_recorded_name = OsPathReplayRecord {
-                            encoding: result_recorded_item_recorded_name_encoding,
-                            bytes: result_recorded_item_recorded_name_bytes,
-                            utf16: result_recorded_item_recorded_name_utf16,
-                        };
-                        let result_recorded_item_recorded_kind = result_recorded_item.kind;
-                        let result_recorded_item_recorded = DirentReplayRecord {
-                            name: result_recorded_item_recorded_name,
-                            kind: result_recorded_item_recorded_kind,
-                        };
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = FsDirReaddirReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsDirReaddirReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item = vm_result_item.clone();
-                            let vm_result_item_value_name_encoding = vm_result_item.name.encoding;
-                            let vm_result_item_value_name_bytes_inner =
-                                VmArray::from_bytes(context, vm_result_item.name.bytes.as_slice());
-                            let vm_result_item_value_name_bytes =
-                                platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
-                                    vm_result_item_value_name_bytes_inner,
-                                );
-                            let mut vm_result_item_value_name_utf16_inner_values =
-                                Vec::with_capacity(vm_result_item.name.utf16.len());
-                            for vm_result_item_value_name_utf16_inner_item in
-                                vm_result_item.name.utf16.iter()
-                            {
-                                let vm_result_item_value_name_utf16_inner_item =
-                                    *vm_result_item_value_name_utf16_inner_item;
-                                let vm_result_item_value_name_utf16_inner_item_value =
-                                    vm_result_item_value_name_utf16_inner_item;
-                                vm_result_item_value_name_utf16_inner_values
-                                    .push(vm_result_item_value_name_utf16_inner_item_value);
-                            }
-                            let vm_result_item_value_name_utf16_inner = VmArray::from_values(
-                                context,
-                                &vm_result_item_value_name_utf16_inner_values,
+                            let result_recorded_item_name_encoding_raw = decode_uint8(
+                                slots[0],
+                                "result_recorded_item_name_encoding_raw",
+                                "encoding",
                             )?;
-                            let vm_result_item_value_name_utf16 =
-                                platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
-                                    vm_result_item_value_name_utf16_inner,
-                                );
-                            let vm_result_item_value_name = OsPathVm {
-                                encoding: vm_result_item_value_name_encoding,
-                                bytes: vm_result_item_value_name_bytes,
-                                utf16: vm_result_item_value_name_utf16,
-                            };
-                            let vm_result_item_value_kind = vm_result_item.kind;
-                            let vm_result_item_value = DirentVm {
-                                name: vm_result_item_value_name,
-                                kind: vm_result_item_value_kind,
-                            };
-                            let vm_result_item_value_encoded = {
-                                let field_0 = {
-                                    let field_0 = vm::Value::uint(
-                                        vm_result_item_value.name.encoding as u8 as u64,
-                                        8,
-                                    );
-                                    let field_1 =
-                                        vm_result_item_value.name.bytes.0.to_value(context);
-                                    let field_2 =
-                                        vm_result_item_value.name.utf16.0.to_value(context);
-                                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                            let result_recorded_item_name_encoding =
+                                match result_recorded_item_name_encoding_raw {
+                                    1u8 => PathEncoding::Bytes,
+                                    2u8 => PathEncoding::Utf16,
+                                    _ => {
+                                        return Err(RuntimeError::from(
+                                            PlatformError::invalid_argument_value(
+                                                "result_recorded_item_name_encoding",
+                                                "unknown PathEncoding value",
+                                            ),
+                                        )
+                                        .boxed());
+                                    }
                                 };
-                                let field_1 =
-                                    vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8);
-                                context.allocate_aggregate(vec![field_0, field_1])
-                            };
-                            vm_result_values.push(vm_result_item_value_encoded);
-                        }
-                        let vm_result_data = context.allocate_raw_values(vm_result_values);
-                        let vm_result: VmArray<DirentVm> = VmArray {
-                            data: vm_result_data,
-                            len: value.len() as u32,
-                            capacity: value.len() as u32,
-                            _marker: std::marker::PhantomData,
+                            let result_recorded_item_name_bytes_inner = decode_array::<u8>(
+                                context,
+                                slots[1],
+                                "result_recorded_item_name_bytes_inner",
+                                "bytes",
+                            )?;
+                            let result_recorded_item_name_bytes =
+                                platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
+                                    result_recorded_item_name_bytes_inner,
+                                );
+                            let result_recorded_item_name_utf16_inner = decode_array::<u16>(
+                                context,
+                                slots[2],
+                                "result_recorded_item_name_utf16_inner",
+                                "utf16",
+                            )?;
+                            let result_recorded_item_name_utf16 =
+                                platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
+                                    result_recorded_item_name_utf16_inner,
+                                );
+                            OsPathVm {
+                                encoding: result_recorded_item_name_encoding,
+                                bytes: result_recorded_item_name_bytes,
+                                utf16: result_recorded_item_name_utf16,
+                            }
                         };
-                        Ok(vm_result)
+                        let result_recorded_item_kind_raw =
+                            decode_uint8(slots[1], "result_recorded_item_kind_raw", "kind")?;
+                        let result_recorded_item_kind = match result_recorded_item_kind_raw {
+                            1u8 => DirentKind::File,
+                            2u8 => DirentKind::Directory,
+                            3u8 => DirentKind::Symlink,
+                            4u8 => DirentKind::BlockDevice,
+                            5u8 => DirentKind::CharDevice,
+                            6u8 => DirentKind::Fifo,
+                            7u8 => DirentKind::Socket,
+                            255u8 => DirentKind::Unknown,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_item_kind",
+                                        "unknown DirentKind value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
+                        DirentVm {
+                            name: result_recorded_item_name,
+                            kind: result_recorded_item_kind,
+                        }
+                    };
+                    let result_recorded_item_recorded_name_encoding =
+                        result_recorded_item.name.encoding;
+                    let result_recorded_item_recorded_name_bytes_inner =
+                        result_recorded_item.name.bytes.0.read_bytes(context)?;
+                    let result_recorded_item_recorded_name_bytes =
+                        result_recorded_item_recorded_name_bytes_inner;
+                    let result_recorded_item_recorded_name_utf16_inner_raw =
+                        result_recorded_item.name.utf16.0.raw_values(context)?;
+                    let mut result_recorded_item_recorded_name_utf16_inner = Vec::with_capacity(
+                        result_recorded_item_recorded_name_utf16_inner_raw.len(),
+                    );
+                    for result_recorded_item_recorded_name_utf16_inner_item_value in
+                        result_recorded_item_recorded_name_utf16_inner_raw
+                    {
+                        let result_recorded_item_recorded_name_utf16_inner_item = decode_uint16(
+                            result_recorded_item_recorded_name_utf16_inner_item_value,
+                            "result_recorded_item_recorded_name_utf16_inner_item",
+                            "item",
+                        )?;
+                        let result_recorded_item_recorded_name_utf16_inner_item_recorded =
+                            result_recorded_item_recorded_name_utf16_inner_item;
+                        result_recorded_item_recorded_name_utf16_inner
+                            .push(result_recorded_item_recorded_name_utf16_inner_item_recorded);
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    let result_recorded_item_recorded_name_utf16 =
+                        result_recorded_item_recorded_name_utf16_inner;
+                    let result_recorded_item_recorded_name = OsPathReplayRecord {
+                        encoding: result_recorded_item_recorded_name_encoding,
+                        bytes: result_recorded_item_recorded_name_bytes,
+                        utf16: result_recorded_item_recorded_name_utf16,
+                    };
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded = DirentReplayRecord {
+                        name: result_recorded_item_recorded_name,
+                        kind: result_recorded_item_recorded_kind,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
                 }
-            },
-        );
+                let payload = FsDirReaddirReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsDirReaddirReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value_name_encoding = vm_result_item.name.encoding;
+                        let vm_result_item_value_name_bytes_inner =
+                            VmArray::from_bytes(context, vm_result_item.name.bytes.as_slice());
+                        let vm_result_item_value_name_bytes =
+                            platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
+                                vm_result_item_value_name_bytes_inner,
+                            );
+                        let mut vm_result_item_value_name_utf16_inner_values =
+                            Vec::with_capacity(vm_result_item.name.utf16.len());
+                        for vm_result_item_value_name_utf16_inner_item in
+                            vm_result_item.name.utf16.iter()
+                        {
+                            let vm_result_item_value_name_utf16_inner_item =
+                                *vm_result_item_value_name_utf16_inner_item;
+                            let vm_result_item_value_name_utf16_inner_item_value =
+                                vm_result_item_value_name_utf16_inner_item;
+                            vm_result_item_value_name_utf16_inner_values
+                                .push(vm_result_item_value_name_utf16_inner_item_value);
+                        }
+                        let vm_result_item_value_name_utf16_inner = VmArray::from_values(
+                            context,
+                            &vm_result_item_value_name_utf16_inner_values,
+                        )?;
+                        let vm_result_item_value_name_utf16 =
+                            platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
+                                vm_result_item_value_name_utf16_inner,
+                            );
+                        let vm_result_item_value_name = OsPathVm {
+                            encoding: vm_result_item_value_name_encoding,
+                            bytes: vm_result_item_value_name_bytes,
+                            utf16: vm_result_item_value_name_utf16,
+                        };
+                        let vm_result_item_value_kind = vm_result_item.kind;
+                        let vm_result_item_value = DirentVm {
+                            name: vm_result_item_value_name,
+                            kind: vm_result_item_value_kind,
+                        };
+                        let vm_result_item_value_encoded = {
+                            let field_0 = {
+                                let field_0 = vm::Value::uint(
+                                    vm_result_item_value.name.encoding as u8 as u64,
+                                    8,
+                                );
+                                let field_1 = vm_result_item_value.name.bytes.0.to_value(context);
+                                let field_2 = vm_result_item_value.name.utf16.0.to_value(context);
+                                context.allocate_aggregate(vec![field_0, field_1, field_2])
+                            };
+                            let field_1 =
+                                vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8);
+                            context.allocate_aggregate(vec![field_0, field_1])
+                        };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<DirentVm> = VmArray {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        capacity: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_dir_readdir_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_dir_readdir_next_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
+    let result =
+        runtime.replay().run_binding_with_context_policy(
             FS_DIR_READDIR_NEXT,
             runtime.replay_payload_for(FS_DIR_READDIR_NEXT)?,
             context,
@@ -20416,7 +20364,7 @@ fn destack_fs_dir_readdir_next_vm_replay(
                 RuntimeWorld::Host => {
                     platform_vm::destack_fs_readdir_next(runtime, context, handle)
                 }
-                RuntimeWorld::Simulated => {
+                RuntimeWorld::Simulation => {
                     platform_simulation_vm::destack_fs_readdir_next(runtime, context, handle)
                 }
             },
@@ -20534,163 +20482,157 @@ fn destack_fs_dir_readdir_next_vm_replay(
 
 #[inline]
 fn destack_fs_dir_rewinddir_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_DIR_REWINDDIR,
-            runtime.replay_payload_for(FS_DIR_REWINDDIR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_rewinddir(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_rewinddir(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsDirRewinddirReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_DIR_REWINDDIR,
+        runtime.replay_payload_for(FS_DIR_REWINDDIR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_rewinddir(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_rewinddir(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsDirRewinddirReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsDirRewinddirReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsDirRewinddirReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_dir_rewinddir_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_dir_rmdir_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_DIR_RMDIR,
-            runtime.replay_payload_for(FS_DIR_RMDIR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_rmdir(runtime, context, path),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_rmdir(runtime, context, path)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsDirRmdirReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_DIR_RMDIR,
+        runtime.replay_payload_for(FS_DIR_RMDIR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_rmdir(runtime, context, path),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_rmdir(runtime, context, path)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsDirRmdirReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsDirRmdirReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsDirRmdirReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_dir_rmdir_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_CLOSE,
-            runtime.replay_payload_for(FS_FILE_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_close(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsFileCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_CLOSE,
+        runtime.replay_payload_for(FS_FILE_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsFileCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_copy_file_range_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     src: resource::FileHandle,
@@ -20699,235 +20641,225 @@ fn destack_fs_file_copy_file_range_vm_replay(
     dstoffset: FileOffset,
     length: FileSize,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_COPY_FILE_RANGE,
-            runtime.replay_payload_for(FS_FILE_COPY_FILE_RANGE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_copy_file_range(
-                    runtime, context, src, srcoffset, dst, dstoffset, length,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_copy_file_range(
-                    runtime, context, src, srcoffset, dst, dstoffset, length,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileCopyFileRangeReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_COPY_FILE_RANGE,
+        runtime.replay_payload_for(FS_FILE_COPY_FILE_RANGE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_copy_file_range(
+                runtime, context, src, srcoffset, dst, dstoffset, length,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_copy_file_range(
+                runtime, context, src, srcoffset, dst, dstoffset, length,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileCopyFileRangeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileCopyFileRangeReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileCopyFileRangeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_copy_file_range_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_dup_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_DUP,
-            runtime.replay_payload_for(FS_FILE_DUP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_dup(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_dup(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::FileHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileDupReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_DUP,
+        runtime.replay_payload_for(FS_FILE_DUP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_dup(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_dup(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::FileHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileDupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileDupReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileDupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_dup_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_dup2_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     target: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_DUP2,
-            runtime.replay_payload_for(FS_FILE_DUP2)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_dup2(runtime, context, handle, target)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_dup2(runtime, context, handle, target)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::FileHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileDup2Replay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_DUP2,
+        runtime.replay_payload_for(FS_FILE_DUP2)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_dup2(runtime, context, handle, target),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_dup2(runtime, context, handle, target)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::FileHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileDup2Replay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileDup2Replay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileDup2Replay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_dup2_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_dup3_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     target: resource::FileHandle,
     flags: OpenFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_DUP3,
-            runtime.replay_payload_for(FS_FILE_DUP3)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_dup3(runtime, context, handle, target, flags)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_dup3(runtime, context, handle, target, flags)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::FileHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileDup3Replay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_DUP3,
+        runtime.replay_payload_for(FS_FILE_DUP3)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_dup3(runtime, context, handle, target, flags)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_dup3(runtime, context, handle, target, flags)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::FileHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileDup3Replay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileDup3Replay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileDup3Replay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_dup3_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_fadvise_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -20935,56 +20867,54 @@ fn destack_fs_file_fadvise_vm_replay(
     length: FileSize,
     advice: FileAdvice,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_FADVISE,
-            runtime.replay_payload_for(FS_FILE_FADVISE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_fadvise(
-                    runtime, context, handle, offset, length, advice,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fadvise(
-                    runtime, context, handle, offset, length, advice,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsFileFadviseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_FADVISE,
+        runtime.replay_payload_for(FS_FILE_FADVISE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_fadvise(runtime, context, handle, offset, length, advice)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_fadvise(
+                runtime, context, handle, offset, length, advice,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsFileFadviseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileFadviseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileFadviseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_fadvise_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_fallocate_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -20992,444 +20922,422 @@ fn destack_fs_file_fallocate_vm_replay(
     length: FileSize,
     flags: AllocFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_FALLOCATE,
-            runtime.replay_payload_for(FS_FILE_FALLOCATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_fallocate(
-                    runtime, context, handle, offset, length, flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fallocate(
-                    runtime, context, handle, offset, length, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsFileFallocateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_FALLOCATE,
+        runtime.replay_payload_for(FS_FILE_FALLOCATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_fallocate(runtime, context, handle, offset, length, flags)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_fallocate(
+                runtime, context, handle, offset, length, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsFileFallocateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileFallocateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileFallocateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_fallocate_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_fdatasync_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_FDATASYNC,
-            runtime.replay_payload_for(FS_FILE_FDATASYNC)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_fdatasync(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_fdatasync(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsFileFdatasyncReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_FDATASYNC,
+        runtime.replay_payload_for(FS_FILE_FDATASYNC)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_fdatasync(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_fdatasync(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsFileFdatasyncReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileFdatasyncReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileFdatasyncReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_fdatasync_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_fsync_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_FSYNC,
-            runtime.replay_payload_for(FS_FILE_FSYNC)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_fsync(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_fsync(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsFileFsyncReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_FSYNC,
+        runtime.replay_payload_for(FS_FILE_FSYNC)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_fsync(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_fsync(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsFileFsyncReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileFsyncReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileFsyncReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_fsync_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_ftruncate_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     size: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_FTRUNCATE,
-            runtime.replay_payload_for(FS_FILE_FTRUNCATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_ftruncate(runtime, context, handle, size)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_ftruncate(runtime, context, handle, size)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsFileFtruncateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_FTRUNCATE,
+        runtime.replay_payload_for(FS_FILE_FTRUNCATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_ftruncate(runtime, context, handle, size),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_ftruncate(runtime, context, handle, size)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsFileFtruncateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileFtruncateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileFtruncateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_ftruncate_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_get_fd_flags_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_GET_FD_FLAGS,
-            runtime.replay_payload_for(FS_FILE_GET_FD_FLAGS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_get_fd_flags(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_get_fd_flags(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: FdFlags = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileGetFdFlagsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_GET_FD_FLAGS,
+        runtime.replay_payload_for(FS_FILE_GET_FD_FLAGS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_get_fd_flags(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_get_fd_flags(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: FdFlags = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileGetFdFlagsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileGetFdFlagsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileGetFdFlagsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_get_fd_flags_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_get_status_flags_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_GET_STATUS_FLAGS,
-            runtime.replay_payload_for(FS_FILE_GET_STATUS_FLAGS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_get_status_flags(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_get_status_flags(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: StatusFlags = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileGetStatusFlagsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_GET_STATUS_FLAGS,
+        runtime.replay_payload_for(FS_FILE_GET_STATUS_FLAGS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_get_status_flags(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_get_status_flags(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: StatusFlags = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileGetStatusFlagsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileGetStatusFlagsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileGetStatusFlagsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_get_status_flags_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_lock_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_LOCK,
-            runtime.replay_payload_for(FS_FILE_LOCK)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_lock(runtime, context, handle, flags),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_lock(runtime, context, handle, flags)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsFileLockReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_LOCK,
+        runtime.replay_payload_for(FS_FILE_LOCK)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_lock(runtime, context, handle, flags),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_lock(runtime, context, handle, flags)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsFileLockReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileLockReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileLockReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_lock_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_OPEN,
-            runtime.replay_payload_for(FS_FILE_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_open(runtime, context, path, flags, mode)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_open(runtime, context, path, flags, mode)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::FileHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_OPEN,
+        runtime.replay_payload_for(FS_FILE_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_open(runtime, context, path, flags, mode),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_open(runtime, context, path, flags, mode)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::FileHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_openat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
@@ -21437,240 +21345,230 @@ fn destack_fs_file_openat_vm_replay(
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_OPENAT,
-            runtime.replay_payload_for(FS_FILE_OPENAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_openat(runtime, context, dir, path, flags, mode)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_openat(
-                    runtime, context, dir, path, flags, mode,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::FileHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileOpenatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_OPENAT,
+        runtime.replay_payload_for(FS_FILE_OPENAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_openat(runtime, context, dir, path, flags, mode)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_openat(runtime, context, dir, path, flags, mode)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::FileHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileOpenatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileOpenatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileOpenatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_openat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_openat2_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     how: OpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_OPENAT2,
-            runtime.replay_payload_for(FS_FILE_OPENAT2)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_openat2(runtime, context, dir, path, how)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_openat2(runtime, context, dir, path, how)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::FileHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileOpenat2Replay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_OPENAT2,
+        runtime.replay_payload_for(FS_FILE_OPENAT2)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_openat2(runtime, context, dir, path, how),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_openat2(runtime, context, dir, path, how)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::FileHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileOpenat2Replay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileOpenat2Replay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileOpenat2Replay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_openat2_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_pread_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_PREAD,
-            runtime.replay_payload_for(FS_FILE_PREAD)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_pread(runtime, context, handle, buffer, offset)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_pread(
-                    runtime, context, handle, buffer, offset,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFilePreadReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_PREAD,
+        runtime.replay_payload_for(FS_FILE_PREAD)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_pread(runtime, context, handle, buffer, offset)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_pread(runtime, context, handle, buffer, offset)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFilePreadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFilePreadReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFilePreadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_pread_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_preadv_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_PREADV,
-            runtime.replay_payload_for(FS_FILE_PREADV)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_preadv(runtime, context, handle, buffers, offset)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_preadv(
-                    runtime, context, handle, buffers, offset,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFilePreadvReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_PREADV,
+        runtime.replay_payload_for(FS_FILE_PREADV)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_preadv(runtime, context, handle, buffers, offset)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_preadv(runtime, context, handle, buffers, offset)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFilePreadvReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFilePreadvReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFilePreadvReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_preadv_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_preadv2_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -21678,180 +21576,174 @@ fn destack_fs_file_preadv2_vm_replay(
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_PREADV2,
-            runtime.replay_payload_for(FS_FILE_PREADV2)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_preadv2(
-                    runtime, context, handle, buffers, offset, flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_preadv2(
-                    runtime, context, handle, buffers, offset, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFilePreadv2Replay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_PREADV2,
+        runtime.replay_payload_for(FS_FILE_PREADV2)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_preadv2(runtime, context, handle, buffers, offset, flags)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_preadv2(
+                runtime, context, handle, buffers, offset, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFilePreadv2Replay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFilePreadv2Replay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFilePreadv2Replay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_preadv2_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_pwrite_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_PWRITE,
-            runtime.replay_payload_for(FS_FILE_PWRITE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_pwrite(runtime, context, handle, buffer, offset)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_pwrite(
-                    runtime, context, handle, buffer, offset,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFilePwriteReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_PWRITE,
+        runtime.replay_payload_for(FS_FILE_PWRITE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_pwrite(runtime, context, handle, buffer, offset)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_pwrite(runtime, context, handle, buffer, offset)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFilePwriteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFilePwriteReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFilePwriteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_pwrite_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_pwritev_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_PWRITEV,
-            runtime.replay_payload_for(FS_FILE_PWRITEV)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_pwritev(runtime, context, handle, buffers, offset)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_pwritev(
-                    runtime, context, handle, buffers, offset,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFilePwritevReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_PWRITEV,
+        runtime.replay_payload_for(FS_FILE_PWRITEV)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_pwritev(runtime, context, handle, buffers, offset)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_pwritev(
+                runtime, context, handle, buffers, offset,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFilePwritevReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFilePwritevReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFilePwritevReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_pwritev_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_pwritev2_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -21859,238 +21751,226 @@ fn destack_fs_file_pwritev2_vm_replay(
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_PWRITEV2,
-            runtime.replay_payload_for(FS_FILE_PWRITEV2)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_pwritev2(
-                    runtime, context, handle, buffers, offset, flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_pwritev2(
-                    runtime, context, handle, buffers, offset, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFilePwritev2Replay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_PWRITEV2,
+        runtime.replay_payload_for(FS_FILE_PWRITEV2)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_pwritev2(runtime, context, handle, buffers, offset, flags)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_pwritev2(
+                runtime, context, handle, buffers, offset, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFilePwritev2Replay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFilePwritev2Replay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFilePwritev2Replay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_pwritev2_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_read_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_READ,
-            runtime.replay_payload_for(FS_FILE_READ)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_read(runtime, context, handle, buffer)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_read(runtime, context, handle, buffer)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileReadReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_READ,
+        runtime.replay_payload_for(FS_FILE_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_read(runtime, context, handle, buffer),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_read(runtime, context, handle, buffer)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileReadReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_read_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_readv_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_READV,
-            runtime.replay_payload_for(FS_FILE_READV)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_readv(runtime, context, handle, buffers)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_readv(runtime, context, handle, buffers)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileReadvReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_READV,
+        runtime.replay_payload_for(FS_FILE_READV)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_readv(runtime, context, handle, buffers),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_readv(runtime, context, handle, buffers)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileReadvReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileReadvReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileReadvReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_readv_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_seek_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     offset: FileOffset,
     whence: SeekWhence,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_SEEK,
-            runtime.replay_payload_for(FS_FILE_SEEK)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_seek(runtime, context, handle, offset, whence)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_seek(
-                    runtime, context, handle, offset, whence,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: FileOffset = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileSeekReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_SEEK,
+        runtime.replay_payload_for(FS_FILE_SEEK)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_seek(runtime, context, handle, offset, whence)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_seek(runtime, context, handle, offset, whence)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: FileOffset = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileSeekReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileSeekReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileSeekReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_seek_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_sendfile_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     socket: resource::SocketHandle,
@@ -22098,170 +21978,164 @@ fn destack_fs_file_sendfile_vm_replay(
     offset: FileOffset,
     length: FileSize,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_SENDFILE,
-            runtime.replay_payload_for(FS_FILE_SENDFILE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_sendfile(runtime, context, socket, file, offset, length)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_sendfile(
-                    runtime, context, socket, file, offset, length,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileSendfileReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_SENDFILE,
+        runtime.replay_payload_for(FS_FILE_SENDFILE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_sendfile(runtime, context, socket, file, offset, length)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_sendfile(
+                runtime, context, socket, file, offset, length,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileSendfileReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileSendfileReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileSendfileReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_sendfile_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_set_fd_flags_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     flags: FdFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_SET_FD_FLAGS,
-            runtime.replay_payload_for(FS_FILE_SET_FD_FLAGS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_set_fd_flags(runtime, context, handle, flags)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_set_fd_flags(runtime, context, handle, flags)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsFileSetFdFlagsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_SET_FD_FLAGS,
+        runtime.replay_payload_for(FS_FILE_SET_FD_FLAGS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_set_fd_flags(runtime, context, handle, flags)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_set_fd_flags(runtime, context, handle, flags)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsFileSetFdFlagsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileSetFdFlagsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileSetFdFlagsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_set_fd_flags_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_set_status_flags_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     flags: StatusFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_SET_STATUS_FLAGS,
-            runtime.replay_payload_for(FS_FILE_SET_STATUS_FLAGS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_set_status_flags(runtime, context, handle, flags)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_set_status_flags(
-                    runtime, context, handle, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsFileSetStatusFlagsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_SET_STATUS_FLAGS,
+        runtime.replay_payload_for(FS_FILE_SET_STATUS_FLAGS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_set_status_flags(runtime, context, handle, flags)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_set_status_flags(runtime, context, handle, flags)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsFileSetStatusFlagsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileSetStatusFlagsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileSetStatusFlagsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_set_status_flags_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_splice_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     source: resource::ResourceId,
@@ -22271,74 +22145,72 @@ fn destack_fs_file_splice_vm_replay(
     length: FileSize,
     flags: SpliceFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_SPLICE,
-            runtime.replay_payload_for(FS_FILE_SPLICE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_splice(
-                    runtime,
-                    context,
-                    source,
-                    sourcecursor,
-                    target,
-                    targetcursor,
-                    length,
-                    flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_splice(
-                    runtime,
-                    context,
-                    source,
-                    sourcecursor,
-                    target,
-                    targetcursor,
-                    length,
-                    flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileSpliceReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_SPLICE,
+        runtime.replay_payload_for(FS_FILE_SPLICE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_splice(
+                runtime,
+                context,
+                source,
+                sourcecursor,
+                target,
+                targetcursor,
+                length,
+                flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_splice(
+                runtime,
+                context,
+                source,
+                sourcecursor,
+                target,
+                targetcursor,
+                length,
+                flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileSpliceReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileSpliceReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileSpliceReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_splice_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_sync_file_range_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -22346,108 +22218,104 @@ fn destack_fs_file_sync_file_range_vm_replay(
     length: FileSize,
     flags: SyncFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_SYNC_FILE_RANGE,
-            runtime.replay_payload_for(FS_FILE_SYNC_FILE_RANGE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_sync_file_range(
-                    runtime, context, handle, offset, length, flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_sync_file_range(
-                    runtime, context, handle, offset, length, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsFileSyncFileRangeReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_SYNC_FILE_RANGE,
+        runtime.replay_payload_for(FS_FILE_SYNC_FILE_RANGE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_sync_file_range(
+                runtime, context, handle, offset, length, flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_sync_file_range(
+                runtime, context, handle, offset, length, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsFileSyncFileRangeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileSyncFileRangeReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileSyncFileRangeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_sync_file_range_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_syncfs_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_SYNCFS,
-            runtime.replay_payload_for(FS_FILE_SYNCFS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_syncfs(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_syncfs(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsFileSyncfsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_SYNCFS,
+        runtime.replay_payload_for(FS_FILE_SYNCFS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_syncfs(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_syncfs(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsFileSyncfsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileSyncfsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileSyncfsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_syncfs_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_tee_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     sourcepipe: resource::PipeHandle,
@@ -22455,408 +22323,388 @@ fn destack_fs_file_tee_vm_replay(
     length: FileSize,
     flags: SpliceFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_TEE,
-            runtime.replay_payload_for(FS_FILE_TEE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_tee(
-                    runtime, context, sourcepipe, targetpipe, length, flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_tee(
-                    runtime, context, sourcepipe, targetpipe, length, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileTeeReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_TEE,
+        runtime.replay_payload_for(FS_FILE_TEE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_tee(runtime, context, sourcepipe, targetpipe, length, flags)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_tee(
+                runtime, context, sourcepipe, targetpipe, length, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileTeeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileTeeReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileTeeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_tee_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_truncate_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     size: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_TRUNCATE,
-            runtime.replay_payload_for(FS_FILE_TRUNCATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_truncate(runtime, context, path, size)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_truncate(runtime, context, path, size)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsFileTruncateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_TRUNCATE,
+        runtime.replay_payload_for(FS_FILE_TRUNCATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_truncate(runtime, context, path, size),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_truncate(runtime, context, path, size)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsFileTruncateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileTruncateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileTruncateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_truncate_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_vmsplice_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pipe: resource::PipeHandle,
     buffers: VmSlice<VmSlice<u8>>,
     flags: SpliceFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_VMSPLICE,
-            runtime.replay_payload_for(FS_FILE_VMSPLICE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_vmsplice(runtime, context, pipe, buffers, flags)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_vmsplice(
-                    runtime, context, pipe, buffers, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileVmspliceReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_VMSPLICE,
+        runtime.replay_payload_for(FS_FILE_VMSPLICE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_vmsplice(runtime, context, pipe, buffers, flags)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_vmsplice(runtime, context, pipe, buffers, flags)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileVmspliceReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileVmspliceReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileVmspliceReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_vmsplice_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_write_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_WRITE,
-            runtime.replay_payload_for(FS_FILE_WRITE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_write(runtime, context, handle, buffer)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_write(runtime, context, handle, buffer)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileWriteReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_WRITE,
+        runtime.replay_payload_for(FS_FILE_WRITE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_write(runtime, context, handle, buffer),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_write(runtime, context, handle, buffer)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileWriteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileWriteReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileWriteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_write_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_file_writev_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_FILE_WRITEV,
-            runtime.replay_payload_for(FS_FILE_WRITEV)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_writev(runtime, context, handle, buffers)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_writev(runtime, context, handle, buffers)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsFileWritevReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_FILE_WRITEV,
+        runtime.replay_payload_for(FS_FILE_WRITEV)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_writev(runtime, context, handle, buffers),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_writev(runtime, context, handle, buffers)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = FsFileWritevReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsFileWritevReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsFileWritevReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_file_writev_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_mmap_madvise_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     mapping: VmSlice<u8>,
     advice: MmapAdvice,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_MMAP_MADVISE,
-            runtime.replay_payload_for(FS_MMAP_MADVISE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_madvise(runtime, context, mapping, advice)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_madvise(runtime, context, mapping, advice)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsMmapMadviseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_MMAP_MADVISE,
+        runtime.replay_payload_for(FS_MMAP_MADVISE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_madvise(runtime, context, mapping, advice)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_madvise(runtime, context, mapping, advice)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsMmapMadviseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsMmapMadviseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsMmapMadviseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_mmap_madvise_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_mmap_mmap_anonymous_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     length: FileSize,
     prot: MmapProt,
     flags: MmapFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_MMAP_MMAP_ANONYMOUS,
-            runtime.replay_payload_for(FS_MMAP_MMAP_ANONYMOUS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_mmap_anonymous(runtime, context, length, prot, flags)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_mmap_anonymous(
-                    runtime, context, length, prot, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmSlice<u8> = value.clone();
-                    let result_recorded = result_value.read_bytes(context)?;
-                    let payload = FsMmapMmapAnonymousReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_MMAP_MMAP_ANONYMOUS,
+        runtime.replay_payload_for(FS_MMAP_MMAP_ANONYMOUS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_mmap_anonymous(runtime, context, length, prot, flags)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_mmap_anonymous(
+                runtime, context, length, prot, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<u8> = value.clone();
+                let result_recorded = result_value.read_bytes(context)?;
+                let payload = FsMmapMmapAnonymousReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsMmapMmapAnonymousReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsMmapMmapAnonymousReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = VmSlice::from_bytes(context, value.as_slice());
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmSlice::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_mmap_mmap_anonymous_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_mmap_mmap_file_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -22865,333 +22713,317 @@ fn destack_fs_mmap_mmap_file_vm_replay(
     prot: MmapProt,
     flags: MmapFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_MMAP_MMAP_FILE,
-            runtime.replay_payload_for(FS_MMAP_MMAP_FILE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_mmap_file(
-                    runtime, context, handle, offset, length, prot, flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_mmap_file(
-                    runtime, context, handle, offset, length, prot, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmSlice<u8> = value.clone();
-                    let result_recorded = result_value.read_bytes(context)?;
-                    let payload = FsMmapMmapFileReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_MMAP_MMAP_FILE,
+        runtime.replay_payload_for(FS_MMAP_MMAP_FILE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_mmap_file(
+                runtime, context, handle, offset, length, prot, flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_mmap_file(
+                runtime, context, handle, offset, length, prot, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<u8> = value.clone();
+                let result_recorded = result_value.read_bytes(context)?;
+                let payload = FsMmapMmapFileReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsMmapMmapFileReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsMmapMmapFileReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = VmSlice::from_bytes(context, value.as_slice());
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmSlice::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_mmap_mmap_file_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_mmap_mprotect_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     mapping: VmSlice<u8>,
     prot: MmapProt,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_MMAP_MPROTECT,
-            runtime.replay_payload_for(FS_MMAP_MPROTECT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_mprotect(runtime, context, mapping, prot)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_mprotect(runtime, context, mapping, prot)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsMmapMprotectReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_MMAP_MPROTECT,
+        runtime.replay_payload_for(FS_MMAP_MPROTECT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_mprotect(runtime, context, mapping, prot),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_mprotect(runtime, context, mapping, prot)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsMmapMprotectReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsMmapMprotectReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsMmapMprotectReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_mmap_mprotect_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_mmap_msync_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     mapping: VmSlice<u8>,
     flags: MmapSyncFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_MMAP_MSYNC,
-            runtime.replay_payload_for(FS_MMAP_MSYNC)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_msync(runtime, context, mapping, flags)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_msync(runtime, context, mapping, flags)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsMmapMsyncReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_MMAP_MSYNC,
+        runtime.replay_payload_for(FS_MMAP_MSYNC)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_msync(runtime, context, mapping, flags),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_msync(runtime, context, mapping, flags)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsMmapMsyncReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsMmapMsyncReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsMmapMsyncReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_mmap_msync_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_mmap_munmap_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     mapping: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_MMAP_MUNMAP,
-            runtime.replay_payload_for(FS_MMAP_MUNMAP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_munmap(runtime, context, mapping),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_munmap(runtime, context, mapping)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsMmapMunmapReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_MMAP_MUNMAP,
+        runtime.replay_payload_for(FS_MMAP_MUNMAP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_munmap(runtime, context, mapping),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_munmap(runtime, context, mapping)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsMmapMunmapReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsMmapMunmapReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsMmapMunmapReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_mmap_munmap_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_copyfile_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     from: OsPathVm,
     to: OsPathVm,
     flags: CopyFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_COPYFILE,
-            runtime.replay_payload_for(FS_PATH_COPYFILE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_copyfile(runtime, context, from, to, flags)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_copyfile(runtime, context, from, to, flags)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsPathCopyfileReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_COPYFILE,
+        runtime.replay_payload_for(FS_PATH_COPYFILE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_copyfile(runtime, context, from, to, flags)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_copyfile(runtime, context, from, to, flags)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsPathCopyfileReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathCopyfileReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathCopyfileReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_copyfile_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_link_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     existingpath: OsPathVm,
     newpath: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_LINK,
-            runtime.replay_payload_for(FS_PATH_LINK)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_link(runtime, context, existingpath, newpath)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_link(runtime, context, existingpath, newpath)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsPathLinkReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_LINK,
+        runtime.replay_payload_for(FS_PATH_LINK)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_link(runtime, context, existingpath, newpath)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_link(runtime, context, existingpath, newpath)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsPathLinkReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathLinkReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathLinkReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_link_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_linkat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     existingdir: resource::DirectoryHandle,
@@ -23200,233 +23032,225 @@ fn destack_fs_path_linkat_vm_replay(
     newpath: OsPathVm,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_LINKAT,
-            runtime.replay_payload_for(FS_PATH_LINKAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_linkat(
-                    runtime,
-                    context,
-                    existingdir,
-                    existingpath,
-                    newdir,
-                    newpath,
-                    flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_linkat(
-                    runtime,
-                    context,
-                    existingdir,
-                    existingpath,
-                    newdir,
-                    newpath,
-                    flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsPathLinkatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_LINKAT,
+        runtime.replay_payload_for(FS_PATH_LINKAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_linkat(
+                runtime,
+                context,
+                existingdir,
+                existingpath,
+                newdir,
+                newpath,
+                flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_linkat(
+                runtime,
+                context,
+                existingdir,
+                existingpath,
+                newdir,
+                newpath,
+                flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsPathLinkatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathLinkatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathLinkatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_linkat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_mkfifo_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_MKFIFO,
-            runtime.replay_payload_for(FS_PATH_MKFIFO)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_mkfifo(runtime, context, path, mode),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_mkfifo(runtime, context, path, mode)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsPathMkfifoReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_MKFIFO,
+        runtime.replay_payload_for(FS_PATH_MKFIFO)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_mkfifo(runtime, context, path, mode),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_mkfifo(runtime, context, path, mode)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsPathMkfifoReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathMkfifoReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathMkfifoReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_mkfifo_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_mkfifoat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_MKFIFOAT,
-            runtime.replay_payload_for(FS_PATH_MKFIFOAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_mkfifoat(runtime, context, dir, path, mode)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_mkfifoat(runtime, context, dir, path, mode)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsPathMkfifoatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_MKFIFOAT,
+        runtime.replay_payload_for(FS_PATH_MKFIFOAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_mkfifoat(runtime, context, dir, path, mode)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_mkfifoat(runtime, context, dir, path, mode)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsPathMkfifoatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathMkfifoatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathMkfifoatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_mkfifoat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_mknod_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     mode: FileMode,
     device: NodeDevice,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_MKNOD,
-            runtime.replay_payload_for(FS_PATH_MKNOD)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_mknod(runtime, context, path, mode, device)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_mknod(runtime, context, path, mode, device)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsPathMknodReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_MKNOD,
+        runtime.replay_payload_for(FS_PATH_MKNOD)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_mknod(runtime, context, path, mode, device)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_mknod(runtime, context, path, mode, device)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsPathMknodReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathMknodReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathMknodReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_mknod_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_mknodat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
@@ -23434,406 +23258,388 @@ fn destack_fs_path_mknodat_vm_replay(
     mode: FileMode,
     device: NodeDevice,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_MKNODAT,
-            runtime.replay_payload_for(FS_PATH_MKNODAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_mknodat(runtime, context, dir, path, mode, device)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_mknodat(
-                    runtime, context, dir, path, mode, device,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsPathMknodatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_MKNODAT,
+        runtime.replay_payload_for(FS_PATH_MKNODAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_mknodat(runtime, context, dir, path, mode, device)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_mknodat(
+                runtime, context, dir, path, mode, device,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsPathMknodatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathMknodatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathMknodatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_mknodat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_readlink_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_READLINK,
-            runtime.replay_payload_for(FS_PATH_READLINK)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_readlink(runtime, context, path),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_readlink(runtime, context, path)
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_READLINK,
+        runtime.replay_payload_for(FS_PATH_READLINK)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_readlink(runtime, context, path),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_readlink(runtime, context, path)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: OsPathVm = value.clone();
+                let result_recorded_encoding = result_value.encoding;
+                let result_recorded_bytes_inner = result_value.bytes.0.read_bytes(context)?;
+                let result_recorded_bytes = result_recorded_bytes_inner;
+                let result_recorded_utf16_inner_raw = result_value.utf16.0.raw_values(context)?;
+                let mut result_recorded_utf16_inner =
+                    Vec::with_capacity(result_recorded_utf16_inner_raw.len());
+                for result_recorded_utf16_inner_item_value in result_recorded_utf16_inner_raw {
+                    let result_recorded_utf16_inner_item = decode_uint16(
+                        result_recorded_utf16_inner_item_value,
+                        "result_recorded_utf16_inner_item",
+                        "item",
+                    )?;
+                    let result_recorded_utf16_inner_item_recorded =
+                        result_recorded_utf16_inner_item;
+                    result_recorded_utf16_inner.push(result_recorded_utf16_inner_item_recorded);
                 }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: OsPathVm = value.clone();
-                    let result_recorded_encoding = result_value.encoding;
-                    let result_recorded_bytes_inner = result_value.bytes.0.read_bytes(context)?;
-                    let result_recorded_bytes = result_recorded_bytes_inner;
-                    let result_recorded_utf16_inner_raw =
-                        result_value.utf16.0.raw_values(context)?;
-                    let mut result_recorded_utf16_inner =
-                        Vec::with_capacity(result_recorded_utf16_inner_raw.len());
-                    for result_recorded_utf16_inner_item_value in result_recorded_utf16_inner_raw {
-                        let result_recorded_utf16_inner_item = decode_uint16(
-                            result_recorded_utf16_inner_item_value,
-                            "result_recorded_utf16_inner_item",
-                            "item",
-                        )?;
-                        let result_recorded_utf16_inner_item_recorded =
-                            result_recorded_utf16_inner_item;
-                        result_recorded_utf16_inner.push(result_recorded_utf16_inner_item_recorded);
-                    }
-                    let result_recorded_utf16 = result_recorded_utf16_inner;
-                    let result_recorded = OsPathReplayRecord {
-                        encoding: result_recorded_encoding,
-                        bytes: result_recorded_bytes,
-                        utf16: result_recorded_utf16,
-                    };
-                    let payload = FsPathReadlinkReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                let result_recorded_utf16 = result_recorded_utf16_inner;
+                let result_recorded = OsPathReplayRecord {
+                    encoding: result_recorded_encoding,
+                    bytes: result_recorded_bytes,
+                    utf16: result_recorded_utf16,
+                };
+                let payload = FsPathReadlinkReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathReadlinkReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathReadlinkReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_encoding = value.encoding;
-                        let vm_result_bytes_inner =
-                            VmArray::from_bytes(context, value.bytes.as_slice());
-                        let vm_result_bytes =
-                            platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_bytes_inner);
-                        let mut vm_result_utf16_inner_values =
-                            Vec::with_capacity(value.utf16.len());
-                        for vm_result_utf16_inner_item in value.utf16.iter() {
-                            let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
-                            let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
-                            vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
-                        }
-                        let vm_result_utf16_inner =
-                            VmArray::from_values(context, &vm_result_utf16_inner_values)?;
-                        let vm_result_utf16 =
-                            platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_utf16_inner);
-                        let vm_result = OsPathVm {
-                            encoding: vm_result_encoding,
-                            bytes: vm_result_bytes,
-                            utf16: vm_result_utf16,
-                        };
-                        Ok(vm_result)
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_encoding = value.encoding;
+                    let vm_result_bytes_inner =
+                        VmArray::from_bytes(context, value.bytes.as_slice());
+                    let vm_result_bytes =
+                        platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_bytes_inner);
+                    let mut vm_result_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                    for vm_result_utf16_inner_item in value.utf16.iter() {
+                        let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
+                        let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
+                        vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    let vm_result_utf16_inner =
+                        VmArray::from_values(context, &vm_result_utf16_inner_values)?;
+                    let vm_result_utf16 =
+                        platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_utf16_inner);
+                    let vm_result = OsPathVm {
+                        encoding: vm_result_encoding,
+                        bytes: vm_result_bytes,
+                        utf16: vm_result_utf16,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_readlink_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_readlinkat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_READLINKAT,
-            runtime.replay_payload_for(FS_PATH_READLINKAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_readlinkat(runtime, context, dir, path)
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_READLINKAT,
+        runtime.replay_payload_for(FS_PATH_READLINKAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_readlinkat(runtime, context, dir, path),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_readlinkat(runtime, context, dir, path)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: OsPathVm = value.clone();
+                let result_recorded_encoding = result_value.encoding;
+                let result_recorded_bytes_inner = result_value.bytes.0.read_bytes(context)?;
+                let result_recorded_bytes = result_recorded_bytes_inner;
+                let result_recorded_utf16_inner_raw = result_value.utf16.0.raw_values(context)?;
+                let mut result_recorded_utf16_inner =
+                    Vec::with_capacity(result_recorded_utf16_inner_raw.len());
+                for result_recorded_utf16_inner_item_value in result_recorded_utf16_inner_raw {
+                    let result_recorded_utf16_inner_item = decode_uint16(
+                        result_recorded_utf16_inner_item_value,
+                        "result_recorded_utf16_inner_item",
+                        "item",
+                    )?;
+                    let result_recorded_utf16_inner_item_recorded =
+                        result_recorded_utf16_inner_item;
+                    result_recorded_utf16_inner.push(result_recorded_utf16_inner_item_recorded);
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_readlinkat(runtime, context, dir, path)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: OsPathVm = value.clone();
-                    let result_recorded_encoding = result_value.encoding;
-                    let result_recorded_bytes_inner = result_value.bytes.0.read_bytes(context)?;
-                    let result_recorded_bytes = result_recorded_bytes_inner;
-                    let result_recorded_utf16_inner_raw =
-                        result_value.utf16.0.raw_values(context)?;
-                    let mut result_recorded_utf16_inner =
-                        Vec::with_capacity(result_recorded_utf16_inner_raw.len());
-                    for result_recorded_utf16_inner_item_value in result_recorded_utf16_inner_raw {
-                        let result_recorded_utf16_inner_item = decode_uint16(
-                            result_recorded_utf16_inner_item_value,
-                            "result_recorded_utf16_inner_item",
-                            "item",
-                        )?;
-                        let result_recorded_utf16_inner_item_recorded =
-                            result_recorded_utf16_inner_item;
-                        result_recorded_utf16_inner.push(result_recorded_utf16_inner_item_recorded);
-                    }
-                    let result_recorded_utf16 = result_recorded_utf16_inner;
-                    let result_recorded = OsPathReplayRecord {
-                        encoding: result_recorded_encoding,
-                        bytes: result_recorded_bytes,
-                        utf16: result_recorded_utf16,
-                    };
-                    let payload = FsPathReadlinkatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                let result_recorded_utf16 = result_recorded_utf16_inner;
+                let result_recorded = OsPathReplayRecord {
+                    encoding: result_recorded_encoding,
+                    bytes: result_recorded_bytes,
+                    utf16: result_recorded_utf16,
+                };
+                let payload = FsPathReadlinkatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathReadlinkatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathReadlinkatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_encoding = value.encoding;
-                        let vm_result_bytes_inner =
-                            VmArray::from_bytes(context, value.bytes.as_slice());
-                        let vm_result_bytes =
-                            platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_bytes_inner);
-                        let mut vm_result_utf16_inner_values =
-                            Vec::with_capacity(value.utf16.len());
-                        for vm_result_utf16_inner_item in value.utf16.iter() {
-                            let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
-                            let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
-                            vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
-                        }
-                        let vm_result_utf16_inner =
-                            VmArray::from_values(context, &vm_result_utf16_inner_values)?;
-                        let vm_result_utf16 =
-                            platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_utf16_inner);
-                        let vm_result = OsPathVm {
-                            encoding: vm_result_encoding,
-                            bytes: vm_result_bytes,
-                            utf16: vm_result_utf16,
-                        };
-                        Ok(vm_result)
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_encoding = value.encoding;
+                    let vm_result_bytes_inner =
+                        VmArray::from_bytes(context, value.bytes.as_slice());
+                    let vm_result_bytes =
+                        platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_bytes_inner);
+                    let mut vm_result_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                    for vm_result_utf16_inner_item in value.utf16.iter() {
+                        let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
+                        let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
+                        vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    let vm_result_utf16_inner =
+                        VmArray::from_values(context, &vm_result_utf16_inner_values)?;
+                    let vm_result_utf16 =
+                        platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_utf16_inner);
+                    let vm_result = OsPathVm {
+                        encoding: vm_result_encoding,
+                        bytes: vm_result_bytes,
+                        utf16: vm_result_utf16,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_readlinkat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_realpath_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_REALPATH,
-            runtime.replay_payload_for(FS_PATH_REALPATH)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_realpath(runtime, context, path),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_realpath(runtime, context, path)
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_REALPATH,
+        runtime.replay_payload_for(FS_PATH_REALPATH)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_realpath(runtime, context, path),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_realpath(runtime, context, path)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: OsPathVm = value.clone();
+                let result_recorded_encoding = result_value.encoding;
+                let result_recorded_bytes_inner = result_value.bytes.0.read_bytes(context)?;
+                let result_recorded_bytes = result_recorded_bytes_inner;
+                let result_recorded_utf16_inner_raw = result_value.utf16.0.raw_values(context)?;
+                let mut result_recorded_utf16_inner =
+                    Vec::with_capacity(result_recorded_utf16_inner_raw.len());
+                for result_recorded_utf16_inner_item_value in result_recorded_utf16_inner_raw {
+                    let result_recorded_utf16_inner_item = decode_uint16(
+                        result_recorded_utf16_inner_item_value,
+                        "result_recorded_utf16_inner_item",
+                        "item",
+                    )?;
+                    let result_recorded_utf16_inner_item_recorded =
+                        result_recorded_utf16_inner_item;
+                    result_recorded_utf16_inner.push(result_recorded_utf16_inner_item_recorded);
                 }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: OsPathVm = value.clone();
-                    let result_recorded_encoding = result_value.encoding;
-                    let result_recorded_bytes_inner = result_value.bytes.0.read_bytes(context)?;
-                    let result_recorded_bytes = result_recorded_bytes_inner;
-                    let result_recorded_utf16_inner_raw =
-                        result_value.utf16.0.raw_values(context)?;
-                    let mut result_recorded_utf16_inner =
-                        Vec::with_capacity(result_recorded_utf16_inner_raw.len());
-                    for result_recorded_utf16_inner_item_value in result_recorded_utf16_inner_raw {
-                        let result_recorded_utf16_inner_item = decode_uint16(
-                            result_recorded_utf16_inner_item_value,
-                            "result_recorded_utf16_inner_item",
-                            "item",
-                        )?;
-                        let result_recorded_utf16_inner_item_recorded =
-                            result_recorded_utf16_inner_item;
-                        result_recorded_utf16_inner.push(result_recorded_utf16_inner_item_recorded);
-                    }
-                    let result_recorded_utf16 = result_recorded_utf16_inner;
-                    let result_recorded = OsPathReplayRecord {
-                        encoding: result_recorded_encoding,
-                        bytes: result_recorded_bytes,
-                        utf16: result_recorded_utf16,
-                    };
-                    let payload = FsPathRealpathReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                let result_recorded_utf16 = result_recorded_utf16_inner;
+                let result_recorded = OsPathReplayRecord {
+                    encoding: result_recorded_encoding,
+                    bytes: result_recorded_bytes,
+                    utf16: result_recorded_utf16,
+                };
+                let payload = FsPathRealpathReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathRealpathReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathRealpathReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_encoding = value.encoding;
-                        let vm_result_bytes_inner =
-                            VmArray::from_bytes(context, value.bytes.as_slice());
-                        let vm_result_bytes =
-                            platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_bytes_inner);
-                        let mut vm_result_utf16_inner_values =
-                            Vec::with_capacity(value.utf16.len());
-                        for vm_result_utf16_inner_item in value.utf16.iter() {
-                            let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
-                            let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
-                            vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
-                        }
-                        let vm_result_utf16_inner =
-                            VmArray::from_values(context, &vm_result_utf16_inner_values)?;
-                        let vm_result_utf16 =
-                            platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_utf16_inner);
-                        let vm_result = OsPathVm {
-                            encoding: vm_result_encoding,
-                            bytes: vm_result_bytes,
-                            utf16: vm_result_utf16,
-                        };
-                        Ok(vm_result)
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_encoding = value.encoding;
+                    let vm_result_bytes_inner =
+                        VmArray::from_bytes(context, value.bytes.as_slice());
+                    let vm_result_bytes =
+                        platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_bytes_inner);
+                    let mut vm_result_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                    for vm_result_utf16_inner_item in value.utf16.iter() {
+                        let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
+                        let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
+                        vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    let vm_result_utf16_inner =
+                        VmArray::from_values(context, &vm_result_utf16_inner_values)?;
+                    let vm_result_utf16 =
+                        platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_utf16_inner);
+                    let vm_result = OsPathVm {
+                        encoding: vm_result_encoding,
+                        bytes: vm_result_bytes,
+                        utf16: vm_result_utf16,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_realpath_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_rename_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     from: OsPathVm,
     to: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_RENAME,
-            runtime.replay_payload_for(FS_PATH_RENAME)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_rename(runtime, context, from, to),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_rename(runtime, context, from, to)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsPathRenameReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_RENAME,
+        runtime.replay_payload_for(FS_PATH_RENAME)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_rename(runtime, context, from, to),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_rename(runtime, context, from, to)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsPathRenameReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathRenameReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathRenameReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_rename_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_renameat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     fromdir: resource::DirectoryHandle,
@@ -23841,56 +23647,54 @@ fn destack_fs_path_renameat_vm_replay(
     todir: resource::DirectoryHandle,
     to: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_RENAMEAT,
-            runtime.replay_payload_for(FS_PATH_RENAMEAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_renameat(runtime, context, fromdir, from, todir, to)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_renameat(
-                    runtime, context, fromdir, from, todir, to,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsPathRenameatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_RENAMEAT,
+        runtime.replay_payload_for(FS_PATH_RENAMEAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_renameat(runtime, context, fromdir, from, todir, to)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_renameat(
+                runtime, context, fromdir, from, todir, to,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsPathRenameatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathRenameatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathRenameatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_renameat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_renameat2_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     fromdir: resource::DirectoryHandle,
@@ -23899,112 +23703,108 @@ fn destack_fs_path_renameat2_vm_replay(
     to: OsPathVm,
     flags: RenameFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_RENAMEAT2,
-            runtime.replay_payload_for(FS_PATH_RENAMEAT2)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_renameat2(
-                    runtime, context, fromdir, from, todir, to, flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_renameat2(
-                    runtime, context, fromdir, from, todir, to, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsPathRenameat2Replay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_RENAMEAT2,
+        runtime.replay_payload_for(FS_PATH_RENAMEAT2)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_renameat2(runtime, context, fromdir, from, todir, to, flags)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_renameat2(
+                runtime, context, fromdir, from, todir, to, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsPathRenameat2Replay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathRenameat2Replay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathRenameat2Replay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_renameat2_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_symlink_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     target: OsPathVm,
     path: OsPathVm,
     kind: SymlinkType,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_SYMLINK,
-            runtime.replay_payload_for(FS_PATH_SYMLINK)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_symlink(runtime, context, target, path, kind)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_symlink(runtime, context, target, path, kind)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsPathSymlinkReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_SYMLINK,
+        runtime.replay_payload_for(FS_PATH_SYMLINK)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_symlink(runtime, context, target, path, kind)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_symlink(runtime, context, target, path, kind)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsPathSymlinkReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathSymlinkReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathSymlinkReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_symlink_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_symlinkat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     target: OsPathVm,
@@ -24012,820 +23812,802 @@ fn destack_fs_path_symlinkat_vm_replay(
     path: OsPathVm,
     kind: SymlinkType,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_SYMLINKAT,
-            runtime.replay_payload_for(FS_PATH_SYMLINKAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_symlinkat(runtime, context, target, dir, path, kind)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_symlinkat(
-                    runtime, context, target, dir, path, kind,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsPathSymlinkatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_SYMLINKAT,
+        runtime.replay_payload_for(FS_PATH_SYMLINKAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_symlinkat(runtime, context, target, dir, path, kind)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_symlinkat(
+                runtime, context, target, dir, path, kind,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsPathSymlinkatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathSymlinkatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathSymlinkatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_symlinkat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_unlink_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_UNLINK,
-            runtime.replay_payload_for(FS_PATH_UNLINK)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_unlink(runtime, context, path),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_unlink(runtime, context, path)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsPathUnlinkReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_UNLINK,
+        runtime.replay_payload_for(FS_PATH_UNLINK)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_unlink(runtime, context, path),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_unlink(runtime, context, path)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsPathUnlinkReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathUnlinkReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathUnlinkReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_unlink_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_path_unlinkat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_PATH_UNLINKAT,
-            runtime.replay_payload_for(FS_PATH_UNLINKAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_unlinkat(runtime, context, dir, path, flags)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_unlinkat(runtime, context, dir, path, flags)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsPathUnlinkatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_PATH_UNLINKAT,
+        runtime.replay_payload_for(FS_PATH_UNLINKAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_unlinkat(runtime, context, dir, path, flags)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_unlinkat(runtime, context, dir, path, flags)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsPathUnlinkatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsPathUnlinkatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsPathUnlinkatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_path_unlinkat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_stat_fstat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_STAT_FSTAT,
-            runtime.replay_payload_for(FS_STAT_FSTAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_fstat(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_fstat(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: StatVm = value.clone();
-                    let result_recorded_dev = result_value.dev;
-                    let result_recorded_ino = result_value.ino;
-                    let result_recorded_mode = result_value.mode;
-                    let result_recorded_nlink = result_value.nlink;
-                    let result_recorded_uid = result_value.uid;
-                    let result_recorded_gid = result_value.gid;
-                    let result_recorded_rdev = result_value.rdev;
-                    let result_recorded_size = result_value.size;
-                    let result_recorded_blksize = result_value.blksize;
-                    let result_recorded_blocks = result_value.blocks;
-                    let result_recorded_atime_ns = result_value.atime_ns;
-                    let result_recorded_mtime_ns = result_value.mtime_ns;
-                    let result_recorded_ctime_ns = result_value.ctime_ns;
-                    let result_recorded_birthtime_ns = result_value.birthtime_ns;
-                    let result_recorded = Stat {
-                        dev: result_recorded_dev,
-                        ino: result_recorded_ino,
-                        mode: result_recorded_mode,
-                        nlink: result_recorded_nlink,
-                        uid: result_recorded_uid,
-                        gid: result_recorded_gid,
-                        rdev: result_recorded_rdev,
-                        size: result_recorded_size,
-                        blksize: result_recorded_blksize,
-                        blocks: result_recorded_blocks,
-                        atime_ns: result_recorded_atime_ns,
-                        mtime_ns: result_recorded_mtime_ns,
-                        ctime_ns: result_recorded_ctime_ns,
-                        birthtime_ns: result_recorded_birthtime_ns,
-                    };
-                    let payload = FsStatFstatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_STAT_FSTAT,
+        runtime.replay_payload_for(FS_STAT_FSTAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_fstat(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_fstat(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: StatVm = value.clone();
+                let result_recorded_dev = result_value.dev;
+                let result_recorded_ino = result_value.ino;
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_nlink = result_value.nlink;
+                let result_recorded_uid = result_value.uid;
+                let result_recorded_gid = result_value.gid;
+                let result_recorded_rdev = result_value.rdev;
+                let result_recorded_size = result_value.size;
+                let result_recorded_blksize = result_value.blksize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_atime_ns = result_value.atime_ns;
+                let result_recorded_mtime_ns = result_value.mtime_ns;
+                let result_recorded_ctime_ns = result_value.ctime_ns;
+                let result_recorded_birthtime_ns = result_value.birthtime_ns;
+                let result_recorded = Stat {
+                    dev: result_recorded_dev,
+                    ino: result_recorded_ino,
+                    mode: result_recorded_mode,
+                    nlink: result_recorded_nlink,
+                    uid: result_recorded_uid,
+                    gid: result_recorded_gid,
+                    rdev: result_recorded_rdev,
+                    size: result_recorded_size,
+                    blksize: result_recorded_blksize,
+                    blocks: result_recorded_blocks,
+                    atime_ns: result_recorded_atime_ns,
+                    mtime_ns: result_recorded_mtime_ns,
+                    ctime_ns: result_recorded_ctime_ns,
+                    birthtime_ns: result_recorded_birthtime_ns,
+                };
+                let payload = FsStatFstatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsStatFstatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsStatFstatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_dev = value.dev;
-                        let vm_result_ino = value.ino;
-                        let vm_result_mode = value.mode;
-                        let vm_result_nlink = value.nlink;
-                        let vm_result_uid = value.uid;
-                        let vm_result_gid = value.gid;
-                        let vm_result_rdev = value.rdev;
-                        let vm_result_size = value.size;
-                        let vm_result_blksize = value.blksize;
-                        let vm_result_blocks = value.blocks;
-                        let vm_result_atime_ns = value.atime_ns;
-                        let vm_result_mtime_ns = value.mtime_ns;
-                        let vm_result_ctime_ns = value.ctime_ns;
-                        let vm_result_birthtime_ns = value.birthtime_ns;
-                        let vm_result = StatVm {
-                            dev: vm_result_dev,
-                            ino: vm_result_ino,
-                            mode: vm_result_mode,
-                            nlink: vm_result_nlink,
-                            uid: vm_result_uid,
-                            gid: vm_result_gid,
-                            rdev: vm_result_rdev,
-                            size: vm_result_size,
-                            blksize: vm_result_blksize,
-                            blocks: vm_result_blocks,
-                            atime_ns: vm_result_atime_ns,
-                            mtime_ns: vm_result_mtime_ns,
-                            ctime_ns: vm_result_ctime_ns,
-                            birthtime_ns: vm_result_birthtime_ns,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_dev = value.dev;
+                    let vm_result_ino = value.ino;
+                    let vm_result_mode = value.mode;
+                    let vm_result_nlink = value.nlink;
+                    let vm_result_uid = value.uid;
+                    let vm_result_gid = value.gid;
+                    let vm_result_rdev = value.rdev;
+                    let vm_result_size = value.size;
+                    let vm_result_blksize = value.blksize;
+                    let vm_result_blocks = value.blocks;
+                    let vm_result_atime_ns = value.atime_ns;
+                    let vm_result_mtime_ns = value.mtime_ns;
+                    let vm_result_ctime_ns = value.ctime_ns;
+                    let vm_result_birthtime_ns = value.birthtime_ns;
+                    let vm_result = StatVm {
+                        dev: vm_result_dev,
+                        ino: vm_result_ino,
+                        mode: vm_result_mode,
+                        nlink: vm_result_nlink,
+                        uid: vm_result_uid,
+                        gid: vm_result_gid,
+                        rdev: vm_result_rdev,
+                        size: vm_result_size,
+                        blksize: vm_result_blksize,
+                        blocks: vm_result_blocks,
+                        atime_ns: vm_result_atime_ns,
+                        mtime_ns: vm_result_mtime_ns,
+                        ctime_ns: vm_result_ctime_ns,
+                        birthtime_ns: vm_result_birthtime_ns,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_stat_fstat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_stat_fstatfs_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_STAT_FSTATFS,
-            runtime.replay_payload_for(FS_STAT_FSTATFS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_fstatfs(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_fstatfs(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: StatFsVm = value.clone();
-                    let result_recorded_bsize = result_value.bsize;
-                    let result_recorded_frsize = result_value.frsize;
-                    let result_recorded_blocks = result_value.blocks;
-                    let result_recorded_bfree = result_value.bfree;
-                    let result_recorded_bavail = result_value.bavail;
-                    let result_recorded_files = result_value.files;
-                    let result_recorded_ffree = result_value.ffree;
-                    let result_recorded_fsid = result_value.fsid;
-                    let result_recorded_flags = result_value.flags;
-                    let result_recorded_namelen = result_value.namelen;
-                    let result_recorded = StatFs {
-                        bsize: result_recorded_bsize,
-                        frsize: result_recorded_frsize,
-                        blocks: result_recorded_blocks,
-                        bfree: result_recorded_bfree,
-                        bavail: result_recorded_bavail,
-                        files: result_recorded_files,
-                        ffree: result_recorded_ffree,
-                        fsid: result_recorded_fsid,
-                        flags: result_recorded_flags,
-                        namelen: result_recorded_namelen,
-                    };
-                    let payload = FsStatFstatfsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_STAT_FSTATFS,
+        runtime.replay_payload_for(FS_STAT_FSTATFS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_fstatfs(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_fstatfs(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: StatFsVm = value.clone();
+                let result_recorded_bsize = result_value.bsize;
+                let result_recorded_frsize = result_value.frsize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_bfree = result_value.bfree;
+                let result_recorded_bavail = result_value.bavail;
+                let result_recorded_files = result_value.files;
+                let result_recorded_ffree = result_value.ffree;
+                let result_recorded_fsid = result_value.fsid;
+                let result_recorded_flags = result_value.flags;
+                let result_recorded_namelen = result_value.namelen;
+                let result_recorded = StatFs {
+                    bsize: result_recorded_bsize,
+                    frsize: result_recorded_frsize,
+                    blocks: result_recorded_blocks,
+                    bfree: result_recorded_bfree,
+                    bavail: result_recorded_bavail,
+                    files: result_recorded_files,
+                    ffree: result_recorded_ffree,
+                    fsid: result_recorded_fsid,
+                    flags: result_recorded_flags,
+                    namelen: result_recorded_namelen,
+                };
+                let payload = FsStatFstatfsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsStatFstatfsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsStatFstatfsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_bsize = value.bsize;
-                        let vm_result_frsize = value.frsize;
-                        let vm_result_blocks = value.blocks;
-                        let vm_result_bfree = value.bfree;
-                        let vm_result_bavail = value.bavail;
-                        let vm_result_files = value.files;
-                        let vm_result_ffree = value.ffree;
-                        let vm_result_fsid = value.fsid;
-                        let vm_result_flags = value.flags;
-                        let vm_result_namelen = value.namelen;
-                        let vm_result = StatFsVm {
-                            bsize: vm_result_bsize,
-                            frsize: vm_result_frsize,
-                            blocks: vm_result_blocks,
-                            bfree: vm_result_bfree,
-                            bavail: vm_result_bavail,
-                            files: vm_result_files,
-                            ffree: vm_result_ffree,
-                            fsid: vm_result_fsid,
-                            flags: vm_result_flags,
-                            namelen: vm_result_namelen,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_bsize = value.bsize;
+                    let vm_result_frsize = value.frsize;
+                    let vm_result_blocks = value.blocks;
+                    let vm_result_bfree = value.bfree;
+                    let vm_result_bavail = value.bavail;
+                    let vm_result_files = value.files;
+                    let vm_result_ffree = value.ffree;
+                    let vm_result_fsid = value.fsid;
+                    let vm_result_flags = value.flags;
+                    let vm_result_namelen = value.namelen;
+                    let vm_result = StatFsVm {
+                        bsize: vm_result_bsize,
+                        frsize: vm_result_frsize,
+                        blocks: vm_result_blocks,
+                        bfree: vm_result_bfree,
+                        bavail: vm_result_bavail,
+                        files: vm_result_files,
+                        ffree: vm_result_ffree,
+                        fsid: vm_result_fsid,
+                        flags: vm_result_flags,
+                        namelen: vm_result_namelen,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_stat_fstatfs_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_stat_lstat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_STAT_LSTAT,
-            runtime.replay_payload_for(FS_STAT_LSTAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_lstat(runtime, context, path),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_lstat(runtime, context, path)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: StatVm = value.clone();
-                    let result_recorded_dev = result_value.dev;
-                    let result_recorded_ino = result_value.ino;
-                    let result_recorded_mode = result_value.mode;
-                    let result_recorded_nlink = result_value.nlink;
-                    let result_recorded_uid = result_value.uid;
-                    let result_recorded_gid = result_value.gid;
-                    let result_recorded_rdev = result_value.rdev;
-                    let result_recorded_size = result_value.size;
-                    let result_recorded_blksize = result_value.blksize;
-                    let result_recorded_blocks = result_value.blocks;
-                    let result_recorded_atime_ns = result_value.atime_ns;
-                    let result_recorded_mtime_ns = result_value.mtime_ns;
-                    let result_recorded_ctime_ns = result_value.ctime_ns;
-                    let result_recorded_birthtime_ns = result_value.birthtime_ns;
-                    let result_recorded = Stat {
-                        dev: result_recorded_dev,
-                        ino: result_recorded_ino,
-                        mode: result_recorded_mode,
-                        nlink: result_recorded_nlink,
-                        uid: result_recorded_uid,
-                        gid: result_recorded_gid,
-                        rdev: result_recorded_rdev,
-                        size: result_recorded_size,
-                        blksize: result_recorded_blksize,
-                        blocks: result_recorded_blocks,
-                        atime_ns: result_recorded_atime_ns,
-                        mtime_ns: result_recorded_mtime_ns,
-                        ctime_ns: result_recorded_ctime_ns,
-                        birthtime_ns: result_recorded_birthtime_ns,
-                    };
-                    let payload = FsStatLstatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_STAT_LSTAT,
+        runtime.replay_payload_for(FS_STAT_LSTAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_lstat(runtime, context, path),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_lstat(runtime, context, path)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: StatVm = value.clone();
+                let result_recorded_dev = result_value.dev;
+                let result_recorded_ino = result_value.ino;
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_nlink = result_value.nlink;
+                let result_recorded_uid = result_value.uid;
+                let result_recorded_gid = result_value.gid;
+                let result_recorded_rdev = result_value.rdev;
+                let result_recorded_size = result_value.size;
+                let result_recorded_blksize = result_value.blksize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_atime_ns = result_value.atime_ns;
+                let result_recorded_mtime_ns = result_value.mtime_ns;
+                let result_recorded_ctime_ns = result_value.ctime_ns;
+                let result_recorded_birthtime_ns = result_value.birthtime_ns;
+                let result_recorded = Stat {
+                    dev: result_recorded_dev,
+                    ino: result_recorded_ino,
+                    mode: result_recorded_mode,
+                    nlink: result_recorded_nlink,
+                    uid: result_recorded_uid,
+                    gid: result_recorded_gid,
+                    rdev: result_recorded_rdev,
+                    size: result_recorded_size,
+                    blksize: result_recorded_blksize,
+                    blocks: result_recorded_blocks,
+                    atime_ns: result_recorded_atime_ns,
+                    mtime_ns: result_recorded_mtime_ns,
+                    ctime_ns: result_recorded_ctime_ns,
+                    birthtime_ns: result_recorded_birthtime_ns,
+                };
+                let payload = FsStatLstatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsStatLstatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsStatLstatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_dev = value.dev;
-                        let vm_result_ino = value.ino;
-                        let vm_result_mode = value.mode;
-                        let vm_result_nlink = value.nlink;
-                        let vm_result_uid = value.uid;
-                        let vm_result_gid = value.gid;
-                        let vm_result_rdev = value.rdev;
-                        let vm_result_size = value.size;
-                        let vm_result_blksize = value.blksize;
-                        let vm_result_blocks = value.blocks;
-                        let vm_result_atime_ns = value.atime_ns;
-                        let vm_result_mtime_ns = value.mtime_ns;
-                        let vm_result_ctime_ns = value.ctime_ns;
-                        let vm_result_birthtime_ns = value.birthtime_ns;
-                        let vm_result = StatVm {
-                            dev: vm_result_dev,
-                            ino: vm_result_ino,
-                            mode: vm_result_mode,
-                            nlink: vm_result_nlink,
-                            uid: vm_result_uid,
-                            gid: vm_result_gid,
-                            rdev: vm_result_rdev,
-                            size: vm_result_size,
-                            blksize: vm_result_blksize,
-                            blocks: vm_result_blocks,
-                            atime_ns: vm_result_atime_ns,
-                            mtime_ns: vm_result_mtime_ns,
-                            ctime_ns: vm_result_ctime_ns,
-                            birthtime_ns: vm_result_birthtime_ns,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_dev = value.dev;
+                    let vm_result_ino = value.ino;
+                    let vm_result_mode = value.mode;
+                    let vm_result_nlink = value.nlink;
+                    let vm_result_uid = value.uid;
+                    let vm_result_gid = value.gid;
+                    let vm_result_rdev = value.rdev;
+                    let vm_result_size = value.size;
+                    let vm_result_blksize = value.blksize;
+                    let vm_result_blocks = value.blocks;
+                    let vm_result_atime_ns = value.atime_ns;
+                    let vm_result_mtime_ns = value.mtime_ns;
+                    let vm_result_ctime_ns = value.ctime_ns;
+                    let vm_result_birthtime_ns = value.birthtime_ns;
+                    let vm_result = StatVm {
+                        dev: vm_result_dev,
+                        ino: vm_result_ino,
+                        mode: vm_result_mode,
+                        nlink: vm_result_nlink,
+                        uid: vm_result_uid,
+                        gid: vm_result_gid,
+                        rdev: vm_result_rdev,
+                        size: vm_result_size,
+                        blksize: vm_result_blksize,
+                        blocks: vm_result_blocks,
+                        atime_ns: vm_result_atime_ns,
+                        mtime_ns: vm_result_mtime_ns,
+                        ctime_ns: vm_result_ctime_ns,
+                        birthtime_ns: vm_result_birthtime_ns,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_stat_lstat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_stat_path_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_STAT_PATH,
-            runtime.replay_payload_for(FS_STAT_PATH)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_stat(runtime, context, path),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_stat(runtime, context, path)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: StatVm = value.clone();
-                    let result_recorded_dev = result_value.dev;
-                    let result_recorded_ino = result_value.ino;
-                    let result_recorded_mode = result_value.mode;
-                    let result_recorded_nlink = result_value.nlink;
-                    let result_recorded_uid = result_value.uid;
-                    let result_recorded_gid = result_value.gid;
-                    let result_recorded_rdev = result_value.rdev;
-                    let result_recorded_size = result_value.size;
-                    let result_recorded_blksize = result_value.blksize;
-                    let result_recorded_blocks = result_value.blocks;
-                    let result_recorded_atime_ns = result_value.atime_ns;
-                    let result_recorded_mtime_ns = result_value.mtime_ns;
-                    let result_recorded_ctime_ns = result_value.ctime_ns;
-                    let result_recorded_birthtime_ns = result_value.birthtime_ns;
-                    let result_recorded = Stat {
-                        dev: result_recorded_dev,
-                        ino: result_recorded_ino,
-                        mode: result_recorded_mode,
-                        nlink: result_recorded_nlink,
-                        uid: result_recorded_uid,
-                        gid: result_recorded_gid,
-                        rdev: result_recorded_rdev,
-                        size: result_recorded_size,
-                        blksize: result_recorded_blksize,
-                        blocks: result_recorded_blocks,
-                        atime_ns: result_recorded_atime_ns,
-                        mtime_ns: result_recorded_mtime_ns,
-                        ctime_ns: result_recorded_ctime_ns,
-                        birthtime_ns: result_recorded_birthtime_ns,
-                    };
-                    let payload = FsStatPathReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_STAT_PATH,
+        runtime.replay_payload_for(FS_STAT_PATH)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_stat(runtime, context, path),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_stat(runtime, context, path)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: StatVm = value.clone();
+                let result_recorded_dev = result_value.dev;
+                let result_recorded_ino = result_value.ino;
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_nlink = result_value.nlink;
+                let result_recorded_uid = result_value.uid;
+                let result_recorded_gid = result_value.gid;
+                let result_recorded_rdev = result_value.rdev;
+                let result_recorded_size = result_value.size;
+                let result_recorded_blksize = result_value.blksize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_atime_ns = result_value.atime_ns;
+                let result_recorded_mtime_ns = result_value.mtime_ns;
+                let result_recorded_ctime_ns = result_value.ctime_ns;
+                let result_recorded_birthtime_ns = result_value.birthtime_ns;
+                let result_recorded = Stat {
+                    dev: result_recorded_dev,
+                    ino: result_recorded_ino,
+                    mode: result_recorded_mode,
+                    nlink: result_recorded_nlink,
+                    uid: result_recorded_uid,
+                    gid: result_recorded_gid,
+                    rdev: result_recorded_rdev,
+                    size: result_recorded_size,
+                    blksize: result_recorded_blksize,
+                    blocks: result_recorded_blocks,
+                    atime_ns: result_recorded_atime_ns,
+                    mtime_ns: result_recorded_mtime_ns,
+                    ctime_ns: result_recorded_ctime_ns,
+                    birthtime_ns: result_recorded_birthtime_ns,
+                };
+                let payload = FsStatPathReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsStatPathReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsStatPathReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_dev = value.dev;
-                        let vm_result_ino = value.ino;
-                        let vm_result_mode = value.mode;
-                        let vm_result_nlink = value.nlink;
-                        let vm_result_uid = value.uid;
-                        let vm_result_gid = value.gid;
-                        let vm_result_rdev = value.rdev;
-                        let vm_result_size = value.size;
-                        let vm_result_blksize = value.blksize;
-                        let vm_result_blocks = value.blocks;
-                        let vm_result_atime_ns = value.atime_ns;
-                        let vm_result_mtime_ns = value.mtime_ns;
-                        let vm_result_ctime_ns = value.ctime_ns;
-                        let vm_result_birthtime_ns = value.birthtime_ns;
-                        let vm_result = StatVm {
-                            dev: vm_result_dev,
-                            ino: vm_result_ino,
-                            mode: vm_result_mode,
-                            nlink: vm_result_nlink,
-                            uid: vm_result_uid,
-                            gid: vm_result_gid,
-                            rdev: vm_result_rdev,
-                            size: vm_result_size,
-                            blksize: vm_result_blksize,
-                            blocks: vm_result_blocks,
-                            atime_ns: vm_result_atime_ns,
-                            mtime_ns: vm_result_mtime_ns,
-                            ctime_ns: vm_result_ctime_ns,
-                            birthtime_ns: vm_result_birthtime_ns,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_dev = value.dev;
+                    let vm_result_ino = value.ino;
+                    let vm_result_mode = value.mode;
+                    let vm_result_nlink = value.nlink;
+                    let vm_result_uid = value.uid;
+                    let vm_result_gid = value.gid;
+                    let vm_result_rdev = value.rdev;
+                    let vm_result_size = value.size;
+                    let vm_result_blksize = value.blksize;
+                    let vm_result_blocks = value.blocks;
+                    let vm_result_atime_ns = value.atime_ns;
+                    let vm_result_mtime_ns = value.mtime_ns;
+                    let vm_result_ctime_ns = value.ctime_ns;
+                    let vm_result_birthtime_ns = value.birthtime_ns;
+                    let vm_result = StatVm {
+                        dev: vm_result_dev,
+                        ino: vm_result_ino,
+                        mode: vm_result_mode,
+                        nlink: vm_result_nlink,
+                        uid: vm_result_uid,
+                        gid: vm_result_gid,
+                        rdev: vm_result_rdev,
+                        size: vm_result_size,
+                        blksize: vm_result_blksize,
+                        blocks: vm_result_blocks,
+                        atime_ns: vm_result_atime_ns,
+                        mtime_ns: vm_result_mtime_ns,
+                        ctime_ns: vm_result_ctime_ns,
+                        birthtime_ns: vm_result_birthtime_ns,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_stat_path_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_stat_pathat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_STAT_PATHAT,
-            runtime.replay_payload_for(FS_STAT_PATHAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_statat(runtime, context, dir, path, flags)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_statat(runtime, context, dir, path, flags)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: StatVm = value.clone();
-                    let result_recorded_dev = result_value.dev;
-                    let result_recorded_ino = result_value.ino;
-                    let result_recorded_mode = result_value.mode;
-                    let result_recorded_nlink = result_value.nlink;
-                    let result_recorded_uid = result_value.uid;
-                    let result_recorded_gid = result_value.gid;
-                    let result_recorded_rdev = result_value.rdev;
-                    let result_recorded_size = result_value.size;
-                    let result_recorded_blksize = result_value.blksize;
-                    let result_recorded_blocks = result_value.blocks;
-                    let result_recorded_atime_ns = result_value.atime_ns;
-                    let result_recorded_mtime_ns = result_value.mtime_ns;
-                    let result_recorded_ctime_ns = result_value.ctime_ns;
-                    let result_recorded_birthtime_ns = result_value.birthtime_ns;
-                    let result_recorded = Stat {
-                        dev: result_recorded_dev,
-                        ino: result_recorded_ino,
-                        mode: result_recorded_mode,
-                        nlink: result_recorded_nlink,
-                        uid: result_recorded_uid,
-                        gid: result_recorded_gid,
-                        rdev: result_recorded_rdev,
-                        size: result_recorded_size,
-                        blksize: result_recorded_blksize,
-                        blocks: result_recorded_blocks,
-                        atime_ns: result_recorded_atime_ns,
-                        mtime_ns: result_recorded_mtime_ns,
-                        ctime_ns: result_recorded_ctime_ns,
-                        birthtime_ns: result_recorded_birthtime_ns,
-                    };
-                    let payload = FsStatPathatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_STAT_PATHAT,
+        runtime.replay_payload_for(FS_STAT_PATHAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_statat(runtime, context, dir, path, flags)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_statat(runtime, context, dir, path, flags)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: StatVm = value.clone();
+                let result_recorded_dev = result_value.dev;
+                let result_recorded_ino = result_value.ino;
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_nlink = result_value.nlink;
+                let result_recorded_uid = result_value.uid;
+                let result_recorded_gid = result_value.gid;
+                let result_recorded_rdev = result_value.rdev;
+                let result_recorded_size = result_value.size;
+                let result_recorded_blksize = result_value.blksize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_atime_ns = result_value.atime_ns;
+                let result_recorded_mtime_ns = result_value.mtime_ns;
+                let result_recorded_ctime_ns = result_value.ctime_ns;
+                let result_recorded_birthtime_ns = result_value.birthtime_ns;
+                let result_recorded = Stat {
+                    dev: result_recorded_dev,
+                    ino: result_recorded_ino,
+                    mode: result_recorded_mode,
+                    nlink: result_recorded_nlink,
+                    uid: result_recorded_uid,
+                    gid: result_recorded_gid,
+                    rdev: result_recorded_rdev,
+                    size: result_recorded_size,
+                    blksize: result_recorded_blksize,
+                    blocks: result_recorded_blocks,
+                    atime_ns: result_recorded_atime_ns,
+                    mtime_ns: result_recorded_mtime_ns,
+                    ctime_ns: result_recorded_ctime_ns,
+                    birthtime_ns: result_recorded_birthtime_ns,
+                };
+                let payload = FsStatPathatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsStatPathatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsStatPathatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_dev = value.dev;
-                        let vm_result_ino = value.ino;
-                        let vm_result_mode = value.mode;
-                        let vm_result_nlink = value.nlink;
-                        let vm_result_uid = value.uid;
-                        let vm_result_gid = value.gid;
-                        let vm_result_rdev = value.rdev;
-                        let vm_result_size = value.size;
-                        let vm_result_blksize = value.blksize;
-                        let vm_result_blocks = value.blocks;
-                        let vm_result_atime_ns = value.atime_ns;
-                        let vm_result_mtime_ns = value.mtime_ns;
-                        let vm_result_ctime_ns = value.ctime_ns;
-                        let vm_result_birthtime_ns = value.birthtime_ns;
-                        let vm_result = StatVm {
-                            dev: vm_result_dev,
-                            ino: vm_result_ino,
-                            mode: vm_result_mode,
-                            nlink: vm_result_nlink,
-                            uid: vm_result_uid,
-                            gid: vm_result_gid,
-                            rdev: vm_result_rdev,
-                            size: vm_result_size,
-                            blksize: vm_result_blksize,
-                            blocks: vm_result_blocks,
-                            atime_ns: vm_result_atime_ns,
-                            mtime_ns: vm_result_mtime_ns,
-                            ctime_ns: vm_result_ctime_ns,
-                            birthtime_ns: vm_result_birthtime_ns,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_dev = value.dev;
+                    let vm_result_ino = value.ino;
+                    let vm_result_mode = value.mode;
+                    let vm_result_nlink = value.nlink;
+                    let vm_result_uid = value.uid;
+                    let vm_result_gid = value.gid;
+                    let vm_result_rdev = value.rdev;
+                    let vm_result_size = value.size;
+                    let vm_result_blksize = value.blksize;
+                    let vm_result_blocks = value.blocks;
+                    let vm_result_atime_ns = value.atime_ns;
+                    let vm_result_mtime_ns = value.mtime_ns;
+                    let vm_result_ctime_ns = value.ctime_ns;
+                    let vm_result_birthtime_ns = value.birthtime_ns;
+                    let vm_result = StatVm {
+                        dev: vm_result_dev,
+                        ino: vm_result_ino,
+                        mode: vm_result_mode,
+                        nlink: vm_result_nlink,
+                        uid: vm_result_uid,
+                        gid: vm_result_gid,
+                        rdev: vm_result_rdev,
+                        size: vm_result_size,
+                        blksize: vm_result_blksize,
+                        blocks: vm_result_blocks,
+                        atime_ns: vm_result_atime_ns,
+                        mtime_ns: vm_result_mtime_ns,
+                        ctime_ns: vm_result_ctime_ns,
+                        birthtime_ns: vm_result_birthtime_ns,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_stat_pathat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_stat_pathfs_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_STAT_PATHFS,
-            runtime.replay_payload_for(FS_STAT_PATHFS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_statfs(runtime, context, path),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_statfs(runtime, context, path)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: StatFsVm = value.clone();
-                    let result_recorded_bsize = result_value.bsize;
-                    let result_recorded_frsize = result_value.frsize;
-                    let result_recorded_blocks = result_value.blocks;
-                    let result_recorded_bfree = result_value.bfree;
-                    let result_recorded_bavail = result_value.bavail;
-                    let result_recorded_files = result_value.files;
-                    let result_recorded_ffree = result_value.ffree;
-                    let result_recorded_fsid = result_value.fsid;
-                    let result_recorded_flags = result_value.flags;
-                    let result_recorded_namelen = result_value.namelen;
-                    let result_recorded = StatFs {
-                        bsize: result_recorded_bsize,
-                        frsize: result_recorded_frsize,
-                        blocks: result_recorded_blocks,
-                        bfree: result_recorded_bfree,
-                        bavail: result_recorded_bavail,
-                        files: result_recorded_files,
-                        ffree: result_recorded_ffree,
-                        fsid: result_recorded_fsid,
-                        flags: result_recorded_flags,
-                        namelen: result_recorded_namelen,
-                    };
-                    let payload = FsStatPathfsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_STAT_PATHFS,
+        runtime.replay_payload_for(FS_STAT_PATHFS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_statfs(runtime, context, path),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_statfs(runtime, context, path)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: StatFsVm = value.clone();
+                let result_recorded_bsize = result_value.bsize;
+                let result_recorded_frsize = result_value.frsize;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_bfree = result_value.bfree;
+                let result_recorded_bavail = result_value.bavail;
+                let result_recorded_files = result_value.files;
+                let result_recorded_ffree = result_value.ffree;
+                let result_recorded_fsid = result_value.fsid;
+                let result_recorded_flags = result_value.flags;
+                let result_recorded_namelen = result_value.namelen;
+                let result_recorded = StatFs {
+                    bsize: result_recorded_bsize,
+                    frsize: result_recorded_frsize,
+                    blocks: result_recorded_blocks,
+                    bfree: result_recorded_bfree,
+                    bavail: result_recorded_bavail,
+                    files: result_recorded_files,
+                    ffree: result_recorded_ffree,
+                    fsid: result_recorded_fsid,
+                    flags: result_recorded_flags,
+                    namelen: result_recorded_namelen,
+                };
+                let payload = FsStatPathfsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsStatPathfsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsStatPathfsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_bsize = value.bsize;
-                        let vm_result_frsize = value.frsize;
-                        let vm_result_blocks = value.blocks;
-                        let vm_result_bfree = value.bfree;
-                        let vm_result_bavail = value.bavail;
-                        let vm_result_files = value.files;
-                        let vm_result_ffree = value.ffree;
-                        let vm_result_fsid = value.fsid;
-                        let vm_result_flags = value.flags;
-                        let vm_result_namelen = value.namelen;
-                        let vm_result = StatFsVm {
-                            bsize: vm_result_bsize,
-                            frsize: vm_result_frsize,
-                            blocks: vm_result_blocks,
-                            bfree: vm_result_bfree,
-                            bavail: vm_result_bavail,
-                            files: vm_result_files,
-                            ffree: vm_result_ffree,
-                            fsid: vm_result_fsid,
-                            flags: vm_result_flags,
-                            namelen: vm_result_namelen,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_bsize = value.bsize;
+                    let vm_result_frsize = value.frsize;
+                    let vm_result_blocks = value.blocks;
+                    let vm_result_bfree = value.bfree;
+                    let vm_result_bavail = value.bavail;
+                    let vm_result_files = value.files;
+                    let vm_result_ffree = value.ffree;
+                    let vm_result_fsid = value.fsid;
+                    let vm_result_flags = value.flags;
+                    let vm_result_namelen = value.namelen;
+                    let vm_result = StatFsVm {
+                        bsize: vm_result_bsize,
+                        frsize: vm_result_frsize,
+                        blocks: vm_result_blocks,
+                        bfree: vm_result_bfree,
+                        bavail: vm_result_bavail,
+                        files: vm_result_files,
+                        ffree: vm_result_ffree,
+                        fsid: vm_result_fsid,
+                        flags: vm_result_flags,
+                        namelen: vm_result_namelen,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_stat_pathfs_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_stat_pathx_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
@@ -24833,257 +24615,249 @@ fn destack_fs_stat_pathx_vm_replay(
     flags: StatxFlags,
     mask: StatxMask,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_STAT_PATHX,
-            runtime.replay_payload_for(FS_STAT_PATHX)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_statx(runtime, context, dir, path, flags, mask)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_statx(
-                    runtime, context, dir, path, flags, mask,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: StatxVm = value.clone();
-                    let result_recorded_mask = result_value.mask;
-                    let result_recorded_blksize = result_value.blksize;
-                    let result_recorded_mount_id = result_value.mount_id;
-                    let result_recorded_dev_major = result_value.dev_major;
-                    let result_recorded_dev_minor = result_value.dev_minor;
-                    let result_recorded_ino = result_value.ino;
-                    let result_recorded_mode = result_value.mode;
-                    let result_recorded_nlink = result_value.nlink;
-                    let result_recorded_uid = result_value.uid;
-                    let result_recorded_gid = result_value.gid;
-                    let result_recorded_rdev_major = result_value.rdev_major;
-                    let result_recorded_rdev_minor = result_value.rdev_minor;
-                    let result_recorded_size = result_value.size;
-                    let result_recorded_blocks = result_value.blocks;
-                    let result_recorded_atime_ns = result_value.atime_ns;
-                    let result_recorded_btime_ns = result_value.btime_ns;
-                    let result_recorded_ctime_ns = result_value.ctime_ns;
-                    let result_recorded_mtime_ns = result_value.mtime_ns;
-                    let result_recorded = Statx {
-                        mask: result_recorded_mask,
-                        blksize: result_recorded_blksize,
-                        mount_id: result_recorded_mount_id,
-                        dev_major: result_recorded_dev_major,
-                        dev_minor: result_recorded_dev_minor,
-                        ino: result_recorded_ino,
-                        mode: result_recorded_mode,
-                        nlink: result_recorded_nlink,
-                        uid: result_recorded_uid,
-                        gid: result_recorded_gid,
-                        rdev_major: result_recorded_rdev_major,
-                        rdev_minor: result_recorded_rdev_minor,
-                        size: result_recorded_size,
-                        blocks: result_recorded_blocks,
-                        atime_ns: result_recorded_atime_ns,
-                        btime_ns: result_recorded_btime_ns,
-                        ctime_ns: result_recorded_ctime_ns,
-                        mtime_ns: result_recorded_mtime_ns,
-                    };
-                    let payload = FsStatPathxReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_STAT_PATHX,
+        runtime.replay_payload_for(FS_STAT_PATHX)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_statx(runtime, context, dir, path, flags, mask)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_statx(runtime, context, dir, path, flags, mask)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: StatxVm = value.clone();
+                let result_recorded_mask = result_value.mask;
+                let result_recorded_blksize = result_value.blksize;
+                let result_recorded_mount_id = result_value.mount_id;
+                let result_recorded_dev_major = result_value.dev_major;
+                let result_recorded_dev_minor = result_value.dev_minor;
+                let result_recorded_ino = result_value.ino;
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_nlink = result_value.nlink;
+                let result_recorded_uid = result_value.uid;
+                let result_recorded_gid = result_value.gid;
+                let result_recorded_rdev_major = result_value.rdev_major;
+                let result_recorded_rdev_minor = result_value.rdev_minor;
+                let result_recorded_size = result_value.size;
+                let result_recorded_blocks = result_value.blocks;
+                let result_recorded_atime_ns = result_value.atime_ns;
+                let result_recorded_btime_ns = result_value.btime_ns;
+                let result_recorded_ctime_ns = result_value.ctime_ns;
+                let result_recorded_mtime_ns = result_value.mtime_ns;
+                let result_recorded = Statx {
+                    mask: result_recorded_mask,
+                    blksize: result_recorded_blksize,
+                    mount_id: result_recorded_mount_id,
+                    dev_major: result_recorded_dev_major,
+                    dev_minor: result_recorded_dev_minor,
+                    ino: result_recorded_ino,
+                    mode: result_recorded_mode,
+                    nlink: result_recorded_nlink,
+                    uid: result_recorded_uid,
+                    gid: result_recorded_gid,
+                    rdev_major: result_recorded_rdev_major,
+                    rdev_minor: result_recorded_rdev_minor,
+                    size: result_recorded_size,
+                    blocks: result_recorded_blocks,
+                    atime_ns: result_recorded_atime_ns,
+                    btime_ns: result_recorded_btime_ns,
+                    ctime_ns: result_recorded_ctime_ns,
+                    mtime_ns: result_recorded_mtime_ns,
+                };
+                let payload = FsStatPathxReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsStatPathxReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsStatPathxReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_mask = value.mask;
-                        let vm_result_blksize = value.blksize;
-                        let vm_result_mount_id = value.mount_id;
-                        let vm_result_dev_major = value.dev_major;
-                        let vm_result_dev_minor = value.dev_minor;
-                        let vm_result_ino = value.ino;
-                        let vm_result_mode = value.mode;
-                        let vm_result_nlink = value.nlink;
-                        let vm_result_uid = value.uid;
-                        let vm_result_gid = value.gid;
-                        let vm_result_rdev_major = value.rdev_major;
-                        let vm_result_rdev_minor = value.rdev_minor;
-                        let vm_result_size = value.size;
-                        let vm_result_blocks = value.blocks;
-                        let vm_result_atime_ns = value.atime_ns;
-                        let vm_result_btime_ns = value.btime_ns;
-                        let vm_result_ctime_ns = value.ctime_ns;
-                        let vm_result_mtime_ns = value.mtime_ns;
-                        let vm_result = StatxVm {
-                            mask: vm_result_mask,
-                            blksize: vm_result_blksize,
-                            mount_id: vm_result_mount_id,
-                            dev_major: vm_result_dev_major,
-                            dev_minor: vm_result_dev_minor,
-                            ino: vm_result_ino,
-                            mode: vm_result_mode,
-                            nlink: vm_result_nlink,
-                            uid: vm_result_uid,
-                            gid: vm_result_gid,
-                            rdev_major: vm_result_rdev_major,
-                            rdev_minor: vm_result_rdev_minor,
-                            size: vm_result_size,
-                            blocks: vm_result_blocks,
-                            atime_ns: vm_result_atime_ns,
-                            btime_ns: vm_result_btime_ns,
-                            ctime_ns: vm_result_ctime_ns,
-                            mtime_ns: vm_result_mtime_ns,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_mask = value.mask;
+                    let vm_result_blksize = value.blksize;
+                    let vm_result_mount_id = value.mount_id;
+                    let vm_result_dev_major = value.dev_major;
+                    let vm_result_dev_minor = value.dev_minor;
+                    let vm_result_ino = value.ino;
+                    let vm_result_mode = value.mode;
+                    let vm_result_nlink = value.nlink;
+                    let vm_result_uid = value.uid;
+                    let vm_result_gid = value.gid;
+                    let vm_result_rdev_major = value.rdev_major;
+                    let vm_result_rdev_minor = value.rdev_minor;
+                    let vm_result_size = value.size;
+                    let vm_result_blocks = value.blocks;
+                    let vm_result_atime_ns = value.atime_ns;
+                    let vm_result_btime_ns = value.btime_ns;
+                    let vm_result_ctime_ns = value.ctime_ns;
+                    let vm_result_mtime_ns = value.mtime_ns;
+                    let vm_result = StatxVm {
+                        mask: vm_result_mask,
+                        blksize: vm_result_blksize,
+                        mount_id: vm_result_mount_id,
+                        dev_major: vm_result_dev_major,
+                        dev_minor: vm_result_dev_minor,
+                        ino: vm_result_ino,
+                        mode: vm_result_mode,
+                        nlink: vm_result_nlink,
+                        uid: vm_result_uid,
+                        gid: vm_result_gid,
+                        rdev_major: vm_result_rdev_major,
+                        rdev_minor: vm_result_rdev_minor,
+                        size: vm_result_size,
+                        blocks: vm_result_blocks,
+                        atime_ns: vm_result_atime_ns,
+                        btime_ns: vm_result_btime_ns,
+                        ctime_ns: vm_result_ctime_ns,
+                        mtime_ns: vm_result_mtime_ns,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_stat_pathx_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_watch_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     options: WatchOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_WATCH_OPEN,
-            runtime.replay_payload_for(FS_WATCH_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_watch(runtime, context, path, options)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_watch(runtime, context, path, options)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::WatchHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsWatchOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_WATCH_OPEN,
+        runtime.replay_payload_for(FS_WATCH_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_watch(runtime, context, path, options),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_watch(runtime, context, path, options)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::WatchHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = FsWatchOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsWatchOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsWatchOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_watch_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_watch_open_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::WatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_WATCH_OPEN_CLOSE,
-            runtime.replay_payload_for(FS_WATCH_OPEN_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_watch_close(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_watch_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsWatchOpenCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_WATCH_OPEN_CLOSE,
+        runtime.replay_payload_for(FS_WATCH_OPEN_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_watch_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_watch_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsWatchOpenCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsWatchOpenCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsWatchOpenCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_watch_open_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_watch_open_read_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::WatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_and_payload_policy(
+    let result = runtime.replay().run_binding_with_context_policy(
         FS_WATCH_OPEN_READ,
         runtime.replay_payload_for(FS_WATCH_OPEN_READ)?,
         context,
         |context| {
             match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_watch_read(runtime, context, handle),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_watch_read(runtime, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_watch_read(runtime, context, handle),
             }
         },
         |context, result| {
@@ -25274,459 +25048,438 @@ fn destack_fs_watch_open_read_vm_replay(
 
 #[inline]
 fn destack_fs_watch_openat_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     directory: resource::DirectoryHandle,
     path: OsPathVm,
     options: WatchOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_WATCH_OPENAT,
-            runtime.replay_payload_for(FS_WATCH_OPENAT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_watchat(runtime, context, directory, path, options)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_watchat(
-                    runtime, context, directory, path, options,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::WatchHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = FsWatchOpenatReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_WATCH_OPENAT,
+        runtime.replay_payload_for(FS_WATCH_OPENAT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_watchat(runtime, context, directory, path, options)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_watchat(
+                runtime, context, directory, path, options,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::WatchHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = FsWatchOpenatReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsWatchOpenatReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsWatchOpenatReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_watch_openat_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_fgetxattr_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_FGETXATTR,
-            runtime.replay_payload_for(FS_XATTR_FGETXATTR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_fgetxattr(runtime, context, handle, name)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_fgetxattr(runtime, context, handle, name)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<u8> = value.clone();
-                    let result_recorded = result_value.read_bytes(context)?;
-                    let payload = FsXattrFgetxattrReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_FGETXATTR,
+        runtime.replay_payload_for(FS_XATTR_FGETXATTR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_fgetxattr(runtime, context, handle, name),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_fgetxattr(runtime, context, handle, name)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<u8> = value.clone();
+                let result_recorded = result_value.read_bytes(context)?;
+                let payload = FsXattrFgetxattrReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrFgetxattrReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFgetxattrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = VmArray::from_bytes(context, value.as_slice());
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmArray::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_fgetxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_fgetxattr_bytes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_FGETXATTR_BYTES,
-            runtime.replay_payload_for(FS_XATTR_FGETXATTR_BYTES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_fgetxattr_bytes(runtime, context, handle, name)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fgetxattr_bytes(
-                    runtime, context, handle, name,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<u8> = value.clone();
-                    let result_recorded = result_value.read_bytes(context)?;
-                    let payload = FsXattrFgetxattrBytesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_FGETXATTR_BYTES,
+        runtime.replay_payload_for(FS_XATTR_FGETXATTR_BYTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_fgetxattr_bytes(runtime, context, handle, name)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_fgetxattr_bytes(runtime, context, handle, name)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<u8> = value.clone();
+                let result_recorded = result_value.read_bytes(context)?;
+                let payload = FsXattrFgetxattrBytesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrFgetxattrBytesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFgetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = VmArray::from_bytes(context, value.as_slice());
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmArray::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_fgetxattr_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_flistxattr_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_FLISTXATTR,
-            runtime.replay_payload_for(FS_XATTR_FLISTXATTR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_flistxattr(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_flistxattr(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<vm::StringHandle> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item = decode_string(
-                            result_recorded_item_value,
-                            "result_recorded_item",
-                            "item",
-                        )?;
-                        let result_recorded_item_recorded = {
-                            let result_recorded_item_recorded_ref = context
-                                .string_ref(result_recorded_item)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_item_recorded_ref.as_str().to_string()
-                        };
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = FsXattrFlistxattrReplay {
-                        result: Ok(result_recorded),
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_FLISTXATTR,
+        runtime.replay_payload_for(FS_XATTR_FLISTXATTR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_flistxattr(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_flistxattr(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<vm::StringHandle> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item =
+                        decode_string(result_recorded_item_value, "result_recorded_item", "item")?;
+                    let result_recorded_item_recorded = {
+                        let result_recorded_item_recorded_ref = context
+                            .string_ref(result_recorded_item)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_ref.as_str().to_string()
                     };
-                    return Ok(Some(payload));
+                    result_recorded.push(result_recorded_item_recorded);
                 }
+                let payload = FsXattrFlistxattrReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrFlistxattrReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFlistxattrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item_value_value =
-                                context.intern_string(vm_result_item.as_str());
-                            let vm_result_item_value =
-                                vm::StringHandle::new(vm_result_item_value_value);
-                            vm_result_values.push(vm_result_item_value);
-                        }
-                        let vm_result = VmArray::from_values(context, &vm_result_values)?;
-                        Ok(vm_result)
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item_value_value =
+                            context.intern_string(vm_result_item.as_str());
+                        let vm_result_item_value =
+                            vm::StringHandle::new(vm_result_item_value_value);
+                        vm_result_values.push(vm_result_item_value);
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_flistxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_flistxattr_bytes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_FLISTXATTR_BYTES,
-            runtime.replay_payload_for(FS_XATTR_FLISTXATTR_BYTES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_flistxattr_bytes(runtime, context, handle)
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_FLISTXATTR_BYTES,
+        runtime.replay_payload_for(FS_XATTR_FLISTXATTR_BYTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_flistxattr_bytes(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_flistxattr_bytes(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<VmArray<u8>> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = decode_array::<u8>(
+                        context,
+                        result_recorded_item_value,
+                        "result_recorded_item",
+                        "item",
+                    )?;
+                    let result_recorded_item_recorded = result_recorded_item.read_bytes(context)?;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_flistxattr_bytes(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<VmArray<u8>> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item = decode_array::<u8>(
-                            context,
-                            result_recorded_item_value,
-                            "result_recorded_item",
-                            "item",
-                        )?;
-                        let result_recorded_item_recorded =
-                            result_recorded_item.read_bytes(context)?;
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = FsXattrFlistxattrBytesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                let payload = FsXattrFlistxattrBytesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrFlistxattrBytesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFlistxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item = vm_result_item.clone();
-                            let vm_result_item_value =
-                                VmArray::from_bytes(context, vm_result_item.as_slice());
-                            let vm_result_item_value_encoded =
-                                vm_result_item_value.to_value(context);
-                            vm_result_values.push(vm_result_item_value_encoded);
-                        }
-                        let vm_result_data = context.allocate_raw_values(vm_result_values);
-                        let vm_result: VmArray<VmArray<u8>> = VmArray {
-                            data: vm_result_data,
-                            len: value.len() as u32,
-                            capacity: value.len() as u32,
-                            _marker: std::marker::PhantomData,
-                        };
-                        Ok(vm_result)
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value =
+                            VmArray::from_bytes(context, vm_result_item.as_slice());
+                        let vm_result_item_value_encoded = vm_result_item_value.to_value(context);
+                        vm_result_values.push(vm_result_item_value_encoded);
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<VmArray<u8>> = VmArray {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        capacity: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_flistxattr_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_fremovexattr_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_FREMOVEXATTR,
-            runtime.replay_payload_for(FS_XATTR_FREMOVEXATTR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_fremovexattr(runtime, context, handle, name)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_fremovexattr(runtime, context, handle, name)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsXattrFremovexattrReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_FREMOVEXATTR,
+        runtime.replay_payload_for(FS_XATTR_FREMOVEXATTR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_fremovexattr(runtime, context, handle, name)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_fremovexattr(runtime, context, handle, name)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsXattrFremovexattrReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrFremovexattrReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFremovexattrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_fremovexattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_fremovexattr_bytes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_FREMOVEXATTR_BYTES,
-            runtime.replay_payload_for(FS_XATTR_FREMOVEXATTR_BYTES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_fremovexattr_bytes(runtime, context, handle, name)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fremovexattr_bytes(
-                    runtime, context, handle, name,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsXattrFremovexattrBytesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_FREMOVEXATTR_BYTES,
+        runtime.replay_payload_for(FS_XATTR_FREMOVEXATTR_BYTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_fremovexattr_bytes(runtime, context, handle, name)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_fremovexattr_bytes(
+                runtime, context, handle, name,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsXattrFremovexattrBytesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrFremovexattrBytesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFremovexattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_fremovexattr_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_fsetxattr_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -25734,66 +25487,64 @@ fn destack_fs_xattr_fsetxattr_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_FSETXATTR,
-            runtime.replay_payload_for(FS_XATTR_FSETXATTR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_fsetxattr(
-                    runtime,
-                    context,
-                    handle,
-                    name,
-                    argument_value,
-                    flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fsetxattr(
-                    runtime,
-                    context,
-                    handle,
-                    name,
-                    argument_value,
-                    flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsXattrFsetxattrReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_FSETXATTR,
+        runtime.replay_payload_for(FS_XATTR_FSETXATTR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_fsetxattr(
+                runtime,
+                context,
+                handle,
+                name,
+                argument_value,
+                flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_fsetxattr(
+                runtime,
+                context,
+                handle,
+                name,
+                argument_value,
+                flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsXattrFsetxattrReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrFsetxattrReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFsetxattrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_fsetxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_fsetxattr_bytes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -25801,740 +25552,700 @@ fn destack_fs_xattr_fsetxattr_bytes_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_FSETXATTR_BYTES,
-            runtime.replay_payload_for(FS_XATTR_FSETXATTR_BYTES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_fsetxattr_bytes(
-                    runtime,
-                    context,
-                    handle,
-                    name,
-                    argument_value,
-                    flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_fsetxattr_bytes(
-                    runtime,
-                    context,
-                    handle,
-                    name,
-                    argument_value,
-                    flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsXattrFsetxattrBytesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_FSETXATTR_BYTES,
+        runtime.replay_payload_for(FS_XATTR_FSETXATTR_BYTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_fsetxattr_bytes(
+                runtime,
+                context,
+                handle,
+                name,
+                argument_value,
+                flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_fsetxattr_bytes(
+                runtime,
+                context,
+                handle,
+                name,
+                argument_value,
+                flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsXattrFsetxattrBytesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrFsetxattrBytesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrFsetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_fsetxattr_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_getxattr_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_GETXATTR,
-            runtime.replay_payload_for(FS_XATTR_GETXATTR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_getxattr(runtime, context, path, name)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_getxattr(runtime, context, path, name)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<u8> = value.clone();
-                    let result_recorded = result_value.read_bytes(context)?;
-                    let payload = FsXattrGetxattrReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_GETXATTR,
+        runtime.replay_payload_for(FS_XATTR_GETXATTR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_getxattr(runtime, context, path, name),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_getxattr(runtime, context, path, name)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<u8> = value.clone();
+                let result_recorded = result_value.read_bytes(context)?;
+                let payload = FsXattrGetxattrReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrGetxattrReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrGetxattrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = VmArray::from_bytes(context, value.as_slice());
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmArray::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_getxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_getxattr_bytes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_GETXATTR_BYTES,
-            runtime.replay_payload_for(FS_XATTR_GETXATTR_BYTES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_getxattr_bytes(runtime, context, path, name)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_getxattr_bytes(runtime, context, path, name)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<u8> = value.clone();
-                    let result_recorded = result_value.read_bytes(context)?;
-                    let payload = FsXattrGetxattrBytesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_GETXATTR_BYTES,
+        runtime.replay_payload_for(FS_XATTR_GETXATTR_BYTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_getxattr_bytes(runtime, context, path, name)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_getxattr_bytes(runtime, context, path, name)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<u8> = value.clone();
+                let result_recorded = result_value.read_bytes(context)?;
+                let payload = FsXattrGetxattrBytesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrGetxattrBytesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrGetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = VmArray::from_bytes(context, value.as_slice());
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmArray::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_getxattr_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_lgetxattr_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_LGETXATTR,
-            runtime.replay_payload_for(FS_XATTR_LGETXATTR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_lgetxattr(runtime, context, path, name)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_lgetxattr(runtime, context, path, name)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<u8> = value.clone();
-                    let result_recorded = result_value.read_bytes(context)?;
-                    let payload = FsXattrLgetxattrReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_LGETXATTR,
+        runtime.replay_payload_for(FS_XATTR_LGETXATTR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_lgetxattr(runtime, context, path, name),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_lgetxattr(runtime, context, path, name)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<u8> = value.clone();
+                let result_recorded = result_value.read_bytes(context)?;
+                let payload = FsXattrLgetxattrReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrLgetxattrReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLgetxattrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = VmArray::from_bytes(context, value.as_slice());
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmArray::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_lgetxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_lgetxattr_bytes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_LGETXATTR_BYTES,
-            runtime.replay_payload_for(FS_XATTR_LGETXATTR_BYTES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_lgetxattr_bytes(runtime, context, path, name)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_lgetxattr_bytes(runtime, context, path, name)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<u8> = value.clone();
-                    let result_recorded = result_value.read_bytes(context)?;
-                    let payload = FsXattrLgetxattrBytesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_LGETXATTR_BYTES,
+        runtime.replay_payload_for(FS_XATTR_LGETXATTR_BYTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_lgetxattr_bytes(runtime, context, path, name)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_lgetxattr_bytes(runtime, context, path, name)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<u8> = value.clone();
+                let result_recorded = result_value.read_bytes(context)?;
+                let payload = FsXattrLgetxattrBytesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrLgetxattrBytesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLgetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = VmArray::from_bytes(context, value.as_slice());
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmArray::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_lgetxattr_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_listxattr_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_LISTXATTR,
-            runtime.replay_payload_for(FS_XATTR_LISTXATTR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_listxattr(runtime, context, path),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_listxattr(runtime, context, path)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<vm::StringHandle> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item = decode_string(
-                            result_recorded_item_value,
-                            "result_recorded_item",
-                            "item",
-                        )?;
-                        let result_recorded_item_recorded = {
-                            let result_recorded_item_recorded_ref = context
-                                .string_ref(result_recorded_item)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_item_recorded_ref.as_str().to_string()
-                        };
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = FsXattrListxattrReplay {
-                        result: Ok(result_recorded),
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_LISTXATTR,
+        runtime.replay_payload_for(FS_XATTR_LISTXATTR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_listxattr(runtime, context, path),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_listxattr(runtime, context, path)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<vm::StringHandle> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item =
+                        decode_string(result_recorded_item_value, "result_recorded_item", "item")?;
+                    let result_recorded_item_recorded = {
+                        let result_recorded_item_recorded_ref = context
+                            .string_ref(result_recorded_item)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_ref.as_str().to_string()
                     };
-                    return Ok(Some(payload));
+                    result_recorded.push(result_recorded_item_recorded);
                 }
+                let payload = FsXattrListxattrReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrListxattrReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrListxattrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item_value_value =
-                                context.intern_string(vm_result_item.as_str());
-                            let vm_result_item_value =
-                                vm::StringHandle::new(vm_result_item_value_value);
-                            vm_result_values.push(vm_result_item_value);
-                        }
-                        let vm_result = VmArray::from_values(context, &vm_result_values)?;
-                        Ok(vm_result)
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item_value_value =
+                            context.intern_string(vm_result_item.as_str());
+                        let vm_result_item_value =
+                            vm::StringHandle::new(vm_result_item_value_value);
+                        vm_result_values.push(vm_result_item_value);
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_listxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_listxattr_bytes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_LISTXATTR_BYTES,
-            runtime.replay_payload_for(FS_XATTR_LISTXATTR_BYTES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_listxattr_bytes(runtime, context, path)
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_LISTXATTR_BYTES,
+        runtime.replay_payload_for(FS_XATTR_LISTXATTR_BYTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_listxattr_bytes(runtime, context, path),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_listxattr_bytes(runtime, context, path)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<VmArray<u8>> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = decode_array::<u8>(
+                        context,
+                        result_recorded_item_value,
+                        "result_recorded_item",
+                        "item",
+                    )?;
+                    let result_recorded_item_recorded = result_recorded_item.read_bytes(context)?;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_listxattr_bytes(runtime, context, path)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<VmArray<u8>> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item = decode_array::<u8>(
-                            context,
-                            result_recorded_item_value,
-                            "result_recorded_item",
-                            "item",
-                        )?;
-                        let result_recorded_item_recorded =
-                            result_recorded_item.read_bytes(context)?;
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = FsXattrListxattrBytesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                let payload = FsXattrListxattrBytesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrListxattrBytesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrListxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item = vm_result_item.clone();
-                            let vm_result_item_value =
-                                VmArray::from_bytes(context, vm_result_item.as_slice());
-                            let vm_result_item_value_encoded =
-                                vm_result_item_value.to_value(context);
-                            vm_result_values.push(vm_result_item_value_encoded);
-                        }
-                        let vm_result_data = context.allocate_raw_values(vm_result_values);
-                        let vm_result: VmArray<VmArray<u8>> = VmArray {
-                            data: vm_result_data,
-                            len: value.len() as u32,
-                            capacity: value.len() as u32,
-                            _marker: std::marker::PhantomData,
-                        };
-                        Ok(vm_result)
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value =
+                            VmArray::from_bytes(context, vm_result_item.as_slice());
+                        let vm_result_item_value_encoded = vm_result_item_value.to_value(context);
+                        vm_result_values.push(vm_result_item_value_encoded);
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<VmArray<u8>> = VmArray {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        capacity: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_listxattr_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_llistxattr_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_LLISTXATTR,
-            runtime.replay_payload_for(FS_XATTR_LLISTXATTR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_llistxattr(runtime, context, path),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_llistxattr(runtime, context, path)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<vm::StringHandle> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item = decode_string(
-                            result_recorded_item_value,
-                            "result_recorded_item",
-                            "item",
-                        )?;
-                        let result_recorded_item_recorded = {
-                            let result_recorded_item_recorded_ref = context
-                                .string_ref(result_recorded_item)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_item_recorded_ref.as_str().to_string()
-                        };
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = FsXattrLlistxattrReplay {
-                        result: Ok(result_recorded),
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_LLISTXATTR,
+        runtime.replay_payload_for(FS_XATTR_LLISTXATTR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_llistxattr(runtime, context, path),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_llistxattr(runtime, context, path)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<vm::StringHandle> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item =
+                        decode_string(result_recorded_item_value, "result_recorded_item", "item")?;
+                    let result_recorded_item_recorded = {
+                        let result_recorded_item_recorded_ref = context
+                            .string_ref(result_recorded_item)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_ref.as_str().to_string()
                     };
-                    return Ok(Some(payload));
+                    result_recorded.push(result_recorded_item_recorded);
                 }
+                let payload = FsXattrLlistxattrReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrLlistxattrReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLlistxattrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item_value_value =
-                                context.intern_string(vm_result_item.as_str());
-                            let vm_result_item_value =
-                                vm::StringHandle::new(vm_result_item_value_value);
-                            vm_result_values.push(vm_result_item_value);
-                        }
-                        let vm_result = VmArray::from_values(context, &vm_result_values)?;
-                        Ok(vm_result)
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item_value_value =
+                            context.intern_string(vm_result_item.as_str());
+                        let vm_result_item_value =
+                            vm::StringHandle::new(vm_result_item_value_value);
+                        vm_result_values.push(vm_result_item_value);
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_llistxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_llistxattr_bytes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_LLISTXATTR_BYTES,
-            runtime.replay_payload_for(FS_XATTR_LLISTXATTR_BYTES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_llistxattr_bytes(runtime, context, path)
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_LLISTXATTR_BYTES,
+        runtime.replay_payload_for(FS_XATTR_LLISTXATTR_BYTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_llistxattr_bytes(runtime, context, path),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_llistxattr_bytes(runtime, context, path)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<VmArray<u8>> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = decode_array::<u8>(
+                        context,
+                        result_recorded_item_value,
+                        "result_recorded_item",
+                        "item",
+                    )?;
+                    let result_recorded_item_recorded = result_recorded_item.read_bytes(context)?;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_llistxattr_bytes(runtime, context, path)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<VmArray<u8>> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item = decode_array::<u8>(
-                            context,
-                            result_recorded_item_value,
-                            "result_recorded_item",
-                            "item",
-                        )?;
-                        let result_recorded_item_recorded =
-                            result_recorded_item.read_bytes(context)?;
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = FsXattrLlistxattrBytesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                let payload = FsXattrLlistxattrBytesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrLlistxattrBytesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLlistxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item = vm_result_item.clone();
-                            let vm_result_item_value =
-                                VmArray::from_bytes(context, vm_result_item.as_slice());
-                            let vm_result_item_value_encoded =
-                                vm_result_item_value.to_value(context);
-                            vm_result_values.push(vm_result_item_value_encoded);
-                        }
-                        let vm_result_data = context.allocate_raw_values(vm_result_values);
-                        let vm_result: VmArray<VmArray<u8>> = VmArray {
-                            data: vm_result_data,
-                            len: value.len() as u32,
-                            capacity: value.len() as u32,
-                            _marker: std::marker::PhantomData,
-                        };
-                        Ok(vm_result)
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value =
+                            VmArray::from_bytes(context, vm_result_item.as_slice());
+                        let vm_result_item_value_encoded = vm_result_item_value.to_value(context);
+                        vm_result_values.push(vm_result_item_value_encoded);
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<VmArray<u8>> = VmArray {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        capacity: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_llistxattr_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_lremovexattr_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_LREMOVEXATTR,
-            runtime.replay_payload_for(FS_XATTR_LREMOVEXATTR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_lremovexattr(runtime, context, path, name)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_lremovexattr(runtime, context, path, name)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsXattrLremovexattrReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_LREMOVEXATTR,
+        runtime.replay_payload_for(FS_XATTR_LREMOVEXATTR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_lremovexattr(runtime, context, path, name)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_lremovexattr(runtime, context, path, name)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsXattrLremovexattrReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrLremovexattrReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLremovexattrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_lremovexattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_lremovexattr_bytes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_LREMOVEXATTR_BYTES,
-            runtime.replay_payload_for(FS_XATTR_LREMOVEXATTR_BYTES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_lremovexattr_bytes(runtime, context, path, name)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_lremovexattr_bytes(
-                    runtime, context, path, name,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsXattrLremovexattrBytesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_LREMOVEXATTR_BYTES,
+        runtime.replay_payload_for(FS_XATTR_LREMOVEXATTR_BYTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_lremovexattr_bytes(runtime, context, path, name)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_lremovexattr_bytes(runtime, context, path, name)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsXattrLremovexattrBytesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrLremovexattrBytesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLremovexattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_lremovexattr_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_lsetxattr_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
@@ -26542,66 +26253,64 @@ fn destack_fs_xattr_lsetxattr_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_LSETXATTR,
-            runtime.replay_payload_for(FS_XATTR_LSETXATTR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_lsetxattr(
-                    runtime,
-                    context,
-                    path,
-                    name,
-                    argument_value,
-                    flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_lsetxattr(
-                    runtime,
-                    context,
-                    path,
-                    name,
-                    argument_value,
-                    flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsXattrLsetxattrReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_LSETXATTR,
+        runtime.replay_payload_for(FS_XATTR_LSETXATTR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_lsetxattr(
+                runtime,
+                context,
+                path,
+                name,
+                argument_value,
+                flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_lsetxattr(
+                runtime,
+                context,
+                path,
+                name,
+                argument_value,
+                flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsXattrLsetxattrReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrLsetxattrReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLsetxattrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_lsetxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_lsetxattr_bytes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
@@ -26609,176 +26318,168 @@ fn destack_fs_xattr_lsetxattr_bytes_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_LSETXATTR_BYTES,
-            runtime.replay_payload_for(FS_XATTR_LSETXATTR_BYTES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_lsetxattr_bytes(
-                    runtime,
-                    context,
-                    path,
-                    name,
-                    argument_value,
-                    flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_lsetxattr_bytes(
-                    runtime,
-                    context,
-                    path,
-                    name,
-                    argument_value,
-                    flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsXattrLsetxattrBytesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_LSETXATTR_BYTES,
+        runtime.replay_payload_for(FS_XATTR_LSETXATTR_BYTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_lsetxattr_bytes(
+                runtime,
+                context,
+                path,
+                name,
+                argument_value,
+                flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_lsetxattr_bytes(
+                runtime,
+                context,
+                path,
+                name,
+                argument_value,
+                flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsXattrLsetxattrBytesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrLsetxattrBytesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrLsetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_lsetxattr_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_removexattr_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_REMOVEXATTR,
-            runtime.replay_payload_for(FS_XATTR_REMOVEXATTR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_removexattr(runtime, context, path, name)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_fs_removexattr(runtime, context, path, name)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsXattrRemovexattrReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_REMOVEXATTR,
+        runtime.replay_payload_for(FS_XATTR_REMOVEXATTR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_removexattr(runtime, context, path, name),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_removexattr(runtime, context, path, name)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsXattrRemovexattrReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrRemovexattrReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrRemovexattrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_removexattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_removexattr_bytes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_REMOVEXATTR_BYTES,
-            runtime.replay_payload_for(FS_XATTR_REMOVEXATTR_BYTES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_removexattr_bytes(runtime, context, path, name)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_removexattr_bytes(
-                    runtime, context, path, name,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsXattrRemovexattrBytesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_REMOVEXATTR_BYTES,
+        runtime.replay_payload_for(FS_XATTR_REMOVEXATTR_BYTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_fs_removexattr_bytes(runtime, context, path, name)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_fs_removexattr_bytes(runtime, context, path, name)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsXattrRemovexattrBytesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrRemovexattrBytesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrRemovexattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_removexattr_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_setxattr_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
@@ -26786,66 +26487,64 @@ fn destack_fs_xattr_setxattr_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_SETXATTR,
-            runtime.replay_payload_for(FS_XATTR_SETXATTR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_setxattr(
-                    runtime,
-                    context,
-                    path,
-                    name,
-                    argument_value,
-                    flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_setxattr(
-                    runtime,
-                    context,
-                    path,
-                    name,
-                    argument_value,
-                    flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsXattrSetxattrReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_SETXATTR,
+        runtime.replay_payload_for(FS_XATTR_SETXATTR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_setxattr(
+                runtime,
+                context,
+                path,
+                name,
+                argument_value,
+                flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_setxattr(
+                runtime,
+                context,
+                path,
+                name,
+                argument_value,
+                flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsXattrSetxattrReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrSetxattrReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrSetxattrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_setxattr_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_fs_xattr_setxattr_bytes_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
@@ -26853,59 +26552,57 @@ fn destack_fs_xattr_setxattr_bytes_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            FS_XATTR_SETXATTR_BYTES,
-            runtime.replay_payload_for(FS_XATTR_SETXATTR_BYTES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_setxattr_bytes(
-                    runtime,
-                    context,
-                    path,
-                    name,
-                    argument_value,
-                    flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_fs_setxattr_bytes(
-                    runtime,
-                    context,
-                    path,
-                    name,
-                    argument_value,
-                    flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = FsXattrSetxattrBytesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        FS_XATTR_SETXATTR_BYTES,
+        runtime.replay_payload_for(FS_XATTR_SETXATTR_BYTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_fs_setxattr_bytes(
+                runtime,
+                context,
+                path,
+                name,
+                argument_value,
+                flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_setxattr_bytes(
+                runtime,
+                context,
+                path,
+                name,
+                argument_value,
+                flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = FsXattrSetxattrBytesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        FsXattrSetxattrBytesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    FsXattrSetxattrBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_fs_xattr_setxattr_bytes_result(context, result)?;
     Ok(result)
 }
@@ -26914,7 +26611,7 @@ fn destack_fs_xattr_setxattr_bytes_vm_replay(
 pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(registry, isolate, FS_ATTRS_ACCESS, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path, mode) = decode_destack_fs_attrs_access_args(context, args)?;
 
@@ -26932,7 +26629,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_ATTRS_ACCESSAT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (dir, path, mode, flags) =
                         decode_destack_fs_attrs_accessat_args(context, args)?;
@@ -26950,7 +26647,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_ATTRS_CHMOD, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path, mode) = decode_destack_fs_attrs_chmod_args(context, args)?;
 
@@ -26964,7 +26661,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_ATTRS_CHOWN, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path, uid, gid) = decode_destack_fs_attrs_chown_args(context, args)?;
 
@@ -26978,7 +26675,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_ATTRS_FCHMOD, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, mode) = decode_destack_fs_attrs_fchmod_args(context, args)?;
 
@@ -26996,7 +26693,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_ATTRS_FCHMODAT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (dir, path, mode, flags) =
                         decode_destack_fs_attrs_fchmodat_args(context, args)?;
@@ -27014,7 +26711,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_ATTRS_FCHOWN, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, uid, gid) = decode_destack_fs_attrs_fchown_args(context, args)?;
 
@@ -27032,7 +26729,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_ATTRS_FCHOWNAT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (dir, path, uid, gid, flags) =
                         decode_destack_fs_attrs_fchownat_args(context, args)?;
@@ -27050,7 +26747,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_ATTRS_FUTIMES, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, atimens, mtimens) =
                     decode_destack_fs_attrs_futimes_args(context, args)?;
@@ -27067,7 +26764,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_ATTRS_LUTIMES, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path, atimens, mtimens) = decode_destack_fs_attrs_lutimes_args(context, args)?;
 
@@ -27085,7 +26782,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_ATTRS_UTIMENSAT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (dir, path, atimens, mtimens, flags) =
                         decode_destack_fs_attrs_utimensat_args(context, args)?;
@@ -27103,7 +26800,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_ATTRS_UTIMES, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path, atimens, mtimens) = decode_destack_fs_attrs_utimes_args(context, args)?;
 
@@ -27117,7 +26814,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_DIR_CLOSEDIR, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_fs_dir_closedir_args(context, args)?;
 
@@ -27131,7 +26828,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_DIR_DIRFD, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_fs_dir_dirfd_args(context, args)?;
 
@@ -27145,7 +26842,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_DIR_MKDIR, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path, mode) = decode_destack_fs_dir_mkdir_args(context, args)?;
 
@@ -27159,7 +26856,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_DIR_MKDIRAT, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (dir, path, mode) = decode_destack_fs_dir_mkdirat_args(context, args)?;
 
@@ -27173,7 +26870,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_DIR_MKDTEMP, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (template,) = decode_destack_fs_dir_mkdtemp_args(context, args)?;
 
@@ -27187,7 +26884,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_DIR_OPENDIR, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path,) = decode_destack_fs_dir_opendir_args(context, args)?;
 
@@ -27201,7 +26898,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_DIR_READDIR, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_fs_dir_readdir_args(context, args)?;
 
@@ -27219,7 +26916,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_DIR_READDIR_NEXT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_fs_dir_readdir_next_args(context, args)?;
 
@@ -27234,7 +26931,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_DIR_REWINDDIR, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_fs_dir_rewinddir_args(context, args)?;
 
@@ -27248,7 +26945,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_DIR_RMDIR, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path,) = decode_destack_fs_dir_rmdir_args(context, args)?;
 
@@ -27262,7 +26959,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_CLOSE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_fs_file_close_args(context, args)?;
 
@@ -27280,7 +26977,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_COPY_FILE_RANGE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (src, srcoffset, dst, dstoffset, length) =
                         decode_destack_fs_file_copy_file_range_args(context, args)?;
@@ -27298,7 +26995,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_DUP, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_fs_file_dup_args(context, args)?;
 
@@ -27312,7 +27009,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_DUP2, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, target) = decode_destack_fs_file_dup2_args(context, args)?;
 
@@ -27326,7 +27023,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_DUP3, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, target, flags) = decode_destack_fs_file_dup3_args(context, args)?;
 
@@ -27340,7 +27037,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_FADVISE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, offset, length, advice) =
                     decode_destack_fs_file_fadvise_args(context, args)?;
@@ -27361,7 +27058,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_FALLOCATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, offset, length, flags) =
                         decode_destack_fs_file_fallocate_args(context, args)?;
@@ -27383,7 +27080,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_FDATASYNC,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_fs_file_fdatasync_args(context, args)?;
 
@@ -27398,7 +27095,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_FSYNC, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_fs_file_fsync_args(context, args)?;
 
@@ -27416,7 +27113,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_FTRUNCATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, size) = decode_destack_fs_file_ftruncate_args(context, args)?;
 
@@ -27435,7 +27132,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_GET_FD_FLAGS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_fs_file_get_fd_flags_args(context, args)?;
 
@@ -27454,7 +27151,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_GET_STATUS_FLAGS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_fs_file_get_status_flags_args(context, args)?;
 
@@ -27469,7 +27166,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_LOCK, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, flags) = decode_destack_fs_file_lock_args(context, args)?;
 
@@ -27483,7 +27180,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_OPEN, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path, flags, mode) = decode_destack_fs_file_open_args(context, args)?;
 
@@ -27497,7 +27194,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_OPENAT, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (dir, path, flags, mode) = decode_destack_fs_file_openat_args(context, args)?;
 
@@ -27511,7 +27208,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_OPENAT2, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (dir, path, how) = decode_destack_fs_file_openat2_args(context, args)?;
 
@@ -27525,7 +27222,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_PREAD, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffer, offset) = decode_destack_fs_file_pread_args(context, args)?;
 
@@ -27539,7 +27236,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_PREADV, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffers, offset) = decode_destack_fs_file_preadv_args(context, args)?;
 
@@ -27553,7 +27250,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_PREADV2, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffers, offset, flags) =
                     decode_destack_fs_file_preadv2_args(context, args)?;
@@ -27570,7 +27267,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_PWRITE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffer, offset) = decode_destack_fs_file_pwrite_args(context, args)?;
 
@@ -27584,7 +27281,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_PWRITEV, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffers, offset) = decode_destack_fs_file_pwritev_args(context, args)?;
 
@@ -27598,7 +27295,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_PWRITEV2, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffers, offset, flags) =
                     decode_destack_fs_file_pwritev2_args(context, args)?;
@@ -27615,7 +27312,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_READ, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffer) = decode_destack_fs_file_read_args(context, args)?;
 
@@ -27629,7 +27326,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_READV, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffers) = decode_destack_fs_file_readv_args(context, args)?;
 
@@ -27643,7 +27340,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_SEEK, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, offset, whence) = decode_destack_fs_file_seek_args(context, args)?;
 
@@ -27657,7 +27354,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_SENDFILE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (socket, file, offset, length) =
                     decode_destack_fs_file_sendfile_args(context, args)?;
@@ -27678,7 +27375,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_SET_FD_FLAGS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, flags) = decode_destack_fs_file_set_fd_flags_args(context, args)?;
 
@@ -27697,7 +27394,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_SET_STATUS_FLAGS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, flags) =
                         decode_destack_fs_file_set_status_flags_args(context, args)?;
@@ -27715,7 +27412,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_SPLICE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (source, sourcecursor, target, targetcursor, length, flags) =
                     decode_destack_fs_file_splice_args(context, args)?;
@@ -27744,7 +27441,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_SYNC_FILE_RANGE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, offset, length, flags) =
                         decode_destack_fs_file_sync_file_range_args(context, args)?;
@@ -27762,7 +27459,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_SYNCFS, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_fs_file_syncfs_args(context, args)?;
 
@@ -27776,7 +27473,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_TEE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (sourcepipe, targetpipe, length, flags) =
                     decode_destack_fs_file_tee_args(context, args)?;
@@ -27793,7 +27490,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_TRUNCATE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path, size) = decode_destack_fs_file_truncate_args(context, args)?;
 
@@ -27807,7 +27504,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_VMSPLICE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (pipe, buffers, flags) = decode_destack_fs_file_vmsplice_args(context, args)?;
 
@@ -27821,7 +27518,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_WRITE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffer) = decode_destack_fs_file_write_args(context, args)?;
 
@@ -27835,7 +27532,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_WRITEV, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffers) = decode_destack_fs_file_writev_args(context, args)?;
 
@@ -27849,7 +27546,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_MMAP_MADVISE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (mapping, advice) = decode_destack_fs_mmap_madvise_args(context, args)?;
 
@@ -27867,7 +27564,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_MMAP_MMAP_ANONYMOUS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (length, prot, flags) =
                         decode_destack_fs_mmap_mmap_anonymous_args(context, args)?;
@@ -27889,7 +27586,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_MMAP_MMAP_FILE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, offset, length, prot, flags) =
                         decode_destack_fs_mmap_mmap_file_args(context, args)?;
@@ -27907,7 +27604,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_MMAP_MPROTECT, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (mapping, prot) = decode_destack_fs_mmap_mprotect_args(context, args)?;
 
@@ -27921,7 +27618,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_MMAP_MSYNC, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (mapping, flags) = decode_destack_fs_mmap_msync_args(context, args)?;
 
@@ -27935,7 +27632,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_MMAP_MUNMAP, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (mapping,) = decode_destack_fs_mmap_munmap_args(context, args)?;
 
@@ -27949,7 +27646,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_COPYFILE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (from, to, flags) = decode_destack_fs_path_copyfile_args(context, args)?;
 
@@ -27963,7 +27660,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_LINK, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (existingpath, newpath) = decode_destack_fs_path_link_args(context, args)?;
 
@@ -27977,7 +27674,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_LINKAT, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (existingdir, existingpath, newdir, newpath, flags) =
                     decode_destack_fs_path_linkat_args(context, args)?;
@@ -28001,7 +27698,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_MKFIFO, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path, mode) = decode_destack_fs_path_mkfifo_args(context, args)?;
 
@@ -28015,7 +27712,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_MKFIFOAT, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (dir, path, mode) = decode_destack_fs_path_mkfifoat_args(context, args)?;
 
@@ -28029,7 +27726,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_MKNOD, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path, mode, device) = decode_destack_fs_path_mknod_args(context, args)?;
 
@@ -28043,7 +27740,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_MKNODAT, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (dir, path, mode, device) = decode_destack_fs_path_mknodat_args(context, args)?;
 
@@ -28057,7 +27754,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_READLINK, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path,) = decode_destack_fs_path_readlink_args(context, args)?;
 
@@ -28075,7 +27772,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_PATH_READLINKAT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (dir, path) = decode_destack_fs_path_readlinkat_args(context, args)?;
 
@@ -28090,7 +27787,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_REALPATH, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path,) = decode_destack_fs_path_realpath_args(context, args)?;
 
@@ -28104,7 +27801,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_RENAME, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (from, to) = decode_destack_fs_path_rename_args(context, args)?;
 
@@ -28118,7 +27815,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_RENAMEAT, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (fromdir, from, todir, to) =
                     decode_destack_fs_path_renameat_args(context, args)?;
@@ -28139,7 +27836,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_PATH_RENAMEAT2,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (fromdir, from, todir, to, flags) =
                         decode_destack_fs_path_renameat2_args(context, args)?;
@@ -28157,7 +27854,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_SYMLINK, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (target, path, kind) = decode_destack_fs_path_symlink_args(context, args)?;
 
@@ -28175,7 +27872,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_PATH_SYMLINKAT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (target, dir, path, kind) =
                         decode_destack_fs_path_symlinkat_args(context, args)?;
@@ -28193,7 +27890,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_UNLINK, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path,) = decode_destack_fs_path_unlink_args(context, args)?;
 
@@ -28207,7 +27904,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_UNLINKAT, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (dir, path, flags) = decode_destack_fs_path_unlinkat_args(context, args)?;
 
@@ -28221,7 +27918,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_STAT_FSTAT, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_fs_stat_fstat_args(context, args)?;
 
@@ -28235,7 +27932,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_STAT_FSTATFS, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_fs_stat_fstatfs_args(context, args)?;
 
@@ -28249,7 +27946,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_STAT_LSTAT, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path,) = decode_destack_fs_stat_lstat_args(context, args)?;
 
@@ -28263,7 +27960,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_STAT_PATH, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path,) = decode_destack_fs_stat_path_args(context, args)?;
 
@@ -28277,7 +27974,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_STAT_PATHAT, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (dir, path, flags) = decode_destack_fs_stat_pathat_args(context, args)?;
 
@@ -28291,7 +27988,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_STAT_PATHFS, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path,) = decode_destack_fs_stat_pathfs_args(context, args)?;
 
@@ -28305,7 +28002,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_STAT_PATHX, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (dir, path, flags, mask) = decode_destack_fs_stat_pathx_args(context, args)?;
 
@@ -28319,7 +28016,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_WATCH_OPEN, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path, options) = decode_destack_fs_watch_open_args(context, args)?;
 
@@ -28337,7 +28034,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_WATCH_OPEN_CLOSE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_fs_watch_open_close_args(context, args)?;
 
@@ -28356,7 +28053,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_WATCH_OPEN_READ,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_fs_watch_open_read_args(context, args)?;
 
@@ -28371,7 +28068,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_WATCH_OPENAT, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (directory, path, options) =
                     decode_destack_fs_watch_openat_args(context, args)?;
@@ -28390,7 +28087,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FGETXATTR,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, name) = decode_destack_fs_xattr_fgetxattr_args(context, args)?;
 
@@ -28409,7 +28106,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FGETXATTR_BYTES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, name) =
                         decode_destack_fs_xattr_fgetxattr_bytes_args(context, args)?;
@@ -28431,7 +28128,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FLISTXATTR,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_fs_xattr_flistxattr_args(context, args)?;
 
@@ -28450,7 +28147,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FLISTXATTR_BYTES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_fs_xattr_flistxattr_bytes_args(context, args)?;
 
@@ -28469,7 +28166,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FREMOVEXATTR,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, name) = decode_destack_fs_xattr_fremovexattr_args(context, args)?;
 
@@ -28488,7 +28185,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FREMOVEXATTR_BYTES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, name) =
                         decode_destack_fs_xattr_fremovexattr_bytes_args(context, args)?;
@@ -28510,7 +28207,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FSETXATTR,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, name, argument_value, flags) =
                         decode_destack_fs_xattr_fsetxattr_args(context, args)?;
@@ -28538,7 +28235,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FSETXATTR_BYTES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, name, argument_value, flags) =
                         decode_destack_fs_xattr_fsetxattr_bytes_args(context, args)?;
@@ -28566,7 +28263,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_GETXATTR,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path, name) = decode_destack_fs_xattr_getxattr_args(context, args)?;
 
@@ -28585,7 +28282,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_GETXATTR_BYTES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path, name) = decode_destack_fs_xattr_getxattr_bytes_args(context, args)?;
 
@@ -28604,7 +28301,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LGETXATTR,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path, name) = decode_destack_fs_xattr_lgetxattr_args(context, args)?;
 
@@ -28623,7 +28320,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LGETXATTR_BYTES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path, name) = decode_destack_fs_xattr_lgetxattr_bytes_args(context, args)?;
 
@@ -28642,7 +28339,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LISTXATTR,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path,) = decode_destack_fs_xattr_listxattr_args(context, args)?;
 
@@ -28661,7 +28358,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LISTXATTR_BYTES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path,) = decode_destack_fs_xattr_listxattr_bytes_args(context, args)?;
 
@@ -28680,7 +28377,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LLISTXATTR,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path,) = decode_destack_fs_xattr_llistxattr_args(context, args)?;
 
@@ -28699,7 +28396,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LLISTXATTR_BYTES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path,) = decode_destack_fs_xattr_llistxattr_bytes_args(context, args)?;
 
@@ -28718,7 +28415,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LREMOVEXATTR,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path, name) = decode_destack_fs_xattr_lremovexattr_args(context, args)?;
 
@@ -28737,7 +28434,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LREMOVEXATTR_BYTES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path, name) =
                         decode_destack_fs_xattr_lremovexattr_bytes_args(context, args)?;
@@ -28759,7 +28456,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LSETXATTR,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path, name, argument_value, flags) =
                         decode_destack_fs_xattr_lsetxattr_args(context, args)?;
@@ -28787,7 +28484,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LSETXATTR_BYTES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path, name, argument_value, flags) =
                         decode_destack_fs_xattr_lsetxattr_bytes_args(context, args)?;
@@ -28815,7 +28512,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_REMOVEXATTR,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path, name) = decode_destack_fs_xattr_removexattr_args(context, args)?;
 
@@ -28834,7 +28531,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_REMOVEXATTR_BYTES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path, name) =
                         decode_destack_fs_xattr_removexattr_bytes_args(context, args)?;
@@ -28856,7 +28553,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_SETXATTR,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path, name, argument_value, flags) =
                         decode_destack_fs_xattr_setxattr_args(context, args)?;
@@ -28884,7 +28581,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_SETXATTR_BYTES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (path, name, argument_value, flags) =
                         decode_destack_fs_xattr_setxattr_bytes_args(context, args)?;

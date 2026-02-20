@@ -3,12 +3,12 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{OsPath, PathEncoding, core as core_fs};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{PlatformError, ResourceId};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Resolve a socket or listener handle to its resource entry.
 #[cfg_attr(not(any(unix, windows)), allow(dead_code))]
 pub(crate) fn require_resource<T>(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     id: ResourceId,
     kind: ResourceKind,
     label: &str,

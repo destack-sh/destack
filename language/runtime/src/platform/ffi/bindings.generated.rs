@@ -5,21 +5,21 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
-    NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
-};
 use crate::platform::ffi::FfiPointer;
 use crate::platform::{
     NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
     abi as platform_abi,
+};
+use crate::runtime::bindings::{
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
+    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::with_runtime_call_context;
+use crate::runtime::with_binding_call_context;
 
 use crate::platform::ffi::simulation::{
     native as platform_simulation_native, vm as platform_simulation_vm,
@@ -328,7 +328,7 @@ fn encode_destack_ffi_symbol_lookup_result(
 pub const FFI_CALL_INVOKE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ffi.call.invoke",
     "export function call(symbol: SymbolHandle, abi: uint32, flags: uint32, arguments: Slice<uint8>, resultSize: uint32): Result<Slice<uint8>, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["ffi.call"],
     BindingScope::Host,
@@ -341,7 +341,7 @@ pub const FFI_LIBRARY_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.ffi.library.close",
         "export function close(handle: LibraryHandle): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["ffi.load"],
         BindingScope::Host,
@@ -367,7 +367,7 @@ pub const FFI_LIBRARY_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.ffi.library.open",
         "export function open(path: OsPath, flags: uint32): Result<LibraryHandle, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["ffi.load"],
         BindingScope::Host,
@@ -441,7 +441,7 @@ pub const FFI_SYMBOL_ADDRESS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.ffi.symbol.address",
         "export function symbolAddress(symbol: SymbolHandle): Result<uint64, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["ffi.symbol"],
         BindingScope::Host,
@@ -466,7 +466,7 @@ pub const FFI_SYMBOL_ADDRESS: BindingDescriptor =
 pub const FFI_SYMBOL_LOOKUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ffi.symbol.lookup",
     "export function symbolLookup(library: LibraryHandle, name: string): Result<SymbolHandle, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["ffi.symbol"],
     BindingScope::Host,
@@ -552,7 +552,7 @@ pub unsafe extern "C" fn destack_ffi_call_invoke(
                         context, out, symbol, abi, flags, arguments, resultsize,
                     )
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_ffi_call(
                         context, out, symbol, abi, flags, arguments, resultsize,
                     )
@@ -576,7 +576,7 @@ pub unsafe extern "C" fn destack_ffi_library_close(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_ffi_close(context, handle)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_ffi_close(context, handle)
                 },
             }
@@ -603,7 +603,7 @@ pub unsafe extern "C" fn destack_ffi_library_open(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_ffi_open(context, out, path, flags)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_ffi_open(context, out, path, flags)
                 },
             }
@@ -629,7 +629,7 @@ pub unsafe extern "C" fn destack_ffi_pointer_address(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_ffi_address(context, out, pointer)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_ffi_address(context, out, pointer)
                 },
             }
@@ -655,7 +655,7 @@ pub unsafe extern "C" fn destack_ffi_pointer_from_address(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_ffi_from_address(context, out, address)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_ffi_from_address(context, out, address)
                 },
             }
@@ -681,7 +681,7 @@ pub unsafe extern "C" fn destack_ffi_symbol_address(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_ffi_symbol_address(context, out, symbol)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_ffi_symbol_address(context, out, symbol)
                 },
             }
@@ -708,7 +708,7 @@ pub unsafe extern "C" fn destack_ffi_symbol_lookup(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_ffi_symbol_lookup(context, out, library, name)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_ffi_symbol_lookup(
                         context, out, library, name,
                     )
@@ -722,7 +722,7 @@ pub unsafe extern "C" fn destack_ffi_symbol_lookup(
 pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(registry, isolate, FFI_CALL_INVOKE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (symbol, abi, flags, arguments, resultsize) =
                     decode_destack_ffi_call_invoke_args(context, args)?;
@@ -735,7 +735,7 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         RuntimeWorld::Host => platform_vm::destack_ffi_call(
                             runtime, context, symbol, abi, flags, arguments, resultsize,
                         ),
-                        RuntimeWorld::Simulated => platform_simulation_vm::destack_ffi_call(
+                        RuntimeWorld::Simulation => platform_simulation_vm::destack_ffi_call(
                             runtime, context, symbol, abi, flags, arguments, resultsize,
                         ),
                     }
@@ -751,7 +751,7 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             FFI_LIBRARY_CLOSE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_ffi_library_close_args(context, args)?;
 
@@ -763,7 +763,7 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                             RuntimeWorld::Host => {
                                 platform_vm::destack_ffi_close(runtime, context, handle)
                             }
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_ffi_close(runtime, context, handle)
                             }
                         }
@@ -776,7 +776,7 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, FFI_LIBRARY_OPEN, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path, flags) = decode_destack_ffi_library_open_args(context, args)?;
 
@@ -788,7 +788,7 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         RuntimeWorld::Host => {
                             platform_vm::destack_ffi_open(runtime, context, path, flags)
                         }
-                        RuntimeWorld::Simulated => {
+                        RuntimeWorld::Simulation => {
                             platform_simulation_vm::destack_ffi_open(runtime, context, path, flags)
                         }
                     }
@@ -804,7 +804,7 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             FFI_POINTER_ADDRESS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (pointer,) = decode_destack_ffi_pointer_address_args(context, args)?;
 
@@ -816,9 +816,11 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                             RuntimeWorld::Host => {
                                 platform_vm::destack_ffi_address(runtime, context, pointer)
                             }
-                            RuntimeWorld::Simulated => platform_simulation_vm::destack_ffi_address(
-                                runtime, context, pointer,
-                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_ffi_address(
+                                    runtime, context, pointer,
+                                )
+                            }
                         }
                     };
                     encode_destack_ffi_pointer_address_result(context, result)
@@ -833,7 +835,7 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             FFI_POINTER_FROM_ADDRESS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address,) = decode_destack_ffi_pointer_from_address_args(context, args)?;
 
@@ -845,7 +847,7 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                             RuntimeWorld::Host => {
                                 platform_vm::destack_ffi_from_address(runtime, context, address)
                             }
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_ffi_from_address(
                                     runtime, context, address,
                                 )
@@ -864,7 +866,7 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             FFI_SYMBOL_ADDRESS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (symbol,) = decode_destack_ffi_symbol_address_args(context, args)?;
 
@@ -876,7 +878,7 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                             RuntimeWorld::Host => {
                                 platform_vm::destack_ffi_symbol_address(runtime, context, symbol)
                             }
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_ffi_symbol_address(
                                     runtime, context, symbol,
                                 )
@@ -895,7 +897,7 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             FFI_SYMBOL_LOOKUP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (library, name) = decode_destack_ffi_symbol_lookup_args(context, args)?;
 
@@ -907,7 +909,7 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                             RuntimeWorld::Host => platform_vm::destack_ffi_symbol_lookup(
                                 runtime, context, library, name,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_ffi_symbol_lookup(
                                     runtime, context, library, name,
                                 )

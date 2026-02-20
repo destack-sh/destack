@@ -3,7 +3,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::security::{PlatformCapabilityVm, SecurityPolicyMode, SecurityPolicyRuleVm};
 use crate::platform::{PlatformError, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 /// Check one capability.
@@ -24,7 +24,7 @@ use destack_vm as vm;
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_capability_has(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     capability: PlatformCapabilityVm,
 ) -> RuntimeResult<bool> {
@@ -53,7 +53,7 @@ pub(crate) fn destack_security_capability_has(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_capability_list(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<PlatformCapabilityVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -80,7 +80,7 @@ pub(crate) fn destack_security_capability_list(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_sandbox_seal(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
@@ -109,7 +109,7 @@ pub(crate) fn destack_security_sandbox_seal(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_sandbox_set_capabilities(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SandboxHandle,
     capabilities: VmSlice<PlatformCapabilityVm>,
@@ -139,7 +139,7 @@ pub(crate) fn destack_security_sandbox_set_capabilities(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_set_write_xor_execute(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -168,7 +168,7 @@ pub(crate) fn destack_security_set_write_xor_execute(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_policy_get(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     scope: vm::StringHandle,
 ) -> RuntimeResult<VmSlice<PlatformCapabilityVm>> {
@@ -197,7 +197,7 @@ pub(crate) fn destack_security_policy_get(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_policy_get_rules(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     scope: vm::StringHandle,
 ) -> RuntimeResult<VmSlice<SecurityPolicyRuleVm>> {
@@ -226,7 +226,7 @@ pub(crate) fn destack_security_policy_get_rules(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_policy_set(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     scope: vm::StringHandle,
     capabilities: VmSlice<PlatformCapabilityVm>,
@@ -256,7 +256,7 @@ pub(crate) fn destack_security_policy_set(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_policy_set_rules(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     scope: vm::StringHandle,
     rules: VmSlice<SecurityPolicyRuleVm>,
@@ -286,7 +286,7 @@ pub(crate) fn destack_security_policy_set_rules(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_security_sandbox_enter(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<resource::SandboxHandle> {
@@ -315,7 +315,7 @@ pub(crate) fn destack_security_sandbox_enter(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_security_sandbox_exit(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {

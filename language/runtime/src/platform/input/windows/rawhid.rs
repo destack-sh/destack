@@ -3,11 +3,11 @@ use super::{core as input_core, raw as raw_input};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{InputRawHidReport, validation as input_validation};
 use crate::platform::{NativeSlice, PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Resolve one opened raw-hid-capable device descriptor.
 fn resolve_raw_hid_device(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<raw_input::RawInputDeviceDescriptor> {
@@ -39,7 +39,7 @@ fn resolve_raw_hid_device(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_get_feature(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::InputDeviceHandle,
     reportid: u8,
@@ -90,7 +90,7 @@ pub(crate) unsafe fn destack_input_raw_hid_get_feature(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputRawHidReport,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
@@ -141,7 +141,7 @@ pub(crate) unsafe fn destack_input_raw_hid_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_set_feature(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     reportid: u8,
     data: NativeSlice<u8>,
@@ -181,7 +181,7 @@ pub(crate) unsafe fn destack_input_raw_hid_set_feature(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_try_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputRawHidReport,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
@@ -232,7 +232,7 @@ pub(crate) unsafe fn destack_input_raw_hid_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_write(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     handle: resource::InputDeviceHandle,
     reportid: u8,

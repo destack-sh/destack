@@ -12,7 +12,7 @@ use crate::platform::io::{TimerFdClock, TimerFdFlags, TimerFdSetFlags, TimerFdSp
 use crate::platform::resource::ResourceEntry;
 use crate::platform::resource::ResourceKind;
 use crate::platform::{PlatformError, core as core_platform, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Number of nanoseconds in one second.
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
@@ -108,7 +108,7 @@ fn timespec_to_nanos(value: libc::timespec, field: &str) -> RuntimeResult<u64> {
 
 /// Resolve one timerfd handle into one unix file descriptor.
 fn timerfd_fd(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<RawFd> {
     let fd = context
@@ -128,7 +128,7 @@ fn timerfd_fd(
 
 /// Close one timerfd descriptor and release one table entry.
 fn close_timerfd(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
     // remove one timerfd entry from the resource table
@@ -214,7 +214,7 @@ fn validate_set_flags(flags: TimerFdSetFlags) -> RuntimeResult<i32> {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
     // reject timerfd operations on unsupported unix targets
@@ -245,7 +245,7 @@ pub(crate) unsafe fn destack_io_timer_fd_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_get(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut TimerFdSpec,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
@@ -311,7 +311,7 @@ pub(crate) unsafe fn destack_io_timer_fd_get(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::TimerFdHandle,
     clock: TimerFdClock,
     flags: TimerFdFlags,
@@ -380,7 +380,7 @@ pub(crate) unsafe fn destack_io_timer_fd_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
@@ -463,7 +463,7 @@ pub(crate) unsafe fn destack_io_timer_fd_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_set(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerFdHandle,
     spec: TimerFdSpec,
     flags: TimerFdSetFlags,

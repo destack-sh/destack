@@ -5,7 +5,7 @@ use crate::platform::PlatformError;
 use crate::platform::resource::ThreadLocalKey;
 use crate::platform::thread::{core as core_thread, resource as resource_thread};
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Build one TLS error from a pthread return code.
 fn tls_error(syscall: &str, code: libc::c_int) -> Box<RuntimeError> {
@@ -37,7 +37,7 @@ fn tls_error(syscall: &str, code: libc::c_int) -> Box<RuntimeError> {
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_create(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ThreadLocalKey,
 ) -> RuntimeResult<()> {
     // validate output pointer
@@ -83,7 +83,7 @@ pub(crate) unsafe fn destack_thread_local_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_delete(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     key: ThreadLocalKey,
 ) -> RuntimeResult<()> {
     // remove the thread-local key resource
@@ -121,7 +121,7 @@ pub(crate) unsafe fn destack_thread_local_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_get(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     key: ThreadLocalKey,
 ) -> RuntimeResult<()> {
@@ -165,7 +165,7 @@ pub(crate) unsafe fn destack_thread_local_get(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_set(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     key: ThreadLocalKey,
     argument_value: u64,
 ) -> RuntimeResult<()> {

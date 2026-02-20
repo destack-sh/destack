@@ -8,7 +8,7 @@ use crate::platform::fs::OsPath;
 use crate::platform::net::{core as core_net, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -16,7 +16,7 @@ use std::os::unix::io::RawFd;
 
 /// Read the local socket address as raw bytes.
 pub(crate) unsafe fn destack_net_local_address_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketAddress,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -42,7 +42,7 @@ pub(crate) unsafe fn destack_net_local_address_raw(
 
 /// Read the remote socket address as raw bytes.
 pub(crate) unsafe fn destack_net_peer_address_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketAddress,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -84,7 +84,7 @@ pub(crate) unsafe fn destack_net_peer_address_raw(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_resolve(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<SocketAddress>,
     host: NativeStringRef,
     port: u16,
@@ -219,7 +219,7 @@ pub(crate) unsafe fn destack_net_resolve(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_reverse_lookup(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -289,7 +289,7 @@ pub(crate) unsafe fn destack_net_reverse_lookup(
 /// Resolve host and port into raw socket addresses.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_resolve_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<SocketAddress>,
     host: NativeStringRef,
     port: u16,
@@ -302,7 +302,7 @@ pub(crate) unsafe fn destack_net_resolve_raw(
 /// Reverse lookup a raw socket address into hostnames.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_reverse_lookup_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     address: SocketAddress,
 ) -> RuntimeResult<()> {

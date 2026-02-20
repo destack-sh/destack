@@ -5,18 +5,18 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
-    NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
-};
 use crate::platform::thread::{ThreadOptions, ThreadOptionsVm};
 use crate::platform::{NativeStringRef, PlatformError, RuntimeStatus, abi as platform_abi};
+use crate::runtime::bindings::{
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
+    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::with_runtime_call_context;
+use crate::runtime::with_binding_call_context;
 
 use crate::platform::thread::simulation::{
     native as platform_simulation_native, vm as platform_simulation_vm,
@@ -823,7 +823,7 @@ pub const THREAD_LOCAL_CREATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.local.create",
         "export function localCreate(): Result<ThreadLocalKey, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.local"],
         BindingScope::Host,
@@ -849,7 +849,7 @@ pub const THREAD_LOCAL_DELETE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.local.delete",
         "export function localDelete(key: ThreadLocalKey): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.local"],
         BindingScope::Host,
@@ -875,7 +875,7 @@ pub const THREAD_LOCAL_GET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.local.get",
         "export function localGet(key: ThreadLocalKey): Result<uint64, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.local"],
         BindingScope::Host,
@@ -901,7 +901,7 @@ pub const THREAD_LOCAL_SET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.local.set",
         "export function localSet(key: ThreadLocalKey, value: uint64): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.local"],
         BindingScope::Host,
@@ -927,7 +927,7 @@ pub const THREAD_PRIORITY_GET_AFFINITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.priority.getAffinity",
         "export function getAffinity(handle: ThreadHandle): Result<uint64, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.priority"],
         BindingScope::Host,
@@ -953,7 +953,7 @@ pub const THREAD_PRIORITY_GET_PRIORITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.priority.getPriority",
         "export function getPriority(handle: ThreadHandle): Result<int32, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.priority"],
         BindingScope::Host,
@@ -978,7 +978,7 @@ pub const THREAD_PRIORITY_GET_PRIORITY: BindingDescriptor =
 pub const THREAD_PRIORITY_SET_AFFINITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.priority.setAffinity",
     "export function setAffinity(handle: ThreadHandle, mask: uint64): Result<void, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.priority"],
     BindingScope::Host,
@@ -990,7 +990,7 @@ pub const THREAD_PRIORITY_SET_AFFINITY: BindingDescriptor = BindingDescriptor::e
 pub const THREAD_PRIORITY_SET_PRIORITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.priority.setPriority",
     "export function setPriority(handle: ThreadHandle, priority: int32): Result<void, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.priority"],
     BindingScope::Host,
@@ -1003,7 +1003,7 @@ pub const THREAD_SPAWN_DETACH: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.spawn.detach",
         "export function detach(handle: ThreadHandle): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.spawn"],
         BindingScope::Host,
@@ -1029,7 +1029,7 @@ pub const THREAD_SPAWN_JOIN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.spawn.join",
         "export function join(handle: ThreadHandle): Result<uint32, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.spawn"],
         BindingScope::Host,
@@ -1054,7 +1054,7 @@ pub const THREAD_SPAWN_JOIN: BindingDescriptor =
 pub const THREAD_SPAWN_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.spawn.start",
     "export function spawn(entry: string, argument: uint64, options: ThreadOptions): Result<ThreadHandle, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.spawn"],
     BindingScope::Host,
@@ -1066,7 +1066,7 @@ pub const THREAD_SPAWN_START: BindingDescriptor = BindingDescriptor::external_wi
 pub const THREAD_SYNC_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.addressWait",
     "export function addressWait(address: uint64, expected: uint32, timeoutNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.wait"],
     BindingScope::Host,
@@ -1079,7 +1079,7 @@ pub const THREAD_SYNC_ADDRESS_WAKE_ALL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.addressWakeAll",
         "export function addressWakeAll(address: uint64): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.wait"],
         BindingScope::Host,
@@ -1105,7 +1105,7 @@ pub const THREAD_SYNC_ADDRESS_WAKE_ONE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.addressWakeOne",
         "export function addressWakeOne(address: uint64): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.wait"],
         BindingScope::Host,
@@ -1130,7 +1130,7 @@ pub const THREAD_SYNC_ADDRESS_WAKE_ONE: BindingDescriptor =
 pub const THREAD_SYNC_BARRIER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.barrierCreate",
     "export function barrierCreate(participants: uint32, flags: uint32): Result<BarrierHandle, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
     BindingScope::Host,
@@ -1142,7 +1142,7 @@ pub const THREAD_SYNC_BARRIER_CREATE: BindingDescriptor = BindingDescriptor::ext
 pub const THREAD_SYNC_BARRIER_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.barrierWait",
     "export function barrierWait(handle: BarrierHandle, timeoutNs: uint64): Result<boolean, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
     BindingScope::Host,
@@ -1155,7 +1155,7 @@ pub const THREAD_SYNC_COND_VAR_CREATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.condVarCreate",
         "export function condVarCreate(flags: uint32): Result<CondVarHandle, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.sync"],
         BindingScope::Host,
@@ -1181,7 +1181,7 @@ pub const THREAD_SYNC_COND_VAR_NOTIFY_ALL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.condVarNotifyAll",
         "export function condVarNotifyAll(condVar: CondVarHandle): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.sync"],
         BindingScope::Host,
@@ -1207,7 +1207,7 @@ pub const THREAD_SYNC_COND_VAR_NOTIFY_ONE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.condVarNotifyOne",
         "export function condVarNotifyOne(condVar: CondVarHandle): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.sync"],
         BindingScope::Host,
@@ -1232,7 +1232,7 @@ pub const THREAD_SYNC_COND_VAR_NOTIFY_ONE: BindingDescriptor =
 pub const THREAD_SYNC_COND_VAR_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.condVarWait",
     "export function condVarWait(condVar: CondVarHandle, mutex: MutexHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
     BindingScope::Host,
@@ -1245,7 +1245,7 @@ pub const THREAD_SYNC_MUTEX_CREATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.mutexCreate",
         "export function mutexCreate(flags: uint32): Result<MutexHandle, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.sync"],
         BindingScope::Host,
@@ -1270,7 +1270,7 @@ pub const THREAD_SYNC_MUTEX_CREATE: BindingDescriptor =
 pub const THREAD_SYNC_MUTEX_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.mutexLock",
     "export function mutexLock(handle: MutexHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
     BindingScope::Host,
@@ -1283,7 +1283,7 @@ pub const THREAD_SYNC_MUTEX_UNLOCK: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.mutexUnlock",
         "export function mutexUnlock(handle: MutexHandle): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.sync"],
         BindingScope::Host,
@@ -1309,7 +1309,7 @@ pub const THREAD_SYNC_RWLOCK_CREATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.rwlockCreate",
         "export function rwlockCreate(flags: uint32): Result<RwLockHandle, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.sync"],
         BindingScope::Host,
@@ -1334,7 +1334,7 @@ pub const THREAD_SYNC_RWLOCK_CREATE: BindingDescriptor =
 pub const THREAD_SYNC_RWLOCK_READ_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.rwlockReadLock",
     "export function rwlockReadLock(handle: RwLockHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
     BindingScope::Host,
@@ -1347,7 +1347,7 @@ pub const THREAD_SYNC_RWLOCK_UNLOCK: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.rwlockUnlock",
         "export function rwlockUnlock(handle: RwLockHandle): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["thread.sync"],
         BindingScope::Host,
@@ -1372,7 +1372,7 @@ pub const THREAD_SYNC_RWLOCK_UNLOCK: BindingDescriptor =
 pub const THREAD_SYNC_RWLOCK_WRITE_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.rwlockWriteLock",
     "export function rwlockWriteLock(handle: RwLockHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
     BindingScope::Host,
@@ -1384,7 +1384,7 @@ pub const THREAD_SYNC_RWLOCK_WRITE_LOCK: BindingDescriptor = BindingDescriptor::
 pub const THREAD_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.semaphoreCreate",
     "export function semaphoreCreate(initial: uint32, maximum: uint32, flags: uint32): Result<ThreadSemaphoreHandle, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
     BindingScope::Host,
@@ -1396,7 +1396,7 @@ pub const THREAD_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::e
 pub const THREAD_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.semaphorePost",
     "export function semaphorePost(handle: ThreadSemaphoreHandle, count: uint32): Result<void, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
     BindingScope::Host,
@@ -1408,7 +1408,7 @@ pub const THREAD_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::ext
 pub const THREAD_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.semaphoreWait",
     "export function semaphoreWait(handle: ThreadSemaphoreHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["thread.sync"],
     BindingScope::Host,
@@ -1625,7 +1625,7 @@ pub unsafe extern "C" fn destack_thread_local_create(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_local_create(context, out)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_local_create(context, out)
                 },
             }
@@ -1647,7 +1647,7 @@ pub unsafe extern "C" fn destack_thread_local_delete(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_local_delete(context, key)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_local_delete(context, key)
                 },
             }
@@ -1673,7 +1673,7 @@ pub unsafe extern "C" fn destack_thread_local_get(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_local_get(context, out, key)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_local_get(context, out, key)
                 },
             }
@@ -1696,7 +1696,7 @@ pub unsafe extern "C" fn destack_thread_local_set(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_local_set(context, key, argument_value)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_local_set(
                         context,
                         key,
@@ -1726,7 +1726,7 @@ pub unsafe extern "C" fn destack_thread_priority_get_affinity(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_get_affinity(context, out, handle)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_get_affinity(context, out, handle)
                 },
             }
@@ -1752,7 +1752,7 @@ pub unsafe extern "C" fn destack_thread_priority_get_priority(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_get_priority(context, out, handle)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_get_priority(context, out, handle)
                 },
             }
@@ -1775,7 +1775,7 @@ pub unsafe extern "C" fn destack_thread_priority_set_affinity(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_set_affinity(context, handle, mask)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_set_affinity(context, handle, mask)
                 },
             }
@@ -1798,7 +1798,7 @@ pub unsafe extern "C" fn destack_thread_priority_set_priority(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_set_priority(context, handle, priority)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_set_priority(
                         context, handle, priority,
                     )
@@ -1822,7 +1822,7 @@ pub unsafe extern "C" fn destack_thread_spawn_detach(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_detach(context, handle)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_detach(context, handle)
                 },
             }
@@ -1848,7 +1848,7 @@ pub unsafe extern "C" fn destack_thread_spawn_join(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_join(context, out, handle)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_join(context, out, handle)
                 },
             }
@@ -1876,7 +1876,7 @@ pub unsafe extern "C" fn destack_thread_spawn_start(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_spawn(context, out, entry, argument, options)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_spawn(
                         context, out, entry, argument, options,
                     )
@@ -1904,7 +1904,7 @@ pub unsafe extern "C" fn destack_thread_sync_address_wait(
                         context, address, expected, timeoutns,
                     )
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_address_wait(
                         context, address, expected, timeoutns,
                     )
@@ -1926,7 +1926,7 @@ pub unsafe extern "C" fn destack_thread_sync_address_wake_all(address: u64) -> R
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_address_wake_all(context, address)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_address_wake_all(context, address)
                 },
             }
@@ -1946,7 +1946,7 @@ pub unsafe extern "C" fn destack_thread_sync_address_wake_one(address: u64) -> R
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_address_wake_one(context, address)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_address_wake_one(context, address)
                 },
             }
@@ -1978,7 +1978,7 @@ pub unsafe extern "C" fn destack_thread_sync_barrier_create(
                         flags,
                     )
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_barrier_create(
                         context,
                         out,
@@ -2010,7 +2010,7 @@ pub unsafe extern "C" fn destack_thread_sync_barrier_wait(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_barrier_wait(context, out, handle, timeoutns)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_barrier_wait(
                         context, out, handle, timeoutns,
                     )
@@ -2038,7 +2038,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_create(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_cond_var_create(context, out, flags)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_cond_var_create(context, out, flags)
                 },
             }
@@ -2060,7 +2060,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_notify_all(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_cond_var_notify_all(context, condvar)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_cond_var_notify_all(context, condvar)
                 },
             }
@@ -2082,7 +2082,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_notify_one(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_cond_var_notify_one(context, condvar)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_cond_var_notify_one(context, condvar)
                 },
             }
@@ -2108,7 +2108,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_wait(
                         context, condvar, mutex, timeoutns,
                     )
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_cond_var_wait(
                         context, condvar, mutex, timeoutns,
                     )
@@ -2136,7 +2136,7 @@ pub unsafe extern "C" fn destack_thread_sync_mutex_create(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_mutex_create(context, out, flags)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_mutex_create(context, out, flags)
                 },
             }
@@ -2159,7 +2159,7 @@ pub unsafe extern "C" fn destack_thread_sync_mutex_lock(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_mutex_lock(context, handle, timeoutns)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_mutex_lock(
                         context, handle, timeoutns,
                     )
@@ -2183,7 +2183,7 @@ pub unsafe extern "C" fn destack_thread_sync_mutex_unlock(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_mutex_unlock(context, handle)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_mutex_unlock(context, handle)
                 },
             }
@@ -2209,7 +2209,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_create(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_rwlock_create(context, out, flags)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_rwlock_create(context, out, flags)
                 },
             }
@@ -2232,7 +2232,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_read_lock(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_rwlock_read_lock(context, handle, timeoutns)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_rwlock_read_lock(
                         context, handle, timeoutns,
                     )
@@ -2256,7 +2256,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_unlock(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_rwlock_unlock(context, handle)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_rwlock_unlock(context, handle)
                 },
             }
@@ -2279,7 +2279,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_write_lock(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_rwlock_write_lock(context, handle, timeoutns)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_rwlock_write_lock(
                         context, handle, timeoutns,
                     )
@@ -2311,7 +2311,7 @@ pub unsafe extern "C" fn destack_thread_sync_semaphore_create(
                         context, out, initial, maximum, flags,
                     )
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_semaphore_create(
                         context, out, initial, maximum, flags,
                     )
@@ -2336,7 +2336,7 @@ pub unsafe extern "C" fn destack_thread_sync_semaphore_post(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_semaphore_post(context, handle, count)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_semaphore_post(
                         context, handle, count,
                     )
@@ -2361,7 +2361,7 @@ pub unsafe extern "C" fn destack_thread_sync_semaphore_wait(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_semaphore_wait(context, handle, timeoutns)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_semaphore_wait(
                         context, handle, timeoutns,
                     )
@@ -2379,7 +2379,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_LOCAL_CREATE,
             move |context, _args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // execute binding
                     let result = {
                         runtime.check_policy(THREAD_LOCAL_CREATE)?;
@@ -2388,7 +2388,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_local_create(runtime, context)
                             }
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_local_create(
                                     runtime, context,
                                 )
@@ -2407,7 +2407,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_LOCAL_DELETE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (key,) = decode_destack_thread_local_delete_args(context, args)?;
 
@@ -2419,7 +2419,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_local_delete(runtime, context, key)
                             }
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_local_delete(
                                     runtime, context, key,
                                 )
@@ -2434,7 +2434,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
     }
     {
         binding!(registry, isolate, THREAD_LOCAL_GET, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (key,) = decode_destack_thread_local_get_args(context, args)?;
 
@@ -2446,7 +2446,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         RuntimeWorld::Host => {
                             platform_vm::destack_thread_local_get(runtime, context, key)
                         }
-                        RuntimeWorld::Simulated => {
+                        RuntimeWorld::Simulation => {
                             platform_simulation_vm::destack_thread_local_get(runtime, context, key)
                         }
                     }
@@ -2458,7 +2458,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
     }
     {
         binding!(registry, isolate, THREAD_LOCAL_SET, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (key, argument_value) = decode_destack_thread_local_set_args(context, args)?;
 
@@ -2473,7 +2473,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             key,
                             argument_value,
                         ),
-                        RuntimeWorld::Simulated => {
+                        RuntimeWorld::Simulation => {
                             platform_simulation_vm::destack_thread_local_set(
                                 runtime,
                                 context,
@@ -2494,7 +2494,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_PRIORITY_GET_AFFINITY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) =
                         decode_destack_thread_priority_get_affinity_args(context, args)?;
@@ -2508,7 +2508,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_get_affinity(runtime, context, handle)
                             }
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_get_affinity(
                                     runtime, context, handle,
                                 )
@@ -2527,7 +2527,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_PRIORITY_GET_PRIORITY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) =
                         decode_destack_thread_priority_get_priority_args(context, args)?;
@@ -2541,7 +2541,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_get_priority(runtime, context, handle)
                             }
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_get_priority(
                                     runtime, context, handle,
                                 )
@@ -2560,7 +2560,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_PRIORITY_SET_AFFINITY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, mask) =
                         decode_destack_thread_priority_set_affinity_args(context, args)?;
@@ -2574,7 +2574,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_set_affinity(
                                 runtime, context, handle, mask,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_set_affinity(
                                     runtime, context, handle, mask,
                                 )
@@ -2593,7 +2593,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_PRIORITY_SET_PRIORITY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, priority) =
                         decode_destack_thread_priority_set_priority_args(context, args)?;
@@ -2607,7 +2607,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_set_priority(
                                 runtime, context, handle, priority,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_set_priority(
                                     runtime, context, handle, priority,
                                 )
@@ -2626,7 +2626,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SPAWN_DETACH,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_thread_spawn_detach_args(context, args)?;
 
@@ -2638,7 +2638,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_detach(runtime, context, handle)
                             }
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_detach(
                                     runtime, context, handle,
                                 )
@@ -2657,7 +2657,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SPAWN_JOIN,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_thread_spawn_join_args(context, args)?;
 
@@ -2669,9 +2669,11 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_join(runtime, context, handle)
                             }
-                            RuntimeWorld::Simulated => platform_simulation_vm::destack_thread_join(
-                                runtime, context, handle,
-                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_thread_join(
+                                    runtime, context, handle,
+                                )
+                            }
                         }
                     };
                     encode_destack_thread_spawn_join_result(context, result)
@@ -2686,7 +2688,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SPAWN_START,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (entry, argument, options) =
                         decode_destack_thread_spawn_start_args(context, args)?;
@@ -2699,7 +2701,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_spawn(
                                 runtime, context, entry, argument, options,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_spawn(
                                     runtime, context, entry, argument, options,
                                 )
@@ -2718,7 +2720,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_ADDRESS_WAIT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address, expected, timeoutns) =
                         decode_destack_thread_sync_address_wait_args(context, args)?;
@@ -2731,7 +2733,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_address_wait(
                                 runtime, context, address, expected, timeoutns,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_address_wait(
                                     runtime, context, address, expected, timeoutns,
                                 )
@@ -2750,7 +2752,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_ADDRESS_WAKE_ALL,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address,) =
                         decode_destack_thread_sync_address_wake_all_args(context, args)?;
@@ -2764,7 +2766,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_address_wake_all(
                                 runtime, context, address,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_address_wake_all(
                                     runtime, context, address,
                                 )
@@ -2783,7 +2785,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_ADDRESS_WAKE_ONE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (address,) =
                         decode_destack_thread_sync_address_wake_one_args(context, args)?;
@@ -2797,7 +2799,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_address_wake_one(
                                 runtime, context, address,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_address_wake_one(
                                     runtime, context, address,
                                 )
@@ -2816,7 +2818,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_BARRIER_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (participants, flags) =
                         decode_destack_thread_sync_barrier_create_args(context, args)?;
@@ -2832,7 +2834,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 participants,
                                 flags,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_barrier_create(
                                     runtime,
                                     context,
@@ -2854,7 +2856,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_BARRIER_WAIT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_thread_sync_barrier_wait_args(context, args)?;
@@ -2867,7 +2869,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_barrier_wait(
                                 runtime, context, handle, timeoutns,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_barrier_wait(
                                     runtime, context, handle, timeoutns,
                                 )
@@ -2886,7 +2888,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_COND_VAR_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (flags,) = decode_destack_thread_sync_cond_var_create_args(context, args)?;
 
@@ -2898,7 +2900,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_cond_var_create(runtime, context, flags)
                             }
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_cond_var_create(
                                     runtime, context, flags,
                                 )
@@ -2917,7 +2919,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_COND_VAR_NOTIFY_ALL,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (condvar,) =
                         decode_destack_thread_sync_cond_var_notify_all_args(context, args)?;
@@ -2931,7 +2933,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_cond_var_notify_all(
                                 runtime, context, condvar,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_cond_var_notify_all(
                                     runtime, context, condvar,
                                 )
@@ -2950,7 +2952,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_COND_VAR_NOTIFY_ONE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (condvar,) =
                         decode_destack_thread_sync_cond_var_notify_one_args(context, args)?;
@@ -2964,7 +2966,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_cond_var_notify_one(
                                 runtime, context, condvar,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_cond_var_notify_one(
                                     runtime, context, condvar,
                                 )
@@ -2983,7 +2985,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_COND_VAR_WAIT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (condvar, mutex, timeoutns) =
                         decode_destack_thread_sync_cond_var_wait_args(context, args)?;
@@ -2996,7 +2998,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_cond_var_wait(
                                 runtime, context, condvar, mutex, timeoutns,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_cond_var_wait(
                                     runtime, context, condvar, mutex, timeoutns,
                                 )
@@ -3015,7 +3017,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_MUTEX_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (flags,) = decode_destack_thread_sync_mutex_create_args(context, args)?;
 
@@ -3027,7 +3029,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_mutex_create(runtime, context, flags)
                             }
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_mutex_create(
                                     runtime, context, flags,
                                 )
@@ -3046,7 +3048,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_MUTEX_LOCK,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_thread_sync_mutex_lock_args(context, args)?;
@@ -3059,7 +3061,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_mutex_lock(
                                 runtime, context, handle, timeoutns,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_mutex_lock(
                                     runtime, context, handle, timeoutns,
                                 )
@@ -3078,7 +3080,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_MUTEX_UNLOCK,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_thread_sync_mutex_unlock_args(context, args)?;
 
@@ -3090,7 +3092,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_mutex_unlock(runtime, context, handle)
                             }
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_mutex_unlock(
                                     runtime, context, handle,
                                 )
@@ -3109,7 +3111,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_RWLOCK_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (flags,) = decode_destack_thread_sync_rwlock_create_args(context, args)?;
 
@@ -3121,7 +3123,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_rwlock_create(runtime, context, flags)
                             }
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_rwlock_create(
                                     runtime, context, flags,
                                 )
@@ -3140,7 +3142,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_RWLOCK_READ_LOCK,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_thread_sync_rwlock_read_lock_args(context, args)?;
@@ -3154,7 +3156,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_rwlock_read_lock(
                                 runtime, context, handle, timeoutns,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_rwlock_read_lock(
                                     runtime, context, handle, timeoutns,
                                 )
@@ -3173,7 +3175,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_RWLOCK_UNLOCK,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_thread_sync_rwlock_unlock_args(context, args)?;
 
@@ -3185,7 +3187,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_rwlock_unlock(runtime, context, handle)
                             }
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_rwlock_unlock(
                                     runtime, context, handle,
                                 )
@@ -3204,7 +3206,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_RWLOCK_WRITE_LOCK,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_thread_sync_rwlock_write_lock_args(context, args)?;
@@ -3218,7 +3220,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_rwlock_write_lock(
                                 runtime, context, handle, timeoutns,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_rwlock_write_lock(
                                     runtime, context, handle, timeoutns,
                                 )
@@ -3237,7 +3239,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_SEMAPHORE_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (initial, maximum, flags) =
                         decode_destack_thread_sync_semaphore_create_args(context, args)?;
@@ -3251,7 +3253,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_semaphore_create(
                                 runtime, context, initial, maximum, flags,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_semaphore_create(
                                     runtime, context, initial, maximum, flags,
                                 )
@@ -3270,7 +3272,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_SEMAPHORE_POST,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, count) =
                         decode_destack_thread_sync_semaphore_post_args(context, args)?;
@@ -3283,7 +3285,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_semaphore_post(
                                 runtime, context, handle, count,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_semaphore_post(
                                     runtime, context, handle, count,
                                 )
@@ -3302,7 +3304,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             THREAD_SYNC_SEMAPHORE_WAIT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_thread_sync_semaphore_wait_args(context, args)?;
@@ -3315,7 +3317,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             RuntimeWorld::Host => platform_vm::destack_thread_semaphore_wait(
                                 runtime, context, handle, timeoutns,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_semaphore_wait(
                                     runtime, context, handle, timeoutns,
                                 )

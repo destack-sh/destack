@@ -9,7 +9,7 @@ use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::fs::{AllocFlags, FileAdvice, FileHandle, FileOffset, FileSize, SyncFlags};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Advise the kernel about access patterns.
 ///
@@ -29,7 +29,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fadvise(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _handle: FileHandle,
     _offset: FileOffset,
     _length: FileSize,
@@ -56,7 +56,7 @@ pub(crate) unsafe fn destack_fs_fadvise(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fallocate(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
@@ -137,7 +137,7 @@ pub(crate) unsafe fn destack_fs_fallocate(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_sync_file_range(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: FileHandle,
     _offset: FileOffset,
     _length: FileSize,

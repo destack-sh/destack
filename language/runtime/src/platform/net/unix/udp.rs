@@ -8,7 +8,7 @@ use crate::platform::fs::OsPath;
 use crate::platform::net::{core as core_net, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -32,7 +32,7 @@ use std::os::unix::io::RawFd;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_udp_socket(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketHandle,
     family: SocketFamily,
 ) -> RuntimeResult<()> {
@@ -69,7 +69,7 @@ pub(crate) unsafe fn destack_net_udp_socket(
 /// Bind a UDP socket to a raw local address.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_udp_bind_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -90,7 +90,7 @@ pub(crate) unsafe fn destack_net_udp_bind_raw(
 /// Connect a UDP socket to a raw remote address.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_udp_connect_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -113,7 +113,7 @@ pub(crate) unsafe fn destack_net_udp_connect_raw(
 /// Receive a UDP datagram with raw sender metadata.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_udp_recv_from_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut UdpReceive,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -161,7 +161,7 @@ pub(crate) unsafe fn destack_net_udp_recv_from_raw(
 /// Send a UDP datagram to a raw destination address.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_udp_send_to_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     address: SocketAddress,

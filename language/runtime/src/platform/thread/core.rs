@@ -5,7 +5,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{ResourceEntry, ResourceId, ResourceKind};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Sentinel timeout that means wait indefinitely.
 pub(crate) const WAIT_FOREVER: u64 = u64::MAX;
@@ -126,7 +126,7 @@ pub(crate) fn current_thread_owner_id() -> ThreadOwnerId {
 
 /// Insert one thread-domain resource payload into the runtime table.
 pub(crate) fn insert_thread_resource<T: Send + Sync + 'static>(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     label: &str,
     resource: T,
 ) -> ResourceId {
@@ -139,7 +139,7 @@ pub(crate) fn insert_thread_resource<T: Send + Sync + 'static>(
 
 /// Resolve one shared resource payload from the runtime table.
 pub(crate) fn resolve_thread_resource<T: Send + Sync + 'static>(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ResourceId,
     field: &str,
     kind: &str,
@@ -159,7 +159,7 @@ pub(crate) fn resolve_thread_resource<T: Send + Sync + 'static>(
 
 /// Remove one shared resource payload from the runtime table.
 pub(crate) fn take_thread_resource<T: Send + Sync + 'static>(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ResourceId,
     field: &str,
     kind: &str,

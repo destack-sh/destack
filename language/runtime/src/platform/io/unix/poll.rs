@@ -2,7 +2,7 @@ use super::core::require_out;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::io::{PollBackend, PollEvent, PollInterest, core as core_io};
 use crate::platform::{NativeArray, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Close a poll instance.
 ///
@@ -22,7 +22,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::PollHandle,
 ) -> RuntimeResult<()> {
     core_io::poll_close(context, handle)
@@ -46,7 +46,7 @@ pub(crate) unsafe fn destack_io_poll_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_deregister(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::PollHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<()> {
@@ -71,7 +71,7 @@ pub(crate) unsafe fn destack_io_poll_deregister(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::PollHandle,
     backend: PollBackend,
 ) -> RuntimeResult<()> {
@@ -104,7 +104,7 @@ pub(crate) unsafe fn destack_io_poll_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_register(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
@@ -131,7 +131,7 @@ pub(crate) unsafe fn destack_io_poll_register(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_update(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
@@ -158,7 +158,7 @@ pub(crate) unsafe fn destack_io_poll_update(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<PollEvent>,
     handle: resource::PollHandle,
     timeoutns: u64,

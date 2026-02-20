@@ -7,7 +7,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, PlatformErrorCode,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
@@ -23,7 +23,7 @@ use std::time::{Duration, Instant};
 
 /// Resolve a process handle into its process id payload.
 fn resolve_spawned_process_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<ProcessId> {
     let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
@@ -65,7 +65,7 @@ fn is_terminal_wait_status(status: &ProcessWaitStatus) -> bool {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_wait_pid(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     pid: ProcessId,
     flags: ProcessWaitFlags,
@@ -99,7 +99,7 @@ pub(crate) unsafe fn destack_process_wait_pid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_try_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<()> {
@@ -138,7 +138,7 @@ pub(crate) unsafe fn destack_process_try_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessHandle,
     flags: ProcessWaitFlags,

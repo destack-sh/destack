@@ -4,7 +4,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::resource;
 use crate::platform::time::runtime::vm as runtime_vm;
 use crate::platform::time::{ClockId, ClockMetadataVm, SleepClock, TimerOptionsVm};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 /// Query one selected clock metadata.
@@ -25,7 +25,7 @@ use destack_vm as vm;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_clock_metadata(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     clock: ClockId,
 ) -> RuntimeResult<ClockMetadataVm> {
@@ -50,7 +50,7 @@ pub(crate) fn destack_time_clock_metadata(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_mono_ns(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
     runtime_vm::destack_time_mono_ns(runtime, context)
@@ -74,7 +74,7 @@ pub(crate) fn destack_time_mono_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_now_ns(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     clock: ClockId,
 ) -> RuntimeResult<u64> {
@@ -99,7 +99,7 @@ pub(crate) fn destack_time_now_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_process_cpu_ns(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
     runtime_vm::destack_time_process_cpu_ns(runtime, context)
@@ -123,7 +123,7 @@ pub(crate) fn destack_time_process_cpu_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_thread_cpu_ns(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
     runtime_vm::destack_time_thread_cpu_ns(runtime, context)
@@ -147,7 +147,7 @@ pub(crate) fn destack_time_thread_cpu_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_wall_ns(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
     runtime_vm::destack_time_wall_ns(runtime, context)
@@ -171,7 +171,7 @@ pub(crate) fn destack_time_wall_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_sleep_ns(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     duration: u64,
 ) -> RuntimeResult<()> {
@@ -196,7 +196,7 @@ pub(crate) fn destack_time_sleep_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_sleep_on_ns(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     duration: u64,
     clock: SleepClock,
@@ -222,7 +222,7 @@ pub(crate) fn destack_time_sleep_on_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_sleep_until_ns(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     deadline: u64,
 ) -> RuntimeResult<()> {
@@ -247,7 +247,7 @@ pub(crate) fn destack_time_sleep_until_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_sleep_until_on_ns(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     deadline: u64,
     clock: SleepClock,
@@ -273,7 +273,7 @@ pub(crate) fn destack_time_sleep_until_on_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_timer_at(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     deadlinens: u64,
     options: TimerOptionsVm,
@@ -299,7 +299,7 @@ pub(crate) fn destack_time_timer_at(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_timer_cancel(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
@@ -324,7 +324,7 @@ pub(crate) fn destack_time_timer_cancel(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_timer_interval(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     periodns: u64,
     options: TimerOptionsVm,
@@ -350,7 +350,7 @@ pub(crate) fn destack_time_timer_interval(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_timer_is_active(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<bool> {
@@ -375,7 +375,7 @@ pub(crate) fn destack_time_timer_is_active(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_timer_once(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     delayns: u64,
     options: TimerOptionsVm,
@@ -401,7 +401,7 @@ pub(crate) fn destack_time_timer_once(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_timer_pause(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
@@ -426,7 +426,7 @@ pub(crate) fn destack_time_timer_pause(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_timer_remaining_ns(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<u64> {
@@ -451,7 +451,7 @@ pub(crate) fn destack_time_timer_remaining_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_timer_reset(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
     delayns: u64,
@@ -477,7 +477,7 @@ pub(crate) fn destack_time_timer_reset(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_timer_resume(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
@@ -502,7 +502,7 @@ pub(crate) fn destack_time_timer_resume(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_time_timer_update_interval(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TimerHandle,
     periodns: u64,

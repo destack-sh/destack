@@ -1,10 +1,10 @@
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
-use super::runnable::PlatformRunnable;
 use super::task::TaskState;
+use crate::runtime::engine::EngineContinuation;
 
-/// Opaque microtask identifier used by the scheduler.
+/// Opaque microtask identifier used by the event loop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct MicrotaskId(u64);
 
@@ -20,13 +20,13 @@ impl MicrotaskId {
     }
 }
 
-/// Scheduler microtask metadata for Promise jobs.
+/// Microtask metadata for Promise jobs.
 #[derive(Debug)]
 pub struct Microtask {
     /// Microtask identifier used for ordering and logging.
     pub id: MicrotaskId,
     /// Runnable continuation for this microtask.
-    pub runnable: PlatformRunnable,
+    pub runnable: EngineContinuation,
     /// Resume payload passed back into the executor.
     pub resume_value: vm::Value,
     /// Current scheduling state.

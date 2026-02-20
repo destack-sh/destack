@@ -5,18 +5,18 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
-    NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
-};
 use crate::platform::tty::{PtyPair, PtyPairVm, TtyMode, TtyModeVm, TtySize, TtySizeVm};
 use crate::platform::{NativeSlice, PlatformError, RuntimeStatus, VmSlice, abi as platform_abi};
+use crate::runtime::bindings::{
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
+    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
+use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
 
@@ -407,7 +407,7 @@ struct TtySizeSetSizeReplay {
 pub const TTY_IO_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tty.io.read",
     "export function read(handle: TtyHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["tty.read"],
     BindingScope::Host,
@@ -432,7 +432,7 @@ pub const TTY_IO_READ: BindingDescriptor = BindingDescriptor::external_with_requ
 pub const TTY_IO_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tty.io.write",
     "export function write(handle: TtyHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["tty.write"],
     BindingScope::Host,
@@ -458,7 +458,7 @@ pub const TTY_MODE_GET_MODE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.mode.getMode",
         "export function getMode(handle: TtyHandle): Result<TtyMode, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["tty.mode"],
         BindingScope::Host,
@@ -484,7 +484,7 @@ pub const TTY_MODE_SET_MODE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.mode.setMode",
         "export function setMode(handle: TtyHandle, mode: TtyMode): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["tty.mode"],
         BindingScope::Host,
@@ -510,7 +510,7 @@ pub const TTY_PTY_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.pty.close",
         "export function ptyClose(handle: PtyHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["tty.mode"],
         BindingScope::Host,
@@ -535,7 +535,7 @@ pub const TTY_PTY_CLOSE: BindingDescriptor =
 pub const TTY_PTY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tty.pty.open",
     "export function ptyOpen(rows: uint32, columns: uint32, flags: uint32): Result<PtyPair, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["tty.mode"],
     BindingScope::Host,
@@ -548,7 +548,7 @@ pub const TTY_SIZE_GET_SIZE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.size.getSize",
         "export function getSize(handle: TtyHandle): Result<TtySize, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["tty.size"],
         BindingScope::Host,
@@ -574,7 +574,7 @@ pub const TTY_SIZE_SET_SIZE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.size.setSize",
         "export function setSize(handle: TtyHandle, size: TtySize): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["tty.size"],
         BindingScope::Host,
@@ -657,7 +657,7 @@ pub const TTY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for tty bindings.
 #[inline]
 fn destack_tty_io_read_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::TtyHandle,
@@ -665,14 +665,14 @@ fn destack_tty_io_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TTY_IO_READ,
         context.replay_payload_for(TTY_IO_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_tty_read(context, out, handle, buffer)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_tty_read(context, out, handle, buffer)
             },
         },
@@ -719,7 +719,7 @@ fn destack_tty_io_read_replay(
 
 #[inline]
 fn destack_tty_io_write_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::TtyHandle,
@@ -727,14 +727,14 @@ fn destack_tty_io_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TTY_IO_WRITE,
         context.replay_payload_for(TTY_IO_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_tty_write(context, out, handle, buffer)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_tty_write(context, out, handle, buffer)
             },
         },
@@ -781,21 +781,21 @@ fn destack_tty_io_write_replay(
 
 #[inline]
 fn destack_tty_mode_get_mode_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut TtyMode,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TTY_MODE_GET_MODE,
         context.replay_payload_for(TTY_MODE_GET_MODE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_tty_get_mode(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_tty_get_mode(context, out, handle)
             },
         },
@@ -860,21 +860,21 @@ fn destack_tty_mode_get_mode_replay(
 
 #[inline]
 fn destack_tty_mode_set_mode_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     mode: TtyMode,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TTY_MODE_SET_MODE,
         context.replay_payload_for(TTY_MODE_SET_MODE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_tty_set_mode(context, handle, mode)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_tty_set_mode(context, handle, mode)
             },
         },
@@ -909,20 +909,20 @@ fn destack_tty_mode_set_mode_replay(
 
 #[inline]
 fn destack_tty_pty_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TTY_PTY_CLOSE,
         context.replay_payload_for(TTY_PTY_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_tty_pty_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_tty_pty_close(context, handle)
             },
         },
@@ -957,7 +957,7 @@ fn destack_tty_pty_close_replay(
 
 #[inline]
 fn destack_tty_pty_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut PtyPair,
     rows: u32,
@@ -966,14 +966,14 @@ fn destack_tty_pty_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&rows, &columns, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TTY_PTY_OPEN,
         context.replay_payload_for(TTY_PTY_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_tty_pty_open(context, out, rows, columns, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_tty_pty_open(context, out, rows, columns, flags)
             },
         },
@@ -1030,21 +1030,21 @@ fn destack_tty_pty_open_replay(
 
 #[inline]
 fn destack_tty_size_get_size_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut TtySize,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TTY_SIZE_GET_SIZE,
         context.replay_payload_for(TTY_SIZE_GET_SIZE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_tty_get_size(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_tty_get_size(context, out, handle)
             },
         },
@@ -1109,21 +1109,21 @@ fn destack_tty_size_get_size_replay(
 
 #[inline]
 fn destack_tty_size_set_size_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     size: TtySize,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &size);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         TTY_SIZE_SET_SIZE,
         context.replay_payload_for(TTY_SIZE_SET_SIZE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_tty_set_size(context, handle, size)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_tty_set_size(context, handle, size)
             },
         },
@@ -1288,498 +1288,474 @@ pub unsafe extern "C" fn destack_tty_size_set_size(
 /// VM replay implementations for tty bindings.
 #[inline]
 fn destack_tty_io_read_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TTY_IO_READ,
-            runtime.replay_payload_for(TTY_IO_READ)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_tty_read(runtime, context, handle, buffer)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_tty_read(runtime, context, handle, buffer)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = TtyIoReadReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_IO_READ,
+        runtime.replay_payload_for(TTY_IO_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_tty_read(runtime, context, handle, buffer),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_read(runtime, context, handle, buffer)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = TtyIoReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TtyIoReadReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyIoReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_tty_io_read_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_tty_io_write_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TTY_IO_WRITE,
-            runtime.replay_payload_for(TTY_IO_WRITE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_tty_write(runtime, context, handle, buffer)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_tty_write(runtime, context, handle, buffer)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = TtyIoWriteReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_IO_WRITE,
+        runtime.replay_payload_for(TTY_IO_WRITE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_tty_write(runtime, context, handle, buffer),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_write(runtime, context, handle, buffer)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = TtyIoWriteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TtyIoWriteReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyIoWriteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_tty_io_write_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_tty_mode_get_mode_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TTY_MODE_GET_MODE,
-            runtime.replay_payload_for(TTY_MODE_GET_MODE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_tty_get_mode(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_tty_get_mode(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: TtyModeVm = value.clone();
-                    let result_recorded_input_flags = result_value.input_flags;
-                    let result_recorded_output_flags = result_value.output_flags;
-                    let result_recorded_control_flags = result_value.control_flags;
-                    let result_recorded_local_flags = result_value.local_flags;
-                    let result_recorded = TtyMode {
-                        input_flags: result_recorded_input_flags,
-                        output_flags: result_recorded_output_flags,
-                        control_flags: result_recorded_control_flags,
-                        local_flags: result_recorded_local_flags,
-                    };
-                    let payload = TtyModeGetModeReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_MODE_GET_MODE,
+        runtime.replay_payload_for(TTY_MODE_GET_MODE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_tty_get_mode(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_get_mode(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: TtyModeVm = value.clone();
+                let result_recorded_input_flags = result_value.input_flags;
+                let result_recorded_output_flags = result_value.output_flags;
+                let result_recorded_control_flags = result_value.control_flags;
+                let result_recorded_local_flags = result_value.local_flags;
+                let result_recorded = TtyMode {
+                    input_flags: result_recorded_input_flags,
+                    output_flags: result_recorded_output_flags,
+                    control_flags: result_recorded_control_flags,
+                    local_flags: result_recorded_local_flags,
+                };
+                let payload = TtyModeGetModeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TtyModeGetModeReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyModeGetModeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_input_flags = value.input_flags;
-                        let vm_result_output_flags = value.output_flags;
-                        let vm_result_control_flags = value.control_flags;
-                        let vm_result_local_flags = value.local_flags;
-                        let vm_result = TtyModeVm {
-                            input_flags: vm_result_input_flags,
-                            output_flags: vm_result_output_flags,
-                            control_flags: vm_result_control_flags,
-                            local_flags: vm_result_local_flags,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_input_flags = value.input_flags;
+                    let vm_result_output_flags = value.output_flags;
+                    let vm_result_control_flags = value.control_flags;
+                    let vm_result_local_flags = value.local_flags;
+                    let vm_result = TtyModeVm {
+                        input_flags: vm_result_input_flags,
+                        output_flags: vm_result_output_flags,
+                        control_flags: vm_result_control_flags,
+                        local_flags: vm_result_local_flags,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_tty_mode_get_mode_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_tty_mode_set_mode_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     mode: TtyModeVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TTY_MODE_SET_MODE,
-            runtime.replay_payload_for(TTY_MODE_SET_MODE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_tty_set_mode(runtime, context, handle, mode)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_tty_set_mode(runtime, context, handle, mode)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = TtyModeSetModeReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_MODE_SET_MODE,
+        runtime.replay_payload_for(TTY_MODE_SET_MODE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_tty_set_mode(runtime, context, handle, mode),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_set_mode(runtime, context, handle, mode)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyModeSetModeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TtyModeSetModeReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyModeSetModeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_tty_mode_set_mode_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_tty_pty_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TTY_PTY_CLOSE,
-            runtime.replay_payload_for(TTY_PTY_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_tty_pty_close(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_tty_pty_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = TtyPtyCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_PTY_CLOSE,
+        runtime.replay_payload_for(TTY_PTY_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_tty_pty_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_pty_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyPtyCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TtyPtyCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyPtyCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_tty_pty_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_tty_pty_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     rows: u32,
     columns: u32,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TTY_PTY_OPEN,
-            runtime.replay_payload_for(TTY_PTY_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_tty_pty_open(runtime, context, rows, columns, flags)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_tty_pty_open(
-                    runtime, context, rows, columns, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: PtyPairVm = value.clone();
-                    let result_recorded_controller = result_value.controller;
-                    let result_recorded_worker = result_value.worker;
-                    let result_recorded = PtyPair {
-                        controller: result_recorded_controller,
-                        worker: result_recorded_worker,
-                    };
-                    let payload = TtyPtyOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_PTY_OPEN,
+        runtime.replay_payload_for(TTY_PTY_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_tty_pty_open(runtime, context, rows, columns, flags)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_pty_open(runtime, context, rows, columns, flags)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: PtyPairVm = value.clone();
+                let result_recorded_controller = result_value.controller;
+                let result_recorded_worker = result_value.worker;
+                let result_recorded = PtyPair {
+                    controller: result_recorded_controller,
+                    worker: result_recorded_worker,
+                };
+                let payload = TtyPtyOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TtyPtyOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyPtyOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_controller = value.controller;
-                        let vm_result_worker = value.worker;
-                        let vm_result = PtyPairVm {
-                            controller: vm_result_controller,
-                            worker: vm_result_worker,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_controller = value.controller;
+                    let vm_result_worker = value.worker;
+                    let vm_result = PtyPairVm {
+                        controller: vm_result_controller,
+                        worker: vm_result_worker,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_tty_pty_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_tty_size_get_size_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TTY_SIZE_GET_SIZE,
-            runtime.replay_payload_for(TTY_SIZE_GET_SIZE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_tty_get_size(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_tty_get_size(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: TtySizeVm = value.clone();
-                    let result_recorded_rows = result_value.rows;
-                    let result_recorded_columns = result_value.columns;
-                    let result_recorded_x_pixels = result_value.x_pixels;
-                    let result_recorded_y_pixels = result_value.y_pixels;
-                    let result_recorded = TtySize {
-                        rows: result_recorded_rows,
-                        columns: result_recorded_columns,
-                        x_pixels: result_recorded_x_pixels,
-                        y_pixels: result_recorded_y_pixels,
-                    };
-                    let payload = TtySizeGetSizeReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_SIZE_GET_SIZE,
+        runtime.replay_payload_for(TTY_SIZE_GET_SIZE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_tty_get_size(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_get_size(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: TtySizeVm = value.clone();
+                let result_recorded_rows = result_value.rows;
+                let result_recorded_columns = result_value.columns;
+                let result_recorded_x_pixels = result_value.x_pixels;
+                let result_recorded_y_pixels = result_value.y_pixels;
+                let result_recorded = TtySize {
+                    rows: result_recorded_rows,
+                    columns: result_recorded_columns,
+                    x_pixels: result_recorded_x_pixels,
+                    y_pixels: result_recorded_y_pixels,
+                };
+                let payload = TtySizeGetSizeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TtySizeGetSizeReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtySizeGetSizeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_rows = value.rows;
-                        let vm_result_columns = value.columns;
-                        let vm_result_x_pixels = value.x_pixels;
-                        let vm_result_y_pixels = value.y_pixels;
-                        let vm_result = TtySizeVm {
-                            rows: vm_result_rows,
-                            columns: vm_result_columns,
-                            x_pixels: vm_result_x_pixels,
-                            y_pixels: vm_result_y_pixels,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_rows = value.rows;
+                    let vm_result_columns = value.columns;
+                    let vm_result_x_pixels = value.x_pixels;
+                    let vm_result_y_pixels = value.y_pixels;
+                    let vm_result = TtySizeVm {
+                        rows: vm_result_rows,
+                        columns: vm_result_columns,
+                        x_pixels: vm_result_x_pixels,
+                        y_pixels: vm_result_y_pixels,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_tty_size_get_size_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_tty_size_set_size_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     size: TtySizeVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            TTY_SIZE_SET_SIZE,
-            runtime.replay_payload_for(TTY_SIZE_SET_SIZE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_tty_set_size(runtime, context, handle, size)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_tty_set_size(runtime, context, handle, size)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = TtySizeSetSizeReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_SIZE_SET_SIZE,
+        runtime.replay_payload_for(TTY_SIZE_SET_SIZE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_tty_set_size(runtime, context, handle, size),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_set_size(runtime, context, handle, size)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtySizeSetSizeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        TtySizeSetSizeReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtySizeSetSizeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_tty_size_set_size_result(context, result)?;
     Ok(result)
 }
@@ -1788,7 +1764,7 @@ fn destack_tty_size_set_size_vm_replay(
 pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(registry, isolate, TTY_IO_READ, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffer) = decode_destack_tty_io_read_args(context, args)?;
 
@@ -1802,7 +1778,7 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, TTY_IO_WRITE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffer) = decode_destack_tty_io_write_args(context, args)?;
 
@@ -1820,7 +1796,7 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_MODE_GET_MODE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_tty_mode_get_mode_args(context, args)?;
 
@@ -1839,7 +1815,7 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_MODE_SET_MODE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, mode) = decode_destack_tty_mode_set_mode_args(context, args)?;
 
@@ -1854,7 +1830,7 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, TTY_PTY_CLOSE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_tty_pty_close_args(context, args)?;
 
@@ -1868,7 +1844,7 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, TTY_PTY_OPEN, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (rows, columns, flags) = decode_destack_tty_pty_open_args(context, args)?;
 
@@ -1886,7 +1862,7 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_SIZE_GET_SIZE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_tty_size_get_size_args(context, args)?;
 
@@ -1905,7 +1881,7 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_SIZE_SET_SIZE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, size) = decode_destack_tty_size_set_size_args(context, args)?;
 

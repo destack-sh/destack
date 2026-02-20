@@ -5,7 +5,7 @@ use crate::platform::os::{
     HostIdentityVm, LoadAverageVm, MountEntryVm, PowerState, SystemSnapshotVm,
 };
 use crate::platform::{PlatformError, VmArray, fs};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 /// Read host identity.
@@ -26,7 +26,7 @@ use destack_vm as vm;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_host_identity(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<HostIdentityVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -53,7 +53,7 @@ pub(crate) fn destack_os_host_identity(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_boot_time_unix_ns(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -80,7 +80,7 @@ pub(crate) fn destack_os_boot_time_unix_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_load_average(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<LoadAverageVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -107,7 +107,7 @@ pub(crate) fn destack_os_load_average(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_system_snapshot(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<SystemSnapshotVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -134,7 +134,7 @@ pub(crate) fn destack_os_system_snapshot(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_uptime_ns(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -161,7 +161,7 @@ pub(crate) fn destack_os_uptime_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_add(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     source: fs::OsPathVm,
     target: fs::OsPathVm,
@@ -194,7 +194,7 @@ pub(crate) fn destack_os_add(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_list(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<MountEntryVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -221,7 +221,7 @@ pub(crate) fn destack_os_list(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_remove(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     target: fs::OsPathVm,
     flags: u32,
@@ -251,7 +251,7 @@ pub(crate) fn destack_os_remove(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_power_state(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<PowerState> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -278,7 +278,7 @@ pub(crate) fn destack_os_power_state(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_suspend(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(

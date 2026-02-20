@@ -7,7 +7,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 use std::os::windows::ffi::OsStringExt;
 use std::path::Path;
@@ -137,7 +137,7 @@ fn normalize_handle_path(path: String) -> String {
 
 /// Resolve a raw handle path from one resource entry.
 fn path_from_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle_id: resource::ResourceId,
     kind: resource::ResourceKind,
     label: &str,
@@ -276,7 +276,7 @@ fn exec_replace_with_path(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_exec(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     command: fs::OsPath,
     arguments: NativeStringSlice,
     environment: NativeStringSlice,
@@ -305,7 +305,7 @@ pub(crate) unsafe fn destack_process_exec(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_execat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     directory: resource::DirectoryHandle,
     path: fs::OsPath,
     arguments: NativeStringSlice,
@@ -356,7 +356,7 @@ pub(crate) unsafe fn destack_process_execat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_fexec(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     executable: resource::FileHandle,
     arguments: NativeStringSlice,
     environment: NativeStringSlice,

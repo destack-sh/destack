@@ -9,7 +9,7 @@ use windows_sys::Win32::System::Threading::{
     TLS_OUT_OF_INDEXES, TlsAlloc, TlsFree, TlsGetValue, TlsSetValue,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 /// Create one thread-local key.
 ///
 /// Allocate one runtime thread-local storage key.
@@ -28,7 +28,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_create(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ThreadLocalKey,
 ) -> RuntimeResult<()> {
     // validate output pointer
@@ -73,7 +73,7 @@ pub(crate) unsafe fn destack_thread_local_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_delete(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     key: ThreadLocalKey,
 ) -> RuntimeResult<()> {
     // remove the thread-local key resource
@@ -111,7 +111,7 @@ pub(crate) unsafe fn destack_thread_local_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_get(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     key: ThreadLocalKey,
 ) -> RuntimeResult<()> {
@@ -165,7 +165,7 @@ pub(crate) unsafe fn destack_thread_local_get(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_set(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     key: ThreadLocalKey,
     argument_value: u64,
 ) -> RuntimeResult<()> {

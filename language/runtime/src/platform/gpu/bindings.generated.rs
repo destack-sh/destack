@@ -5,10 +5,6 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
-    NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
-};
 use crate::platform::gpu::{
     GpuAdapterFormatCapabilities, GpuAdapterFormatCapabilitiesVm, GpuAdapterInfo,
     GpuAdapterInfoReplayRecord, GpuAdapterInfoVm, GpuAdapterLimits, GpuAdapterLimitsVm,
@@ -45,12 +41,16 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
     abi as platform_abi,
 };
+use crate::runtime::bindings::{
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
+    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
+use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
 
@@ -7684,7 +7684,7 @@ pub const GPU_ADAPTER_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.adapter.close",
         "export function adapterClose(handle: GpuAdapterHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.adapter"],
         BindingScope::Host,
@@ -7709,7 +7709,7 @@ pub const GPU_ADAPTER_CLOSE: BindingDescriptor =
 pub const GPU_ADAPTER_FEATURES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.adapter.features",
     "export function adapterFeatures(handle: GpuAdapterHandle): Result<Slice<GpuFeatureId>, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.adapter"],
     BindingScope::Host,
@@ -7721,7 +7721,7 @@ pub const GPU_ADAPTER_FEATURES: BindingDescriptor = BindingDescriptor::external_
 pub const GPU_ADAPTER_FORMAT_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.adapter.formatCapabilities",
     "export function adapterFormatCapabilities(handle: GpuAdapterHandle, format: uint32): Result<GpuAdapterFormatCapabilities, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.adapter"],
     BindingScope::Host,
@@ -7733,7 +7733,7 @@ pub const GPU_ADAPTER_FORMAT_CAPABILITIES: BindingDescriptor = BindingDescriptor
 pub const GPU_ADAPTER_HAS_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.adapter.hasFeature",
     "export function adapterHasFeature(handle: GpuAdapterHandle, feature: GpuFeatureId): Result<boolean, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.adapter"],
     BindingScope::Host,
@@ -7745,7 +7745,7 @@ pub const GPU_ADAPTER_HAS_FEATURE: BindingDescriptor = BindingDescriptor::extern
 pub const GPU_ADAPTER_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.adapter.info",
     "export function adapterInfo(handle: GpuAdapterHandle): Result<GpuAdapterInfo, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.adapter"],
     BindingScope::Host,
@@ -7757,7 +7757,7 @@ pub const GPU_ADAPTER_INFO: BindingDescriptor = BindingDescriptor::external_with
 pub const GPU_ADAPTER_LIMITS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.adapter.limits",
     "export function adapterLimits(handle: GpuAdapterHandle): Result<GpuAdapterLimits, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.adapter"],
     BindingScope::Host,
@@ -7769,7 +7769,7 @@ pub const GPU_ADAPTER_LIMITS: BindingDescriptor = BindingDescriptor::external_wi
 pub const GPU_ADAPTER_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.adapter.list",
     "export function adapterList(request: GpuAdapterRequest): Result<GpuAdapterInfo[], PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.adapter"],
     BindingScope::Host,
@@ -7782,7 +7782,7 @@ pub const GPU_ADAPTER_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.adapter.open",
         "export function adapterOpen(id: string): Result<GpuAdapterHandle, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.adapter"],
         BindingScope::Host,
@@ -7807,7 +7807,7 @@ pub const GPU_ADAPTER_OPEN: BindingDescriptor =
 pub const GPU_BIND_GROUP_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.bind.groupCreate",
     "export function bindGroupCreate(device: GpuDeviceHandle, layout: GpuBindGroupLayoutHandle, entries: Slice<GpuBindGroupEntry>, flags: uint32): Result<GpuBindGroupHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
     BindingScope::Host,
@@ -7820,7 +7820,7 @@ pub const GPU_BIND_GROUP_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.bind.groupDestroy",
         "export function bindGroupDestroy(handle: GpuBindGroupHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.bind"],
         BindingScope::Host,
@@ -7845,7 +7845,7 @@ pub const GPU_BIND_GROUP_DESTROY: BindingDescriptor =
 pub const GPU_BIND_GROUP_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.bind.groupLayoutCreate",
     "export function bindGroupLayoutCreate(device: GpuDeviceHandle, entries: Slice<GpuBindGroupLayoutEntry>, flags: uint32): Result<GpuBindGroupLayoutHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
     BindingScope::Host,
@@ -7857,7 +7857,7 @@ pub const GPU_BIND_GROUP_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor::e
 pub const GPU_BIND_GROUP_LAYOUT_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.bind.groupLayoutDestroy",
     "export function bindGroupLayoutDestroy(handle: GpuBindGroupLayoutHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
     BindingScope::Host,
@@ -7869,7 +7869,7 @@ pub const GPU_BIND_GROUP_LAYOUT_DESTROY: BindingDescriptor = BindingDescriptor::
 pub const GPU_BIND_PIPELINE_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.bind.pipelineLayoutCreate",
     "export function pipelineLayoutCreate(device: GpuDeviceHandle, options: GpuPipelineLayoutOptions): Result<GpuPipelineLayoutHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
     BindingScope::Host,
@@ -7881,7 +7881,7 @@ pub const GPU_BIND_PIPELINE_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor
 pub const GPU_BIND_PIPELINE_LAYOUT_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.bind.pipelineLayoutDestroy",
     "export function pipelineLayoutDestroy(handle: GpuPipelineLayoutHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
     BindingScope::Host,
@@ -7893,7 +7893,7 @@ pub const GPU_BIND_PIPELINE_LAYOUT_DESTROY: BindingDescriptor = BindingDescripto
 pub const GPU_COMMAND_BIND_COMPUTE_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.bindComputePipeline",
     "export function commandBindComputePipeline(handle: GpuComputePassHandle, pipeline: GpuPipelineHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.compute"],
     BindingScope::Host,
@@ -7905,7 +7905,7 @@ pub const GPU_COMMAND_BIND_COMPUTE_PIPELINE: BindingDescriptor = BindingDescript
 pub const GPU_COMMAND_BIND_RENDER_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.bindRenderPipeline",
     "export function commandBindRenderPipeline(handle: GpuRenderPassHandle, pipeline: GpuPipelineHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -7917,7 +7917,7 @@ pub const GPU_COMMAND_BIND_RENDER_PIPELINE: BindingDescriptor = BindingDescripto
 pub const GPU_COMMAND_CLEAR_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.clearBuffer",
     "export function commandClearBuffer(handle: GpuCommandListHandle, buffer: GpuBufferHandle, offset: uint64, size: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
     BindingScope::Host,
@@ -7929,7 +7929,7 @@ pub const GPU_COMMAND_CLEAR_BUFFER: BindingDescriptor = BindingDescriptor::exter
 pub const GPU_COMMAND_COMPUTE_PASS_BEGIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.computePassBegin",
     "export function commandComputePassBegin(handle: GpuCommandListHandle, options: GpuComputePassOptions): Result<GpuComputePassHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.compute"],
     BindingScope::Host,
@@ -7941,7 +7941,7 @@ pub const GPU_COMMAND_COMPUTE_PASS_BEGIN: BindingDescriptor = BindingDescriptor:
 pub const GPU_COMMAND_COMPUTE_PASS_END: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.computePassEnd",
     "export function commandComputePassEnd(handle: GpuComputePassHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.compute"],
     BindingScope::Host,
@@ -7953,7 +7953,7 @@ pub const GPU_COMMAND_COMPUTE_PASS_END: BindingDescriptor = BindingDescriptor::e
 pub const GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.computePassInsertDebugMarker",
     "export function commandComputePassInsertDebugMarker(handle: GpuComputePassHandle, marker: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
     BindingScope::Host,
@@ -7965,7 +7965,7 @@ pub const GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = Bind
 pub const GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.computePassPopDebugGroup",
     "export function commandComputePassPopDebugGroup(handle: GpuComputePassHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
     BindingScope::Host,
@@ -7977,7 +7977,7 @@ pub const GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingD
 pub const GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.computePassPushDebugGroup",
     "export function commandComputePassPushDebugGroup(handle: GpuComputePassHandle, label: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
     BindingScope::Host,
@@ -7989,7 +7989,7 @@ pub const GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = Binding
 pub const GPU_COMMAND_COPY_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.copyBuffer",
     "export function commandCopyBuffer(handle: GpuCommandListHandle, src: GpuBufferHandle, srcOffset: uint64, dst: GpuBufferHandle, dstOffset: uint64, bytes: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
     BindingScope::Host,
@@ -8001,7 +8001,7 @@ pub const GPU_COMMAND_COPY_BUFFER: BindingDescriptor = BindingDescriptor::extern
 pub const GPU_COMMAND_COPY_BUFFER_TO_TEXTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.copyBufferToTexture",
     "export function commandCopyBufferToTexture(handle: GpuCommandListHandle, source: GpuBufferCopy, destination: GpuTextureCopy, size: GpuExtent3D): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
     BindingScope::Host,
@@ -8013,7 +8013,7 @@ pub const GPU_COMMAND_COPY_BUFFER_TO_TEXTURE: BindingDescriptor = BindingDescrip
 pub const GPU_COMMAND_COPY_TEXTURE_TO_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.copyTextureToBuffer",
     "export function commandCopyTextureToBuffer(handle: GpuCommandListHandle, source: GpuTextureCopy, destination: GpuBufferCopy, size: GpuExtent3D): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
     BindingScope::Host,
@@ -8025,7 +8025,7 @@ pub const GPU_COMMAND_COPY_TEXTURE_TO_BUFFER: BindingDescriptor = BindingDescrip
 pub const GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.copyTextureToTexture",
     "export function commandCopyTextureToTexture(handle: GpuCommandListHandle, source: GpuTextureCopy, destination: GpuTextureCopy, size: GpuExtent3D): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
     BindingScope::Host,
@@ -8037,7 +8037,7 @@ pub const GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE: BindingDescriptor = BindingDescri
 pub const GPU_COMMAND_DISPATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.dispatch",
     "export function commandDispatch(handle: GpuComputePassHandle, groupX: uint32, groupY: uint32, groupZ: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.compute"],
     BindingScope::Host,
@@ -8049,7 +8049,7 @@ pub const GPU_COMMAND_DISPATCH: BindingDescriptor = BindingDescriptor::external_
 pub const GPU_COMMAND_DISPATCH_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.dispatchIndirect",
     "export function commandDispatchIndirect(handle: GpuComputePassHandle, buffer: GpuBufferHandle, offset: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.compute"],
     BindingScope::Host,
@@ -8061,7 +8061,7 @@ pub const GPU_COMMAND_DISPATCH_INDIRECT: BindingDescriptor = BindingDescriptor::
 pub const GPU_COMMAND_DRAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.draw",
     "export function commandDraw(handle: GpuRenderPassHandle, vertexCount: uint32, instanceCount: uint32, firstVertex: uint32, firstInstance: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8073,7 +8073,7 @@ pub const GPU_COMMAND_DRAW: BindingDescriptor = BindingDescriptor::external_with
 pub const GPU_COMMAND_DRAW_INDEXED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.drawIndexed",
     "export function commandDrawIndexed(handle: GpuRenderPassHandle, indexCount: uint32, instanceCount: uint32, firstIndex: uint32, baseVertex: int32, firstInstance: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8085,7 +8085,7 @@ pub const GPU_COMMAND_DRAW_INDEXED: BindingDescriptor = BindingDescriptor::exter
 pub const GPU_COMMAND_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.drawIndexedIndirect",
     "export function commandDrawIndexedIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8097,7 +8097,7 @@ pub const GPU_COMMAND_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescript
 pub const GPU_COMMAND_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.drawIndirect",
     "export function commandDrawIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8109,7 +8109,7 @@ pub const GPU_COMMAND_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::exte
 pub const GPU_COMMAND_ENCODER_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.encoderClose",
     "export function commandEncoderClose(handle: GpuCommandListHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.queue"],
     BindingScope::Host,
@@ -8121,7 +8121,7 @@ pub const GPU_COMMAND_ENCODER_CLOSE: BindingDescriptor = BindingDescriptor::exte
 pub const GPU_COMMAND_ENCODER_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.encoderFinish",
     "export function commandEncoderFinish(handle: GpuCommandListHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.queue"],
     BindingScope::Host,
@@ -8133,7 +8133,7 @@ pub const GPU_COMMAND_ENCODER_FINISH: BindingDescriptor = BindingDescriptor::ext
 pub const GPU_COMMAND_ENCODER_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.encoderOpen",
     "export function commandEncoderOpen(device: GpuDeviceHandle, options: GpuCommandEncoderOptions): Result<GpuCommandListHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.queue"],
     BindingScope::Host,
@@ -8145,7 +8145,7 @@ pub const GPU_COMMAND_ENCODER_OPEN: BindingDescriptor = BindingDescriptor::exter
 pub const GPU_COMMAND_EXECUTE_BUNDLES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.executeBundles",
     "export function commandExecuteBundles(handle: GpuRenderPassHandle, bundles: Slice<GpuRenderBundleHandle>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8157,7 +8157,7 @@ pub const GPU_COMMAND_EXECUTE_BUNDLES: BindingDescriptor = BindingDescriptor::ex
 pub const GPU_COMMAND_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.insertDebugMarker",
     "export function commandInsertDebugMarker(handle: GpuCommandListHandle, marker: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
     BindingScope::Host,
@@ -8169,7 +8169,7 @@ pub const GPU_COMMAND_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor
 pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.multiDrawIndexedIndirect",
     "export function commandMultiDrawIndexedIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render.multiDraw"],
     BindingScope::Host,
@@ -8181,7 +8181,7 @@ pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDe
 pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.multiDrawIndexedIndirectCount",
     "export function commandMultiDrawIndexedIndirectCount(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, countBuffer: GpuBufferHandle, countOffset: uint64, maxDrawCount: uint32, stride: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render.multiDrawCount"],
     BindingScope::Host,
@@ -8193,7 +8193,7 @@ pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT: BindingDescriptor = Bin
 pub const GPU_COMMAND_MULTI_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.multiDrawIndirect",
     "export function commandMultiDrawIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render.multiDraw"],
     BindingScope::Host,
@@ -8205,7 +8205,7 @@ pub const GPU_COMMAND_MULTI_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor
 pub const GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.multiDrawIndirectCount",
     "export function commandMultiDrawIndirectCount(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, countBuffer: GpuBufferHandle, countOffset: uint64, maxDrawCount: uint32, stride: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render.multiDrawCount"],
     BindingScope::Host,
@@ -8217,7 +8217,7 @@ pub const GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT: BindingDescriptor = BindingDesc
 pub const GPU_COMMAND_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.popDebugGroup",
     "export function commandPopDebugGroup(handle: GpuCommandListHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
     BindingScope::Host,
@@ -8229,7 +8229,7 @@ pub const GPU_COMMAND_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::ex
 pub const GPU_COMMAND_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.pushDebugGroup",
     "export function commandPushDebugGroup(handle: GpuCommandListHandle, label: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
     BindingScope::Host,
@@ -8241,7 +8241,7 @@ pub const GPU_COMMAND_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::e
 pub const GPU_COMMAND_QUEUE_SUBMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.queueSubmit",
     "export function queueSubmit(queue: GpuQueueHandle, commandLists: Slice<GpuCommandListHandle>, options: GpuSubmitOptions): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.queue"],
     BindingScope::Host,
@@ -8253,7 +8253,7 @@ pub const GPU_COMMAND_QUEUE_SUBMIT: BindingDescriptor = BindingDescriptor::exter
 pub const GPU_COMMAND_QUEUE_WAIT_IDLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.queueWaitIdle",
     "export function queueWaitIdle(queue: GpuQueueHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.queue"],
     BindingScope::Host,
@@ -8265,7 +8265,7 @@ pub const GPU_COMMAND_QUEUE_WAIT_IDLE: BindingDescriptor = BindingDescriptor::ex
 pub const GPU_COMMAND_QUEUE_WRITE_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.queueWriteBuffer",
     "export function queueWriteBuffer(queue: GpuQueueHandle, buffer: GpuBufferHandle, bufferOffset: uint64, data: Slice<uint8>, dataOffset: uint64, size: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory", "gpu.queue"],
     BindingScope::Host,
@@ -8277,7 +8277,7 @@ pub const GPU_COMMAND_QUEUE_WRITE_BUFFER: BindingDescriptor = BindingDescriptor:
 pub const GPU_COMMAND_QUEUE_WRITE_TEXTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.queueWriteTexture",
     "export function queueWriteTexture(queue: GpuQueueHandle, destination: GpuTextureCopy, data: Slice<uint8>, layout: GpuBufferCopyLayout, size: GpuExtent3D): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory", "gpu.queue"],
     BindingScope::Host,
@@ -8289,7 +8289,7 @@ pub const GPU_COMMAND_QUEUE_WRITE_TEXTURE: BindingDescriptor = BindingDescriptor
 pub const GPU_COMMAND_RENDER_BUNDLE_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleDestroy",
     "export function renderBundleDestroy(handle: GpuRenderBundleHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8301,7 +8301,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DESTROY: BindingDescriptor = BindingDescript
 pub const GPU_COMMAND_RENDER_BUNDLE_DRAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleDraw",
     "export function renderBundleDraw(handle: GpuRenderBundleEncoderHandle, vertexCount: uint32, instanceCount: uint32, firstVertex: uint32, firstInstance: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8313,7 +8313,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW: BindingDescriptor = BindingDescriptor:
 pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleDrawIndexed",
     "export function renderBundleDrawIndexed(handle: GpuRenderBundleEncoderHandle, indexCount: uint32, instanceCount: uint32, firstIndex: uint32, baseVertex: int32, firstInstance: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8325,7 +8325,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED: BindingDescriptor = BindingDes
 pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleDrawIndexedIndirect",
     "export function renderBundleDrawIndexedIndirect(handle: GpuRenderBundleEncoderHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8337,7 +8337,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT: BindingDescriptor = B
 pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleDrawIndirect",
     "export function renderBundleDrawIndirect(handle: GpuRenderBundleEncoderHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8349,7 +8349,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT: BindingDescriptor = BindingDe
 pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleEncoderClose",
     "export function renderBundleEncoderClose(handle: GpuRenderBundleEncoderHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8361,7 +8361,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE: BindingDescriptor = BindingDe
 pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleEncoderFinish",
     "export function renderBundleEncoderFinish(handle: GpuRenderBundleEncoderHandle): Result<GpuRenderBundleHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8373,7 +8373,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH: BindingDescriptor = BindingD
 pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleEncoderOpen",
     "export function renderBundleEncoderOpen(device: GpuDeviceHandle, options: GpuRenderBundleEncoderOptions): Result<GpuRenderBundleEncoderHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8385,7 +8385,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN: BindingDescriptor = BindingDes
 pub const GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleInsertDebugMarker",
     "export function renderBundleInsertDebugMarker(handle: GpuRenderBundleEncoderHandle, marker: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
     BindingScope::Host,
@@ -8397,7 +8397,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER: BindingDescriptor = Bin
 pub const GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundlePopDebugGroup",
     "export function renderBundlePopDebugGroup(handle: GpuRenderBundleEncoderHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
     BindingScope::Host,
@@ -8409,7 +8409,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP: BindingDescriptor = Binding
 pub const GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundlePushDebugGroup",
     "export function renderBundlePushDebugGroup(handle: GpuRenderBundleEncoderHandle, label: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
     BindingScope::Host,
@@ -8421,7 +8421,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP: BindingDescriptor = Bindin
 pub const GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleSetBindGroup",
     "export function renderBundleSetBindGroup(handle: GpuRenderBundleEncoderHandle, index: uint32, bindGroup: GpuBindGroupHandle, dynamicOffsets: Slice<uint32>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
     BindingScope::Host,
@@ -8433,7 +8433,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP: BindingDescriptor = BindingD
 pub const GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleSetIndexBuffer",
     "export function renderBundleSetIndexBuffer(handle: GpuRenderBundleEncoderHandle, buffer: GpuBufferHandle, format: GpuIndexFormat, offset: uint64, size: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8445,7 +8445,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER: BindingDescriptor = Bindin
 pub const GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleSetPipeline",
     "export function renderBundleSetPipeline(handle: GpuRenderBundleEncoderHandle, pipeline: GpuPipelineHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8457,7 +8457,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE: BindingDescriptor = BindingDes
 pub const GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleSetVertexBuffer",
     "export function renderBundleSetVertexBuffer(handle: GpuRenderBundleEncoderHandle, slot: uint32, buffer: GpuBufferHandle, offset: uint64, size: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8469,7 +8469,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER: BindingDescriptor = Bindi
 pub const GPU_COMMAND_RENDER_PASS_BEGIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderPassBegin",
     "export function commandRenderPassBegin(handle: GpuCommandListHandle, options: GpuRenderPassOptions): Result<GpuRenderPassHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8481,7 +8481,7 @@ pub const GPU_COMMAND_RENDER_PASS_BEGIN: BindingDescriptor = BindingDescriptor::
 pub const GPU_COMMAND_RENDER_PASS_END: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderPassEnd",
     "export function commandRenderPassEnd(handle: GpuRenderPassHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8493,7 +8493,7 @@ pub const GPU_COMMAND_RENDER_PASS_END: BindingDescriptor = BindingDescriptor::ex
 pub const GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderPassInsertDebugMarker",
     "export function commandRenderPassInsertDebugMarker(handle: GpuRenderPassHandle, marker: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
     BindingScope::Host,
@@ -8505,7 +8505,7 @@ pub const GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = Bindi
 pub const GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderPassPopDebugGroup",
     "export function commandRenderPassPopDebugGroup(handle: GpuRenderPassHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
     BindingScope::Host,
@@ -8517,7 +8517,7 @@ pub const GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingDe
 pub const GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderPassPushDebugGroup",
     "export function commandRenderPassPushDebugGroup(handle: GpuRenderPassHandle, label: string): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.debug"],
     BindingScope::Host,
@@ -8529,7 +8529,7 @@ pub const GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = BindingD
 pub const GPU_COMMAND_SET_BLEND_CONSTANT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setBlendConstant",
     "export function commandSetBlendConstant(handle: GpuRenderPassHandle, r: float64, g: float64, b: float64, a: float64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8541,7 +8541,7 @@ pub const GPU_COMMAND_SET_BLEND_CONSTANT: BindingDescriptor = BindingDescriptor:
 pub const GPU_COMMAND_SET_COMPUTE_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setComputeBindGroup",
     "export function commandSetComputeBindGroup(handle: GpuComputePassHandle, index: uint32, bindGroup: GpuBindGroupHandle, dynamicOffsets: Slice<uint32>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
     BindingScope::Host,
@@ -8553,7 +8553,7 @@ pub const GPU_COMMAND_SET_COMPUTE_BIND_GROUP: BindingDescriptor = BindingDescrip
 pub const GPU_COMMAND_SET_INDEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setIndexBuffer",
     "export function commandSetIndexBuffer(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, format: GpuIndexFormat, offset: uint64, size: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8565,7 +8565,7 @@ pub const GPU_COMMAND_SET_INDEX_BUFFER: BindingDescriptor = BindingDescriptor::e
 pub const GPU_COMMAND_SET_RENDER_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setRenderBindGroup",
     "export function commandSetRenderBindGroup(handle: GpuRenderPassHandle, index: uint32, bindGroup: GpuBindGroupHandle, dynamicOffsets: Slice<uint32>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
     BindingScope::Host,
@@ -8577,7 +8577,7 @@ pub const GPU_COMMAND_SET_RENDER_BIND_GROUP: BindingDescriptor = BindingDescript
 pub const GPU_COMMAND_SET_SCISSOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setScissor",
     "export function commandSetScissor(handle: GpuRenderPassHandle, x: uint32, y: uint32, width: uint32, height: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8589,7 +8589,7 @@ pub const GPU_COMMAND_SET_SCISSOR: BindingDescriptor = BindingDescriptor::extern
 pub const GPU_COMMAND_SET_STENCIL_REFERENCE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setStencilReference",
     "export function commandSetStencilReference(handle: GpuRenderPassHandle, reference: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8601,7 +8601,7 @@ pub const GPU_COMMAND_SET_STENCIL_REFERENCE: BindingDescriptor = BindingDescript
 pub const GPU_COMMAND_SET_VERTEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setVertexBuffer",
     "export function commandSetVertexBuffer(handle: GpuRenderPassHandle, slot: uint32, buffer: GpuBufferHandle, offset: uint64, size: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8613,7 +8613,7 @@ pub const GPU_COMMAND_SET_VERTEX_BUFFER: BindingDescriptor = BindingDescriptor::
 pub const GPU_COMMAND_SET_VIEWPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setViewport",
     "export function commandSetViewport(handle: GpuRenderPassHandle, x: float64, y: float64, width: float64, height: float64, minDepth: float64, maxDepth: float64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8626,7 +8626,7 @@ pub const GPU_DEBUG_SET_LABEL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.debug.setLabel",
         "export function setLabel(handle: ResourceId, label: string): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.debug"],
         BindingScope::Host,
@@ -8652,7 +8652,7 @@ pub const GPU_DEVICE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.device.close",
         "export function deviceClose(handle: GpuDeviceHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.device"],
         BindingScope::Host,
@@ -8677,7 +8677,7 @@ pub const GPU_DEVICE_CLOSE: BindingDescriptor =
 pub const GPU_DEVICE_FEATURES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.features",
     "export function deviceFeatures(device: GpuDeviceHandle): Result<Slice<GpuFeatureId>, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.device"],
     BindingScope::Host,
@@ -8689,7 +8689,7 @@ pub const GPU_DEVICE_FEATURES: BindingDescriptor = BindingDescriptor::external_w
 pub const GPU_DEVICE_HAS_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.hasFeature",
     "export function deviceHasFeature(device: GpuDeviceHandle, feature: GpuFeatureId): Result<boolean, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.device"],
     BindingScope::Host,
@@ -8702,7 +8702,7 @@ pub const GPU_DEVICE_INFO: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.device.info",
         "export function deviceInfo(device: GpuDeviceHandle): Result<GpuDeviceInfo, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.device"],
         BindingScope::Host,
@@ -8727,7 +8727,7 @@ pub const GPU_DEVICE_INFO: BindingDescriptor =
 pub const GPU_DEVICE_LIMITS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.limits",
     "export function deviceLimits(device: GpuDeviceHandle): Result<GpuAdapterLimits, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.device"],
     BindingScope::Host,
@@ -8739,7 +8739,7 @@ pub const GPU_DEVICE_LIMITS: BindingDescriptor = BindingDescriptor::external_wit
 pub const GPU_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.open",
     "export function deviceOpen(adapter: GpuAdapterHandle, options: GpuDeviceOptions): Result<GpuDeviceHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.device"],
     BindingScope::Host,
@@ -8751,7 +8751,7 @@ pub const GPU_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_
 pub const GPU_DEVICE_POLL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.poll",
     "export function devicePoll(device: GpuDeviceHandle, wait: boolean, timeoutNs: uint64): Result<uint32, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.queue"],
     BindingScope::Host,
@@ -8763,7 +8763,7 @@ pub const GPU_DEVICE_POLL: BindingDescriptor = BindingDescriptor::external_with_
 pub const GPU_DEVICE_POP_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.popErrorScope",
     "export function devicePopErrorScope(device: GpuDeviceHandle, timeoutNs: uint64): Result<GpuCapturedError, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.device"],
     BindingScope::Host,
@@ -8775,7 +8775,7 @@ pub const GPU_DEVICE_POP_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::ext
 pub const GPU_DEVICE_PUSH_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.pushErrorScope",
     "export function devicePushErrorScope(device: GpuDeviceHandle, filter: GpuErrorFilter): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.device"],
     BindingScope::Host,
@@ -8787,7 +8787,7 @@ pub const GPU_DEVICE_PUSH_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::ex
 pub const GPU_DEVICE_QUEUE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.queue",
     "export function deviceQueue(device: GpuDeviceHandle): Result<GpuQueueHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.queue"],
     BindingScope::Host,
@@ -8799,7 +8799,7 @@ pub const GPU_DEVICE_QUEUE: BindingDescriptor = BindingDescriptor::external_with
 pub const GPU_DEVICE_STATUS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.status",
     "export function deviceStatus(device: GpuDeviceHandle): Result<GpuDeviceStatus, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.device"],
     BindingScope::Host,
@@ -8811,7 +8811,7 @@ pub const GPU_DEVICE_STATUS: BindingDescriptor = BindingDescriptor::external_wit
 pub const GPU_PIPELINE_BIND_GROUP_LAYOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.pipeline.bindGroupLayout",
     "export function pipelineBindGroupLayout(pipeline: GpuPipelineHandle, groupIndex: uint32): Result<GpuBindGroupLayoutHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.bind"],
     BindingScope::Host,
@@ -8823,7 +8823,7 @@ pub const GPU_PIPELINE_BIND_GROUP_LAYOUT: BindingDescriptor = BindingDescriptor:
 pub const GPU_PIPELINE_COMPUTE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.pipeline.computeCreate",
     "export function computePipelineCreate(device: GpuDeviceHandle, options: GpuComputePipelineOptions): Result<GpuPipelineHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.compute"],
     BindingScope::Host,
@@ -8836,7 +8836,7 @@ pub const GPU_PIPELINE_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.pipeline.destroy",
         "export function pipelineDestroy(handle: GpuPipelineHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.compute", "gpu.render"],
         BindingScope::Host,
@@ -8861,7 +8861,7 @@ pub const GPU_PIPELINE_DESTROY: BindingDescriptor =
 pub const GPU_PIPELINE_RENDER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.pipeline.renderCreate",
     "export function renderPipelineCreate(device: GpuDeviceHandle, options: GpuRenderPipelineOptions): Result<GpuPipelineHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.render"],
     BindingScope::Host,
@@ -8873,7 +8873,7 @@ pub const GPU_PIPELINE_RENDER_CREATE: BindingDescriptor = BindingDescriptor::ext
 pub const GPU_PIPELINE_SHADER_COMPILATION_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.pipeline.shaderCompilationInfo",
     "export function shaderCompilationInfo(handle: GpuShaderHandle, timeoutNs: uint64): Result<GpuCompilationInfo, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.shader"],
     BindingScope::Host,
@@ -8885,7 +8885,7 @@ pub const GPU_PIPELINE_SHADER_COMPILATION_INFO: BindingDescriptor = BindingDescr
 pub const GPU_PIPELINE_SHADER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.pipeline.shaderCreate",
     "export function shaderCreate(device: GpuDeviceHandle, options: GpuShaderOptions, bytes: Slice<uint8>): Result<GpuShaderHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.shader"],
     BindingScope::Host,
@@ -8898,7 +8898,7 @@ pub const GPU_PIPELINE_SHADER_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.pipeline.shaderDestroy",
         "export function shaderDestroy(handle: GpuShaderHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.shader"],
         BindingScope::Host,
@@ -8923,7 +8923,7 @@ pub const GPU_PIPELINE_SHADER_DESTROY: BindingDescriptor =
 pub const GPU_PRESENT_SURFACE_ACQUIRE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.present.surfaceAcquire",
     "export function surfaceAcquire(surface: GpuSurfaceHandle, timeoutNs: uint64): Result<GpuSurfaceFrame, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["gpu.present"],
     BindingScope::Host,
@@ -8935,7 +8935,7 @@ pub const GPU_PRESENT_SURFACE_ACQUIRE: BindingDescriptor = BindingDescriptor::ex
 pub const GPU_PRESENT_SURFACE_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.present.surfaceCapabilities",
     "export function surfaceCapabilities(surface: GpuSurfaceHandle, adapter: GpuAdapterHandle): Result<GpuSurfaceCapabilities, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["gpu.present"],
     BindingScope::Host,
@@ -8948,7 +8948,7 @@ pub const GPU_PRESENT_SURFACE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.present.surfaceClose",
         "export function surfaceClose(surface: GpuSurfaceHandle): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::Regular,
         &["gpu.present"],
         BindingScope::Host,
@@ -8973,7 +8973,7 @@ pub const GPU_PRESENT_SURFACE_CLOSE: BindingDescriptor =
 pub const GPU_PRESENT_SURFACE_CONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.present.surfaceConfigure",
     "export function surfaceConfigure(device: GpuDeviceHandle, surface: GpuSurfaceHandle, options: GpuSurfaceOptions): Result<void, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["gpu.present"],
     BindingScope::Host,
@@ -8985,7 +8985,7 @@ pub const GPU_PRESENT_SURFACE_CONFIGURE: BindingDescriptor = BindingDescriptor::
 pub const GPU_PRESENT_SURFACE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.present.surfaceOpen",
     "export function surfaceOpen(window: WindowHandle): Result<GpuSurfaceHandle, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["gpu.present"],
     BindingScope::Host,
@@ -8997,7 +8997,7 @@ pub const GPU_PRESENT_SURFACE_OPEN: BindingDescriptor = BindingDescriptor::exter
 pub const GPU_PRESENT_SURFACE_PRESENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.present.surfacePresent",
     "export function surfacePresent(surface: GpuSurfaceHandle, options: GpuPresentOptions): Result<void, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["gpu.present"],
     BindingScope::Host,
@@ -9009,7 +9009,7 @@ pub const GPU_PRESENT_SURFACE_PRESENT: BindingDescriptor = BindingDescriptor::ex
 pub const GPU_PRESENT_SURFACE_UNCONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.present.surfaceUnconfigure",
     "export function surfaceUnconfigure(surface: GpuSurfaceHandle): Result<void, PlatformError>",
-    ReplayPolicy::NonRecordable,
+    BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["gpu.present"],
     BindingScope::Host,
@@ -9021,7 +9021,7 @@ pub const GPU_PRESENT_SURFACE_UNCONFIGURE: BindingDescriptor = BindingDescriptor
 pub const GPU_RESOURCE_BUFFER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.bufferCreate",
     "export function bufferCreate(device: GpuDeviceHandle, options: GpuBufferOptions): Result<GpuBufferHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
     BindingScope::Host,
@@ -9034,7 +9034,7 @@ pub const GPU_RESOURCE_BUFFER_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.resource.bufferDestroy",
         "export function bufferDestroy(handle: GpuBufferHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.memory"],
         BindingScope::Host,
@@ -9060,7 +9060,7 @@ pub const GPU_RESOURCE_BUFFER_INFO: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.resource.bufferInfo",
         "export function bufferInfo(handle: GpuBufferHandle): Result<GpuBufferInfo, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.memory"],
         BindingScope::Host,
@@ -9085,7 +9085,7 @@ pub const GPU_RESOURCE_BUFFER_INFO: BindingDescriptor =
 pub const GPU_RESOURCE_BUFFER_MAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.bufferMap",
     "export function bufferMap(handle: GpuBufferHandle, offset: uint64, length: uint64, mode: GpuMapMode): Result<GpuMappedBufferRange, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
     BindingScope::Host,
@@ -9097,7 +9097,7 @@ pub const GPU_RESOURCE_BUFFER_MAP: BindingDescriptor = BindingDescriptor::extern
 pub const GPU_RESOURCE_BUFFER_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.bufferRead",
     "export function bufferRead(handle: GpuBufferHandle, offset: uint64, length: uint64): Result<Slice<uint8>, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
     BindingScope::Host,
@@ -9110,7 +9110,7 @@ pub const GPU_RESOURCE_BUFFER_UNMAP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.resource.bufferUnmap",
         "export function bufferUnmap(handle: GpuBufferHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.memory"],
         BindingScope::Host,
@@ -9135,7 +9135,7 @@ pub const GPU_RESOURCE_BUFFER_UNMAP: BindingDescriptor =
 pub const GPU_RESOURCE_BUFFER_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.bufferWrite",
     "export function bufferWrite(handle: GpuBufferHandle, offset: uint64, bytes: Slice<uint8>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
     BindingScope::Host,
@@ -9147,7 +9147,7 @@ pub const GPU_RESOURCE_BUFFER_WRITE: BindingDescriptor = BindingDescriptor::exte
 pub const GPU_RESOURCE_SAMPLER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.samplerCreate",
     "export function samplerCreate(device: GpuDeviceHandle, options: GpuSamplerOptions): Result<GpuSamplerHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
     BindingScope::Host,
@@ -9160,7 +9160,7 @@ pub const GPU_RESOURCE_SAMPLER_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.resource.samplerDestroy",
         "export function samplerDestroy(handle: GpuSamplerHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.memory"],
         BindingScope::Host,
@@ -9185,7 +9185,7 @@ pub const GPU_RESOURCE_SAMPLER_DESTROY: BindingDescriptor =
 pub const GPU_RESOURCE_TEXTURE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.textureCreate",
     "export function textureCreate(device: GpuDeviceHandle, options: GpuTextureOptions): Result<GpuTextureHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
     BindingScope::Host,
@@ -9198,7 +9198,7 @@ pub const GPU_RESOURCE_TEXTURE_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.resource.textureDestroy",
         "export function textureDestroy(handle: GpuTextureHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.memory"],
         BindingScope::Host,
@@ -9223,7 +9223,7 @@ pub const GPU_RESOURCE_TEXTURE_DESTROY: BindingDescriptor =
 pub const GPU_RESOURCE_TEXTURE_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.textureInfo",
     "export function textureInfo(handle: GpuTextureHandle): Result<GpuTextureInfo, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
     BindingScope::Host,
@@ -9235,7 +9235,7 @@ pub const GPU_RESOURCE_TEXTURE_INFO: BindingDescriptor = BindingDescriptor::exte
 pub const GPU_RESOURCE_TEXTURE_VIEW_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.textureViewCreate",
     "export function textureViewCreate(texture: GpuTextureHandle, options: GpuTextureViewOptions): Result<GpuTextureViewHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
     BindingScope::Host,
@@ -9247,7 +9247,7 @@ pub const GPU_RESOURCE_TEXTURE_VIEW_CREATE: BindingDescriptor = BindingDescripto
 pub const GPU_RESOURCE_TEXTURE_VIEW_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.textureViewDestroy",
     "export function textureViewDestroy(handle: GpuTextureViewHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.memory"],
     BindingScope::Host,
@@ -9259,7 +9259,7 @@ pub const GPU_RESOURCE_TEXTURE_VIEW_DESTROY: BindingDescriptor = BindingDescript
 pub const GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandBeginComputePipelineStatisticsQuery",
     "export function commandBeginComputePipelineStatisticsQuery(computePass: GpuComputePassHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync.pipelineStatistics"],
     BindingScope::Host,
@@ -9271,7 +9271,7 @@ pub const GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescr
 pub const GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandBeginOcclusionQuery",
     "export function commandBeginOcclusionQuery(renderPass: GpuRenderPassHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
     BindingScope::Host,
@@ -9283,7 +9283,7 @@ pub const GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY: BindingDescriptor = BindingDes
 pub const GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery",
     "export function commandBeginRenderPipelineStatisticsQuery(renderPass: GpuRenderPassHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync.pipelineStatistics"],
     BindingScope::Host,
@@ -9295,7 +9295,7 @@ pub const GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescri
 pub const GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandEndComputePipelineStatisticsQuery",
     "export function commandEndComputePipelineStatisticsQuery(computePass: GpuComputePassHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync.pipelineStatistics"],
     BindingScope::Host,
@@ -9307,7 +9307,7 @@ pub const GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescrip
 pub const GPU_SYNC_COMMAND_END_OCCLUSION_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandEndOcclusionQuery",
     "export function commandEndOcclusionQuery(renderPass: GpuRenderPassHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
     BindingScope::Host,
@@ -9319,7 +9319,7 @@ pub const GPU_SYNC_COMMAND_END_OCCLUSION_QUERY: BindingDescriptor = BindingDescr
 pub const GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandEndRenderPipelineStatisticsQuery",
     "export function commandEndRenderPipelineStatisticsQuery(renderPass: GpuRenderPassHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync.pipelineStatistics"],
     BindingScope::Host,
@@ -9331,7 +9331,7 @@ pub const GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescript
 pub const GPU_SYNC_COMMAND_RESOLVE_QUERIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandResolveQueries",
     "export function commandResolveQueries(commandList: GpuCommandListHandle, querySet: GpuQuerySetHandle, firstQuery: uint32, queryCount: uint32, destination: GpuBufferHandle, destinationOffset: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
     BindingScope::Host,
@@ -9343,7 +9343,7 @@ pub const GPU_SYNC_COMMAND_RESOLVE_QUERIES: BindingDescriptor = BindingDescripto
 pub const GPU_SYNC_COMMAND_WRITE_TIMESTAMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandWriteTimestamp",
     "export function commandWriteTimestamp(commandList: GpuCommandListHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
     BindingScope::Host,
@@ -9355,7 +9355,7 @@ pub const GPU_SYNC_COMMAND_WRITE_TIMESTAMP: BindingDescriptor = BindingDescripto
 pub const GPU_SYNC_FENCE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.fenceCreate",
     "export function fenceCreate(device: GpuDeviceHandle, options: GpuFenceOptions): Result<GpuFenceHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
     BindingScope::Host,
@@ -9368,7 +9368,7 @@ pub const GPU_SYNC_FENCE_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.sync.fenceDestroy",
         "export function fenceDestroy(handle: GpuFenceHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.sync"],
         BindingScope::Host,
@@ -9393,7 +9393,7 @@ pub const GPU_SYNC_FENCE_DESTROY: BindingDescriptor =
 pub const GPU_SYNC_QUERY_SET_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.querySetCreate",
     "export function querySetCreate(device: GpuDeviceHandle, options: GpuQuerySetOptions): Result<GpuQuerySetHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
     BindingScope::Host,
@@ -9406,7 +9406,7 @@ pub const GPU_SYNC_QUERY_SET_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.sync.querySetDestroy",
         "export function querySetDestroy(handle: GpuQuerySetHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["gpu.sync"],
         BindingScope::Host,
@@ -9431,7 +9431,7 @@ pub const GPU_SYNC_QUERY_SET_DESTROY: BindingDescriptor =
 pub const GPU_SYNC_QUERY_SET_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.querySetInfo",
     "export function querySetInfo(handle: GpuQuerySetHandle): Result<GpuQuerySetInfo, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
     BindingScope::Host,
@@ -9443,7 +9443,7 @@ pub const GPU_SYNC_QUERY_SET_INFO: BindingDescriptor = BindingDescriptor::extern
 pub const GPU_SYNC_QUEUE_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.queueSignal",
     "export function queueSignal(queue: GpuQueueHandle, fence: GpuFenceHandle, value: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
     BindingScope::Host,
@@ -9455,7 +9455,7 @@ pub const GPU_SYNC_QUEUE_SIGNAL: BindingDescriptor = BindingDescriptor::external
 pub const GPU_SYNC_QUEUE_TIMESTAMP_PERIOD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.queueTimestampPeriod",
     "export function queueTimestampPeriod(queue: GpuQueueHandle): Result<float64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
     BindingScope::Host,
@@ -9467,7 +9467,7 @@ pub const GPU_SYNC_QUEUE_TIMESTAMP_PERIOD: BindingDescriptor = BindingDescriptor
 pub const GPU_SYNC_QUEUE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.queueWait",
     "export function queueWait(queue: GpuQueueHandle, fence: GpuFenceHandle, value: uint64, timeoutNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
     BindingScope::Host,
@@ -9479,7 +9479,7 @@ pub const GPU_SYNC_QUEUE_WAIT: BindingDescriptor = BindingDescriptor::external_w
 pub const GPU_SYNC_QUEUE_WORK_DONE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.queueWorkDone",
     "export function queueWorkDone(queue: GpuQueueHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["gpu.sync"],
     BindingScope::Host,
@@ -10293,20 +10293,20 @@ pub const GPU_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for gpu bindings.
 #[inline]
 fn destack_gpu_adapter_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_ADAPTER_CLOSE,
         context.replay_payload_for(GPU_ADAPTER_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_adapter_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_adapter_close(context, handle)
             },
         },
@@ -10341,21 +10341,21 @@ fn destack_gpu_adapter_close_replay(
 
 #[inline]
 fn destack_gpu_adapter_features_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<GpuFeatureId>,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_ADAPTER_FEATURES,
         context.replay_payload_for(GPU_ADAPTER_FEATURES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_adapter_features(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_adapter_features(context, out, handle)
             },
         },
@@ -10413,7 +10413,7 @@ fn destack_gpu_adapter_features_replay(
 
 #[inline]
 fn destack_gpu_adapter_format_capabilities_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuAdapterFormatCapabilities,
     handle: resource::GpuAdapterHandle,
@@ -10421,7 +10421,7 @@ fn destack_gpu_adapter_format_capabilities_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &format);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_ADAPTER_FORMAT_CAPABILITIES,
         context.replay_payload_for(GPU_ADAPTER_FORMAT_CAPABILITIES)?,
         || match world {
@@ -10430,7 +10430,7 @@ fn destack_gpu_adapter_format_capabilities_replay(
                     context, out, handle, format,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_adapter_format_capabilities(
                     context, out, handle, format,
                 )
@@ -10505,7 +10505,7 @@ fn destack_gpu_adapter_format_capabilities_replay(
 
 #[inline]
 fn destack_gpu_adapter_has_feature_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
     handle: resource::GpuAdapterHandle,
@@ -10513,14 +10513,14 @@ fn destack_gpu_adapter_has_feature_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &feature);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_ADAPTER_HAS_FEATURE,
         context.replay_payload_for(GPU_ADAPTER_HAS_FEATURE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_adapter_has_feature(context, out, handle, feature)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_adapter_has_feature(
                     context, out, handle, feature,
                 )
@@ -10569,21 +10569,21 @@ fn destack_gpu_adapter_has_feature_replay(
 
 #[inline]
 fn destack_gpu_adapter_info_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuAdapterInfo,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_ADAPTER_INFO,
         context.replay_payload_for(GPU_ADAPTER_INFO)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_adapter_info(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_adapter_info(context, out, handle)
             },
         },
@@ -10935,21 +10935,21 @@ fn destack_gpu_adapter_info_replay(
 
 #[inline]
 fn destack_gpu_adapter_limits_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuAdapterLimits,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_ADAPTER_LIMITS,
         context.replay_payload_for(GPU_ADAPTER_LIMITS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_adapter_limits(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_adapter_limits(context, out, handle)
             },
         },
@@ -11196,19 +11196,19 @@ fn destack_gpu_adapter_limits_replay(
 
 #[inline]
 fn destack_gpu_adapter_list_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<GpuAdapterInfo>,
     request: GpuAdapterRequest,
 ) -> RuntimeResult<()> {
     let _ = &request;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_ADAPTER_LIST,
         context.replay_payload_for(GPU_ADAPTER_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_gpu_adapter_list(context, out, request) },
-            RuntimeWorld::Simulated => unsafe { platform_simulation_native::destack_gpu_adapter_list(context, out, request) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_adapter_list(context, out, request) },
         },
         |result| {
             if let Ok(()) = result {
@@ -11461,21 +11461,21 @@ fn destack_gpu_adapter_list_replay(
 
 #[inline]
 fn destack_gpu_adapter_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuAdapterHandle,
     id: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &id;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_ADAPTER_OPEN,
         context.replay_payload_for(GPU_ADAPTER_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_adapter_open(context, out, id)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_adapter_open(context, out, id)
             },
         },
@@ -11522,7 +11522,7 @@ fn destack_gpu_adapter_open_replay(
 
 #[inline]
 fn destack_gpu_bind_group_create_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuBindGroupHandle,
     device: resource::GpuDeviceHandle,
@@ -11532,7 +11532,7 @@ fn destack_gpu_bind_group_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &layout, &entries, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_BIND_GROUP_CREATE,
         context.replay_payload_for(GPU_BIND_GROUP_CREATE)?,
         || match world {
@@ -11541,7 +11541,7 @@ fn destack_gpu_bind_group_create_replay(
                     context, out, device, layout, entries, flags,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_bind_group_create(
                     context, out, device, layout, entries, flags,
                 )
@@ -11590,20 +11590,20 @@ fn destack_gpu_bind_group_create_replay(
 
 #[inline]
 fn destack_gpu_bind_group_destroy_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuBindGroupHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_BIND_GROUP_DESTROY,
         context.replay_payload_for(GPU_BIND_GROUP_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_bind_group_destroy(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_bind_group_destroy(context, handle)
             },
         },
@@ -11638,7 +11638,7 @@ fn destack_gpu_bind_group_destroy_replay(
 
 #[inline]
 fn destack_gpu_bind_group_layout_create_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuBindGroupLayoutHandle,
     device: resource::GpuDeviceHandle,
@@ -11647,7 +11647,7 @@ fn destack_gpu_bind_group_layout_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &entries, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_BIND_GROUP_LAYOUT_CREATE,
         context.replay_payload_for(GPU_BIND_GROUP_LAYOUT_CREATE)?,
         || match world {
@@ -11656,7 +11656,7 @@ fn destack_gpu_bind_group_layout_create_replay(
                     context, out, device, entries, flags,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_bind_group_layout_create(
                     context, out, device, entries, flags,
                 )
@@ -11705,20 +11705,20 @@ fn destack_gpu_bind_group_layout_create_replay(
 
 #[inline]
 fn destack_gpu_bind_group_layout_destroy_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuBindGroupLayoutHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_BIND_GROUP_LAYOUT_DESTROY,
         context.replay_payload_for(GPU_BIND_GROUP_LAYOUT_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_bind_group_layout_destroy(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_bind_group_layout_destroy(context, handle)
             },
         },
@@ -11753,7 +11753,7 @@ fn destack_gpu_bind_group_layout_destroy_replay(
 
 #[inline]
 fn destack_gpu_bind_pipeline_layout_create_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuPipelineLayoutHandle,
     device: resource::GpuDeviceHandle,
@@ -11761,14 +11761,14 @@ fn destack_gpu_bind_pipeline_layout_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_BIND_PIPELINE_LAYOUT_CREATE,
         context.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_pipeline_layout_create(context, out, device, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_pipeline_layout_create(
                     context, out, device, options,
                 )
@@ -11817,20 +11817,20 @@ fn destack_gpu_bind_pipeline_layout_create_replay(
 
 #[inline]
 fn destack_gpu_bind_pipeline_layout_destroy_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuPipelineLayoutHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_BIND_PIPELINE_LAYOUT_DESTROY,
         context.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_pipeline_layout_destroy(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_pipeline_layout_destroy(context, handle)
             },
         },
@@ -11865,14 +11865,14 @@ fn destack_gpu_bind_pipeline_layout_destroy_replay(
 
 #[inline]
 fn destack_gpu_command_bind_compute_pipeline_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &pipeline);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_BIND_COMPUTE_PIPELINE,
         context.replay_payload_for(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?,
         || match world {
@@ -11881,7 +11881,7 @@ fn destack_gpu_command_bind_compute_pipeline_replay(
                     context, handle, pipeline,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_bind_compute_pipeline(
                     context, handle, pipeline,
                 )
@@ -11918,21 +11918,21 @@ fn destack_gpu_command_bind_compute_pipeline_replay(
 
 #[inline]
 fn destack_gpu_command_bind_render_pipeline_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &pipeline);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_BIND_RENDER_PIPELINE,
         context.replay_payload_for(GPU_COMMAND_BIND_RENDER_PIPELINE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_bind_render_pipeline(context, handle, pipeline)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_bind_render_pipeline(
                     context, handle, pipeline,
                 )
@@ -11969,7 +11969,7 @@ fn destack_gpu_command_bind_render_pipeline_replay(
 
 #[inline]
 fn destack_gpu_command_clear_buffer_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     buffer: resource::GpuBufferHandle,
@@ -11978,7 +11978,7 @@ fn destack_gpu_command_clear_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &size);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_CLEAR_BUFFER,
         context.replay_payload_for(GPU_COMMAND_CLEAR_BUFFER)?,
         || match world {
@@ -11987,7 +11987,7 @@ fn destack_gpu_command_clear_buffer_replay(
                     context, handle, buffer, offset, size,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_clear_buffer(
                     context, handle, buffer, offset, size,
                 )
@@ -12024,7 +12024,7 @@ fn destack_gpu_command_clear_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_begin_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuComputePassHandle,
     handle: resource::GpuCommandListHandle,
@@ -12032,7 +12032,7 @@ fn destack_gpu_command_compute_pass_begin_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_COMPUTE_PASS_BEGIN,
         context.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_BEGIN)?,
         || match world {
@@ -12041,7 +12041,7 @@ fn destack_gpu_command_compute_pass_begin_replay(
                     context, out, handle, options,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_compute_pass_begin(
                     context, out, handle, options,
                 )
@@ -12090,20 +12090,20 @@ fn destack_gpu_command_compute_pass_begin_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_end_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_COMPUTE_PASS_END,
         context.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_END)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_compute_pass_end(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_compute_pass_end(context, handle)
             },
         },
@@ -12138,14 +12138,14 @@ fn destack_gpu_command_compute_pass_end_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_insert_debug_marker_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     marker: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &marker);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
         context.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?,
         || match world {
@@ -12154,7 +12154,7 @@ fn destack_gpu_command_compute_pass_insert_debug_marker_replay(
                     context, handle, marker,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_compute_pass_insert_debug_marker(
                     context, handle, marker,
                 )
@@ -12191,20 +12191,20 @@ fn destack_gpu_command_compute_pass_insert_debug_marker_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_pop_debug_group_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
         context.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_compute_pass_pop_debug_group(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_compute_pass_pop_debug_group(
                     context, handle,
                 )
@@ -12241,14 +12241,14 @@ fn destack_gpu_command_compute_pass_pop_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_push_debug_group_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     label: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &label);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
         context.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?,
         || match world {
@@ -12257,7 +12257,7 @@ fn destack_gpu_command_compute_pass_push_debug_group_replay(
                     context, handle, label,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_compute_pass_push_debug_group(
                     context, handle, label,
                 )
@@ -12294,7 +12294,7 @@ fn destack_gpu_command_compute_pass_push_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_copy_buffer_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     src: resource::GpuBufferHandle,
@@ -12305,7 +12305,7 @@ fn destack_gpu_command_copy_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &src, &srcoffset, &dst, &dstoffset, &argument_bytes);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_COPY_BUFFER,
         context.replay_payload_for(GPU_COMMAND_COPY_BUFFER)?,
         || match world {
@@ -12320,7 +12320,7 @@ fn destack_gpu_command_copy_buffer_replay(
                     argument_bytes,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_copy_buffer(
                     context,
                     handle,
@@ -12363,7 +12363,7 @@ fn destack_gpu_command_copy_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_copy_buffer_to_texture_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     source: GpuBufferCopy,
@@ -12372,7 +12372,7 @@ fn destack_gpu_command_copy_buffer_to_texture_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &source, &destination, &size);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_COPY_BUFFER_TO_TEXTURE,
         context.replay_payload_for(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?,
         || match world {
@@ -12385,7 +12385,7 @@ fn destack_gpu_command_copy_buffer_to_texture_replay(
                     size,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_copy_buffer_to_texture(
                     context,
                     handle,
@@ -12426,7 +12426,7 @@ fn destack_gpu_command_copy_buffer_to_texture_replay(
 
 #[inline]
 fn destack_gpu_command_copy_texture_to_buffer_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     source: GpuTextureCopy,
@@ -12435,7 +12435,7 @@ fn destack_gpu_command_copy_texture_to_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &source, &destination, &size);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_COPY_TEXTURE_TO_BUFFER,
         context.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?,
         || match world {
@@ -12448,7 +12448,7 @@ fn destack_gpu_command_copy_texture_to_buffer_replay(
                     size,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_copy_texture_to_buffer(
                     context,
                     handle,
@@ -12489,7 +12489,7 @@ fn destack_gpu_command_copy_texture_to_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_copy_texture_to_texture_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     source: GpuTextureCopy,
@@ -12498,7 +12498,7 @@ fn destack_gpu_command_copy_texture_to_texture_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &source, &destination, &size);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE,
         context.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?,
         || match world {
@@ -12511,7 +12511,7 @@ fn destack_gpu_command_copy_texture_to_texture_replay(
                     size,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_copy_texture_to_texture(
                     context,
                     handle,
@@ -12552,7 +12552,7 @@ fn destack_gpu_command_copy_texture_to_texture_replay(
 
 #[inline]
 fn destack_gpu_command_dispatch_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     groupx: u32,
@@ -12561,7 +12561,7 @@ fn destack_gpu_command_dispatch_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &groupx, &groupy, &groupz);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_DISPATCH,
         context.replay_payload_for(GPU_COMMAND_DISPATCH)?,
         || match world {
@@ -12570,7 +12570,7 @@ fn destack_gpu_command_dispatch_replay(
                     context, handle, groupx, groupy, groupz,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_dispatch(
                     context, handle, groupx, groupy, groupz,
                 )
@@ -12607,7 +12607,7 @@ fn destack_gpu_command_dispatch_replay(
 
 #[inline]
 fn destack_gpu_command_dispatch_indirect_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     buffer: resource::GpuBufferHandle,
@@ -12615,7 +12615,7 @@ fn destack_gpu_command_dispatch_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_DISPATCH_INDIRECT,
         context.replay_payload_for(GPU_COMMAND_DISPATCH_INDIRECT)?,
         || match world {
@@ -12624,7 +12624,7 @@ fn destack_gpu_command_dispatch_indirect_replay(
                     context, handle, buffer, offset,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_dispatch_indirect(
                     context, handle, buffer, offset,
                 )
@@ -12661,7 +12661,7 @@ fn destack_gpu_command_dispatch_indirect_replay(
 
 #[inline]
 fn destack_gpu_command_draw_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     vertexcount: u32,
@@ -12677,7 +12677,7 @@ fn destack_gpu_command_draw_replay(
         &firstinstance,
     );
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_DRAW,
         context.replay_payload_for(GPU_COMMAND_DRAW)?,
         || match world {
@@ -12691,7 +12691,7 @@ fn destack_gpu_command_draw_replay(
                     firstinstance,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_draw(
                     context,
                     handle,
@@ -12733,7 +12733,7 @@ fn destack_gpu_command_draw_replay(
 
 #[inline]
 fn destack_gpu_command_draw_indexed_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     indexcount: u32,
@@ -12751,7 +12751,7 @@ fn destack_gpu_command_draw_indexed_replay(
         &firstinstance,
     );
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_DRAW_INDEXED,
         context.replay_payload_for(GPU_COMMAND_DRAW_INDEXED)?,
         || match world {
@@ -12766,7 +12766,7 @@ fn destack_gpu_command_draw_indexed_replay(
                     firstinstance,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_draw_indexed(
                     context,
                     handle,
@@ -12809,7 +12809,7 @@ fn destack_gpu_command_draw_indexed_replay(
 
 #[inline]
 fn destack_gpu_command_draw_indexed_indirect_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -12819,7 +12819,7 @@ fn destack_gpu_command_draw_indexed_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_DRAW_INDEXED_INDIRECT,
         context.replay_payload_for(GPU_COMMAND_DRAW_INDEXED_INDIRECT)?,
         || match world {
@@ -12828,7 +12828,7 @@ fn destack_gpu_command_draw_indexed_indirect_replay(
                     context, handle, buffer, offset, drawcount, stride,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_draw_indexed_indirect(
                     context, handle, buffer, offset, drawcount, stride,
                 )
@@ -12865,7 +12865,7 @@ fn destack_gpu_command_draw_indexed_indirect_replay(
 
 #[inline]
 fn destack_gpu_command_draw_indirect_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -12875,7 +12875,7 @@ fn destack_gpu_command_draw_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_DRAW_INDIRECT,
         context.replay_payload_for(GPU_COMMAND_DRAW_INDIRECT)?,
         || match world {
@@ -12884,7 +12884,7 @@ fn destack_gpu_command_draw_indirect_replay(
                     context, handle, buffer, offset, drawcount, stride,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_draw_indirect(
                     context, handle, buffer, offset, drawcount, stride,
                 )
@@ -12921,20 +12921,20 @@ fn destack_gpu_command_draw_indirect_replay(
 
 #[inline]
 fn destack_gpu_command_encoder_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_ENCODER_CLOSE,
         context.replay_payload_for(GPU_COMMAND_ENCODER_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_encoder_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_encoder_close(context, handle)
             },
         },
@@ -12969,20 +12969,20 @@ fn destack_gpu_command_encoder_close_replay(
 
 #[inline]
 fn destack_gpu_command_encoder_finish_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_ENCODER_FINISH,
         context.replay_payload_for(GPU_COMMAND_ENCODER_FINISH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_encoder_finish(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_encoder_finish(context, handle)
             },
         },
@@ -13017,7 +13017,7 @@ fn destack_gpu_command_encoder_finish_replay(
 
 #[inline]
 fn destack_gpu_command_encoder_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuCommandListHandle,
     device: resource::GpuDeviceHandle,
@@ -13025,14 +13025,14 @@ fn destack_gpu_command_encoder_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_ENCODER_OPEN,
         context.replay_payload_for(GPU_COMMAND_ENCODER_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_encoder_open(context, out, device, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_encoder_open(
                     context, out, device, options,
                 )
@@ -13081,21 +13081,21 @@ fn destack_gpu_command_encoder_open_replay(
 
 #[inline]
 fn destack_gpu_command_execute_bundles_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     bundles: NativeSlice<resource::GpuRenderBundleHandle>,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &bundles);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_EXECUTE_BUNDLES,
         context.replay_payload_for(GPU_COMMAND_EXECUTE_BUNDLES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_execute_bundles(context, handle, bundles)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_execute_bundles(
                     context, handle, bundles,
                 )
@@ -13132,21 +13132,21 @@ fn destack_gpu_command_execute_bundles_replay(
 
 #[inline]
 fn destack_gpu_command_insert_debug_marker_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     marker: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &marker);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_INSERT_DEBUG_MARKER,
         context.replay_payload_for(GPU_COMMAND_INSERT_DEBUG_MARKER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_insert_debug_marker(context, handle, marker)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_insert_debug_marker(
                     context, handle, marker,
                 )
@@ -13183,7 +13183,7 @@ fn destack_gpu_command_insert_debug_marker_replay(
 
 #[inline]
 fn destack_gpu_command_multi_draw_indexed_indirect_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -13193,7 +13193,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT,
         context.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT)?,
         || match world {
@@ -13202,7 +13202,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_replay(
                     context, handle, buffer, offset, drawcount, stride,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_multi_draw_indexed_indirect(
                     context, handle, buffer, offset, drawcount, stride,
                 )
@@ -13239,7 +13239,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_replay(
 
 #[inline]
 fn destack_gpu_command_multi_draw_indexed_indirect_count_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -13259,7 +13259,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_replay(
         &stride,
     );
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT,
         context.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT)?,
         || match world {
@@ -13275,7 +13275,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_replay(
                     stride,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_multi_draw_indexed_indirect_count(
                     context,
                     handle,
@@ -13319,7 +13319,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_replay(
 
 #[inline]
 fn destack_gpu_command_multi_draw_indirect_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -13329,7 +13329,7 @@ fn destack_gpu_command_multi_draw_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_MULTI_DRAW_INDIRECT,
         context.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT)?,
         || match world {
@@ -13338,7 +13338,7 @@ fn destack_gpu_command_multi_draw_indirect_replay(
                     context, handle, buffer, offset, drawcount, stride,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_multi_draw_indirect(
                     context, handle, buffer, offset, drawcount, stride,
                 )
@@ -13375,7 +13375,7 @@ fn destack_gpu_command_multi_draw_indirect_replay(
 
 #[inline]
 fn destack_gpu_command_multi_draw_indirect_count_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -13395,7 +13395,7 @@ fn destack_gpu_command_multi_draw_indirect_count_replay(
         &stride,
     );
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT,
         context.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT)?,
         || match world {
@@ -13411,7 +13411,7 @@ fn destack_gpu_command_multi_draw_indirect_count_replay(
                     stride,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_multi_draw_indirect_count(
                     context,
                     handle,
@@ -13455,20 +13455,20 @@ fn destack_gpu_command_multi_draw_indirect_count_replay(
 
 #[inline]
 fn destack_gpu_command_pop_debug_group_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_POP_DEBUG_GROUP,
         context.replay_payload_for(GPU_COMMAND_POP_DEBUG_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_pop_debug_group(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_pop_debug_group(context, handle)
             },
         },
@@ -13503,21 +13503,21 @@ fn destack_gpu_command_pop_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_push_debug_group_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     label: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &label);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_PUSH_DEBUG_GROUP,
         context.replay_payload_for(GPU_COMMAND_PUSH_DEBUG_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_push_debug_group(context, handle, label)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_push_debug_group(
                     context, handle, label,
                 )
@@ -13554,7 +13554,7 @@ fn destack_gpu_command_push_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_queue_submit_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     commandlists: NativeSlice<resource::GpuCommandListHandle>,
@@ -13562,14 +13562,14 @@ fn destack_gpu_command_queue_submit_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &commandlists, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_QUEUE_SUBMIT,
         context.replay_payload_for(GPU_COMMAND_QUEUE_SUBMIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_queue_submit(context, queue, commandlists, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_queue_submit(
                     context,
                     queue,
@@ -13609,21 +13609,21 @@ fn destack_gpu_command_queue_submit_replay(
 
 #[inline]
 fn destack_gpu_command_queue_wait_idle_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let _ = (&queue, &timeoutns);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_QUEUE_WAIT_IDLE,
         context.replay_payload_for(GPU_COMMAND_QUEUE_WAIT_IDLE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_queue_wait_idle(context, queue, timeoutns)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_queue_wait_idle(context, queue, timeoutns)
             },
         },
@@ -13658,7 +13658,7 @@ fn destack_gpu_command_queue_wait_idle_replay(
 
 #[inline]
 fn destack_gpu_command_queue_write_buffer_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     buffer: resource::GpuBufferHandle,
@@ -13669,7 +13669,7 @@ fn destack_gpu_command_queue_write_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &buffer, &bufferoffset, &data, &dataoffset, &size);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_QUEUE_WRITE_BUFFER,
         context.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_BUFFER)?,
         || match world {
@@ -13684,7 +13684,7 @@ fn destack_gpu_command_queue_write_buffer_replay(
                     size,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_queue_write_buffer(
                     context,
                     queue,
@@ -13727,7 +13727,7 @@ fn destack_gpu_command_queue_write_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_queue_write_texture_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     destination: GpuTextureCopy,
@@ -13737,7 +13737,7 @@ fn destack_gpu_command_queue_write_texture_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &destination, &data, &layout, &size);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_QUEUE_WRITE_TEXTURE,
         context.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?,
         || match world {
@@ -13751,7 +13751,7 @@ fn destack_gpu_command_queue_write_texture_replay(
                     size,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_queue_write_texture(
                     context,
                     queue,
@@ -13793,20 +13793,20 @@ fn destack_gpu_command_queue_write_texture_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_destroy_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_DESTROY,
         context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_bundle_destroy(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_destroy(context, handle)
             },
         },
@@ -13841,7 +13841,7 @@ fn destack_gpu_command_render_bundle_destroy_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     vertexcount: u32,
@@ -13857,7 +13857,7 @@ fn destack_gpu_command_render_bundle_draw_replay(
         &firstinstance,
     );
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_DRAW,
         context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW)?,
         || match world {
@@ -13871,7 +13871,7 @@ fn destack_gpu_command_render_bundle_draw_replay(
                     firstinstance,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_draw(
                     context,
                     handle,
@@ -13913,7 +13913,7 @@ fn destack_gpu_command_render_bundle_draw_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_indexed_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     indexcount: u32,
@@ -13931,7 +13931,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_replay(
         &firstinstance,
     );
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED,
         context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED)?,
         || match world {
@@ -13946,7 +13946,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_replay(
                     firstinstance,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_draw_indexed(
                     context,
                     handle,
@@ -13989,7 +13989,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_indexed_indirect_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     buffer: resource::GpuBufferHandle,
@@ -13999,7 +13999,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT,
         context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT)?,
         || match world {
@@ -14008,7 +14008,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_indirect_replay(
                     context, handle, buffer, offset, drawcount, stride,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_draw_indexed_indirect(
                     context, handle, buffer, offset, drawcount, stride,
                 )
@@ -14045,7 +14045,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_indirect_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_indirect_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     buffer: resource::GpuBufferHandle,
@@ -14055,7 +14055,7 @@ fn destack_gpu_command_render_bundle_draw_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT,
         context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT)?,
         || match world {
@@ -14064,7 +14064,7 @@ fn destack_gpu_command_render_bundle_draw_indirect_replay(
                     context, handle, buffer, offset, drawcount, stride,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_draw_indirect(
                     context, handle, buffer, offset, drawcount, stride,
                 )
@@ -14101,20 +14101,20 @@ fn destack_gpu_command_render_bundle_draw_indirect_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_encoder_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE,
         context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_bundle_encoder_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_encoder_close(context, handle)
             },
         },
@@ -14149,21 +14149,21 @@ fn destack_gpu_command_render_bundle_encoder_close_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_encoder_finish_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuRenderBundleHandle,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH,
         context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_bundle_encoder_finish(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_encoder_finish(
                     context, out, handle,
                 )
@@ -14212,7 +14212,7 @@ fn destack_gpu_command_render_bundle_encoder_finish_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_encoder_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuRenderBundleEncoderHandle,
     device: resource::GpuDeviceHandle,
@@ -14220,7 +14220,7 @@ fn destack_gpu_command_render_bundle_encoder_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN,
         context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN)?,
         || match world {
@@ -14229,7 +14229,7 @@ fn destack_gpu_command_render_bundle_encoder_open_replay(
                     context, out, device, options,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_encoder_open(
                     context, out, device, options,
                 )
@@ -14278,14 +14278,14 @@ fn destack_gpu_command_render_bundle_encoder_open_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_insert_debug_marker_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     marker: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &marker);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER,
         context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER)?,
         || match world {
@@ -14294,7 +14294,7 @@ fn destack_gpu_command_render_bundle_insert_debug_marker_replay(
                     context, handle, marker,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_insert_debug_marker(
                     context, handle, marker,
                 )
@@ -14331,20 +14331,20 @@ fn destack_gpu_command_render_bundle_insert_debug_marker_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_pop_debug_group_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP,
         context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_bundle_pop_debug_group(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_pop_debug_group(
                     context, handle,
                 )
@@ -14381,21 +14381,21 @@ fn destack_gpu_command_render_bundle_pop_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_push_debug_group_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     label: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &label);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP,
         context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_bundle_push_debug_group(context, handle, label)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_push_debug_group(
                     context, handle, label,
                 )
@@ -14432,7 +14432,7 @@ fn destack_gpu_command_render_bundle_push_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_bind_group_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     index: u32,
@@ -14441,7 +14441,7 @@ fn destack_gpu_command_render_bundle_set_bind_group_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP,
         context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP)?,
         || match world {
@@ -14454,7 +14454,7 @@ fn destack_gpu_command_render_bundle_set_bind_group_replay(
                     dynamicoffsets,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_set_bind_group(
                     context,
                     handle,
@@ -14495,7 +14495,7 @@ fn destack_gpu_command_render_bundle_set_bind_group_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_index_buffer_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     buffer: resource::GpuBufferHandle,
@@ -14505,7 +14505,7 @@ fn destack_gpu_command_render_bundle_set_index_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &format, &offset, &size);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER,
         context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER)?,
         || match world {
@@ -14514,7 +14514,7 @@ fn destack_gpu_command_render_bundle_set_index_buffer_replay(
                     context, handle, buffer, format, offset, size,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_set_index_buffer(
                     context, handle, buffer, format, offset, size,
                 )
@@ -14551,21 +14551,21 @@ fn destack_gpu_command_render_bundle_set_index_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_pipeline_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &pipeline);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE,
         context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_bundle_set_pipeline(context, handle, pipeline)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_set_pipeline(
                     context, handle, pipeline,
                 )
@@ -14602,7 +14602,7 @@ fn destack_gpu_command_render_bundle_set_pipeline_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_vertex_buffer_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     slot: u32,
@@ -14612,7 +14612,7 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &slot, &buffer, &offset, &size);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER,
         context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER)?,
         || match world {
@@ -14621,7 +14621,7 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_replay(
                     context, handle, slot, buffer, offset, size,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_set_vertex_buffer(
                     context, handle, slot, buffer, offset, size,
                 )
@@ -14658,7 +14658,7 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_begin_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuRenderPassHandle,
     handle: resource::GpuCommandListHandle,
@@ -14666,7 +14666,7 @@ fn destack_gpu_command_render_pass_begin_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_PASS_BEGIN,
         context.replay_payload_for(GPU_COMMAND_RENDER_PASS_BEGIN)?,
         || match world {
@@ -14675,7 +14675,7 @@ fn destack_gpu_command_render_pass_begin_replay(
                     context, out, handle, options,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_render_pass_begin(
                     context, out, handle, options,
                 )
@@ -14724,20 +14724,20 @@ fn destack_gpu_command_render_pass_begin_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_end_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_PASS_END,
         context.replay_payload_for(GPU_COMMAND_RENDER_PASS_END)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_render_pass_end(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_render_pass_end(context, handle)
             },
         },
@@ -14772,14 +14772,14 @@ fn destack_gpu_command_render_pass_end_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_insert_debug_marker_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     marker: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &marker);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
         context.replay_payload_for(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?,
         || match world {
@@ -14788,7 +14788,7 @@ fn destack_gpu_command_render_pass_insert_debug_marker_replay(
                     context, handle, marker,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_render_pass_insert_debug_marker(
                     context, handle, marker,
                 )
@@ -14825,20 +14825,20 @@ fn destack_gpu_command_render_pass_insert_debug_marker_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_pop_debug_group_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP,
         context.replay_payload_for(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_render_pass_pop_debug_group(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_render_pass_pop_debug_group(
                     context, handle,
                 )
@@ -14875,14 +14875,14 @@ fn destack_gpu_command_render_pass_pop_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_push_debug_group_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     label: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &label);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
         context.replay_payload_for(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?,
         || match world {
@@ -14891,7 +14891,7 @@ fn destack_gpu_command_render_pass_push_debug_group_replay(
                     context, handle, label,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_render_pass_push_debug_group(
                     context, handle, label,
                 )
@@ -14928,7 +14928,7 @@ fn destack_gpu_command_render_pass_push_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_set_blend_constant_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     r: f64,
@@ -14938,14 +14938,14 @@ fn destack_gpu_command_set_blend_constant_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &r, &g, &b, &a);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_SET_BLEND_CONSTANT,
         context.replay_payload_for(GPU_COMMAND_SET_BLEND_CONSTANT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_set_blend_constant(context, handle, r, g, b, a)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_blend_constant(
                     context, handle, r, g, b, a,
                 )
@@ -14982,7 +14982,7 @@ fn destack_gpu_command_set_blend_constant_replay(
 
 #[inline]
 fn destack_gpu_command_set_compute_bind_group_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     index: u32,
@@ -14991,7 +14991,7 @@ fn destack_gpu_command_set_compute_bind_group_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_SET_COMPUTE_BIND_GROUP,
         context.replay_payload_for(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?,
         || match world {
@@ -15004,7 +15004,7 @@ fn destack_gpu_command_set_compute_bind_group_replay(
                     dynamicoffsets,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_compute_bind_group(
                     context,
                     handle,
@@ -15045,7 +15045,7 @@ fn destack_gpu_command_set_compute_bind_group_replay(
 
 #[inline]
 fn destack_gpu_command_set_index_buffer_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -15055,7 +15055,7 @@ fn destack_gpu_command_set_index_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &format, &offset, &size);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_SET_INDEX_BUFFER,
         context.replay_payload_for(GPU_COMMAND_SET_INDEX_BUFFER)?,
         || match world {
@@ -15064,7 +15064,7 @@ fn destack_gpu_command_set_index_buffer_replay(
                     context, handle, buffer, format, offset, size,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_index_buffer(
                     context, handle, buffer, format, offset, size,
                 )
@@ -15101,7 +15101,7 @@ fn destack_gpu_command_set_index_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_set_render_bind_group_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     index: u32,
@@ -15110,7 +15110,7 @@ fn destack_gpu_command_set_render_bind_group_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_SET_RENDER_BIND_GROUP,
         context.replay_payload_for(GPU_COMMAND_SET_RENDER_BIND_GROUP)?,
         || match world {
@@ -15123,7 +15123,7 @@ fn destack_gpu_command_set_render_bind_group_replay(
                     dynamicoffsets,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_render_bind_group(
                     context,
                     handle,
@@ -15164,7 +15164,7 @@ fn destack_gpu_command_set_render_bind_group_replay(
 
 #[inline]
 fn destack_gpu_command_set_scissor_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     x: u32,
@@ -15174,7 +15174,7 @@ fn destack_gpu_command_set_scissor_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &x, &y, &width, &height);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_SET_SCISSOR,
         context.replay_payload_for(GPU_COMMAND_SET_SCISSOR)?,
         || match world {
@@ -15183,7 +15183,7 @@ fn destack_gpu_command_set_scissor_replay(
                     context, handle, x, y, width, height,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_scissor(
                     context, handle, x, y, width, height,
                 )
@@ -15220,14 +15220,14 @@ fn destack_gpu_command_set_scissor_replay(
 
 #[inline]
 fn destack_gpu_command_set_stencil_reference_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     reference: u32,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &reference);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_SET_STENCIL_REFERENCE,
         context.replay_payload_for(GPU_COMMAND_SET_STENCIL_REFERENCE)?,
         || match world {
@@ -15236,7 +15236,7 @@ fn destack_gpu_command_set_stencil_reference_replay(
                     context, handle, reference,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_stencil_reference(
                     context, handle, reference,
                 )
@@ -15273,7 +15273,7 @@ fn destack_gpu_command_set_stencil_reference_replay(
 
 #[inline]
 fn destack_gpu_command_set_vertex_buffer_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     slot: u32,
@@ -15283,7 +15283,7 @@ fn destack_gpu_command_set_vertex_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &slot, &buffer, &offset, &size);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_SET_VERTEX_BUFFER,
         context.replay_payload_for(GPU_COMMAND_SET_VERTEX_BUFFER)?,
         || match world {
@@ -15292,7 +15292,7 @@ fn destack_gpu_command_set_vertex_buffer_replay(
                     context, handle, slot, buffer, offset, size,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_vertex_buffer(
                     context, handle, slot, buffer, offset, size,
                 )
@@ -15329,7 +15329,7 @@ fn destack_gpu_command_set_vertex_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_set_viewport_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     x: f64,
@@ -15341,7 +15341,7 @@ fn destack_gpu_command_set_viewport_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &x, &y, &width, &height, &mindepth, &maxdepth);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_COMMAND_SET_VIEWPORT,
         context.replay_payload_for(GPU_COMMAND_SET_VIEWPORT)?,
         || match world {
@@ -15350,7 +15350,7 @@ fn destack_gpu_command_set_viewport_replay(
                     context, handle, x, y, width, height, mindepth, maxdepth,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_viewport(
                     context, handle, x, y, width, height, mindepth, maxdepth,
                 )
@@ -15387,21 +15387,21 @@ fn destack_gpu_command_set_viewport_replay(
 
 #[inline]
 fn destack_gpu_debug_set_label_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::ResourceId,
     label: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &label);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_DEBUG_SET_LABEL,
         context.replay_payload_for(GPU_DEBUG_SET_LABEL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_set_label(context, handle, label)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_set_label(context, handle, label)
             },
         },
@@ -15436,20 +15436,20 @@ fn destack_gpu_debug_set_label_replay(
 
 #[inline]
 fn destack_gpu_device_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_DEVICE_CLOSE,
         context.replay_payload_for(GPU_DEVICE_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_device_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_device_close(context, handle)
             },
         },
@@ -15484,21 +15484,21 @@ fn destack_gpu_device_close_replay(
 
 #[inline]
 fn destack_gpu_device_features_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<GpuFeatureId>,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &device;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_DEVICE_FEATURES,
         context.replay_payload_for(GPU_DEVICE_FEATURES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_device_features(context, out, device)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_device_features(context, out, device)
             },
         },
@@ -15556,7 +15556,7 @@ fn destack_gpu_device_features_replay(
 
 #[inline]
 fn destack_gpu_device_has_feature_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
     device: resource::GpuDeviceHandle,
@@ -15564,14 +15564,14 @@ fn destack_gpu_device_has_feature_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &feature);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_DEVICE_HAS_FEATURE,
         context.replay_payload_for(GPU_DEVICE_HAS_FEATURE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_device_has_feature(context, out, device, feature)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_device_has_feature(
                     context, out, device, feature,
                 )
@@ -15620,19 +15620,19 @@ fn destack_gpu_device_has_feature_replay(
 
 #[inline]
 fn destack_gpu_device_info_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuDeviceInfo,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &device;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_DEVICE_INFO,
         context.replay_payload_for(GPU_DEVICE_INFO)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_gpu_device_info(context, out, device) },
-            RuntimeWorld::Simulated => unsafe { platform_simulation_native::destack_gpu_device_info(context, out, device) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_device_info(context, out, device) },
         },
         |result| {
             if let Ok(()) = result {
@@ -15846,21 +15846,21 @@ fn destack_gpu_device_info_replay(
 
 #[inline]
 fn destack_gpu_device_limits_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuAdapterLimits,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &device;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_DEVICE_LIMITS,
         context.replay_payload_for(GPU_DEVICE_LIMITS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_device_limits(context, out, device)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_device_limits(context, out, device)
             },
         },
@@ -16107,7 +16107,7 @@ fn destack_gpu_device_limits_replay(
 
 #[inline]
 fn destack_gpu_device_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuDeviceHandle,
     adapter: resource::GpuAdapterHandle,
@@ -16115,14 +16115,14 @@ fn destack_gpu_device_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&adapter, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_DEVICE_OPEN,
         context.replay_payload_for(GPU_DEVICE_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_device_open(context, out, adapter, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_device_open(context, out, adapter, options)
             },
         },
@@ -16169,7 +16169,7 @@ fn destack_gpu_device_open_replay(
 
 #[inline]
 fn destack_gpu_device_poll_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     device: resource::GpuDeviceHandle,
@@ -16178,14 +16178,14 @@ fn destack_gpu_device_poll_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &wait, &timeoutns);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_DEVICE_POLL,
         context.replay_payload_for(GPU_DEVICE_POLL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_device_poll(context, out, device, wait, timeoutns)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_device_poll(
                     context, out, device, wait, timeoutns,
                 )
@@ -16234,7 +16234,7 @@ fn destack_gpu_device_poll_replay(
 
 #[inline]
 fn destack_gpu_device_pop_error_scope_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuCapturedError,
     device: resource::GpuDeviceHandle,
@@ -16242,14 +16242,14 @@ fn destack_gpu_device_pop_error_scope_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &timeoutns);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_DEVICE_POP_ERROR_SCOPE,
         context.replay_payload_for(GPU_DEVICE_POP_ERROR_SCOPE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_device_pop_error_scope(context, out, device, timeoutns)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_device_pop_error_scope(
                     context, out, device, timeoutns,
                 )
@@ -16312,21 +16312,21 @@ fn destack_gpu_device_pop_error_scope_replay(
 
 #[inline]
 fn destack_gpu_device_push_error_scope_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     filter: GpuErrorFilter,
 ) -> RuntimeResult<()> {
     let _ = (&device, &filter);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_DEVICE_PUSH_ERROR_SCOPE,
         context.replay_payload_for(GPU_DEVICE_PUSH_ERROR_SCOPE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_device_push_error_scope(context, device, filter)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_device_push_error_scope(
                     context, device, filter,
                 )
@@ -16363,21 +16363,21 @@ fn destack_gpu_device_push_error_scope_replay(
 
 #[inline]
 fn destack_gpu_device_queue_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuQueueHandle,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &device;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_DEVICE_QUEUE,
         context.replay_payload_for(GPU_DEVICE_QUEUE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_device_queue(context, out, device)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_device_queue(context, out, device)
             },
         },
@@ -16424,21 +16424,21 @@ fn destack_gpu_device_queue_replay(
 
 #[inline]
 fn destack_gpu_device_status_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuDeviceStatus,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &device;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_DEVICE_STATUS,
         context.replay_payload_for(GPU_DEVICE_STATUS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_device_status(context, out, device)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_device_status(context, out, device)
             },
         },
@@ -16503,7 +16503,7 @@ fn destack_gpu_device_status_replay(
 
 #[inline]
 fn destack_gpu_pipeline_bind_group_layout_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuBindGroupLayoutHandle,
     pipeline: resource::GpuPipelineHandle,
@@ -16511,7 +16511,7 @@ fn destack_gpu_pipeline_bind_group_layout_replay(
 ) -> RuntimeResult<()> {
     let _ = (&pipeline, &groupindex);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_PIPELINE_BIND_GROUP_LAYOUT,
         context.replay_payload_for(GPU_PIPELINE_BIND_GROUP_LAYOUT)?,
         || match world {
@@ -16520,7 +16520,7 @@ fn destack_gpu_pipeline_bind_group_layout_replay(
                     context, out, pipeline, groupindex,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_pipeline_bind_group_layout(
                     context, out, pipeline, groupindex,
                 )
@@ -16569,7 +16569,7 @@ fn destack_gpu_pipeline_bind_group_layout_replay(
 
 #[inline]
 fn destack_gpu_pipeline_compute_create_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuPipelineHandle,
     device: resource::GpuDeviceHandle,
@@ -16577,14 +16577,14 @@ fn destack_gpu_pipeline_compute_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_PIPELINE_COMPUTE_CREATE,
         context.replay_payload_for(GPU_PIPELINE_COMPUTE_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_compute_pipeline_create(context, out, device, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_compute_pipeline_create(
                     context, out, device, options,
                 )
@@ -16633,20 +16633,20 @@ fn destack_gpu_pipeline_compute_create_replay(
 
 #[inline]
 fn destack_gpu_pipeline_destroy_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_PIPELINE_DESTROY,
         context.replay_payload_for(GPU_PIPELINE_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_pipeline_destroy(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_pipeline_destroy(context, handle)
             },
         },
@@ -16681,7 +16681,7 @@ fn destack_gpu_pipeline_destroy_replay(
 
 #[inline]
 fn destack_gpu_pipeline_render_create_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuPipelineHandle,
     device: resource::GpuDeviceHandle,
@@ -16689,14 +16689,14 @@ fn destack_gpu_pipeline_render_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_PIPELINE_RENDER_CREATE,
         context.replay_payload_for(GPU_PIPELINE_RENDER_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_pipeline_create(context, out, device, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_pipeline_create(
                     context, out, device, options,
                 )
@@ -16745,7 +16745,7 @@ fn destack_gpu_pipeline_render_create_replay(
 
 #[inline]
 fn destack_gpu_pipeline_shader_compilation_info_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuCompilationInfo,
     handle: resource::GpuShaderHandle,
@@ -16753,7 +16753,7 @@ fn destack_gpu_pipeline_shader_compilation_info_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_PIPELINE_SHADER_COMPILATION_INFO,
         context.replay_payload_for(GPU_PIPELINE_SHADER_COMPILATION_INFO)?,
         || match world {
@@ -16762,7 +16762,7 @@ fn destack_gpu_pipeline_shader_compilation_info_replay(
                     context, out, handle, timeoutns,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_shader_compilation_info(
                     context, out, handle, timeoutns,
                 )
@@ -16868,7 +16868,7 @@ fn destack_gpu_pipeline_shader_compilation_info_replay(
 
 #[inline]
 fn destack_gpu_pipeline_shader_create_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuShaderHandle,
     device: resource::GpuDeviceHandle,
@@ -16877,7 +16877,7 @@ fn destack_gpu_pipeline_shader_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options, &argument_bytes);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_PIPELINE_SHADER_CREATE,
         context.replay_payload_for(GPU_PIPELINE_SHADER_CREATE)?,
         || match world {
@@ -16890,7 +16890,7 @@ fn destack_gpu_pipeline_shader_create_replay(
                     argument_bytes,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_shader_create(
                     context,
                     out,
@@ -16943,20 +16943,20 @@ fn destack_gpu_pipeline_shader_create_replay(
 
 #[inline]
 fn destack_gpu_pipeline_shader_destroy_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuShaderHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_PIPELINE_SHADER_DESTROY,
         context.replay_payload_for(GPU_PIPELINE_SHADER_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_shader_destroy(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_shader_destroy(context, handle)
             },
         },
@@ -16991,7 +16991,7 @@ fn destack_gpu_pipeline_shader_destroy_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_create_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuBufferHandle,
     device: resource::GpuDeviceHandle,
@@ -16999,14 +16999,14 @@ fn destack_gpu_resource_buffer_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_RESOURCE_BUFFER_CREATE,
         context.replay_payload_for(GPU_RESOURCE_BUFFER_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_buffer_create(context, out, device, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_buffer_create(context, out, device, options)
             },
         },
@@ -17053,20 +17053,20 @@ fn destack_gpu_resource_buffer_create_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_destroy_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_RESOURCE_BUFFER_DESTROY,
         context.replay_payload_for(GPU_RESOURCE_BUFFER_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_buffer_destroy(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_buffer_destroy(context, handle)
             },
         },
@@ -17101,21 +17101,21 @@ fn destack_gpu_resource_buffer_destroy_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_info_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuBufferInfo,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_RESOURCE_BUFFER_INFO,
         context.replay_payload_for(GPU_RESOURCE_BUFFER_INFO)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_buffer_info(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_buffer_info(context, out, handle)
             },
         },
@@ -17176,7 +17176,7 @@ fn destack_gpu_resource_buffer_info_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_map_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuMappedBufferRange,
     handle: resource::GpuBufferHandle,
@@ -17186,14 +17186,14 @@ fn destack_gpu_resource_buffer_map_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &mode);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_RESOURCE_BUFFER_MAP,
         context.replay_payload_for(GPU_RESOURCE_BUFFER_MAP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_buffer_map(context, out, handle, offset, length, mode)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_buffer_map(
                     context, out, handle, offset, length, mode,
                 )
@@ -17256,7 +17256,7 @@ fn destack_gpu_resource_buffer_map_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_read_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::GpuBufferHandle,
@@ -17265,14 +17265,14 @@ fn destack_gpu_resource_buffer_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_RESOURCE_BUFFER_READ,
         context.replay_payload_for(GPU_RESOURCE_BUFFER_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_buffer_read(context, out, handle, offset, length)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_buffer_read(
                     context, out, handle, offset, length,
                 )
@@ -17332,20 +17332,20 @@ fn destack_gpu_resource_buffer_read_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_unmap_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_RESOURCE_BUFFER_UNMAP,
         context.replay_payload_for(GPU_RESOURCE_BUFFER_UNMAP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_buffer_unmap(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_buffer_unmap(context, handle)
             },
         },
@@ -17380,7 +17380,7 @@ fn destack_gpu_resource_buffer_unmap_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_write_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
     offset: u64,
@@ -17388,14 +17388,14 @@ fn destack_gpu_resource_buffer_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &argument_bytes);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_RESOURCE_BUFFER_WRITE,
         context.replay_payload_for(GPU_RESOURCE_BUFFER_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_buffer_write(context, handle, offset, argument_bytes)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_buffer_write(
                     context,
                     handle,
@@ -17435,7 +17435,7 @@ fn destack_gpu_resource_buffer_write_replay(
 
 #[inline]
 fn destack_gpu_resource_sampler_create_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuSamplerHandle,
     device: resource::GpuDeviceHandle,
@@ -17443,14 +17443,14 @@ fn destack_gpu_resource_sampler_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_RESOURCE_SAMPLER_CREATE,
         context.replay_payload_for(GPU_RESOURCE_SAMPLER_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_sampler_create(context, out, device, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_sampler_create(
                     context, out, device, options,
                 )
@@ -17499,20 +17499,20 @@ fn destack_gpu_resource_sampler_create_replay(
 
 #[inline]
 fn destack_gpu_resource_sampler_destroy_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuSamplerHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_RESOURCE_SAMPLER_DESTROY,
         context.replay_payload_for(GPU_RESOURCE_SAMPLER_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_sampler_destroy(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_sampler_destroy(context, handle)
             },
         },
@@ -17547,7 +17547,7 @@ fn destack_gpu_resource_sampler_destroy_replay(
 
 #[inline]
 fn destack_gpu_resource_texture_create_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuTextureHandle,
     device: resource::GpuDeviceHandle,
@@ -17555,14 +17555,14 @@ fn destack_gpu_resource_texture_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_RESOURCE_TEXTURE_CREATE,
         context.replay_payload_for(GPU_RESOURCE_TEXTURE_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_texture_create(context, out, device, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_texture_create(
                     context, out, device, options,
                 )
@@ -17611,20 +17611,20 @@ fn destack_gpu_resource_texture_create_replay(
 
 #[inline]
 fn destack_gpu_resource_texture_destroy_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_RESOURCE_TEXTURE_DESTROY,
         context.replay_payload_for(GPU_RESOURCE_TEXTURE_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_texture_destroy(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_texture_destroy(context, handle)
             },
         },
@@ -17659,21 +17659,21 @@ fn destack_gpu_resource_texture_destroy_replay(
 
 #[inline]
 fn destack_gpu_resource_texture_info_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuTextureInfo,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_RESOURCE_TEXTURE_INFO,
         context.replay_payload_for(GPU_RESOURCE_TEXTURE_INFO)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_texture_info(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_texture_info(context, out, handle)
             },
         },
@@ -17754,7 +17754,7 @@ fn destack_gpu_resource_texture_info_replay(
 
 #[inline]
 fn destack_gpu_resource_texture_view_create_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuTextureViewHandle,
     texture: resource::GpuTextureHandle,
@@ -17762,14 +17762,14 @@ fn destack_gpu_resource_texture_view_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&texture, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_RESOURCE_TEXTURE_VIEW_CREATE,
         context.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_texture_view_create(context, out, texture, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_texture_view_create(
                     context, out, texture, options,
                 )
@@ -17818,20 +17818,20 @@ fn destack_gpu_resource_texture_view_create_replay(
 
 #[inline]
 fn destack_gpu_resource_texture_view_destroy_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuTextureViewHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_RESOURCE_TEXTURE_VIEW_DESTROY,
         context.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_texture_view_destroy(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_texture_view_destroy(context, handle)
             },
         },
@@ -17866,7 +17866,7 @@ fn destack_gpu_resource_texture_view_destroy_replay(
 
 #[inline]
 fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     computepass: resource::GpuComputePassHandle,
     queryset: resource::GpuQuerySetHandle,
@@ -17874,12 +17874,12 @@ fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_replay(
 ) -> RuntimeResult<()> {
     let _ = (&computepass, &queryset, &queryindex);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY,
         context.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_begin_compute_pipeline_statistics_query(context, computepass, queryset, queryindex) },
-            RuntimeWorld::Simulated => unsafe { platform_simulation_native::destack_gpu_command_begin_compute_pipeline_statistics_query(context, computepass, queryset, queryindex) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_command_begin_compute_pipeline_statistics_query(context, computepass, queryset, queryindex) },
         },
         |result| {
             if let Ok(()) = result {
@@ -17914,7 +17914,7 @@ fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_replay(
 
 #[inline]
 fn destack_gpu_sync_command_begin_occlusion_query_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
@@ -17922,7 +17922,7 @@ fn destack_gpu_sync_command_begin_occlusion_query_replay(
 ) -> RuntimeResult<()> {
     let _ = (&renderpass, &queryset, &queryindex);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY,
         context.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?,
         || match world {
@@ -17931,7 +17931,7 @@ fn destack_gpu_sync_command_begin_occlusion_query_replay(
                     context, renderpass, queryset, queryindex,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_begin_occlusion_query(
                     context, renderpass, queryset, queryindex,
                 )
@@ -17968,7 +17968,7 @@ fn destack_gpu_sync_command_begin_occlusion_query_replay(
 
 #[inline]
 fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
@@ -17976,12 +17976,12 @@ fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_replay(
 ) -> RuntimeResult<()> {
     let _ = (&renderpass, &queryset, &queryindex);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY,
         context.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_begin_render_pipeline_statistics_query(context, renderpass, queryset, queryindex) },
-            RuntimeWorld::Simulated => unsafe { platform_simulation_native::destack_gpu_command_begin_render_pipeline_statistics_query(context, renderpass, queryset, queryindex) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_command_begin_render_pipeline_statistics_query(context, renderpass, queryset, queryindex) },
         },
         |result| {
             if let Ok(()) = result {
@@ -18016,18 +18016,18 @@ fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_replay(
 
 #[inline]
 fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     computepass: resource::GpuComputePassHandle,
 ) -> RuntimeResult<()> {
     let _ = &computepass;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
         context.replay_payload_for(GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_end_compute_pipeline_statistics_query(context, computepass) },
-            RuntimeWorld::Simulated => unsafe { platform_simulation_native::destack_gpu_command_end_compute_pipeline_statistics_query(context, computepass) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_command_end_compute_pipeline_statistics_query(context, computepass) },
         },
         |result| {
             if let Ok(()) = result {
@@ -18062,20 +18062,20 @@ fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_replay(
 
 #[inline]
 fn destack_gpu_sync_command_end_occlusion_query_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
     let _ = &renderpass;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_END_OCCLUSION_QUERY,
         context.replay_payload_for(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_end_occlusion_query(context, renderpass)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_end_occlusion_query(
                     context, renderpass,
                 )
@@ -18112,18 +18112,18 @@ fn destack_gpu_sync_command_end_occlusion_query_replay(
 
 #[inline]
 fn destack_gpu_sync_command_end_render_pipeline_statistics_query_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
     let _ = &renderpass;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
         context.replay_payload_for(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?,
         || match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_end_render_pipeline_statistics_query(context, renderpass) },
-            RuntimeWorld::Simulated => unsafe { platform_simulation_native::destack_gpu_command_end_render_pipeline_statistics_query(context, renderpass) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_command_end_render_pipeline_statistics_query(context, renderpass) },
         },
         |result| {
             if let Ok(()) = result {
@@ -18158,7 +18158,7 @@ fn destack_gpu_sync_command_end_render_pipeline_statistics_query_replay(
 
 #[inline]
 fn destack_gpu_sync_command_resolve_queries_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     commandlist: resource::GpuCommandListHandle,
     queryset: resource::GpuQuerySetHandle,
@@ -18176,7 +18176,7 @@ fn destack_gpu_sync_command_resolve_queries_replay(
         &destinationoffset,
     );
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_RESOLVE_QUERIES,
         context.replay_payload_for(GPU_SYNC_COMMAND_RESOLVE_QUERIES)?,
         || match world {
@@ -18191,7 +18191,7 @@ fn destack_gpu_sync_command_resolve_queries_replay(
                     destinationoffset,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_resolve_queries(
                     context,
                     commandlist,
@@ -18234,7 +18234,7 @@ fn destack_gpu_sync_command_resolve_queries_replay(
 
 #[inline]
 fn destack_gpu_sync_command_write_timestamp_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     commandlist: resource::GpuCommandListHandle,
     queryset: resource::GpuQuerySetHandle,
@@ -18242,7 +18242,7 @@ fn destack_gpu_sync_command_write_timestamp_replay(
 ) -> RuntimeResult<()> {
     let _ = (&commandlist, &queryset, &queryindex);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_WRITE_TIMESTAMP,
         context.replay_payload_for(GPU_SYNC_COMMAND_WRITE_TIMESTAMP)?,
         || match world {
@@ -18254,7 +18254,7 @@ fn destack_gpu_sync_command_write_timestamp_replay(
                     queryindex,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_write_timestamp(
                     context,
                     commandlist,
@@ -18294,7 +18294,7 @@ fn destack_gpu_sync_command_write_timestamp_replay(
 
 #[inline]
 fn destack_gpu_sync_fence_create_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuFenceHandle,
     device: resource::GpuDeviceHandle,
@@ -18302,14 +18302,14 @@ fn destack_gpu_sync_fence_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_FENCE_CREATE,
         context.replay_payload_for(GPU_SYNC_FENCE_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_fence_create(context, out, device, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_fence_create(context, out, device, options)
             },
         },
@@ -18356,20 +18356,20 @@ fn destack_gpu_sync_fence_create_replay(
 
 #[inline]
 fn destack_gpu_sync_fence_destroy_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuFenceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_FENCE_DESTROY,
         context.replay_payload_for(GPU_SYNC_FENCE_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_fence_destroy(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_fence_destroy(context, handle)
             },
         },
@@ -18404,7 +18404,7 @@ fn destack_gpu_sync_fence_destroy_replay(
 
 #[inline]
 fn destack_gpu_sync_query_set_create_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuQuerySetHandle,
     device: resource::GpuDeviceHandle,
@@ -18412,14 +18412,14 @@ fn destack_gpu_sync_query_set_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_QUERY_SET_CREATE,
         context.replay_payload_for(GPU_SYNC_QUERY_SET_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_query_set_create(context, out, device, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_query_set_create(
                     context, out, device, options,
                 )
@@ -18468,20 +18468,20 @@ fn destack_gpu_sync_query_set_create_replay(
 
 #[inline]
 fn destack_gpu_sync_query_set_destroy_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_QUERY_SET_DESTROY,
         context.replay_payload_for(GPU_SYNC_QUERY_SET_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_query_set_destroy(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_query_set_destroy(context, handle)
             },
         },
@@ -18516,21 +18516,21 @@ fn destack_gpu_sync_query_set_destroy_replay(
 
 #[inline]
 fn destack_gpu_sync_query_set_info_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuQuerySetInfo,
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_QUERY_SET_INFO,
         context.replay_payload_for(GPU_SYNC_QUERY_SET_INFO)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_query_set_info(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_query_set_info(context, out, handle)
             },
         },
@@ -18592,7 +18592,7 @@ fn destack_gpu_sync_query_set_info_replay(
 
 #[inline]
 fn destack_gpu_sync_queue_signal_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     fence: resource::GpuFenceHandle,
@@ -18600,14 +18600,14 @@ fn destack_gpu_sync_queue_signal_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &fence, &argument_value);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_QUEUE_SIGNAL,
         context.replay_payload_for(GPU_SYNC_QUEUE_SIGNAL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_queue_signal(context, queue, fence, argument_value)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_queue_signal(
                     context,
                     queue,
@@ -18647,21 +18647,21 @@ fn destack_gpu_sync_queue_signal_replay(
 
 #[inline]
 fn destack_gpu_sync_queue_timestamp_period_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut f64,
     queue: resource::GpuQueueHandle,
 ) -> RuntimeResult<()> {
     let _ = &queue;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_QUEUE_TIMESTAMP_PERIOD,
         context.replay_payload_for(GPU_SYNC_QUEUE_TIMESTAMP_PERIOD)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_queue_timestamp_period(context, out, queue)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_queue_timestamp_period(context, out, queue)
             },
         },
@@ -18708,7 +18708,7 @@ fn destack_gpu_sync_queue_timestamp_period_replay(
 
 #[inline]
 fn destack_gpu_sync_queue_wait_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     fence: resource::GpuFenceHandle,
@@ -18717,7 +18717,7 @@ fn destack_gpu_sync_queue_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &fence, &argument_value, &timeoutns);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_QUEUE_WAIT,
         context.replay_payload_for(GPU_SYNC_QUEUE_WAIT)?,
         || match world {
@@ -18730,7 +18730,7 @@ fn destack_gpu_sync_queue_wait_replay(
                     timeoutns,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_queue_wait(
                     context,
                     queue,
@@ -18771,21 +18771,21 @@ fn destack_gpu_sync_queue_wait_replay(
 
 #[inline]
 fn destack_gpu_sync_queue_work_done_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let _ = (&queue, &timeoutns);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         GPU_SYNC_QUEUE_WORK_DONE,
         context.replay_payload_for(GPU_SYNC_QUEUE_WORK_DONE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_queue_work_done(context, queue, timeoutns)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_queue_work_done(context, queue, timeoutns)
             },
         },
@@ -20538,7 +20538,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_acquire(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_gpu_surface_acquire(context, out, surface, timeoutns)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_gpu_surface_acquire(
                         context, out, surface, timeoutns,
                     )
@@ -20569,7 +20569,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_capabilities(
                         context, out, surface, adapter,
                     )
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_gpu_surface_capabilities(
                         context, out, surface, adapter,
                     )
@@ -20593,7 +20593,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_close(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_gpu_surface_close(context, surface)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_gpu_surface_close(context, surface)
                 },
             }
@@ -20619,7 +20619,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_configure(
                         context, device, surface, options,
                     )
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_gpu_surface_configure(
                         context, device, surface, options,
                     )
@@ -20647,7 +20647,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_open(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_gpu_surface_open(context, out, window)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_gpu_surface_open(context, out, window)
                 },
             }
@@ -20670,7 +20670,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_present(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_gpu_surface_present(context, surface, options)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_gpu_surface_present(
                         context, surface, options,
                     )
@@ -20694,7 +20694,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_unconfigure(
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_gpu_surface_unconfigure(context, surface)
                 },
-                RuntimeWorld::Simulated => unsafe {
+                RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_gpu_surface_unconfigure(context, surface)
                 },
             }
@@ -21230,968 +21230,924 @@ pub unsafe extern "C" fn destack_gpu_sync_queue_work_done(
 /// VM replay implementations for gpu bindings.
 #[inline]
 fn destack_gpu_adapter_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_ADAPTER_CLOSE,
-            runtime.replay_payload_for(GPU_ADAPTER_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_adapter_close(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_adapter_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuAdapterCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_ADAPTER_CLOSE,
+        runtime.replay_payload_for(GPU_ADAPTER_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_adapter_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_adapter_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuAdapterCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuAdapterCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuAdapterCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_adapter_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_adapter_features_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_ADAPTER_FEATURES,
-            runtime.replay_payload_for(GPU_ADAPTER_FEATURES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_adapter_features(runtime, context, handle)
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_ADAPTER_FEATURES,
+        runtime.replay_payload_for(GPU_ADAPTER_FEATURES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_adapter_features(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_adapter_features(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<GpuFeatureId> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item_inner = decode_uint32(
+                        result_recorded_item_value,
+                        "result_recorded_item_inner",
+                        "item",
+                    )?;
+                    let result_recorded_item = GpuFeatureId(result_recorded_item_inner);
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_adapter_features(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmSlice<GpuFeatureId> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item_inner = decode_uint32(
-                            result_recorded_item_value,
-                            "result_recorded_item_inner",
-                            "item",
-                        )?;
-                        let result_recorded_item = GpuFeatureId(result_recorded_item_inner);
-                        let result_recorded_item_recorded = result_recorded_item;
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = GpuAdapterFeaturesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                let payload = GpuAdapterFeaturesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuAdapterFeaturesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuAdapterFeaturesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item = *vm_result_item;
-                            let vm_result_item_value = vm_result_item;
-                            vm_result_values.push(vm_result_item_value);
-                        }
-                        let vm_result = VmSlice::from_values(context, &vm_result_values)?;
-                        Ok(vm_result)
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value = vm_result_item;
+                        vm_result_values.push(vm_result_item_value);
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_adapter_features_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_adapter_format_capabilities_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
     format: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_ADAPTER_FORMAT_CAPABILITIES,
-            runtime.replay_payload_for(GPU_ADAPTER_FORMAT_CAPABILITIES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_adapter_format_capabilities(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_ADAPTER_FORMAT_CAPABILITIES,
+        runtime.replay_payload_for(GPU_ADAPTER_FORMAT_CAPABILITIES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_adapter_format_capabilities(
+                runtime, context, handle, format,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_adapter_format_capabilities(
                     runtime, context, handle, format,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_adapter_format_capabilities(
-                        runtime, context, handle, format,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: GpuAdapterFormatCapabilitiesVm = value.clone();
-                    let result_recorded_format = result_value.format;
-                    let result_recorded_usage_mask = result_value.usage_mask;
-                    let result_recorded_renderable = result_value.renderable;
-                    let result_recorded_blendable = result_value.blendable;
-                    let result_recorded_multisample = result_value.multisample;
-                    let result_recorded_sample_count_mask = result_value.sample_count_mask;
-                    let result_recorded = GpuAdapterFormatCapabilities {
-                        format: result_recorded_format,
-                        usage_mask: result_recorded_usage_mask,
-                        renderable: result_recorded_renderable,
-                        blendable: result_recorded_blendable,
-                        multisample: result_recorded_multisample,
-                        sample_count_mask: result_recorded_sample_count_mask,
-                    };
-                    let payload = GpuAdapterFormatCapabilitiesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: GpuAdapterFormatCapabilitiesVm = value.clone();
+                let result_recorded_format = result_value.format;
+                let result_recorded_usage_mask = result_value.usage_mask;
+                let result_recorded_renderable = result_value.renderable;
+                let result_recorded_blendable = result_value.blendable;
+                let result_recorded_multisample = result_value.multisample;
+                let result_recorded_sample_count_mask = result_value.sample_count_mask;
+                let result_recorded = GpuAdapterFormatCapabilities {
+                    format: result_recorded_format,
+                    usage_mask: result_recorded_usage_mask,
+                    renderable: result_recorded_renderable,
+                    blendable: result_recorded_blendable,
+                    multisample: result_recorded_multisample,
+                    sample_count_mask: result_recorded_sample_count_mask,
+                };
+                let payload = GpuAdapterFormatCapabilitiesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuAdapterFormatCapabilitiesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuAdapterFormatCapabilitiesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_format = value.format;
-                        let vm_result_usage_mask = value.usage_mask;
-                        let vm_result_renderable = value.renderable;
-                        let vm_result_blendable = value.blendable;
-                        let vm_result_multisample = value.multisample;
-                        let vm_result_sample_count_mask = value.sample_count_mask;
-                        let vm_result = GpuAdapterFormatCapabilitiesVm {
-                            format: vm_result_format,
-                            usage_mask: vm_result_usage_mask,
-                            renderable: vm_result_renderable,
-                            blendable: vm_result_blendable,
-                            multisample: vm_result_multisample,
-                            sample_count_mask: vm_result_sample_count_mask,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_format = value.format;
+                    let vm_result_usage_mask = value.usage_mask;
+                    let vm_result_renderable = value.renderable;
+                    let vm_result_blendable = value.blendable;
+                    let vm_result_multisample = value.multisample;
+                    let vm_result_sample_count_mask = value.sample_count_mask;
+                    let vm_result = GpuAdapterFormatCapabilitiesVm {
+                        format: vm_result_format,
+                        usage_mask: vm_result_usage_mask,
+                        renderable: vm_result_renderable,
+                        blendable: vm_result_blendable,
+                        multisample: vm_result_multisample,
+                        sample_count_mask: vm_result_sample_count_mask,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_adapter_format_capabilities_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_adapter_has_feature_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
     feature: GpuFeatureId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_ADAPTER_HAS_FEATURE,
-            runtime.replay_payload_for(GPU_ADAPTER_HAS_FEATURE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_adapter_has_feature(runtime, context, handle, feature)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_adapter_has_feature(
-                    runtime, context, handle, feature,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: bool = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuAdapterHasFeatureReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_ADAPTER_HAS_FEATURE,
+        runtime.replay_payload_for(GPU_ADAPTER_HAS_FEATURE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_adapter_has_feature(runtime, context, handle, feature)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_adapter_has_feature(
+                runtime, context, handle, feature,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: bool = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuAdapterHasFeatureReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuAdapterHasFeatureReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuAdapterHasFeatureReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_adapter_has_feature_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_adapter_info_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_ADAPTER_INFO,
-            runtime.replay_payload_for(GPU_ADAPTER_INFO)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_adapter_info(runtime, context, handle)
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_ADAPTER_INFO,
+        runtime.replay_payload_for(GPU_ADAPTER_INFO)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_adapter_info(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_adapter_info(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: GpuAdapterInfoVm = value.clone();
+                let result_recorded_id = {
+                    let result_recorded_id_ref = context
+                        .string_ref(result_value.id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_id_ref.as_str().to_string()
+                };
+                let result_recorded_name = {
+                    let result_recorded_name_ref = context
+                        .string_ref(result_value.name)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_name_ref.as_str().to_string()
+                };
+                let result_recorded_vendor = {
+                    let result_recorded_vendor_ref = context
+                        .string_ref(result_value.vendor)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_vendor_ref.as_str().to_string()
+                };
+                let result_recorded_driver = {
+                    let result_recorded_driver_ref = context
+                        .string_ref(result_value.driver)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_driver_ref.as_str().to_string()
+                };
+                let result_recorded_driver_version = {
+                    let result_recorded_driver_version_ref = context
+                        .string_ref(result_value.driver_version)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_driver_version_ref.as_str().to_string()
+                };
+                let result_recorded_backend = result_value.backend;
+                let result_recorded_adapter_type = result_value.adapter_type;
+                let result_recorded_vendor_id = result_value.vendor_id;
+                let result_recorded_device_id = result_value.device_id;
+                let result_recorded_subgroup_min_size = result_value.subgroup_min_size;
+                let result_recorded_subgroup_max_size = result_value.subgroup_max_size;
+                let result_recorded_is_fallback = result_value.is_fallback;
+                let result_recorded_features_raw = result_value.features.raw_values(context)?;
+                let mut result_recorded_features =
+                    Vec::with_capacity(result_recorded_features_raw.len());
+                for result_recorded_features_item_value in result_recorded_features_raw {
+                    let result_recorded_features_item_inner = decode_uint32(
+                        result_recorded_features_item_value,
+                        "result_recorded_features_item_inner",
+                        "item",
+                    )?;
+                    let result_recorded_features_item =
+                        GpuFeatureId(result_recorded_features_item_inner);
+                    let result_recorded_features_item_recorded = result_recorded_features_item;
+                    result_recorded_features.push(result_recorded_features_item_recorded);
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_adapter_info(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: GpuAdapterInfoVm = value.clone();
-                    let result_recorded_id = {
-                        let result_recorded_id_ref = context
-                            .string_ref(result_value.id)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_id_ref.as_str().to_string()
-                    };
-                    let result_recorded_name = {
-                        let result_recorded_name_ref = context
-                            .string_ref(result_value.name)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_name_ref.as_str().to_string()
-                    };
-                    let result_recorded_vendor = {
-                        let result_recorded_vendor_ref = context
-                            .string_ref(result_value.vendor)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_vendor_ref.as_str().to_string()
-                    };
-                    let result_recorded_driver = {
-                        let result_recorded_driver_ref = context
-                            .string_ref(result_value.driver)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_driver_ref.as_str().to_string()
-                    };
-                    let result_recorded_driver_version = {
-                        let result_recorded_driver_version_ref = context
-                            .string_ref(result_value.driver_version)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_driver_version_ref.as_str().to_string()
-                    };
-                    let result_recorded_backend = result_value.backend;
-                    let result_recorded_adapter_type = result_value.adapter_type;
-                    let result_recorded_vendor_id = result_value.vendor_id;
-                    let result_recorded_device_id = result_value.device_id;
-                    let result_recorded_subgroup_min_size = result_value.subgroup_min_size;
-                    let result_recorded_subgroup_max_size = result_value.subgroup_max_size;
-                    let result_recorded_is_fallback = result_value.is_fallback;
-                    let result_recorded_features_raw = result_value.features.raw_values(context)?;
-                    let mut result_recorded_features =
-                        Vec::with_capacity(result_recorded_features_raw.len());
-                    for result_recorded_features_item_value in result_recorded_features_raw {
-                        let result_recorded_features_item_inner = decode_uint32(
-                            result_recorded_features_item_value,
-                            "result_recorded_features_item_inner",
-                            "item",
-                        )?;
-                        let result_recorded_features_item =
-                            GpuFeatureId(result_recorded_features_item_inner);
-                        let result_recorded_features_item_recorded = result_recorded_features_item;
-                        result_recorded_features.push(result_recorded_features_item_recorded);
+                let result_recorded_limits_max_bind_groups = result_value.limits.max_bind_groups;
+                let result_recorded_limits_max_bindings_per_bind_group =
+                    result_value.limits.max_bindings_per_bind_group;
+                let result_recorded_limits_max_push_constant_bytes =
+                    result_value.limits.max_push_constant_bytes;
+                let result_recorded_limits_max_texture_dimension1_d =
+                    result_value.limits.max_texture_dimension1_d;
+                let result_recorded_limits_max_texture_dimension2_d =
+                    result_value.limits.max_texture_dimension2_d;
+                let result_recorded_limits_max_texture_dimension3_d =
+                    result_value.limits.max_texture_dimension3_d;
+                let result_recorded_limits_max_texture_array_layers =
+                    result_value.limits.max_texture_array_layers;
+                let result_recorded_limits_max_color_attachments =
+                    result_value.limits.max_color_attachments;
+                let result_recorded_limits_max_color_attachment_bytes_per_sample =
+                    result_value.limits.max_color_attachment_bytes_per_sample;
+                let result_recorded_limits_max_sampled_textures_per_stage =
+                    result_value.limits.max_sampled_textures_per_stage;
+                let result_recorded_limits_max_samplers_per_stage =
+                    result_value.limits.max_samplers_per_stage;
+                let result_recorded_limits_max_storage_buffers_per_stage =
+                    result_value.limits.max_storage_buffers_per_stage;
+                let result_recorded_limits_max_storage_textures_per_stage =
+                    result_value.limits.max_storage_textures_per_stage;
+                let result_recorded_limits_max_uniform_buffers_per_stage =
+                    result_value.limits.max_uniform_buffers_per_stage;
+                let result_recorded_limits_max_dynamic_uniform_buffers_per_pipeline_layout =
+                    result_value
+                        .limits
+                        .max_dynamic_uniform_buffers_per_pipeline_layout;
+                let result_recorded_limits_max_dynamic_storage_buffers_per_pipeline_layout =
+                    result_value
+                        .limits
+                        .max_dynamic_storage_buffers_per_pipeline_layout;
+                let result_recorded_limits_max_uniform_buffer_binding_size =
+                    result_value.limits.max_uniform_buffer_binding_size;
+                let result_recorded_limits_max_storage_buffer_binding_size =
+                    result_value.limits.max_storage_buffer_binding_size;
+                let result_recorded_limits_min_storage_buffer_offset_alignment =
+                    result_value.limits.min_storage_buffer_offset_alignment;
+                let result_recorded_limits_min_uniform_buffer_offset_alignment =
+                    result_value.limits.min_uniform_buffer_offset_alignment;
+                let result_recorded_limits_max_vertex_buffers =
+                    result_value.limits.max_vertex_buffers;
+                let result_recorded_limits_max_vertex_attributes =
+                    result_value.limits.max_vertex_attributes;
+                let result_recorded_limits_max_vertex_buffer_array_stride =
+                    result_value.limits.max_vertex_buffer_array_stride;
+                let result_recorded_limits_max_buffer_size = result_value.limits.max_buffer_size;
+                let result_recorded_limits_max_inter_stage_shader_components =
+                    result_value.limits.max_inter_stage_shader_components;
+                let result_recorded_limits_max_inter_stage_shader_variables =
+                    result_value.limits.max_inter_stage_shader_variables;
+                let result_recorded_limits_max_compute_workgroup_storage_size =
+                    result_value.limits.max_compute_workgroup_storage_size;
+                let result_recorded_limits_max_compute_invocations_per_workgroup =
+                    result_value.limits.max_compute_invocations_per_workgroup;
+                let result_recorded_limits_max_compute_workgroup_size_x =
+                    result_value.limits.max_compute_workgroup_size_x;
+                let result_recorded_limits_max_compute_workgroup_size_y =
+                    result_value.limits.max_compute_workgroup_size_y;
+                let result_recorded_limits_max_compute_workgroup_size_z =
+                    result_value.limits.max_compute_workgroup_size_z;
+                let result_recorded_limits_max_compute_workgroups_per_dimension =
+                    result_value.limits.max_compute_workgroups_per_dimension;
+                let result_recorded_limits = GpuAdapterLimits {
+                    max_bind_groups: result_recorded_limits_max_bind_groups,
+                    max_bindings_per_bind_group: result_recorded_limits_max_bindings_per_bind_group,
+                    max_push_constant_bytes: result_recorded_limits_max_push_constant_bytes,
+                    max_texture_dimension1_d: result_recorded_limits_max_texture_dimension1_d,
+                    max_texture_dimension2_d: result_recorded_limits_max_texture_dimension2_d,
+                    max_texture_dimension3_d: result_recorded_limits_max_texture_dimension3_d,
+                    max_texture_array_layers: result_recorded_limits_max_texture_array_layers,
+                    max_color_attachments: result_recorded_limits_max_color_attachments,
+                    max_color_attachment_bytes_per_sample:
+                        result_recorded_limits_max_color_attachment_bytes_per_sample,
+                    max_sampled_textures_per_stage:
+                        result_recorded_limits_max_sampled_textures_per_stage,
+                    max_samplers_per_stage: result_recorded_limits_max_samplers_per_stage,
+                    max_storage_buffers_per_stage:
+                        result_recorded_limits_max_storage_buffers_per_stage,
+                    max_storage_textures_per_stage:
+                        result_recorded_limits_max_storage_textures_per_stage,
+                    max_uniform_buffers_per_stage:
+                        result_recorded_limits_max_uniform_buffers_per_stage,
+                    max_dynamic_uniform_buffers_per_pipeline_layout:
+                        result_recorded_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                    max_dynamic_storage_buffers_per_pipeline_layout:
+                        result_recorded_limits_max_dynamic_storage_buffers_per_pipeline_layout,
+                    max_uniform_buffer_binding_size:
+                        result_recorded_limits_max_uniform_buffer_binding_size,
+                    max_storage_buffer_binding_size:
+                        result_recorded_limits_max_storage_buffer_binding_size,
+                    min_storage_buffer_offset_alignment:
+                        result_recorded_limits_min_storage_buffer_offset_alignment,
+                    min_uniform_buffer_offset_alignment:
+                        result_recorded_limits_min_uniform_buffer_offset_alignment,
+                    max_vertex_buffers: result_recorded_limits_max_vertex_buffers,
+                    max_vertex_attributes: result_recorded_limits_max_vertex_attributes,
+                    max_vertex_buffer_array_stride:
+                        result_recorded_limits_max_vertex_buffer_array_stride,
+                    max_buffer_size: result_recorded_limits_max_buffer_size,
+                    max_inter_stage_shader_components:
+                        result_recorded_limits_max_inter_stage_shader_components,
+                    max_inter_stage_shader_variables:
+                        result_recorded_limits_max_inter_stage_shader_variables,
+                    max_compute_workgroup_storage_size:
+                        result_recorded_limits_max_compute_workgroup_storage_size,
+                    max_compute_invocations_per_workgroup:
+                        result_recorded_limits_max_compute_invocations_per_workgroup,
+                    max_compute_workgroup_size_x:
+                        result_recorded_limits_max_compute_workgroup_size_x,
+                    max_compute_workgroup_size_y:
+                        result_recorded_limits_max_compute_workgroup_size_y,
+                    max_compute_workgroup_size_z:
+                        result_recorded_limits_max_compute_workgroup_size_z,
+                    max_compute_workgroups_per_dimension:
+                        result_recorded_limits_max_compute_workgroups_per_dimension,
+                };
+                let result_recorded = GpuAdapterInfoReplayRecord {
+                    id: result_recorded_id,
+                    name: result_recorded_name,
+                    vendor: result_recorded_vendor,
+                    driver: result_recorded_driver,
+                    driver_version: result_recorded_driver_version,
+                    backend: result_recorded_backend,
+                    adapter_type: result_recorded_adapter_type,
+                    vendor_id: result_recorded_vendor_id,
+                    device_id: result_recorded_device_id,
+                    subgroup_min_size: result_recorded_subgroup_min_size,
+                    subgroup_max_size: result_recorded_subgroup_max_size,
+                    is_fallback: result_recorded_is_fallback,
+                    features: result_recorded_features,
+                    limits: result_recorded_limits,
+                };
+                let payload = GpuAdapterInfoReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuAdapterInfoReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_id_value = context.intern_string(value.id.as_str());
+                    let vm_result_id = vm::StringHandle::new(vm_result_id_value);
+                    let vm_result_name_value = context.intern_string(value.name.as_str());
+                    let vm_result_name = vm::StringHandle::new(vm_result_name_value);
+                    let vm_result_vendor_value = context.intern_string(value.vendor.as_str());
+                    let vm_result_vendor = vm::StringHandle::new(vm_result_vendor_value);
+                    let vm_result_driver_value = context.intern_string(value.driver.as_str());
+                    let vm_result_driver = vm::StringHandle::new(vm_result_driver_value);
+                    let vm_result_driver_version_value =
+                        context.intern_string(value.driver_version.as_str());
+                    let vm_result_driver_version =
+                        vm::StringHandle::new(vm_result_driver_version_value);
+                    let vm_result_backend = value.backend;
+                    let vm_result_adapter_type = value.adapter_type;
+                    let vm_result_vendor_id = value.vendor_id;
+                    let vm_result_device_id = value.device_id;
+                    let vm_result_subgroup_min_size = value.subgroup_min_size;
+                    let vm_result_subgroup_max_size = value.subgroup_max_size;
+                    let vm_result_is_fallback = value.is_fallback;
+                    let mut vm_result_features_values = Vec::with_capacity(value.features.len());
+                    for vm_result_features_item in value.features.iter() {
+                        let vm_result_features_item = *vm_result_features_item;
+                        let vm_result_features_item_value = vm_result_features_item;
+                        vm_result_features_values.push(vm_result_features_item_value);
                     }
-                    let result_recorded_limits_max_bind_groups =
-                        result_value.limits.max_bind_groups;
-                    let result_recorded_limits_max_bindings_per_bind_group =
-                        result_value.limits.max_bindings_per_bind_group;
-                    let result_recorded_limits_max_push_constant_bytes =
-                        result_value.limits.max_push_constant_bytes;
-                    let result_recorded_limits_max_texture_dimension1_d =
-                        result_value.limits.max_texture_dimension1_d;
-                    let result_recorded_limits_max_texture_dimension2_d =
-                        result_value.limits.max_texture_dimension2_d;
-                    let result_recorded_limits_max_texture_dimension3_d =
-                        result_value.limits.max_texture_dimension3_d;
-                    let result_recorded_limits_max_texture_array_layers =
-                        result_value.limits.max_texture_array_layers;
-                    let result_recorded_limits_max_color_attachments =
-                        result_value.limits.max_color_attachments;
-                    let result_recorded_limits_max_color_attachment_bytes_per_sample =
-                        result_value.limits.max_color_attachment_bytes_per_sample;
-                    let result_recorded_limits_max_sampled_textures_per_stage =
-                        result_value.limits.max_sampled_textures_per_stage;
-                    let result_recorded_limits_max_samplers_per_stage =
-                        result_value.limits.max_samplers_per_stage;
-                    let result_recorded_limits_max_storage_buffers_per_stage =
-                        result_value.limits.max_storage_buffers_per_stage;
-                    let result_recorded_limits_max_storage_textures_per_stage =
-                        result_value.limits.max_storage_textures_per_stage;
-                    let result_recorded_limits_max_uniform_buffers_per_stage =
-                        result_value.limits.max_uniform_buffers_per_stage;
-                    let result_recorded_limits_max_dynamic_uniform_buffers_per_pipeline_layout =
-                        result_value
-                            .limits
-                            .max_dynamic_uniform_buffers_per_pipeline_layout;
-                    let result_recorded_limits_max_dynamic_storage_buffers_per_pipeline_layout =
-                        result_value
-                            .limits
-                            .max_dynamic_storage_buffers_per_pipeline_layout;
-                    let result_recorded_limits_max_uniform_buffer_binding_size =
-                        result_value.limits.max_uniform_buffer_binding_size;
-                    let result_recorded_limits_max_storage_buffer_binding_size =
-                        result_value.limits.max_storage_buffer_binding_size;
-                    let result_recorded_limits_min_storage_buffer_offset_alignment =
-                        result_value.limits.min_storage_buffer_offset_alignment;
-                    let result_recorded_limits_min_uniform_buffer_offset_alignment =
-                        result_value.limits.min_uniform_buffer_offset_alignment;
-                    let result_recorded_limits_max_vertex_buffers =
-                        result_value.limits.max_vertex_buffers;
-                    let result_recorded_limits_max_vertex_attributes =
-                        result_value.limits.max_vertex_attributes;
-                    let result_recorded_limits_max_vertex_buffer_array_stride =
-                        result_value.limits.max_vertex_buffer_array_stride;
-                    let result_recorded_limits_max_buffer_size =
-                        result_value.limits.max_buffer_size;
-                    let result_recorded_limits_max_inter_stage_shader_components =
-                        result_value.limits.max_inter_stage_shader_components;
-                    let result_recorded_limits_max_inter_stage_shader_variables =
-                        result_value.limits.max_inter_stage_shader_variables;
-                    let result_recorded_limits_max_compute_workgroup_storage_size =
-                        result_value.limits.max_compute_workgroup_storage_size;
-                    let result_recorded_limits_max_compute_invocations_per_workgroup =
-                        result_value.limits.max_compute_invocations_per_workgroup;
-                    let result_recorded_limits_max_compute_workgroup_size_x =
-                        result_value.limits.max_compute_workgroup_size_x;
-                    let result_recorded_limits_max_compute_workgroup_size_y =
-                        result_value.limits.max_compute_workgroup_size_y;
-                    let result_recorded_limits_max_compute_workgroup_size_z =
-                        result_value.limits.max_compute_workgroup_size_z;
-                    let result_recorded_limits_max_compute_workgroups_per_dimension =
-                        result_value.limits.max_compute_workgroups_per_dimension;
-                    let result_recorded_limits = GpuAdapterLimits {
-                        max_bind_groups: result_recorded_limits_max_bind_groups,
-                        max_bindings_per_bind_group:
-                            result_recorded_limits_max_bindings_per_bind_group,
-                        max_push_constant_bytes: result_recorded_limits_max_push_constant_bytes,
-                        max_texture_dimension1_d: result_recorded_limits_max_texture_dimension1_d,
-                        max_texture_dimension2_d: result_recorded_limits_max_texture_dimension2_d,
-                        max_texture_dimension3_d: result_recorded_limits_max_texture_dimension3_d,
-                        max_texture_array_layers: result_recorded_limits_max_texture_array_layers,
-                        max_color_attachments: result_recorded_limits_max_color_attachments,
+                    let vm_result_features =
+                        VmSlice::from_values(context, &vm_result_features_values)?;
+                    let vm_result_limits_max_bind_groups = value.limits.max_bind_groups;
+                    let vm_result_limits_max_bindings_per_bind_group =
+                        value.limits.max_bindings_per_bind_group;
+                    let vm_result_limits_max_push_constant_bytes =
+                        value.limits.max_push_constant_bytes;
+                    let vm_result_limits_max_texture_dimension1_d =
+                        value.limits.max_texture_dimension1_d;
+                    let vm_result_limits_max_texture_dimension2_d =
+                        value.limits.max_texture_dimension2_d;
+                    let vm_result_limits_max_texture_dimension3_d =
+                        value.limits.max_texture_dimension3_d;
+                    let vm_result_limits_max_texture_array_layers =
+                        value.limits.max_texture_array_layers;
+                    let vm_result_limits_max_color_attachments = value.limits.max_color_attachments;
+                    let vm_result_limits_max_color_attachment_bytes_per_sample =
+                        value.limits.max_color_attachment_bytes_per_sample;
+                    let vm_result_limits_max_sampled_textures_per_stage =
+                        value.limits.max_sampled_textures_per_stage;
+                    let vm_result_limits_max_samplers_per_stage =
+                        value.limits.max_samplers_per_stage;
+                    let vm_result_limits_max_storage_buffers_per_stage =
+                        value.limits.max_storage_buffers_per_stage;
+                    let vm_result_limits_max_storage_textures_per_stage =
+                        value.limits.max_storage_textures_per_stage;
+                    let vm_result_limits_max_uniform_buffers_per_stage =
+                        value.limits.max_uniform_buffers_per_stage;
+                    let vm_result_limits_max_dynamic_uniform_buffers_per_pipeline_layout =
+                        value.limits.max_dynamic_uniform_buffers_per_pipeline_layout;
+                    let vm_result_limits_max_dynamic_storage_buffers_per_pipeline_layout =
+                        value.limits.max_dynamic_storage_buffers_per_pipeline_layout;
+                    let vm_result_limits_max_uniform_buffer_binding_size =
+                        value.limits.max_uniform_buffer_binding_size;
+                    let vm_result_limits_max_storage_buffer_binding_size =
+                        value.limits.max_storage_buffer_binding_size;
+                    let vm_result_limits_min_storage_buffer_offset_alignment =
+                        value.limits.min_storage_buffer_offset_alignment;
+                    let vm_result_limits_min_uniform_buffer_offset_alignment =
+                        value.limits.min_uniform_buffer_offset_alignment;
+                    let vm_result_limits_max_vertex_buffers = value.limits.max_vertex_buffers;
+                    let vm_result_limits_max_vertex_attributes = value.limits.max_vertex_attributes;
+                    let vm_result_limits_max_vertex_buffer_array_stride =
+                        value.limits.max_vertex_buffer_array_stride;
+                    let vm_result_limits_max_buffer_size = value.limits.max_buffer_size;
+                    let vm_result_limits_max_inter_stage_shader_components =
+                        value.limits.max_inter_stage_shader_components;
+                    let vm_result_limits_max_inter_stage_shader_variables =
+                        value.limits.max_inter_stage_shader_variables;
+                    let vm_result_limits_max_compute_workgroup_storage_size =
+                        value.limits.max_compute_workgroup_storage_size;
+                    let vm_result_limits_max_compute_invocations_per_workgroup =
+                        value.limits.max_compute_invocations_per_workgroup;
+                    let vm_result_limits_max_compute_workgroup_size_x =
+                        value.limits.max_compute_workgroup_size_x;
+                    let vm_result_limits_max_compute_workgroup_size_y =
+                        value.limits.max_compute_workgroup_size_y;
+                    let vm_result_limits_max_compute_workgroup_size_z =
+                        value.limits.max_compute_workgroup_size_z;
+                    let vm_result_limits_max_compute_workgroups_per_dimension =
+                        value.limits.max_compute_workgroups_per_dimension;
+                    let vm_result_limits = GpuAdapterLimitsVm {
+                        max_bind_groups: vm_result_limits_max_bind_groups,
+                        max_bindings_per_bind_group: vm_result_limits_max_bindings_per_bind_group,
+                        max_push_constant_bytes: vm_result_limits_max_push_constant_bytes,
+                        max_texture_dimension1_d: vm_result_limits_max_texture_dimension1_d,
+                        max_texture_dimension2_d: vm_result_limits_max_texture_dimension2_d,
+                        max_texture_dimension3_d: vm_result_limits_max_texture_dimension3_d,
+                        max_texture_array_layers: vm_result_limits_max_texture_array_layers,
+                        max_color_attachments: vm_result_limits_max_color_attachments,
                         max_color_attachment_bytes_per_sample:
-                            result_recorded_limits_max_color_attachment_bytes_per_sample,
+                            vm_result_limits_max_color_attachment_bytes_per_sample,
                         max_sampled_textures_per_stage:
-                            result_recorded_limits_max_sampled_textures_per_stage,
-                        max_samplers_per_stage: result_recorded_limits_max_samplers_per_stage,
+                            vm_result_limits_max_sampled_textures_per_stage,
+                        max_samplers_per_stage: vm_result_limits_max_samplers_per_stage,
                         max_storage_buffers_per_stage:
-                            result_recorded_limits_max_storage_buffers_per_stage,
+                            vm_result_limits_max_storage_buffers_per_stage,
                         max_storage_textures_per_stage:
-                            result_recorded_limits_max_storage_textures_per_stage,
+                            vm_result_limits_max_storage_textures_per_stage,
                         max_uniform_buffers_per_stage:
-                            result_recorded_limits_max_uniform_buffers_per_stage,
+                            vm_result_limits_max_uniform_buffers_per_stage,
                         max_dynamic_uniform_buffers_per_pipeline_layout:
-                            result_recorded_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
+                            vm_result_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
                         max_dynamic_storage_buffers_per_pipeline_layout:
-                            result_recorded_limits_max_dynamic_storage_buffers_per_pipeline_layout,
+                            vm_result_limits_max_dynamic_storage_buffers_per_pipeline_layout,
                         max_uniform_buffer_binding_size:
-                            result_recorded_limits_max_uniform_buffer_binding_size,
+                            vm_result_limits_max_uniform_buffer_binding_size,
                         max_storage_buffer_binding_size:
-                            result_recorded_limits_max_storage_buffer_binding_size,
+                            vm_result_limits_max_storage_buffer_binding_size,
                         min_storage_buffer_offset_alignment:
-                            result_recorded_limits_min_storage_buffer_offset_alignment,
+                            vm_result_limits_min_storage_buffer_offset_alignment,
                         min_uniform_buffer_offset_alignment:
-                            result_recorded_limits_min_uniform_buffer_offset_alignment,
-                        max_vertex_buffers: result_recorded_limits_max_vertex_buffers,
-                        max_vertex_attributes: result_recorded_limits_max_vertex_attributes,
+                            vm_result_limits_min_uniform_buffer_offset_alignment,
+                        max_vertex_buffers: vm_result_limits_max_vertex_buffers,
+                        max_vertex_attributes: vm_result_limits_max_vertex_attributes,
                         max_vertex_buffer_array_stride:
-                            result_recorded_limits_max_vertex_buffer_array_stride,
-                        max_buffer_size: result_recorded_limits_max_buffer_size,
+                            vm_result_limits_max_vertex_buffer_array_stride,
+                        max_buffer_size: vm_result_limits_max_buffer_size,
                         max_inter_stage_shader_components:
-                            result_recorded_limits_max_inter_stage_shader_components,
+                            vm_result_limits_max_inter_stage_shader_components,
                         max_inter_stage_shader_variables:
-                            result_recorded_limits_max_inter_stage_shader_variables,
+                            vm_result_limits_max_inter_stage_shader_variables,
                         max_compute_workgroup_storage_size:
-                            result_recorded_limits_max_compute_workgroup_storage_size,
+                            vm_result_limits_max_compute_workgroup_storage_size,
                         max_compute_invocations_per_workgroup:
-                            result_recorded_limits_max_compute_invocations_per_workgroup,
-                        max_compute_workgroup_size_x:
-                            result_recorded_limits_max_compute_workgroup_size_x,
-                        max_compute_workgroup_size_y:
-                            result_recorded_limits_max_compute_workgroup_size_y,
-                        max_compute_workgroup_size_z:
-                            result_recorded_limits_max_compute_workgroup_size_z,
+                            vm_result_limits_max_compute_invocations_per_workgroup,
+                        max_compute_workgroup_size_x: vm_result_limits_max_compute_workgroup_size_x,
+                        max_compute_workgroup_size_y: vm_result_limits_max_compute_workgroup_size_y,
+                        max_compute_workgroup_size_z: vm_result_limits_max_compute_workgroup_size_z,
                         max_compute_workgroups_per_dimension:
-                            result_recorded_limits_max_compute_workgroups_per_dimension,
+                            vm_result_limits_max_compute_workgroups_per_dimension,
                     };
-                    let result_recorded = GpuAdapterInfoReplayRecord {
-                        id: result_recorded_id,
-                        name: result_recorded_name,
-                        vendor: result_recorded_vendor,
-                        driver: result_recorded_driver,
-                        driver_version: result_recorded_driver_version,
-                        backend: result_recorded_backend,
-                        adapter_type: result_recorded_adapter_type,
-                        vendor_id: result_recorded_vendor_id,
-                        device_id: result_recorded_device_id,
-                        subgroup_min_size: result_recorded_subgroup_min_size,
-                        subgroup_max_size: result_recorded_subgroup_max_size,
-                        is_fallback: result_recorded_is_fallback,
-                        features: result_recorded_features,
-                        limits: result_recorded_limits,
+                    let vm_result = GpuAdapterInfoVm {
+                        id: vm_result_id,
+                        name: vm_result_name,
+                        vendor: vm_result_vendor,
+                        driver: vm_result_driver,
+                        driver_version: vm_result_driver_version,
+                        backend: vm_result_backend,
+                        adapter_type: vm_result_adapter_type,
+                        vendor_id: vm_result_vendor_id,
+                        device_id: vm_result_device_id,
+                        subgroup_min_size: vm_result_subgroup_min_size,
+                        subgroup_max_size: vm_result_subgroup_max_size,
+                        is_fallback: vm_result_is_fallback,
+                        features: vm_result_features,
+                        limits: vm_result_limits,
                     };
-                    let payload = GpuAdapterInfoReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
+                    Ok(vm_result)
                 }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuAdapterInfoReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_id_value = context.intern_string(value.id.as_str());
-                        let vm_result_id = vm::StringHandle::new(vm_result_id_value);
-                        let vm_result_name_value = context.intern_string(value.name.as_str());
-                        let vm_result_name = vm::StringHandle::new(vm_result_name_value);
-                        let vm_result_vendor_value = context.intern_string(value.vendor.as_str());
-                        let vm_result_vendor = vm::StringHandle::new(vm_result_vendor_value);
-                        let vm_result_driver_value = context.intern_string(value.driver.as_str());
-                        let vm_result_driver = vm::StringHandle::new(vm_result_driver_value);
-                        let vm_result_driver_version_value =
-                            context.intern_string(value.driver_version.as_str());
-                        let vm_result_driver_version =
-                            vm::StringHandle::new(vm_result_driver_version_value);
-                        let vm_result_backend = value.backend;
-                        let vm_result_adapter_type = value.adapter_type;
-                        let vm_result_vendor_id = value.vendor_id;
-                        let vm_result_device_id = value.device_id;
-                        let vm_result_subgroup_min_size = value.subgroup_min_size;
-                        let vm_result_subgroup_max_size = value.subgroup_max_size;
-                        let vm_result_is_fallback = value.is_fallback;
-                        let mut vm_result_features_values =
-                            Vec::with_capacity(value.features.len());
-                        for vm_result_features_item in value.features.iter() {
-                            let vm_result_features_item = *vm_result_features_item;
-                            let vm_result_features_item_value = vm_result_features_item;
-                            vm_result_features_values.push(vm_result_features_item_value);
-                        }
-                        let vm_result_features =
-                            VmSlice::from_values(context, &vm_result_features_values)?;
-                        let vm_result_limits_max_bind_groups = value.limits.max_bind_groups;
-                        let vm_result_limits_max_bindings_per_bind_group =
-                            value.limits.max_bindings_per_bind_group;
-                        let vm_result_limits_max_push_constant_bytes =
-                            value.limits.max_push_constant_bytes;
-                        let vm_result_limits_max_texture_dimension1_d =
-                            value.limits.max_texture_dimension1_d;
-                        let vm_result_limits_max_texture_dimension2_d =
-                            value.limits.max_texture_dimension2_d;
-                        let vm_result_limits_max_texture_dimension3_d =
-                            value.limits.max_texture_dimension3_d;
-                        let vm_result_limits_max_texture_array_layers =
-                            value.limits.max_texture_array_layers;
-                        let vm_result_limits_max_color_attachments =
-                            value.limits.max_color_attachments;
-                        let vm_result_limits_max_color_attachment_bytes_per_sample =
-                            value.limits.max_color_attachment_bytes_per_sample;
-                        let vm_result_limits_max_sampled_textures_per_stage =
-                            value.limits.max_sampled_textures_per_stage;
-                        let vm_result_limits_max_samplers_per_stage =
-                            value.limits.max_samplers_per_stage;
-                        let vm_result_limits_max_storage_buffers_per_stage =
-                            value.limits.max_storage_buffers_per_stage;
-                        let vm_result_limits_max_storage_textures_per_stage =
-                            value.limits.max_storage_textures_per_stage;
-                        let vm_result_limits_max_uniform_buffers_per_stage =
-                            value.limits.max_uniform_buffers_per_stage;
-                        let vm_result_limits_max_dynamic_uniform_buffers_per_pipeline_layout =
-                            value.limits.max_dynamic_uniform_buffers_per_pipeline_layout;
-                        let vm_result_limits_max_dynamic_storage_buffers_per_pipeline_layout =
-                            value.limits.max_dynamic_storage_buffers_per_pipeline_layout;
-                        let vm_result_limits_max_uniform_buffer_binding_size =
-                            value.limits.max_uniform_buffer_binding_size;
-                        let vm_result_limits_max_storage_buffer_binding_size =
-                            value.limits.max_storage_buffer_binding_size;
-                        let vm_result_limits_min_storage_buffer_offset_alignment =
-                            value.limits.min_storage_buffer_offset_alignment;
-                        let vm_result_limits_min_uniform_buffer_offset_alignment =
-                            value.limits.min_uniform_buffer_offset_alignment;
-                        let vm_result_limits_max_vertex_buffers = value.limits.max_vertex_buffers;
-                        let vm_result_limits_max_vertex_attributes =
-                            value.limits.max_vertex_attributes;
-                        let vm_result_limits_max_vertex_buffer_array_stride =
-                            value.limits.max_vertex_buffer_array_stride;
-                        let vm_result_limits_max_buffer_size = value.limits.max_buffer_size;
-                        let vm_result_limits_max_inter_stage_shader_components =
-                            value.limits.max_inter_stage_shader_components;
-                        let vm_result_limits_max_inter_stage_shader_variables =
-                            value.limits.max_inter_stage_shader_variables;
-                        let vm_result_limits_max_compute_workgroup_storage_size =
-                            value.limits.max_compute_workgroup_storage_size;
-                        let vm_result_limits_max_compute_invocations_per_workgroup =
-                            value.limits.max_compute_invocations_per_workgroup;
-                        let vm_result_limits_max_compute_workgroup_size_x =
-                            value.limits.max_compute_workgroup_size_x;
-                        let vm_result_limits_max_compute_workgroup_size_y =
-                            value.limits.max_compute_workgroup_size_y;
-                        let vm_result_limits_max_compute_workgroup_size_z =
-                            value.limits.max_compute_workgroup_size_z;
-                        let vm_result_limits_max_compute_workgroups_per_dimension =
-                            value.limits.max_compute_workgroups_per_dimension;
-                        let vm_result_limits = GpuAdapterLimitsVm {
-                            max_bind_groups: vm_result_limits_max_bind_groups,
-                            max_bindings_per_bind_group:
-                                vm_result_limits_max_bindings_per_bind_group,
-                            max_push_constant_bytes: vm_result_limits_max_push_constant_bytes,
-                            max_texture_dimension1_d: vm_result_limits_max_texture_dimension1_d,
-                            max_texture_dimension2_d: vm_result_limits_max_texture_dimension2_d,
-                            max_texture_dimension3_d: vm_result_limits_max_texture_dimension3_d,
-                            max_texture_array_layers: vm_result_limits_max_texture_array_layers,
-                            max_color_attachments: vm_result_limits_max_color_attachments,
-                            max_color_attachment_bytes_per_sample:
-                                vm_result_limits_max_color_attachment_bytes_per_sample,
-                            max_sampled_textures_per_stage:
-                                vm_result_limits_max_sampled_textures_per_stage,
-                            max_samplers_per_stage: vm_result_limits_max_samplers_per_stage,
-                            max_storage_buffers_per_stage:
-                                vm_result_limits_max_storage_buffers_per_stage,
-                            max_storage_textures_per_stage:
-                                vm_result_limits_max_storage_textures_per_stage,
-                            max_uniform_buffers_per_stage:
-                                vm_result_limits_max_uniform_buffers_per_stage,
-                            max_dynamic_uniform_buffers_per_pipeline_layout:
-                                vm_result_limits_max_dynamic_uniform_buffers_per_pipeline_layout,
-                            max_dynamic_storage_buffers_per_pipeline_layout:
-                                vm_result_limits_max_dynamic_storage_buffers_per_pipeline_layout,
-                            max_uniform_buffer_binding_size:
-                                vm_result_limits_max_uniform_buffer_binding_size,
-                            max_storage_buffer_binding_size:
-                                vm_result_limits_max_storage_buffer_binding_size,
-                            min_storage_buffer_offset_alignment:
-                                vm_result_limits_min_storage_buffer_offset_alignment,
-                            min_uniform_buffer_offset_alignment:
-                                vm_result_limits_min_uniform_buffer_offset_alignment,
-                            max_vertex_buffers: vm_result_limits_max_vertex_buffers,
-                            max_vertex_attributes: vm_result_limits_max_vertex_attributes,
-                            max_vertex_buffer_array_stride:
-                                vm_result_limits_max_vertex_buffer_array_stride,
-                            max_buffer_size: vm_result_limits_max_buffer_size,
-                            max_inter_stage_shader_components:
-                                vm_result_limits_max_inter_stage_shader_components,
-                            max_inter_stage_shader_variables:
-                                vm_result_limits_max_inter_stage_shader_variables,
-                            max_compute_workgroup_storage_size:
-                                vm_result_limits_max_compute_workgroup_storage_size,
-                            max_compute_invocations_per_workgroup:
-                                vm_result_limits_max_compute_invocations_per_workgroup,
-                            max_compute_workgroup_size_x:
-                                vm_result_limits_max_compute_workgroup_size_x,
-                            max_compute_workgroup_size_y:
-                                vm_result_limits_max_compute_workgroup_size_y,
-                            max_compute_workgroup_size_z:
-                                vm_result_limits_max_compute_workgroup_size_z,
-                            max_compute_workgroups_per_dimension:
-                                vm_result_limits_max_compute_workgroups_per_dimension,
-                        };
-                        let vm_result = GpuAdapterInfoVm {
-                            id: vm_result_id,
-                            name: vm_result_name,
-                            vendor: vm_result_vendor,
-                            driver: vm_result_driver,
-                            driver_version: vm_result_driver_version,
-                            backend: vm_result_backend,
-                            adapter_type: vm_result_adapter_type,
-                            vendor_id: vm_result_vendor_id,
-                            device_id: vm_result_device_id,
-                            subgroup_min_size: vm_result_subgroup_min_size,
-                            subgroup_max_size: vm_result_subgroup_max_size,
-                            is_fallback: vm_result_is_fallback,
-                            features: vm_result_features,
-                            limits: vm_result_limits,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_adapter_info_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_adapter_limits_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_ADAPTER_LIMITS,
-            runtime.replay_payload_for(GPU_ADAPTER_LIMITS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_adapter_limits(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_adapter_limits(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: GpuAdapterLimitsVm = value.clone();
-                    let result_recorded_max_bind_groups = result_value.max_bind_groups;
-                    let result_recorded_max_bindings_per_bind_group =
-                        result_value.max_bindings_per_bind_group;
-                    let result_recorded_max_push_constant_bytes =
-                        result_value.max_push_constant_bytes;
-                    let result_recorded_max_texture_dimension1_d =
-                        result_value.max_texture_dimension1_d;
-                    let result_recorded_max_texture_dimension2_d =
-                        result_value.max_texture_dimension2_d;
-                    let result_recorded_max_texture_dimension3_d =
-                        result_value.max_texture_dimension3_d;
-                    let result_recorded_max_texture_array_layers =
-                        result_value.max_texture_array_layers;
-                    let result_recorded_max_color_attachments = result_value.max_color_attachments;
-                    let result_recorded_max_color_attachment_bytes_per_sample =
-                        result_value.max_color_attachment_bytes_per_sample;
-                    let result_recorded_max_sampled_textures_per_stage =
-                        result_value.max_sampled_textures_per_stage;
-                    let result_recorded_max_samplers_per_stage =
-                        result_value.max_samplers_per_stage;
-                    let result_recorded_max_storage_buffers_per_stage =
-                        result_value.max_storage_buffers_per_stage;
-                    let result_recorded_max_storage_textures_per_stage =
-                        result_value.max_storage_textures_per_stage;
-                    let result_recorded_max_uniform_buffers_per_stage =
-                        result_value.max_uniform_buffers_per_stage;
-                    let result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout =
-                        result_value.max_dynamic_uniform_buffers_per_pipeline_layout;
-                    let result_recorded_max_dynamic_storage_buffers_per_pipeline_layout =
-                        result_value.max_dynamic_storage_buffers_per_pipeline_layout;
-                    let result_recorded_max_uniform_buffer_binding_size =
-                        result_value.max_uniform_buffer_binding_size;
-                    let result_recorded_max_storage_buffer_binding_size =
-                        result_value.max_storage_buffer_binding_size;
-                    let result_recorded_min_storage_buffer_offset_alignment =
-                        result_value.min_storage_buffer_offset_alignment;
-                    let result_recorded_min_uniform_buffer_offset_alignment =
-                        result_value.min_uniform_buffer_offset_alignment;
-                    let result_recorded_max_vertex_buffers = result_value.max_vertex_buffers;
-                    let result_recorded_max_vertex_attributes = result_value.max_vertex_attributes;
-                    let result_recorded_max_vertex_buffer_array_stride =
-                        result_value.max_vertex_buffer_array_stride;
-                    let result_recorded_max_buffer_size = result_value.max_buffer_size;
-                    let result_recorded_max_inter_stage_shader_components =
-                        result_value.max_inter_stage_shader_components;
-                    let result_recorded_max_inter_stage_shader_variables =
-                        result_value.max_inter_stage_shader_variables;
-                    let result_recorded_max_compute_workgroup_storage_size =
-                        result_value.max_compute_workgroup_storage_size;
-                    let result_recorded_max_compute_invocations_per_workgroup =
-                        result_value.max_compute_invocations_per_workgroup;
-                    let result_recorded_max_compute_workgroup_size_x =
-                        result_value.max_compute_workgroup_size_x;
-                    let result_recorded_max_compute_workgroup_size_y =
-                        result_value.max_compute_workgroup_size_y;
-                    let result_recorded_max_compute_workgroup_size_z =
-                        result_value.max_compute_workgroup_size_z;
-                    let result_recorded_max_compute_workgroups_per_dimension =
-                        result_value.max_compute_workgroups_per_dimension;
-                    let result_recorded = GpuAdapterLimits {
-                        max_bind_groups: result_recorded_max_bind_groups,
-                        max_bindings_per_bind_group: result_recorded_max_bindings_per_bind_group,
-                        max_push_constant_bytes: result_recorded_max_push_constant_bytes,
-                        max_texture_dimension1_d: result_recorded_max_texture_dimension1_d,
-                        max_texture_dimension2_d: result_recorded_max_texture_dimension2_d,
-                        max_texture_dimension3_d: result_recorded_max_texture_dimension3_d,
-                        max_texture_array_layers: result_recorded_max_texture_array_layers,
-                        max_color_attachments: result_recorded_max_color_attachments,
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_ADAPTER_LIMITS,
+        runtime.replay_payload_for(GPU_ADAPTER_LIMITS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_adapter_limits(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_adapter_limits(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: GpuAdapterLimitsVm = value.clone();
+                let result_recorded_max_bind_groups = result_value.max_bind_groups;
+                let result_recorded_max_bindings_per_bind_group =
+                    result_value.max_bindings_per_bind_group;
+                let result_recorded_max_push_constant_bytes = result_value.max_push_constant_bytes;
+                let result_recorded_max_texture_dimension1_d =
+                    result_value.max_texture_dimension1_d;
+                let result_recorded_max_texture_dimension2_d =
+                    result_value.max_texture_dimension2_d;
+                let result_recorded_max_texture_dimension3_d =
+                    result_value.max_texture_dimension3_d;
+                let result_recorded_max_texture_array_layers =
+                    result_value.max_texture_array_layers;
+                let result_recorded_max_color_attachments = result_value.max_color_attachments;
+                let result_recorded_max_color_attachment_bytes_per_sample =
+                    result_value.max_color_attachment_bytes_per_sample;
+                let result_recorded_max_sampled_textures_per_stage =
+                    result_value.max_sampled_textures_per_stage;
+                let result_recorded_max_samplers_per_stage = result_value.max_samplers_per_stage;
+                let result_recorded_max_storage_buffers_per_stage =
+                    result_value.max_storage_buffers_per_stage;
+                let result_recorded_max_storage_textures_per_stage =
+                    result_value.max_storage_textures_per_stage;
+                let result_recorded_max_uniform_buffers_per_stage =
+                    result_value.max_uniform_buffers_per_stage;
+                let result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout =
+                    result_value.max_dynamic_uniform_buffers_per_pipeline_layout;
+                let result_recorded_max_dynamic_storage_buffers_per_pipeline_layout =
+                    result_value.max_dynamic_storage_buffers_per_pipeline_layout;
+                let result_recorded_max_uniform_buffer_binding_size =
+                    result_value.max_uniform_buffer_binding_size;
+                let result_recorded_max_storage_buffer_binding_size =
+                    result_value.max_storage_buffer_binding_size;
+                let result_recorded_min_storage_buffer_offset_alignment =
+                    result_value.min_storage_buffer_offset_alignment;
+                let result_recorded_min_uniform_buffer_offset_alignment =
+                    result_value.min_uniform_buffer_offset_alignment;
+                let result_recorded_max_vertex_buffers = result_value.max_vertex_buffers;
+                let result_recorded_max_vertex_attributes = result_value.max_vertex_attributes;
+                let result_recorded_max_vertex_buffer_array_stride =
+                    result_value.max_vertex_buffer_array_stride;
+                let result_recorded_max_buffer_size = result_value.max_buffer_size;
+                let result_recorded_max_inter_stage_shader_components =
+                    result_value.max_inter_stage_shader_components;
+                let result_recorded_max_inter_stage_shader_variables =
+                    result_value.max_inter_stage_shader_variables;
+                let result_recorded_max_compute_workgroup_storage_size =
+                    result_value.max_compute_workgroup_storage_size;
+                let result_recorded_max_compute_invocations_per_workgroup =
+                    result_value.max_compute_invocations_per_workgroup;
+                let result_recorded_max_compute_workgroup_size_x =
+                    result_value.max_compute_workgroup_size_x;
+                let result_recorded_max_compute_workgroup_size_y =
+                    result_value.max_compute_workgroup_size_y;
+                let result_recorded_max_compute_workgroup_size_z =
+                    result_value.max_compute_workgroup_size_z;
+                let result_recorded_max_compute_workgroups_per_dimension =
+                    result_value.max_compute_workgroups_per_dimension;
+                let result_recorded = GpuAdapterLimits {
+                    max_bind_groups: result_recorded_max_bind_groups,
+                    max_bindings_per_bind_group: result_recorded_max_bindings_per_bind_group,
+                    max_push_constant_bytes: result_recorded_max_push_constant_bytes,
+                    max_texture_dimension1_d: result_recorded_max_texture_dimension1_d,
+                    max_texture_dimension2_d: result_recorded_max_texture_dimension2_d,
+                    max_texture_dimension3_d: result_recorded_max_texture_dimension3_d,
+                    max_texture_array_layers: result_recorded_max_texture_array_layers,
+                    max_color_attachments: result_recorded_max_color_attachments,
+                    max_color_attachment_bytes_per_sample:
+                        result_recorded_max_color_attachment_bytes_per_sample,
+                    max_sampled_textures_per_stage: result_recorded_max_sampled_textures_per_stage,
+                    max_samplers_per_stage: result_recorded_max_samplers_per_stage,
+                    max_storage_buffers_per_stage: result_recorded_max_storage_buffers_per_stage,
+                    max_storage_textures_per_stage: result_recorded_max_storage_textures_per_stage,
+                    max_uniform_buffers_per_stage: result_recorded_max_uniform_buffers_per_stage,
+                    max_dynamic_uniform_buffers_per_pipeline_layout:
+                        result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout,
+                    max_dynamic_storage_buffers_per_pipeline_layout:
+                        result_recorded_max_dynamic_storage_buffers_per_pipeline_layout,
+                    max_uniform_buffer_binding_size:
+                        result_recorded_max_uniform_buffer_binding_size,
+                    max_storage_buffer_binding_size:
+                        result_recorded_max_storage_buffer_binding_size,
+                    min_storage_buffer_offset_alignment:
+                        result_recorded_min_storage_buffer_offset_alignment,
+                    min_uniform_buffer_offset_alignment:
+                        result_recorded_min_uniform_buffer_offset_alignment,
+                    max_vertex_buffers: result_recorded_max_vertex_buffers,
+                    max_vertex_attributes: result_recorded_max_vertex_attributes,
+                    max_vertex_buffer_array_stride: result_recorded_max_vertex_buffer_array_stride,
+                    max_buffer_size: result_recorded_max_buffer_size,
+                    max_inter_stage_shader_components:
+                        result_recorded_max_inter_stage_shader_components,
+                    max_inter_stage_shader_variables:
+                        result_recorded_max_inter_stage_shader_variables,
+                    max_compute_workgroup_storage_size:
+                        result_recorded_max_compute_workgroup_storage_size,
+                    max_compute_invocations_per_workgroup:
+                        result_recorded_max_compute_invocations_per_workgroup,
+                    max_compute_workgroup_size_x: result_recorded_max_compute_workgroup_size_x,
+                    max_compute_workgroup_size_y: result_recorded_max_compute_workgroup_size_y,
+                    max_compute_workgroup_size_z: result_recorded_max_compute_workgroup_size_z,
+                    max_compute_workgroups_per_dimension:
+                        result_recorded_max_compute_workgroups_per_dimension,
+                };
+                let payload = GpuAdapterLimitsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuAdapterLimitsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_max_bind_groups = value.max_bind_groups;
+                    let vm_result_max_bindings_per_bind_group = value.max_bindings_per_bind_group;
+                    let vm_result_max_push_constant_bytes = value.max_push_constant_bytes;
+                    let vm_result_max_texture_dimension1_d = value.max_texture_dimension1_d;
+                    let vm_result_max_texture_dimension2_d = value.max_texture_dimension2_d;
+                    let vm_result_max_texture_dimension3_d = value.max_texture_dimension3_d;
+                    let vm_result_max_texture_array_layers = value.max_texture_array_layers;
+                    let vm_result_max_color_attachments = value.max_color_attachments;
+                    let vm_result_max_color_attachment_bytes_per_sample =
+                        value.max_color_attachment_bytes_per_sample;
+                    let vm_result_max_sampled_textures_per_stage =
+                        value.max_sampled_textures_per_stage;
+                    let vm_result_max_samplers_per_stage = value.max_samplers_per_stage;
+                    let vm_result_max_storage_buffers_per_stage =
+                        value.max_storage_buffers_per_stage;
+                    let vm_result_max_storage_textures_per_stage =
+                        value.max_storage_textures_per_stage;
+                    let vm_result_max_uniform_buffers_per_stage =
+                        value.max_uniform_buffers_per_stage;
+                    let vm_result_max_dynamic_uniform_buffers_per_pipeline_layout =
+                        value.max_dynamic_uniform_buffers_per_pipeline_layout;
+                    let vm_result_max_dynamic_storage_buffers_per_pipeline_layout =
+                        value.max_dynamic_storage_buffers_per_pipeline_layout;
+                    let vm_result_max_uniform_buffer_binding_size =
+                        value.max_uniform_buffer_binding_size;
+                    let vm_result_max_storage_buffer_binding_size =
+                        value.max_storage_buffer_binding_size;
+                    let vm_result_min_storage_buffer_offset_alignment =
+                        value.min_storage_buffer_offset_alignment;
+                    let vm_result_min_uniform_buffer_offset_alignment =
+                        value.min_uniform_buffer_offset_alignment;
+                    let vm_result_max_vertex_buffers = value.max_vertex_buffers;
+                    let vm_result_max_vertex_attributes = value.max_vertex_attributes;
+                    let vm_result_max_vertex_buffer_array_stride =
+                        value.max_vertex_buffer_array_stride;
+                    let vm_result_max_buffer_size = value.max_buffer_size;
+                    let vm_result_max_inter_stage_shader_components =
+                        value.max_inter_stage_shader_components;
+                    let vm_result_max_inter_stage_shader_variables =
+                        value.max_inter_stage_shader_variables;
+                    let vm_result_max_compute_workgroup_storage_size =
+                        value.max_compute_workgroup_storage_size;
+                    let vm_result_max_compute_invocations_per_workgroup =
+                        value.max_compute_invocations_per_workgroup;
+                    let vm_result_max_compute_workgroup_size_x = value.max_compute_workgroup_size_x;
+                    let vm_result_max_compute_workgroup_size_y = value.max_compute_workgroup_size_y;
+                    let vm_result_max_compute_workgroup_size_z = value.max_compute_workgroup_size_z;
+                    let vm_result_max_compute_workgroups_per_dimension =
+                        value.max_compute_workgroups_per_dimension;
+                    let vm_result = GpuAdapterLimitsVm {
+                        max_bind_groups: vm_result_max_bind_groups,
+                        max_bindings_per_bind_group: vm_result_max_bindings_per_bind_group,
+                        max_push_constant_bytes: vm_result_max_push_constant_bytes,
+                        max_texture_dimension1_d: vm_result_max_texture_dimension1_d,
+                        max_texture_dimension2_d: vm_result_max_texture_dimension2_d,
+                        max_texture_dimension3_d: vm_result_max_texture_dimension3_d,
+                        max_texture_array_layers: vm_result_max_texture_array_layers,
+                        max_color_attachments: vm_result_max_color_attachments,
                         max_color_attachment_bytes_per_sample:
-                            result_recorded_max_color_attachment_bytes_per_sample,
-                        max_sampled_textures_per_stage:
-                            result_recorded_max_sampled_textures_per_stage,
-                        max_samplers_per_stage: result_recorded_max_samplers_per_stage,
-                        max_storage_buffers_per_stage:
-                            result_recorded_max_storage_buffers_per_stage,
-                        max_storage_textures_per_stage:
-                            result_recorded_max_storage_textures_per_stage,
-                        max_uniform_buffers_per_stage:
-                            result_recorded_max_uniform_buffers_per_stage,
+                            vm_result_max_color_attachment_bytes_per_sample,
+                        max_sampled_textures_per_stage: vm_result_max_sampled_textures_per_stage,
+                        max_samplers_per_stage: vm_result_max_samplers_per_stage,
+                        max_storage_buffers_per_stage: vm_result_max_storage_buffers_per_stage,
+                        max_storage_textures_per_stage: vm_result_max_storage_textures_per_stage,
+                        max_uniform_buffers_per_stage: vm_result_max_uniform_buffers_per_stage,
                         max_dynamic_uniform_buffers_per_pipeline_layout:
-                            result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout,
+                            vm_result_max_dynamic_uniform_buffers_per_pipeline_layout,
                         max_dynamic_storage_buffers_per_pipeline_layout:
-                            result_recorded_max_dynamic_storage_buffers_per_pipeline_layout,
-                        max_uniform_buffer_binding_size:
-                            result_recorded_max_uniform_buffer_binding_size,
-                        max_storage_buffer_binding_size:
-                            result_recorded_max_storage_buffer_binding_size,
+                            vm_result_max_dynamic_storage_buffers_per_pipeline_layout,
+                        max_uniform_buffer_binding_size: vm_result_max_uniform_buffer_binding_size,
+                        max_storage_buffer_binding_size: vm_result_max_storage_buffer_binding_size,
                         min_storage_buffer_offset_alignment:
-                            result_recorded_min_storage_buffer_offset_alignment,
+                            vm_result_min_storage_buffer_offset_alignment,
                         min_uniform_buffer_offset_alignment:
-                            result_recorded_min_uniform_buffer_offset_alignment,
-                        max_vertex_buffers: result_recorded_max_vertex_buffers,
-                        max_vertex_attributes: result_recorded_max_vertex_attributes,
-                        max_vertex_buffer_array_stride:
-                            result_recorded_max_vertex_buffer_array_stride,
-                        max_buffer_size: result_recorded_max_buffer_size,
+                            vm_result_min_uniform_buffer_offset_alignment,
+                        max_vertex_buffers: vm_result_max_vertex_buffers,
+                        max_vertex_attributes: vm_result_max_vertex_attributes,
+                        max_vertex_buffer_array_stride: vm_result_max_vertex_buffer_array_stride,
+                        max_buffer_size: vm_result_max_buffer_size,
                         max_inter_stage_shader_components:
-                            result_recorded_max_inter_stage_shader_components,
+                            vm_result_max_inter_stage_shader_components,
                         max_inter_stage_shader_variables:
-                            result_recorded_max_inter_stage_shader_variables,
+                            vm_result_max_inter_stage_shader_variables,
                         max_compute_workgroup_storage_size:
-                            result_recorded_max_compute_workgroup_storage_size,
+                            vm_result_max_compute_workgroup_storage_size,
                         max_compute_invocations_per_workgroup:
-                            result_recorded_max_compute_invocations_per_workgroup,
-                        max_compute_workgroup_size_x: result_recorded_max_compute_workgroup_size_x,
-                        max_compute_workgroup_size_y: result_recorded_max_compute_workgroup_size_y,
-                        max_compute_workgroup_size_z: result_recorded_max_compute_workgroup_size_z,
+                            vm_result_max_compute_invocations_per_workgroup,
+                        max_compute_workgroup_size_x: vm_result_max_compute_workgroup_size_x,
+                        max_compute_workgroup_size_y: vm_result_max_compute_workgroup_size_y,
+                        max_compute_workgroup_size_z: vm_result_max_compute_workgroup_size_z,
                         max_compute_workgroups_per_dimension:
-                            result_recorded_max_compute_workgroups_per_dimension,
+                            vm_result_max_compute_workgroups_per_dimension,
                     };
-                    let payload = GpuAdapterLimitsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
+                    Ok(vm_result)
                 }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuAdapterLimitsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_max_bind_groups = value.max_bind_groups;
-                        let vm_result_max_bindings_per_bind_group =
-                            value.max_bindings_per_bind_group;
-                        let vm_result_max_push_constant_bytes = value.max_push_constant_bytes;
-                        let vm_result_max_texture_dimension1_d = value.max_texture_dimension1_d;
-                        let vm_result_max_texture_dimension2_d = value.max_texture_dimension2_d;
-                        let vm_result_max_texture_dimension3_d = value.max_texture_dimension3_d;
-                        let vm_result_max_texture_array_layers = value.max_texture_array_layers;
-                        let vm_result_max_color_attachments = value.max_color_attachments;
-                        let vm_result_max_color_attachment_bytes_per_sample =
-                            value.max_color_attachment_bytes_per_sample;
-                        let vm_result_max_sampled_textures_per_stage =
-                            value.max_sampled_textures_per_stage;
-                        let vm_result_max_samplers_per_stage = value.max_samplers_per_stage;
-                        let vm_result_max_storage_buffers_per_stage =
-                            value.max_storage_buffers_per_stage;
-                        let vm_result_max_storage_textures_per_stage =
-                            value.max_storage_textures_per_stage;
-                        let vm_result_max_uniform_buffers_per_stage =
-                            value.max_uniform_buffers_per_stage;
-                        let vm_result_max_dynamic_uniform_buffers_per_pipeline_layout =
-                            value.max_dynamic_uniform_buffers_per_pipeline_layout;
-                        let vm_result_max_dynamic_storage_buffers_per_pipeline_layout =
-                            value.max_dynamic_storage_buffers_per_pipeline_layout;
-                        let vm_result_max_uniform_buffer_binding_size =
-                            value.max_uniform_buffer_binding_size;
-                        let vm_result_max_storage_buffer_binding_size =
-                            value.max_storage_buffer_binding_size;
-                        let vm_result_min_storage_buffer_offset_alignment =
-                            value.min_storage_buffer_offset_alignment;
-                        let vm_result_min_uniform_buffer_offset_alignment =
-                            value.min_uniform_buffer_offset_alignment;
-                        let vm_result_max_vertex_buffers = value.max_vertex_buffers;
-                        let vm_result_max_vertex_attributes = value.max_vertex_attributes;
-                        let vm_result_max_vertex_buffer_array_stride =
-                            value.max_vertex_buffer_array_stride;
-                        let vm_result_max_buffer_size = value.max_buffer_size;
-                        let vm_result_max_inter_stage_shader_components =
-                            value.max_inter_stage_shader_components;
-                        let vm_result_max_inter_stage_shader_variables =
-                            value.max_inter_stage_shader_variables;
-                        let vm_result_max_compute_workgroup_storage_size =
-                            value.max_compute_workgroup_storage_size;
-                        let vm_result_max_compute_invocations_per_workgroup =
-                            value.max_compute_invocations_per_workgroup;
-                        let vm_result_max_compute_workgroup_size_x =
-                            value.max_compute_workgroup_size_x;
-                        let vm_result_max_compute_workgroup_size_y =
-                            value.max_compute_workgroup_size_y;
-                        let vm_result_max_compute_workgroup_size_z =
-                            value.max_compute_workgroup_size_z;
-                        let vm_result_max_compute_workgroups_per_dimension =
-                            value.max_compute_workgroups_per_dimension;
-                        let vm_result = GpuAdapterLimitsVm {
-                            max_bind_groups: vm_result_max_bind_groups,
-                            max_bindings_per_bind_group: vm_result_max_bindings_per_bind_group,
-                            max_push_constant_bytes: vm_result_max_push_constant_bytes,
-                            max_texture_dimension1_d: vm_result_max_texture_dimension1_d,
-                            max_texture_dimension2_d: vm_result_max_texture_dimension2_d,
-                            max_texture_dimension3_d: vm_result_max_texture_dimension3_d,
-                            max_texture_array_layers: vm_result_max_texture_array_layers,
-                            max_color_attachments: vm_result_max_color_attachments,
-                            max_color_attachment_bytes_per_sample:
-                                vm_result_max_color_attachment_bytes_per_sample,
-                            max_sampled_textures_per_stage:
-                                vm_result_max_sampled_textures_per_stage,
-                            max_samplers_per_stage: vm_result_max_samplers_per_stage,
-                            max_storage_buffers_per_stage: vm_result_max_storage_buffers_per_stage,
-                            max_storage_textures_per_stage:
-                                vm_result_max_storage_textures_per_stage,
-                            max_uniform_buffers_per_stage: vm_result_max_uniform_buffers_per_stage,
-                            max_dynamic_uniform_buffers_per_pipeline_layout:
-                                vm_result_max_dynamic_uniform_buffers_per_pipeline_layout,
-                            max_dynamic_storage_buffers_per_pipeline_layout:
-                                vm_result_max_dynamic_storage_buffers_per_pipeline_layout,
-                            max_uniform_buffer_binding_size:
-                                vm_result_max_uniform_buffer_binding_size,
-                            max_storage_buffer_binding_size:
-                                vm_result_max_storage_buffer_binding_size,
-                            min_storage_buffer_offset_alignment:
-                                vm_result_min_storage_buffer_offset_alignment,
-                            min_uniform_buffer_offset_alignment:
-                                vm_result_min_uniform_buffer_offset_alignment,
-                            max_vertex_buffers: vm_result_max_vertex_buffers,
-                            max_vertex_attributes: vm_result_max_vertex_attributes,
-                            max_vertex_buffer_array_stride:
-                                vm_result_max_vertex_buffer_array_stride,
-                            max_buffer_size: vm_result_max_buffer_size,
-                            max_inter_stage_shader_components:
-                                vm_result_max_inter_stage_shader_components,
-                            max_inter_stage_shader_variables:
-                                vm_result_max_inter_stage_shader_variables,
-                            max_compute_workgroup_storage_size:
-                                vm_result_max_compute_workgroup_storage_size,
-                            max_compute_invocations_per_workgroup:
-                                vm_result_max_compute_invocations_per_workgroup,
-                            max_compute_workgroup_size_x: vm_result_max_compute_workgroup_size_x,
-                            max_compute_workgroup_size_y: vm_result_max_compute_workgroup_size_y,
-                            max_compute_workgroup_size_z: vm_result_max_compute_workgroup_size_z,
-                            max_compute_workgroups_per_dimension:
-                                vm_result_max_compute_workgroups_per_dimension,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_adapter_limits_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_adapter_list_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     request: GpuAdapterRequestVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_and_payload_policy(
+    let result = runtime.replay().run_binding_with_context_policy(
         GPU_ADAPTER_LIST,
         runtime.replay_payload_for(GPU_ADAPTER_LIST)?,
         context,
         |context| {
             match world {
                 RuntimeWorld::Host => platform_vm::destack_gpu_adapter_list(runtime, context, request),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_adapter_list(runtime, context, request),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_adapter_list(runtime, context, request),
             }
         },
         |context, result| {
@@ -22576,63 +22532,61 @@ fn destack_gpu_adapter_list_vm_replay(
 
 #[inline]
 fn destack_gpu_adapter_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_ADAPTER_OPEN,
-            runtime.replay_payload_for(GPU_ADAPTER_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_adapter_open(runtime, context, id),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_adapter_open(runtime, context, id)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuAdapterHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuAdapterOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_ADAPTER_OPEN,
+        runtime.replay_payload_for(GPU_ADAPTER_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_adapter_open(runtime, context, id),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_adapter_open(runtime, context, id)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuAdapterHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuAdapterOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuAdapterOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuAdapterOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_adapter_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_bind_group_create_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
@@ -22640,463 +22594,445 @@ fn destack_gpu_bind_group_create_vm_replay(
     entries: VmSlice<GpuBindGroupEntryVm>,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_BIND_GROUP_CREATE,
-            runtime.replay_payload_for(GPU_BIND_GROUP_CREATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_bind_group_create(
-                    runtime, context, device, layout, entries, flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_bind_group_create(
-                    runtime, context, device, layout, entries, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuBindGroupHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuBindGroupCreateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_BIND_GROUP_CREATE,
+        runtime.replay_payload_for(GPU_BIND_GROUP_CREATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_bind_group_create(
+                runtime, context, device, layout, entries, flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_bind_group_create(
+                runtime, context, device, layout, entries, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuBindGroupHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuBindGroupCreateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuBindGroupCreateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuBindGroupCreateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_bind_group_create_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_bind_group_destroy_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBindGroupHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_BIND_GROUP_DESTROY,
-            runtime.replay_payload_for(GPU_BIND_GROUP_DESTROY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_bind_group_destroy(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_bind_group_destroy(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuBindGroupDestroyReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_BIND_GROUP_DESTROY,
+        runtime.replay_payload_for(GPU_BIND_GROUP_DESTROY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_bind_group_destroy(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_bind_group_destroy(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuBindGroupDestroyReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuBindGroupDestroyReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuBindGroupDestroyReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_bind_group_destroy_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_bind_group_layout_create_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     entries: VmSlice<GpuBindGroupLayoutEntryVm>,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_BIND_GROUP_LAYOUT_CREATE,
-            runtime.replay_payload_for(GPU_BIND_GROUP_LAYOUT_CREATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_bind_group_layout_create(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_BIND_GROUP_LAYOUT_CREATE,
+        runtime.replay_payload_for(GPU_BIND_GROUP_LAYOUT_CREATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_bind_group_layout_create(
+                runtime, context, device, entries, flags,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_bind_group_layout_create(
                     runtime, context, device, entries, flags,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_bind_group_layout_create(
-                        runtime, context, device, entries, flags,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuBindGroupLayoutHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuBindGroupLayoutCreateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuBindGroupLayoutHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuBindGroupLayoutCreateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuBindGroupLayoutCreateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuBindGroupLayoutCreateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_bind_group_layout_create_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_bind_group_layout_destroy_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBindGroupLayoutHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_BIND_GROUP_LAYOUT_DESTROY,
-            runtime.replay_payload_for(GPU_BIND_GROUP_LAYOUT_DESTROY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_bind_group_layout_destroy(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_bind_group_layout_destroy(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuBindGroupLayoutDestroyReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_BIND_GROUP_LAYOUT_DESTROY,
+        runtime.replay_payload_for(GPU_BIND_GROUP_LAYOUT_DESTROY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_bind_group_layout_destroy(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_bind_group_layout_destroy(
+                    runtime, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuBindGroupLayoutDestroyReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuBindGroupLayoutDestroyReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuBindGroupLayoutDestroyReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_bind_group_layout_destroy_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_bind_pipeline_layout_create_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuPipelineLayoutOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_BIND_PIPELINE_LAYOUT_CREATE,
-            runtime.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_CREATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_pipeline_layout_create(
-                    runtime, context, device, options,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_pipeline_layout_create(
-                        runtime, context, device, options,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuPipelineLayoutHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuBindPipelineLayoutCreateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_BIND_PIPELINE_LAYOUT_CREATE,
+        runtime.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_CREATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_pipeline_layout_create(runtime, context, device, options)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_pipeline_layout_create(
+                runtime, context, device, options,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuPipelineLayoutHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuBindPipelineLayoutCreateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuBindPipelineLayoutCreateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuBindPipelineLayoutCreateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_bind_pipeline_layout_create_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_bind_pipeline_layout_destroy_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuPipelineLayoutHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_BIND_PIPELINE_LAYOUT_DESTROY,
-            runtime.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_DESTROY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_pipeline_layout_destroy(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_pipeline_layout_destroy(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuBindPipelineLayoutDestroyReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_BIND_PIPELINE_LAYOUT_DESTROY,
+        runtime.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_DESTROY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_pipeline_layout_destroy(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_pipeline_layout_destroy(
+                    runtime, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuBindPipelineLayoutDestroyReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuBindPipelineLayoutDestroyReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuBindPipelineLayoutDestroyReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_bind_pipeline_layout_destroy_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_bind_compute_pipeline_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_BIND_COMPUTE_PIPELINE,
-            runtime.replay_payload_for(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_bind_compute_pipeline(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_BIND_COMPUTE_PIPELINE,
+        runtime.replay_payload_for(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_bind_compute_pipeline(
+                runtime, context, handle, pipeline,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_bind_compute_pipeline(
                     runtime, context, handle, pipeline,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_bind_compute_pipeline(
-                        runtime, context, handle, pipeline,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandBindComputePipelineReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandBindComputePipelineReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandBindComputePipelineReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandBindComputePipelineReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_bind_compute_pipeline_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_bind_render_pipeline_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_BIND_RENDER_PIPELINE,
-            runtime.replay_payload_for(GPU_COMMAND_BIND_RENDER_PIPELINE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_bind_render_pipeline(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_BIND_RENDER_PIPELINE,
+        runtime.replay_payload_for(GPU_COMMAND_BIND_RENDER_PIPELINE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_bind_render_pipeline(
+                runtime, context, handle, pipeline,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_bind_render_pipeline(
                     runtime, context, handle, pipeline,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_bind_render_pipeline(
-                        runtime, context, handle, pipeline,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandBindRenderPipelineReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandBindRenderPipelineReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandBindRenderPipelineReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandBindRenderPipelineReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_bind_render_pipeline_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_clear_buffer_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
@@ -23104,227 +23040,217 @@ fn destack_gpu_command_clear_buffer_vm_replay(
     offset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_CLEAR_BUFFER,
-            runtime.replay_payload_for(GPU_COMMAND_CLEAR_BUFFER)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_clear_buffer(
-                    runtime, context, handle, buffer, offset, size,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_clear_buffer(
-                        runtime, context, handle, buffer, offset, size,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandClearBufferReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_CLEAR_BUFFER,
+        runtime.replay_payload_for(GPU_COMMAND_CLEAR_BUFFER)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_clear_buffer(
+                runtime, context, handle, buffer, offset, size,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_clear_buffer(
+                runtime, context, handle, buffer, offset, size,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandClearBufferReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandClearBufferReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandClearBufferReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_clear_buffer_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_compute_pass_begin_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     options: GpuComputePassOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_COMPUTE_PASS_BEGIN,
-            runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_BEGIN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_compute_pass_begin(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_COMPUTE_PASS_BEGIN,
+        runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_BEGIN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_compute_pass_begin(
+                runtime, context, handle, options,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_compute_pass_begin(
                     runtime, context, handle, options,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_compute_pass_begin(
-                        runtime, context, handle, options,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuComputePassHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuCommandComputePassBeginReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuComputePassHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuCommandComputePassBeginReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandComputePassBeginReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandComputePassBeginReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_compute_pass_begin_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_compute_pass_end_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_COMPUTE_PASS_END,
-            runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_END)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_command_compute_pass_end(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_compute_pass_end(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandComputePassEndReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_COMPUTE_PASS_END,
+        runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_END)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_command_compute_pass_end(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_compute_pass_end(
+                    runtime, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandComputePassEndReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandComputePassEndReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandComputePassEndReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_compute_pass_end_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_compute_pass_insert_debug_marker_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
-            runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_command_compute_pass_insert_debug_marker(
-                        runtime, context, handle, marker,
-                    )
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_compute_pass_insert_debug_marker(
-                        runtime, context, handle, marker,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandComputePassInsertDebugMarkerReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
+        runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_command_compute_pass_insert_debug_marker(
+                    runtime, context, handle, marker,
+                )
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_compute_pass_insert_debug_marker(
+                    runtime, context, handle, marker,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandComputePassInsertDebugMarkerReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandComputePassInsertDebugMarkerReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandComputePassInsertDebugMarkerReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result =
         encode_destack_gpu_command_compute_pass_insert_debug_marker_result(context, result)?;
     Ok(result)
@@ -23332,124 +23258,116 @@ fn destack_gpu_command_compute_pass_insert_debug_marker_vm_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_pop_debug_group_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
-            runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_command_compute_pass_pop_debug_group(
-                        runtime, context, handle,
-                    )
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_compute_pass_pop_debug_group(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandComputePassPopDebugGroupReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
+        runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_compute_pass_pop_debug_group(
+                runtime, context, handle,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_compute_pass_pop_debug_group(
+                    runtime, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandComputePassPopDebugGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandComputePassPopDebugGroupReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandComputePassPopDebugGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_compute_pass_pop_debug_group_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_compute_pass_push_debug_group_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
-            runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_command_compute_pass_push_debug_group(
-                        runtime, context, handle, label,
-                    )
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_compute_pass_push_debug_group(
-                        runtime, context, handle, label,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandComputePassPushDebugGroupReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
+        runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_compute_pass_push_debug_group(
+                runtime, context, handle, label,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_compute_pass_push_debug_group(
+                    runtime, context, handle, label,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandComputePassPushDebugGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandComputePassPushDebugGroupReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandComputePassPushDebugGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_compute_pass_push_debug_group_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_copy_buffer_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
@@ -23459,70 +23377,68 @@ fn destack_gpu_command_copy_buffer_vm_replay(
     dstoffset: u64,
     argument_bytes: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_COPY_BUFFER,
-            runtime.replay_payload_for(GPU_COMMAND_COPY_BUFFER)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_copy_buffer(
-                    runtime,
-                    context,
-                    handle,
-                    src,
-                    srcoffset,
-                    dst,
-                    dstoffset,
-                    argument_bytes,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_copy_buffer(
-                    runtime,
-                    context,
-                    handle,
-                    src,
-                    srcoffset,
-                    dst,
-                    dstoffset,
-                    argument_bytes,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandCopyBufferReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_COPY_BUFFER,
+        runtime.replay_payload_for(GPU_COMMAND_COPY_BUFFER)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_copy_buffer(
+                runtime,
+                context,
+                handle,
+                src,
+                srcoffset,
+                dst,
+                dstoffset,
+                argument_bytes,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_copy_buffer(
+                runtime,
+                context,
+                handle,
+                src,
+                srcoffset,
+                dst,
+                dstoffset,
+                argument_bytes,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandCopyBufferReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandCopyBufferReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandCopyBufferReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_copy_buffer_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_copy_buffer_to_texture_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
@@ -23530,68 +23446,66 @@ fn destack_gpu_command_copy_buffer_to_texture_vm_replay(
     destination: GpuTextureCopyVm,
     size: GpuExtent3DVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_COPY_BUFFER_TO_TEXTURE,
-            runtime.replay_payload_for(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_copy_buffer_to_texture(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_COPY_BUFFER_TO_TEXTURE,
+        runtime.replay_payload_for(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_copy_buffer_to_texture(
+                runtime,
+                context,
+                handle,
+                source,
+                destination,
+                size,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_copy_buffer_to_texture(
                     runtime,
                     context,
                     handle,
                     source,
                     destination,
                     size,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_copy_buffer_to_texture(
-                        runtime,
-                        context,
-                        handle,
-                        source,
-                        destination,
-                        size,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandCopyBufferToTextureReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandCopyBufferToTextureReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandCopyBufferToTextureReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandCopyBufferToTextureReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_copy_buffer_to_texture_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_copy_texture_to_buffer_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
@@ -23599,68 +23513,66 @@ fn destack_gpu_command_copy_texture_to_buffer_vm_replay(
     destination: GpuBufferCopyVm,
     size: GpuExtent3DVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_COPY_TEXTURE_TO_BUFFER,
-            runtime.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_copy_texture_to_buffer(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_COPY_TEXTURE_TO_BUFFER,
+        runtime.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_copy_texture_to_buffer(
+                runtime,
+                context,
+                handle,
+                source,
+                destination,
+                size,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_copy_texture_to_buffer(
                     runtime,
                     context,
                     handle,
                     source,
                     destination,
                     size,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_copy_texture_to_buffer(
-                        runtime,
-                        context,
-                        handle,
-                        source,
-                        destination,
-                        size,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandCopyTextureToBufferReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandCopyTextureToBufferReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandCopyTextureToBufferReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandCopyTextureToBufferReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_copy_texture_to_buffer_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_copy_texture_to_texture_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
@@ -23668,68 +23580,66 @@ fn destack_gpu_command_copy_texture_to_texture_vm_replay(
     destination: GpuTextureCopyVm,
     size: GpuExtent3DVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE,
-            runtime.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_copy_texture_to_texture(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE,
+        runtime.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_copy_texture_to_texture(
+                runtime,
+                context,
+                handle,
+                source,
+                destination,
+                size,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_copy_texture_to_texture(
                     runtime,
                     context,
                     handle,
                     source,
                     destination,
                     size,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_copy_texture_to_texture(
-                        runtime,
-                        context,
-                        handle,
-                        source,
-                        destination,
-                        size,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandCopyTextureToTextureReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandCopyTextureToTextureReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandCopyTextureToTextureReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandCopyTextureToTextureReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_copy_texture_to_texture_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_dispatch_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
@@ -23737,114 +23647,110 @@ fn destack_gpu_command_dispatch_vm_replay(
     groupy: u32,
     groupz: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_DISPATCH,
-            runtime.replay_payload_for(GPU_COMMAND_DISPATCH)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_dispatch(
-                    runtime, context, handle, groupx, groupy, groupz,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_dispatch(
-                    runtime, context, handle, groupx, groupy, groupz,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandDispatchReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_DISPATCH,
+        runtime.replay_payload_for(GPU_COMMAND_DISPATCH)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_dispatch(
+                runtime, context, handle, groupx, groupy, groupz,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_dispatch(
+                runtime, context, handle, groupx, groupy, groupz,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandDispatchReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandDispatchReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandDispatchReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_dispatch_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_dispatch_indirect_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_DISPATCH_INDIRECT,
-            runtime.replay_payload_for(GPU_COMMAND_DISPATCH_INDIRECT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_dispatch_indirect(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_DISPATCH_INDIRECT,
+        runtime.replay_payload_for(GPU_COMMAND_DISPATCH_INDIRECT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_dispatch_indirect(
+                runtime, context, handle, buffer, offset,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_dispatch_indirect(
                     runtime, context, handle, buffer, offset,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_dispatch_indirect(
-                        runtime, context, handle, buffer, offset,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandDispatchIndirectReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandDispatchIndirectReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandDispatchIndirectReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandDispatchIndirectReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_dispatch_indirect_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_draw_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -23853,68 +23759,66 @@ fn destack_gpu_command_draw_vm_replay(
     firstvertex: u32,
     firstinstance: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_DRAW,
-            runtime.replay_payload_for(GPU_COMMAND_DRAW)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_draw(
-                    runtime,
-                    context,
-                    handle,
-                    vertexcount,
-                    instancecount,
-                    firstvertex,
-                    firstinstance,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_draw(
-                    runtime,
-                    context,
-                    handle,
-                    vertexcount,
-                    instancecount,
-                    firstvertex,
-                    firstinstance,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandDrawReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_DRAW,
+        runtime.replay_payload_for(GPU_COMMAND_DRAW)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_draw(
+                runtime,
+                context,
+                handle,
+                vertexcount,
+                instancecount,
+                firstvertex,
+                firstinstance,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_draw(
+                runtime,
+                context,
+                handle,
+                vertexcount,
+                instancecount,
+                firstvertex,
+                firstinstance,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandDrawReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandDrawReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandDrawReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_draw_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_draw_indexed_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -23924,72 +23828,68 @@ fn destack_gpu_command_draw_indexed_vm_replay(
     basevertex: i32,
     firstinstance: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_DRAW_INDEXED,
-            runtime.replay_payload_for(GPU_COMMAND_DRAW_INDEXED)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_draw_indexed(
-                    runtime,
-                    context,
-                    handle,
-                    indexcount,
-                    instancecount,
-                    firstindex,
-                    basevertex,
-                    firstinstance,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_draw_indexed(
-                        runtime,
-                        context,
-                        handle,
-                        indexcount,
-                        instancecount,
-                        firstindex,
-                        basevertex,
-                        firstinstance,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandDrawIndexedReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_DRAW_INDEXED,
+        runtime.replay_payload_for(GPU_COMMAND_DRAW_INDEXED)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_draw_indexed(
+                runtime,
+                context,
+                handle,
+                indexcount,
+                instancecount,
+                firstindex,
+                basevertex,
+                firstinstance,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_draw_indexed(
+                runtime,
+                context,
+                handle,
+                indexcount,
+                instancecount,
+                firstindex,
+                basevertex,
+                firstinstance,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandDrawIndexedReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandDrawIndexedReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandDrawIndexedReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_draw_indexed_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_draw_indexed_indirect_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -23998,58 +23898,56 @@ fn destack_gpu_command_draw_indexed_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_DRAW_INDEXED_INDIRECT,
-            runtime.replay_payload_for(GPU_COMMAND_DRAW_INDEXED_INDIRECT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_draw_indexed_indirect(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_DRAW_INDEXED_INDIRECT,
+        runtime.replay_payload_for(GPU_COMMAND_DRAW_INDEXED_INDIRECT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_draw_indexed_indirect(
+                runtime, context, handle, buffer, offset, drawcount, stride,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_draw_indexed_indirect(
                     runtime, context, handle, buffer, offset, drawcount, stride,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_draw_indexed_indirect(
-                        runtime, context, handle, buffer, offset, drawcount, stride,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandDrawIndexedIndirectReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandDrawIndexedIndirectReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandDrawIndexedIndirectReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandDrawIndexedIndirectReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_draw_indexed_indirect_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_draw_indirect_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -24058,345 +23956,325 @@ fn destack_gpu_command_draw_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_DRAW_INDIRECT,
-            runtime.replay_payload_for(GPU_COMMAND_DRAW_INDIRECT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_draw_indirect(
-                    runtime, context, handle, buffer, offset, drawcount, stride,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_draw_indirect(
-                        runtime, context, handle, buffer, offset, drawcount, stride,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandDrawIndirectReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_DRAW_INDIRECT,
+        runtime.replay_payload_for(GPU_COMMAND_DRAW_INDIRECT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_draw_indirect(
+                runtime, context, handle, buffer, offset, drawcount, stride,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_draw_indirect(
+                runtime, context, handle, buffer, offset, drawcount, stride,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandDrawIndirectReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandDrawIndirectReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandDrawIndirectReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_draw_indirect_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_encoder_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_ENCODER_CLOSE,
-            runtime.replay_payload_for(GPU_COMMAND_ENCODER_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_command_encoder_close(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_encoder_close(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandEncoderCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_ENCODER_CLOSE,
+        runtime.replay_payload_for(GPU_COMMAND_ENCODER_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_command_encoder_close(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_encoder_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandEncoderCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandEncoderCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandEncoderCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_encoder_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_encoder_finish_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_ENCODER_FINISH,
-            runtime.replay_payload_for(GPU_COMMAND_ENCODER_FINISH)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_command_encoder_finish(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_encoder_finish(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandEncoderFinishReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_ENCODER_FINISH,
+        runtime.replay_payload_for(GPU_COMMAND_ENCODER_FINISH)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_command_encoder_finish(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_encoder_finish(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandEncoderFinishReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandEncoderFinishReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandEncoderFinishReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_encoder_finish_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_encoder_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuCommandEncoderOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_ENCODER_OPEN,
-            runtime.replay_payload_for(GPU_COMMAND_ENCODER_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_command_encoder_open(runtime, context, device, options)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_encoder_open(
-                        runtime, context, device, options,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuCommandListHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuCommandEncoderOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_ENCODER_OPEN,
+        runtime.replay_payload_for(GPU_COMMAND_ENCODER_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_command_encoder_open(runtime, context, device, options)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_encoder_open(
+                runtime, context, device, options,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuCommandListHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuCommandEncoderOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandEncoderOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandEncoderOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_encoder_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_execute_bundles_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     bundles: VmSlice<resource::GpuRenderBundleHandle>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_EXECUTE_BUNDLES,
-            runtime.replay_payload_for(GPU_COMMAND_EXECUTE_BUNDLES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_execute_bundles(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_EXECUTE_BUNDLES,
+        runtime.replay_payload_for(GPU_COMMAND_EXECUTE_BUNDLES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_command_execute_bundles(runtime, context, handle, bundles)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_execute_bundles(
                     runtime, context, handle, bundles,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_execute_bundles(
-                        runtime, context, handle, bundles,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandExecuteBundlesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandExecuteBundlesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandExecuteBundlesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandExecuteBundlesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_execute_bundles_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_insert_debug_marker_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_INSERT_DEBUG_MARKER,
-            runtime.replay_payload_for(GPU_COMMAND_INSERT_DEBUG_MARKER)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_insert_debug_marker(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_INSERT_DEBUG_MARKER,
+        runtime.replay_payload_for(GPU_COMMAND_INSERT_DEBUG_MARKER)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_insert_debug_marker(
+                runtime, context, handle, marker,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_insert_debug_marker(
                     runtime, context, handle, marker,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_insert_debug_marker(
-                        runtime, context, handle, marker,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandInsertDebugMarkerReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandInsertDebugMarkerReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandInsertDebugMarkerReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandInsertDebugMarkerReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_insert_debug_marker_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_multi_draw_indexed_indirect_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -24405,58 +24283,56 @@ fn destack_gpu_command_multi_draw_indexed_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT,
-            runtime.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_multi_draw_indexed_indirect(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT,
+        runtime.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_multi_draw_indexed_indirect(
+                runtime, context, handle, buffer, offset, drawcount, stride,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_multi_draw_indexed_indirect(
                     runtime, context, handle, buffer, offset, drawcount, stride,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_multi_draw_indexed_indirect(
-                        runtime, context, handle, buffer, offset, drawcount, stride,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandMultiDrawIndexedIndirectReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandMultiDrawIndexedIndirectReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandMultiDrawIndexedIndirectReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandMultiDrawIndexedIndirectReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_multi_draw_indexed_indirect_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_multi_draw_indexed_indirect_count_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -24467,155 +24343,13 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_vm_replay(
     maxdrawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT,
-            runtime.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_command_multi_draw_indexed_indirect_count(
-                        runtime,
-                        context,
-                        handle,
-                        buffer,
-                        offset,
-                        countbuffer,
-                        countoffset,
-                        maxdrawcount,
-                        stride,
-                    )
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_multi_draw_indexed_indirect_count(
-                        runtime,
-                        context,
-                        handle,
-                        buffer,
-                        offset,
-                        countbuffer,
-                        countoffset,
-                        maxdrawcount,
-                        stride,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandMultiDrawIndexedIndirectCountReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandMultiDrawIndexedIndirectCountReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result =
-        encode_destack_gpu_command_multi_draw_indexed_indirect_count_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_gpu_command_multi_draw_indirect_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::GpuRenderPassHandle,
-    buffer: resource::GpuBufferHandle,
-    offset: u64,
-    drawcount: u32,
-    stride: u32,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_MULTI_DRAW_INDIRECT,
-            runtime.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_multi_draw_indirect(
-                    runtime, context, handle, buffer, offset, drawcount, stride,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_multi_draw_indirect(
-                        runtime, context, handle, buffer, offset, drawcount, stride,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandMultiDrawIndirectReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandMultiDrawIndirectReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
-    let result = encode_destack_gpu_command_multi_draw_indirect_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_gpu_command_multi_draw_indirect_count_vm_replay(
-    runtime: &RuntimeCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::GpuRenderPassHandle,
-    buffer: resource::GpuBufferHandle,
-    offset: u64,
-    countbuffer: resource::GpuBufferHandle,
-    countoffset: u64,
-    maxdrawcount: u32,
-    stride: u32,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT,
-            runtime.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_multi_draw_indirect_count(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT,
+        runtime.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_command_multi_draw_indexed_indirect_count(
                     runtime,
                     context,
                     handle,
@@ -24625,289 +24359,417 @@ fn destack_gpu_command_multi_draw_indirect_count_vm_replay(
                     countoffset,
                     maxdrawcount,
                     stride,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_multi_draw_indirect_count(
-                        runtime,
-                        context,
-                        handle,
-                        buffer,
-                        offset,
-                        countbuffer,
-                        countoffset,
-                        maxdrawcount,
-                        stride,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandMultiDrawIndirectCountReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_multi_draw_indexed_indirect_count(
+                    runtime,
+                    context,
+                    handle,
+                    buffer,
+                    offset,
+                    countbuffer,
+                    countoffset,
+                    maxdrawcount,
+                    stride,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandMultiDrawIndexedIndirectCountReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandMultiDrawIndirectCountReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandMultiDrawIndexedIndirectCountReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result =
+        encode_destack_gpu_command_multi_draw_indexed_indirect_count_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_gpu_command_multi_draw_indirect_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::GpuRenderPassHandle,
+    buffer: resource::GpuBufferHandle,
+    offset: u64,
+    drawcount: u32,
+    stride: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_MULTI_DRAW_INDIRECT,
+        runtime.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_multi_draw_indirect(
+                runtime, context, handle, buffer, offset, drawcount, stride,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_multi_draw_indirect(
+                    runtime, context, handle, buffer, offset, drawcount, stride,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandMultiDrawIndirectReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandMultiDrawIndirectReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_gpu_command_multi_draw_indirect_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_gpu_command_multi_draw_indirect_count_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::GpuRenderPassHandle,
+    buffer: resource::GpuBufferHandle,
+    offset: u64,
+    countbuffer: resource::GpuBufferHandle,
+    countoffset: u64,
+    maxdrawcount: u32,
+    stride: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT,
+        runtime.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_multi_draw_indirect_count(
+                runtime,
+                context,
+                handle,
+                buffer,
+                offset,
+                countbuffer,
+                countoffset,
+                maxdrawcount,
+                stride,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_multi_draw_indirect_count(
+                    runtime,
+                    context,
+                    handle,
+                    buffer,
+                    offset,
+                    countbuffer,
+                    countoffset,
+                    maxdrawcount,
+                    stride,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandMultiDrawIndirectCountReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandMultiDrawIndirectCountReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_multi_draw_indirect_count_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_pop_debug_group_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_POP_DEBUG_GROUP,
-            runtime.replay_payload_for(GPU_COMMAND_POP_DEBUG_GROUP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_command_pop_debug_group(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_pop_debug_group(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandPopDebugGroupReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_POP_DEBUG_GROUP,
+        runtime.replay_payload_for(GPU_COMMAND_POP_DEBUG_GROUP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_command_pop_debug_group(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_pop_debug_group(
+                    runtime, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandPopDebugGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandPopDebugGroupReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandPopDebugGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_pop_debug_group_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_push_debug_group_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_PUSH_DEBUG_GROUP,
-            runtime.replay_payload_for(GPU_COMMAND_PUSH_DEBUG_GROUP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_push_debug_group(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_PUSH_DEBUG_GROUP,
+        runtime.replay_payload_for(GPU_COMMAND_PUSH_DEBUG_GROUP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_command_push_debug_group(runtime, context, handle, label)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_push_debug_group(
                     runtime, context, handle, label,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_push_debug_group(
-                        runtime, context, handle, label,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandPushDebugGroupReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandPushDebugGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandPushDebugGroupReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandPushDebugGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_push_debug_group_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_queue_submit_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     commandlists: VmSlice<resource::GpuCommandListHandle>,
     options: GpuSubmitOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_QUEUE_SUBMIT,
-            runtime.replay_payload_for(GPU_COMMAND_QUEUE_SUBMIT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_queue_submit(
-                    runtime,
-                    context,
-                    queue,
-                    commandlists,
-                    options,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_queue_submit(
-                    runtime,
-                    context,
-                    queue,
-                    commandlists,
-                    options,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandQueueSubmitReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_QUEUE_SUBMIT,
+        runtime.replay_payload_for(GPU_COMMAND_QUEUE_SUBMIT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_queue_submit(
+                runtime,
+                context,
+                queue,
+                commandlists,
+                options,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_queue_submit(
+                runtime,
+                context,
+                queue,
+                commandlists,
+                options,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandQueueSubmitReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandQueueSubmitReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandQueueSubmitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_queue_submit_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_queue_wait_idle_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_QUEUE_WAIT_IDLE,
-            runtime.replay_payload_for(GPU_COMMAND_QUEUE_WAIT_IDLE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_queue_wait_idle(runtime, context, queue, timeoutns)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_queue_wait_idle(
-                    runtime, context, queue, timeoutns,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandQueueWaitIdleReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_QUEUE_WAIT_IDLE,
+        runtime.replay_payload_for(GPU_COMMAND_QUEUE_WAIT_IDLE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_queue_wait_idle(runtime, context, queue, timeoutns)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_queue_wait_idle(
+                runtime, context, queue, timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandQueueWaitIdleReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandQueueWaitIdleReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandQueueWaitIdleReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_queue_wait_idle_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_queue_write_buffer_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
@@ -24917,70 +24779,68 @@ fn destack_gpu_command_queue_write_buffer_vm_replay(
     dataoffset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_QUEUE_WRITE_BUFFER,
-            runtime.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_BUFFER)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_queue_write_buffer(
-                    runtime,
-                    context,
-                    queue,
-                    buffer,
-                    bufferoffset,
-                    data,
-                    dataoffset,
-                    size,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_queue_write_buffer(
-                    runtime,
-                    context,
-                    queue,
-                    buffer,
-                    bufferoffset,
-                    data,
-                    dataoffset,
-                    size,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandQueueWriteBufferReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_QUEUE_WRITE_BUFFER,
+        runtime.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_BUFFER)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_queue_write_buffer(
+                runtime,
+                context,
+                queue,
+                buffer,
+                bufferoffset,
+                data,
+                dataoffset,
+                size,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_queue_write_buffer(
+                runtime,
+                context,
+                queue,
+                buffer,
+                bufferoffset,
+                data,
+                dataoffset,
+                size,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandQueueWriteBufferReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandQueueWriteBufferReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandQueueWriteBufferReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_queue_write_buffer_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_queue_write_texture_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
@@ -24989,124 +24849,118 @@ fn destack_gpu_command_queue_write_texture_vm_replay(
     layout: GpuBufferCopyLayoutVm,
     size: GpuExtent3DVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_QUEUE_WRITE_TEXTURE,
-            runtime.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_queue_write_texture(
-                    runtime,
-                    context,
-                    queue,
-                    destination,
-                    data,
-                    layout,
-                    size,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_queue_write_texture(
-                    runtime,
-                    context,
-                    queue,
-                    destination,
-                    data,
-                    layout,
-                    size,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandQueueWriteTextureReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_QUEUE_WRITE_TEXTURE,
+        runtime.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_queue_write_texture(
+                runtime,
+                context,
+                queue,
+                destination,
+                data,
+                layout,
+                size,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_queue_write_texture(
+                runtime,
+                context,
+                queue,
+                destination,
+                data,
+                layout,
+                size,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandQueueWriteTextureReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandQueueWriteTextureReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandQueueWriteTextureReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_queue_write_texture_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_bundle_destroy_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_BUNDLE_DESTROY,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DESTROY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_render_bundle_destroy(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_render_bundle_destroy(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderBundleDestroyReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_BUNDLE_DESTROY,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DESTROY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_render_bundle_destroy(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_render_bundle_destroy(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderBundleDestroyReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderBundleDestroyReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderBundleDestroyReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_bundle_destroy_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
@@ -25115,68 +24969,66 @@ fn destack_gpu_command_render_bundle_draw_vm_replay(
     firstvertex: u32,
     firstinstance: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_BUNDLE_DRAW,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_draw(
-                    runtime,
-                    context,
-                    handle,
-                    vertexcount,
-                    instancecount,
-                    firstvertex,
-                    firstinstance,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_render_bundle_draw(
-                    runtime,
-                    context,
-                    handle,
-                    vertexcount,
-                    instancecount,
-                    firstvertex,
-                    firstinstance,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderBundleDrawReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_BUNDLE_DRAW,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_draw(
+                runtime,
+                context,
+                handle,
+                vertexcount,
+                instancecount,
+                firstvertex,
+                firstinstance,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_render_bundle_draw(
+                runtime,
+                context,
+                handle,
+                vertexcount,
+                instancecount,
+                firstvertex,
+                firstinstance,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderBundleDrawReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderBundleDrawReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderBundleDrawReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_bundle_draw_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_indexed_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
@@ -25186,14 +25038,23 @@ fn destack_gpu_command_render_bundle_draw_indexed_vm_replay(
     basevertex: i32,
     firstinstance: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_draw_indexed(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_draw_indexed(
+                runtime,
+                context,
+                handle,
+                indexcount,
+                instancecount,
+                firstindex,
+                basevertex,
+                firstinstance,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_render_bundle_draw_indexed(
                     runtime,
                     context,
                     handle,
@@ -25202,56 +25063,45 @@ fn destack_gpu_command_render_bundle_draw_indexed_vm_replay(
                     firstindex,
                     basevertex,
                     firstinstance,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_render_bundle_draw_indexed(
-                        runtime,
-                        context,
-                        handle,
-                        indexcount,
-                        instancecount,
-                        firstindex,
-                        basevertex,
-                        firstinstance,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderBundleDrawIndexedReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderBundleDrawIndexedReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderBundleDrawIndexedReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderBundleDrawIndexedReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_bundle_draw_indexed_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_indexed_indirect_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
@@ -25260,51 +25110,49 @@ fn destack_gpu_command_render_bundle_draw_indexed_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_draw_indexed_indirect(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_draw_indexed_indirect(
+                runtime, context, handle, buffer, offset, drawcount, stride,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_render_bundle_draw_indexed_indirect(
                     runtime, context, handle, buffer, offset, drawcount, stride,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_render_bundle_draw_indexed_indirect(
-                        runtime, context, handle, buffer, offset, drawcount, stride,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderBundleDrawIndexedIndirectReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderBundleDrawIndexedIndirectReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderBundleDrawIndexedIndirectReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderBundleDrawIndexedIndirectReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result =
         encode_destack_gpu_command_render_bundle_draw_indexed_indirect_result(context, result)?;
     Ok(result)
@@ -25312,7 +25160,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_indirect_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_indirect_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
@@ -25321,285 +25169,275 @@ fn destack_gpu_command_render_bundle_draw_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_draw_indirect(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_draw_indirect(
+                runtime, context, handle, buffer, offset, drawcount, stride,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_render_bundle_draw_indirect(
                     runtime, context, handle, buffer, offset, drawcount, stride,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_render_bundle_draw_indirect(
-                        runtime, context, handle, buffer, offset, drawcount, stride,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderBundleDrawIndirectReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderBundleDrawIndirectReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderBundleDrawIndirectReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderBundleDrawIndirectReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_bundle_draw_indirect_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_bundle_encoder_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_render_bundle_encoder_close(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_render_bundle_encoder_close(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderBundleEncoderCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_render_bundle_encoder_close(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_render_bundle_encoder_close(
+                    runtime, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderBundleEncoderCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderBundleEncoderCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderBundleEncoderCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_bundle_encoder_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_bundle_encoder_finish_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_render_bundle_encoder_finish(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_render_bundle_encoder_finish(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuRenderBundleHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuCommandRenderBundleEncoderFinishReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_render_bundle_encoder_finish(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_render_bundle_encoder_finish(
+                    runtime, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuRenderBundleHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuCommandRenderBundleEncoderFinishReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderBundleEncoderFinishReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderBundleEncoderFinishReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_bundle_encoder_finish_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_bundle_encoder_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuRenderBundleEncoderOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_encoder_open(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_encoder_open(
+                runtime, context, device, options,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_render_bundle_encoder_open(
                     runtime, context, device, options,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_render_bundle_encoder_open(
-                        runtime, context, device, options,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuRenderBundleEncoderHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuCommandRenderBundleEncoderOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuRenderBundleEncoderHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuCommandRenderBundleEncoderOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderBundleEncoderOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderBundleEncoderOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_bundle_encoder_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_bundle_insert_debug_marker_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_insert_debug_marker(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_insert_debug_marker(
+                runtime, context, handle, marker,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_render_bundle_insert_debug_marker(
                     runtime, context, handle, marker,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_render_bundle_insert_debug_marker(
-                        runtime, context, handle, marker,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderBundleInsertDebugMarkerReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderBundleInsertDebugMarkerReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderBundleInsertDebugMarkerReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderBundleInsertDebugMarkerReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result =
         encode_destack_gpu_command_render_bundle_insert_debug_marker_result(context, result)?;
     Ok(result)
@@ -25607,120 +25445,116 @@ fn destack_gpu_command_render_bundle_insert_debug_marker_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_pop_debug_group_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_render_bundle_pop_debug_group(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_render_bundle_pop_debug_group(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderBundlePopDebugGroupReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_render_bundle_pop_debug_group(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_render_bundle_pop_debug_group(
+                    runtime, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderBundlePopDebugGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderBundlePopDebugGroupReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderBundlePopDebugGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_bundle_pop_debug_group_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_bundle_push_debug_group_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_push_debug_group(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_push_debug_group(
+                runtime, context, handle, label,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_render_bundle_push_debug_group(
                     runtime, context, handle, label,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_render_bundle_push_debug_group(
-                        runtime, context, handle, label,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderBundlePushDebugGroupReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderBundlePushDebugGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderBundlePushDebugGroupReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderBundlePushDebugGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_bundle_push_debug_group_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_bind_group_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
@@ -25728,68 +25562,66 @@ fn destack_gpu_command_render_bundle_set_bind_group_vm_replay(
     bindgroup: resource::GpuBindGroupHandle,
     dynamicoffsets: VmSlice<u32>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_set_bind_group(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_set_bind_group(
+                runtime,
+                context,
+                handle,
+                index,
+                bindgroup,
+                dynamicoffsets,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_render_bundle_set_bind_group(
                     runtime,
                     context,
                     handle,
                     index,
                     bindgroup,
                     dynamicoffsets,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_render_bundle_set_bind_group(
-                        runtime,
-                        context,
-                        handle,
-                        index,
-                        bindgroup,
-                        dynamicoffsets,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderBundleSetBindGroupReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderBundleSetBindGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderBundleSetBindGroupReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderBundleSetBindGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_bundle_set_bind_group_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_index_buffer_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
@@ -25798,115 +25630,111 @@ fn destack_gpu_command_render_bundle_set_index_buffer_vm_replay(
     offset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_set_index_buffer(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_set_index_buffer(
+                runtime, context, handle, buffer, format, offset, size,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_render_bundle_set_index_buffer(
                     runtime, context, handle, buffer, format, offset, size,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_render_bundle_set_index_buffer(
-                        runtime, context, handle, buffer, format, offset, size,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderBundleSetIndexBufferReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderBundleSetIndexBufferReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderBundleSetIndexBufferReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderBundleSetIndexBufferReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_bundle_set_index_buffer_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_pipeline_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_set_pipeline(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_set_pipeline(
+                runtime, context, handle, pipeline,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_render_bundle_set_pipeline(
                     runtime, context, handle, pipeline,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_render_bundle_set_pipeline(
-                        runtime, context, handle, pipeline,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderBundleSetPipelineReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderBundleSetPipelineReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderBundleSetPipelineReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderBundleSetPipelineReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_bundle_set_pipeline_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_vertex_buffer_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
@@ -25915,51 +25743,49 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_vm_replay(
     offset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_set_vertex_buffer(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_set_vertex_buffer(
+                runtime, context, handle, slot, buffer, offset, size,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_render_bundle_set_vertex_buffer(
                     runtime, context, handle, slot, buffer, offset, size,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_render_bundle_set_vertex_buffer(
-                        runtime, context, handle, slot, buffer, offset, size,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderBundleSetVertexBufferReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderBundleSetVertexBufferReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderBundleSetVertexBufferReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderBundleSetVertexBufferReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result =
         encode_destack_gpu_command_render_bundle_set_vertex_buffer_result(context, result)?;
     Ok(result)
@@ -25967,176 +25793,168 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_begin_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     options: GpuRenderPassOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_PASS_BEGIN,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_BEGIN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_render_pass_begin(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_PASS_BEGIN,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_BEGIN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_render_pass_begin(
+                runtime, context, handle, options,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_render_pass_begin(
                     runtime, context, handle, options,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_render_pass_begin(
-                        runtime, context, handle, options,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuRenderPassHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuCommandRenderPassBeginReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuRenderPassHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuCommandRenderPassBeginReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderPassBeginReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderPassBeginReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_pass_begin_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_pass_end_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_PASS_END,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_END)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_command_render_pass_end(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_render_pass_end(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderPassEndReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_PASS_END,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_END)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_command_render_pass_end(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_render_pass_end(
+                    runtime, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderPassEndReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderPassEndReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderPassEndReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_pass_end_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_pass_insert_debug_marker_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_command_render_pass_insert_debug_marker(
-                        runtime, context, handle, marker,
-                    )
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_render_pass_insert_debug_marker(
-                        runtime, context, handle, marker,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderPassInsertDebugMarkerReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_render_pass_insert_debug_marker(
+                runtime, context, handle, marker,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_render_pass_insert_debug_marker(
+                    runtime, context, handle, marker,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderPassInsertDebugMarkerReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderPassInsertDebugMarkerReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderPassInsertDebugMarkerReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result =
         encode_destack_gpu_command_render_pass_insert_debug_marker_result(context, result)?;
     Ok(result)
@@ -26144,122 +25962,116 @@ fn destack_gpu_command_render_pass_insert_debug_marker_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_pop_debug_group_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_render_pass_pop_debug_group(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_render_pass_pop_debug_group(
+                runtime, context, handle,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_render_pass_pop_debug_group(
                     runtime, context, handle,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_render_pass_pop_debug_group(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderPassPopDebugGroupReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderPassPopDebugGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderPassPopDebugGroupReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderPassPopDebugGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_pass_pop_debug_group_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_render_pass_push_debug_group_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
-            runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_command_render_pass_push_debug_group(
-                        runtime, context, handle, label,
-                    )
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_render_pass_push_debug_group(
-                        runtime, context, handle, label,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandRenderPassPushDebugGroupReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
+        runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_render_pass_push_debug_group(
+                runtime, context, handle, label,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_render_pass_push_debug_group(
+                    runtime, context, handle, label,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandRenderPassPushDebugGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandRenderPassPushDebugGroupReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandRenderPassPushDebugGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_render_pass_push_debug_group_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_set_blend_constant_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -26268,58 +26080,56 @@ fn destack_gpu_command_set_blend_constant_vm_replay(
     b: f64,
     a: f64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_SET_BLEND_CONSTANT,
-            runtime.replay_payload_for(GPU_COMMAND_SET_BLEND_CONSTANT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_set_blend_constant(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_SET_BLEND_CONSTANT,
+        runtime.replay_payload_for(GPU_COMMAND_SET_BLEND_CONSTANT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_set_blend_constant(
+                runtime, context, handle, r, g, b, a,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_set_blend_constant(
                     runtime, context, handle, r, g, b, a,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_set_blend_constant(
-                        runtime, context, handle, r, g, b, a,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandSetBlendConstantReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandSetBlendConstantReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandSetBlendConstantReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandSetBlendConstantReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_set_blend_constant_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_set_compute_bind_group_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
@@ -26327,68 +26137,66 @@ fn destack_gpu_command_set_compute_bind_group_vm_replay(
     bindgroup: resource::GpuBindGroupHandle,
     dynamicoffsets: VmSlice<u32>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_SET_COMPUTE_BIND_GROUP,
-            runtime.replay_payload_for(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_set_compute_bind_group(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_SET_COMPUTE_BIND_GROUP,
+        runtime.replay_payload_for(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_set_compute_bind_group(
+                runtime,
+                context,
+                handle,
+                index,
+                bindgroup,
+                dynamicoffsets,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_set_compute_bind_group(
                     runtime,
                     context,
                     handle,
                     index,
                     bindgroup,
                     dynamicoffsets,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_set_compute_bind_group(
-                        runtime,
-                        context,
-                        handle,
-                        index,
-                        bindgroup,
-                        dynamicoffsets,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandSetComputeBindGroupReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandSetComputeBindGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandSetComputeBindGroupReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandSetComputeBindGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_set_compute_bind_group_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_set_index_buffer_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -26397,58 +26205,56 @@ fn destack_gpu_command_set_index_buffer_vm_replay(
     offset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_SET_INDEX_BUFFER,
-            runtime.replay_payload_for(GPU_COMMAND_SET_INDEX_BUFFER)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_set_index_buffer(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_SET_INDEX_BUFFER,
+        runtime.replay_payload_for(GPU_COMMAND_SET_INDEX_BUFFER)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_set_index_buffer(
+                runtime, context, handle, buffer, format, offset, size,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_set_index_buffer(
                     runtime, context, handle, buffer, format, offset, size,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_set_index_buffer(
-                        runtime, context, handle, buffer, format, offset, size,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandSetIndexBufferReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandSetIndexBufferReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandSetIndexBufferReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandSetIndexBufferReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_set_index_buffer_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_set_render_bind_group_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -26456,68 +26262,66 @@ fn destack_gpu_command_set_render_bind_group_vm_replay(
     bindgroup: resource::GpuBindGroupHandle,
     dynamicoffsets: VmSlice<u32>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_SET_RENDER_BIND_GROUP,
-            runtime.replay_payload_for(GPU_COMMAND_SET_RENDER_BIND_GROUP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_set_render_bind_group(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_SET_RENDER_BIND_GROUP,
+        runtime.replay_payload_for(GPU_COMMAND_SET_RENDER_BIND_GROUP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_set_render_bind_group(
+                runtime,
+                context,
+                handle,
+                index,
+                bindgroup,
+                dynamicoffsets,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_set_render_bind_group(
                     runtime,
                     context,
                     handle,
                     index,
                     bindgroup,
                     dynamicoffsets,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_set_render_bind_group(
-                        runtime,
-                        context,
-                        handle,
-                        index,
-                        bindgroup,
-                        dynamicoffsets,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandSetRenderBindGroupReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandSetRenderBindGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandSetRenderBindGroupReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandSetRenderBindGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_set_render_bind_group_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_set_scissor_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -26526,113 +26330,109 @@ fn destack_gpu_command_set_scissor_vm_replay(
     width: u32,
     height: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_SET_SCISSOR,
-            runtime.replay_payload_for(GPU_COMMAND_SET_SCISSOR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_set_scissor(
-                    runtime, context, handle, x, y, width, height,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_set_scissor(
-                    runtime, context, handle, x, y, width, height,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandSetScissorReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_SET_SCISSOR,
+        runtime.replay_payload_for(GPU_COMMAND_SET_SCISSOR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_set_scissor(
+                runtime, context, handle, x, y, width, height,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_set_scissor(
+                runtime, context, handle, x, y, width, height,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandSetScissorReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandSetScissorReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandSetScissorReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_set_scissor_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_set_stencil_reference_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     reference: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_SET_STENCIL_REFERENCE,
-            runtime.replay_payload_for(GPU_COMMAND_SET_STENCIL_REFERENCE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_set_stencil_reference(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_SET_STENCIL_REFERENCE,
+        runtime.replay_payload_for(GPU_COMMAND_SET_STENCIL_REFERENCE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_set_stencil_reference(
+                runtime, context, handle, reference,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_set_stencil_reference(
                     runtime, context, handle, reference,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_set_stencil_reference(
-                        runtime, context, handle, reference,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandSetStencilReferenceReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandSetStencilReferenceReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandSetStencilReferenceReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandSetStencilReferenceReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_set_stencil_reference_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_set_vertex_buffer_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -26641,58 +26441,56 @@ fn destack_gpu_command_set_vertex_buffer_vm_replay(
     offset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_SET_VERTEX_BUFFER,
-            runtime.replay_payload_for(GPU_COMMAND_SET_VERTEX_BUFFER)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_set_vertex_buffer(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_SET_VERTEX_BUFFER,
+        runtime.replay_payload_for(GPU_COMMAND_SET_VERTEX_BUFFER)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_set_vertex_buffer(
+                runtime, context, handle, slot, buffer, offset, size,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_set_vertex_buffer(
                     runtime, context, handle, slot, buffer, offset, size,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_set_vertex_buffer(
-                        runtime, context, handle, slot, buffer, offset, size,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandSetVertexBufferReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandSetVertexBufferReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandSetVertexBufferReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandSetVertexBufferReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_set_vertex_buffer_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_command_set_viewport_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -26703,313 +26501,299 @@ fn destack_gpu_command_set_viewport_vm_replay(
     mindepth: f64,
     maxdepth: f64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_COMMAND_SET_VIEWPORT,
-            runtime.replay_payload_for(GPU_COMMAND_SET_VIEWPORT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_set_viewport(
-                    runtime, context, handle, x, y, width, height, mindepth, maxdepth,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_set_viewport(
-                        runtime, context, handle, x, y, width, height, mindepth, maxdepth,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuCommandSetViewportReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_COMMAND_SET_VIEWPORT,
+        runtime.replay_payload_for(GPU_COMMAND_SET_VIEWPORT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_set_viewport(
+                runtime, context, handle, x, y, width, height, mindepth, maxdepth,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_set_viewport(
+                runtime, context, handle, x, y, width, height, mindepth, maxdepth,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuCommandSetViewportReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuCommandSetViewportReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuCommandSetViewportReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_command_set_viewport_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_debug_set_label_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::ResourceId,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_DEBUG_SET_LABEL,
-            runtime.replay_payload_for(GPU_DEBUG_SET_LABEL)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_set_label(runtime, context, handle, label)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_set_label(runtime, context, handle, label)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuDebugSetLabelReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_DEBUG_SET_LABEL,
+        runtime.replay_payload_for(GPU_DEBUG_SET_LABEL)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_set_label(runtime, context, handle, label)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_set_label(runtime, context, handle, label)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuDebugSetLabelReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuDebugSetLabelReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuDebugSetLabelReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_debug_set_label_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_device_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_DEVICE_CLOSE,
-            runtime.replay_payload_for(GPU_DEVICE_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_device_close(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_device_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuDeviceCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_DEVICE_CLOSE,
+        runtime.replay_payload_for(GPU_DEVICE_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_device_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_device_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuDeviceCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuDeviceCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuDeviceCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_device_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_device_features_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_DEVICE_FEATURES,
-            runtime.replay_payload_for(GPU_DEVICE_FEATURES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_device_features(runtime, context, device)
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_DEVICE_FEATURES,
+        runtime.replay_payload_for(GPU_DEVICE_FEATURES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_device_features(runtime, context, device)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_device_features(runtime, context, device)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<GpuFeatureId> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item_inner = decode_uint32(
+                        result_recorded_item_value,
+                        "result_recorded_item_inner",
+                        "item",
+                    )?;
+                    let result_recorded_item = GpuFeatureId(result_recorded_item_inner);
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_device_features(runtime, context, device)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmSlice<GpuFeatureId> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item_inner = decode_uint32(
-                            result_recorded_item_value,
-                            "result_recorded_item_inner",
-                            "item",
-                        )?;
-                        let result_recorded_item = GpuFeatureId(result_recorded_item_inner);
-                        let result_recorded_item_recorded = result_recorded_item;
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = GpuDeviceFeaturesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                let payload = GpuDeviceFeaturesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuDeviceFeaturesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuDeviceFeaturesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item = *vm_result_item;
-                            let vm_result_item_value = vm_result_item;
-                            vm_result_values.push(vm_result_item_value);
-                        }
-                        let vm_result = VmSlice::from_values(context, &vm_result_values)?;
-                        Ok(vm_result)
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value = vm_result_item;
+                        vm_result_values.push(vm_result_item_value);
                     }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_device_features_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_device_has_feature_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     feature: GpuFeatureId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_DEVICE_HAS_FEATURE,
-            runtime.replay_payload_for(GPU_DEVICE_HAS_FEATURE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_device_has_feature(runtime, context, device, feature)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_device_has_feature(
-                    runtime, context, device, feature,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: bool = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuDeviceHasFeatureReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_DEVICE_HAS_FEATURE,
+        runtime.replay_payload_for(GPU_DEVICE_HAS_FEATURE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_device_has_feature(runtime, context, device, feature)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_device_has_feature(
+                runtime, context, device, feature,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: bool = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuDeviceHasFeatureReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuDeviceHasFeatureReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuDeviceHasFeatureReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_device_has_feature_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_device_info_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_and_payload_policy(
+    let result = runtime.replay().run_binding_with_context_policy(
         GPU_DEVICE_INFO,
         runtime.replay_payload_for(GPU_DEVICE_INFO)?,
         context,
         |context| {
             match world {
                 RuntimeWorld::Host => platform_vm::destack_gpu_device_info(runtime, context, device),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_device_info(runtime, context, device),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_device_info(runtime, context, device),
             }
         },
         |context, result| {
@@ -27226,1448 +27010,1362 @@ fn destack_gpu_device_info_vm_replay(
 
 #[inline]
 fn destack_gpu_device_limits_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_DEVICE_LIMITS,
-            runtime.replay_payload_for(GPU_DEVICE_LIMITS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_device_limits(runtime, context, device)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_device_limits(runtime, context, device)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: GpuAdapterLimitsVm = value.clone();
-                    let result_recorded_max_bind_groups = result_value.max_bind_groups;
-                    let result_recorded_max_bindings_per_bind_group =
-                        result_value.max_bindings_per_bind_group;
-                    let result_recorded_max_push_constant_bytes =
-                        result_value.max_push_constant_bytes;
-                    let result_recorded_max_texture_dimension1_d =
-                        result_value.max_texture_dimension1_d;
-                    let result_recorded_max_texture_dimension2_d =
-                        result_value.max_texture_dimension2_d;
-                    let result_recorded_max_texture_dimension3_d =
-                        result_value.max_texture_dimension3_d;
-                    let result_recorded_max_texture_array_layers =
-                        result_value.max_texture_array_layers;
-                    let result_recorded_max_color_attachments = result_value.max_color_attachments;
-                    let result_recorded_max_color_attachment_bytes_per_sample =
-                        result_value.max_color_attachment_bytes_per_sample;
-                    let result_recorded_max_sampled_textures_per_stage =
-                        result_value.max_sampled_textures_per_stage;
-                    let result_recorded_max_samplers_per_stage =
-                        result_value.max_samplers_per_stage;
-                    let result_recorded_max_storage_buffers_per_stage =
-                        result_value.max_storage_buffers_per_stage;
-                    let result_recorded_max_storage_textures_per_stage =
-                        result_value.max_storage_textures_per_stage;
-                    let result_recorded_max_uniform_buffers_per_stage =
-                        result_value.max_uniform_buffers_per_stage;
-                    let result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout =
-                        result_value.max_dynamic_uniform_buffers_per_pipeline_layout;
-                    let result_recorded_max_dynamic_storage_buffers_per_pipeline_layout =
-                        result_value.max_dynamic_storage_buffers_per_pipeline_layout;
-                    let result_recorded_max_uniform_buffer_binding_size =
-                        result_value.max_uniform_buffer_binding_size;
-                    let result_recorded_max_storage_buffer_binding_size =
-                        result_value.max_storage_buffer_binding_size;
-                    let result_recorded_min_storage_buffer_offset_alignment =
-                        result_value.min_storage_buffer_offset_alignment;
-                    let result_recorded_min_uniform_buffer_offset_alignment =
-                        result_value.min_uniform_buffer_offset_alignment;
-                    let result_recorded_max_vertex_buffers = result_value.max_vertex_buffers;
-                    let result_recorded_max_vertex_attributes = result_value.max_vertex_attributes;
-                    let result_recorded_max_vertex_buffer_array_stride =
-                        result_value.max_vertex_buffer_array_stride;
-                    let result_recorded_max_buffer_size = result_value.max_buffer_size;
-                    let result_recorded_max_inter_stage_shader_components =
-                        result_value.max_inter_stage_shader_components;
-                    let result_recorded_max_inter_stage_shader_variables =
-                        result_value.max_inter_stage_shader_variables;
-                    let result_recorded_max_compute_workgroup_storage_size =
-                        result_value.max_compute_workgroup_storage_size;
-                    let result_recorded_max_compute_invocations_per_workgroup =
-                        result_value.max_compute_invocations_per_workgroup;
-                    let result_recorded_max_compute_workgroup_size_x =
-                        result_value.max_compute_workgroup_size_x;
-                    let result_recorded_max_compute_workgroup_size_y =
-                        result_value.max_compute_workgroup_size_y;
-                    let result_recorded_max_compute_workgroup_size_z =
-                        result_value.max_compute_workgroup_size_z;
-                    let result_recorded_max_compute_workgroups_per_dimension =
-                        result_value.max_compute_workgroups_per_dimension;
-                    let result_recorded = GpuAdapterLimits {
-                        max_bind_groups: result_recorded_max_bind_groups,
-                        max_bindings_per_bind_group: result_recorded_max_bindings_per_bind_group,
-                        max_push_constant_bytes: result_recorded_max_push_constant_bytes,
-                        max_texture_dimension1_d: result_recorded_max_texture_dimension1_d,
-                        max_texture_dimension2_d: result_recorded_max_texture_dimension2_d,
-                        max_texture_dimension3_d: result_recorded_max_texture_dimension3_d,
-                        max_texture_array_layers: result_recorded_max_texture_array_layers,
-                        max_color_attachments: result_recorded_max_color_attachments,
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_DEVICE_LIMITS,
+        runtime.replay_payload_for(GPU_DEVICE_LIMITS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_device_limits(runtime, context, device),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_device_limits(runtime, context, device)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: GpuAdapterLimitsVm = value.clone();
+                let result_recorded_max_bind_groups = result_value.max_bind_groups;
+                let result_recorded_max_bindings_per_bind_group =
+                    result_value.max_bindings_per_bind_group;
+                let result_recorded_max_push_constant_bytes = result_value.max_push_constant_bytes;
+                let result_recorded_max_texture_dimension1_d =
+                    result_value.max_texture_dimension1_d;
+                let result_recorded_max_texture_dimension2_d =
+                    result_value.max_texture_dimension2_d;
+                let result_recorded_max_texture_dimension3_d =
+                    result_value.max_texture_dimension3_d;
+                let result_recorded_max_texture_array_layers =
+                    result_value.max_texture_array_layers;
+                let result_recorded_max_color_attachments = result_value.max_color_attachments;
+                let result_recorded_max_color_attachment_bytes_per_sample =
+                    result_value.max_color_attachment_bytes_per_sample;
+                let result_recorded_max_sampled_textures_per_stage =
+                    result_value.max_sampled_textures_per_stage;
+                let result_recorded_max_samplers_per_stage = result_value.max_samplers_per_stage;
+                let result_recorded_max_storage_buffers_per_stage =
+                    result_value.max_storage_buffers_per_stage;
+                let result_recorded_max_storage_textures_per_stage =
+                    result_value.max_storage_textures_per_stage;
+                let result_recorded_max_uniform_buffers_per_stage =
+                    result_value.max_uniform_buffers_per_stage;
+                let result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout =
+                    result_value.max_dynamic_uniform_buffers_per_pipeline_layout;
+                let result_recorded_max_dynamic_storage_buffers_per_pipeline_layout =
+                    result_value.max_dynamic_storage_buffers_per_pipeline_layout;
+                let result_recorded_max_uniform_buffer_binding_size =
+                    result_value.max_uniform_buffer_binding_size;
+                let result_recorded_max_storage_buffer_binding_size =
+                    result_value.max_storage_buffer_binding_size;
+                let result_recorded_min_storage_buffer_offset_alignment =
+                    result_value.min_storage_buffer_offset_alignment;
+                let result_recorded_min_uniform_buffer_offset_alignment =
+                    result_value.min_uniform_buffer_offset_alignment;
+                let result_recorded_max_vertex_buffers = result_value.max_vertex_buffers;
+                let result_recorded_max_vertex_attributes = result_value.max_vertex_attributes;
+                let result_recorded_max_vertex_buffer_array_stride =
+                    result_value.max_vertex_buffer_array_stride;
+                let result_recorded_max_buffer_size = result_value.max_buffer_size;
+                let result_recorded_max_inter_stage_shader_components =
+                    result_value.max_inter_stage_shader_components;
+                let result_recorded_max_inter_stage_shader_variables =
+                    result_value.max_inter_stage_shader_variables;
+                let result_recorded_max_compute_workgroup_storage_size =
+                    result_value.max_compute_workgroup_storage_size;
+                let result_recorded_max_compute_invocations_per_workgroup =
+                    result_value.max_compute_invocations_per_workgroup;
+                let result_recorded_max_compute_workgroup_size_x =
+                    result_value.max_compute_workgroup_size_x;
+                let result_recorded_max_compute_workgroup_size_y =
+                    result_value.max_compute_workgroup_size_y;
+                let result_recorded_max_compute_workgroup_size_z =
+                    result_value.max_compute_workgroup_size_z;
+                let result_recorded_max_compute_workgroups_per_dimension =
+                    result_value.max_compute_workgroups_per_dimension;
+                let result_recorded = GpuAdapterLimits {
+                    max_bind_groups: result_recorded_max_bind_groups,
+                    max_bindings_per_bind_group: result_recorded_max_bindings_per_bind_group,
+                    max_push_constant_bytes: result_recorded_max_push_constant_bytes,
+                    max_texture_dimension1_d: result_recorded_max_texture_dimension1_d,
+                    max_texture_dimension2_d: result_recorded_max_texture_dimension2_d,
+                    max_texture_dimension3_d: result_recorded_max_texture_dimension3_d,
+                    max_texture_array_layers: result_recorded_max_texture_array_layers,
+                    max_color_attachments: result_recorded_max_color_attachments,
+                    max_color_attachment_bytes_per_sample:
+                        result_recorded_max_color_attachment_bytes_per_sample,
+                    max_sampled_textures_per_stage: result_recorded_max_sampled_textures_per_stage,
+                    max_samplers_per_stage: result_recorded_max_samplers_per_stage,
+                    max_storage_buffers_per_stage: result_recorded_max_storage_buffers_per_stage,
+                    max_storage_textures_per_stage: result_recorded_max_storage_textures_per_stage,
+                    max_uniform_buffers_per_stage: result_recorded_max_uniform_buffers_per_stage,
+                    max_dynamic_uniform_buffers_per_pipeline_layout:
+                        result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout,
+                    max_dynamic_storage_buffers_per_pipeline_layout:
+                        result_recorded_max_dynamic_storage_buffers_per_pipeline_layout,
+                    max_uniform_buffer_binding_size:
+                        result_recorded_max_uniform_buffer_binding_size,
+                    max_storage_buffer_binding_size:
+                        result_recorded_max_storage_buffer_binding_size,
+                    min_storage_buffer_offset_alignment:
+                        result_recorded_min_storage_buffer_offset_alignment,
+                    min_uniform_buffer_offset_alignment:
+                        result_recorded_min_uniform_buffer_offset_alignment,
+                    max_vertex_buffers: result_recorded_max_vertex_buffers,
+                    max_vertex_attributes: result_recorded_max_vertex_attributes,
+                    max_vertex_buffer_array_stride: result_recorded_max_vertex_buffer_array_stride,
+                    max_buffer_size: result_recorded_max_buffer_size,
+                    max_inter_stage_shader_components:
+                        result_recorded_max_inter_stage_shader_components,
+                    max_inter_stage_shader_variables:
+                        result_recorded_max_inter_stage_shader_variables,
+                    max_compute_workgroup_storage_size:
+                        result_recorded_max_compute_workgroup_storage_size,
+                    max_compute_invocations_per_workgroup:
+                        result_recorded_max_compute_invocations_per_workgroup,
+                    max_compute_workgroup_size_x: result_recorded_max_compute_workgroup_size_x,
+                    max_compute_workgroup_size_y: result_recorded_max_compute_workgroup_size_y,
+                    max_compute_workgroup_size_z: result_recorded_max_compute_workgroup_size_z,
+                    max_compute_workgroups_per_dimension:
+                        result_recorded_max_compute_workgroups_per_dimension,
+                };
+                let payload = GpuDeviceLimitsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuDeviceLimitsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_max_bind_groups = value.max_bind_groups;
+                    let vm_result_max_bindings_per_bind_group = value.max_bindings_per_bind_group;
+                    let vm_result_max_push_constant_bytes = value.max_push_constant_bytes;
+                    let vm_result_max_texture_dimension1_d = value.max_texture_dimension1_d;
+                    let vm_result_max_texture_dimension2_d = value.max_texture_dimension2_d;
+                    let vm_result_max_texture_dimension3_d = value.max_texture_dimension3_d;
+                    let vm_result_max_texture_array_layers = value.max_texture_array_layers;
+                    let vm_result_max_color_attachments = value.max_color_attachments;
+                    let vm_result_max_color_attachment_bytes_per_sample =
+                        value.max_color_attachment_bytes_per_sample;
+                    let vm_result_max_sampled_textures_per_stage =
+                        value.max_sampled_textures_per_stage;
+                    let vm_result_max_samplers_per_stage = value.max_samplers_per_stage;
+                    let vm_result_max_storage_buffers_per_stage =
+                        value.max_storage_buffers_per_stage;
+                    let vm_result_max_storage_textures_per_stage =
+                        value.max_storage_textures_per_stage;
+                    let vm_result_max_uniform_buffers_per_stage =
+                        value.max_uniform_buffers_per_stage;
+                    let vm_result_max_dynamic_uniform_buffers_per_pipeline_layout =
+                        value.max_dynamic_uniform_buffers_per_pipeline_layout;
+                    let vm_result_max_dynamic_storage_buffers_per_pipeline_layout =
+                        value.max_dynamic_storage_buffers_per_pipeline_layout;
+                    let vm_result_max_uniform_buffer_binding_size =
+                        value.max_uniform_buffer_binding_size;
+                    let vm_result_max_storage_buffer_binding_size =
+                        value.max_storage_buffer_binding_size;
+                    let vm_result_min_storage_buffer_offset_alignment =
+                        value.min_storage_buffer_offset_alignment;
+                    let vm_result_min_uniform_buffer_offset_alignment =
+                        value.min_uniform_buffer_offset_alignment;
+                    let vm_result_max_vertex_buffers = value.max_vertex_buffers;
+                    let vm_result_max_vertex_attributes = value.max_vertex_attributes;
+                    let vm_result_max_vertex_buffer_array_stride =
+                        value.max_vertex_buffer_array_stride;
+                    let vm_result_max_buffer_size = value.max_buffer_size;
+                    let vm_result_max_inter_stage_shader_components =
+                        value.max_inter_stage_shader_components;
+                    let vm_result_max_inter_stage_shader_variables =
+                        value.max_inter_stage_shader_variables;
+                    let vm_result_max_compute_workgroup_storage_size =
+                        value.max_compute_workgroup_storage_size;
+                    let vm_result_max_compute_invocations_per_workgroup =
+                        value.max_compute_invocations_per_workgroup;
+                    let vm_result_max_compute_workgroup_size_x = value.max_compute_workgroup_size_x;
+                    let vm_result_max_compute_workgroup_size_y = value.max_compute_workgroup_size_y;
+                    let vm_result_max_compute_workgroup_size_z = value.max_compute_workgroup_size_z;
+                    let vm_result_max_compute_workgroups_per_dimension =
+                        value.max_compute_workgroups_per_dimension;
+                    let vm_result = GpuAdapterLimitsVm {
+                        max_bind_groups: vm_result_max_bind_groups,
+                        max_bindings_per_bind_group: vm_result_max_bindings_per_bind_group,
+                        max_push_constant_bytes: vm_result_max_push_constant_bytes,
+                        max_texture_dimension1_d: vm_result_max_texture_dimension1_d,
+                        max_texture_dimension2_d: vm_result_max_texture_dimension2_d,
+                        max_texture_dimension3_d: vm_result_max_texture_dimension3_d,
+                        max_texture_array_layers: vm_result_max_texture_array_layers,
+                        max_color_attachments: vm_result_max_color_attachments,
                         max_color_attachment_bytes_per_sample:
-                            result_recorded_max_color_attachment_bytes_per_sample,
-                        max_sampled_textures_per_stage:
-                            result_recorded_max_sampled_textures_per_stage,
-                        max_samplers_per_stage: result_recorded_max_samplers_per_stage,
-                        max_storage_buffers_per_stage:
-                            result_recorded_max_storage_buffers_per_stage,
-                        max_storage_textures_per_stage:
-                            result_recorded_max_storage_textures_per_stage,
-                        max_uniform_buffers_per_stage:
-                            result_recorded_max_uniform_buffers_per_stage,
+                            vm_result_max_color_attachment_bytes_per_sample,
+                        max_sampled_textures_per_stage: vm_result_max_sampled_textures_per_stage,
+                        max_samplers_per_stage: vm_result_max_samplers_per_stage,
+                        max_storage_buffers_per_stage: vm_result_max_storage_buffers_per_stage,
+                        max_storage_textures_per_stage: vm_result_max_storage_textures_per_stage,
+                        max_uniform_buffers_per_stage: vm_result_max_uniform_buffers_per_stage,
                         max_dynamic_uniform_buffers_per_pipeline_layout:
-                            result_recorded_max_dynamic_uniform_buffers_per_pipeline_layout,
+                            vm_result_max_dynamic_uniform_buffers_per_pipeline_layout,
                         max_dynamic_storage_buffers_per_pipeline_layout:
-                            result_recorded_max_dynamic_storage_buffers_per_pipeline_layout,
-                        max_uniform_buffer_binding_size:
-                            result_recorded_max_uniform_buffer_binding_size,
-                        max_storage_buffer_binding_size:
-                            result_recorded_max_storage_buffer_binding_size,
+                            vm_result_max_dynamic_storage_buffers_per_pipeline_layout,
+                        max_uniform_buffer_binding_size: vm_result_max_uniform_buffer_binding_size,
+                        max_storage_buffer_binding_size: vm_result_max_storage_buffer_binding_size,
                         min_storage_buffer_offset_alignment:
-                            result_recorded_min_storage_buffer_offset_alignment,
+                            vm_result_min_storage_buffer_offset_alignment,
                         min_uniform_buffer_offset_alignment:
-                            result_recorded_min_uniform_buffer_offset_alignment,
-                        max_vertex_buffers: result_recorded_max_vertex_buffers,
-                        max_vertex_attributes: result_recorded_max_vertex_attributes,
-                        max_vertex_buffer_array_stride:
-                            result_recorded_max_vertex_buffer_array_stride,
-                        max_buffer_size: result_recorded_max_buffer_size,
+                            vm_result_min_uniform_buffer_offset_alignment,
+                        max_vertex_buffers: vm_result_max_vertex_buffers,
+                        max_vertex_attributes: vm_result_max_vertex_attributes,
+                        max_vertex_buffer_array_stride: vm_result_max_vertex_buffer_array_stride,
+                        max_buffer_size: vm_result_max_buffer_size,
                         max_inter_stage_shader_components:
-                            result_recorded_max_inter_stage_shader_components,
+                            vm_result_max_inter_stage_shader_components,
                         max_inter_stage_shader_variables:
-                            result_recorded_max_inter_stage_shader_variables,
+                            vm_result_max_inter_stage_shader_variables,
                         max_compute_workgroup_storage_size:
-                            result_recorded_max_compute_workgroup_storage_size,
+                            vm_result_max_compute_workgroup_storage_size,
                         max_compute_invocations_per_workgroup:
-                            result_recorded_max_compute_invocations_per_workgroup,
-                        max_compute_workgroup_size_x: result_recorded_max_compute_workgroup_size_x,
-                        max_compute_workgroup_size_y: result_recorded_max_compute_workgroup_size_y,
-                        max_compute_workgroup_size_z: result_recorded_max_compute_workgroup_size_z,
+                            vm_result_max_compute_invocations_per_workgroup,
+                        max_compute_workgroup_size_x: vm_result_max_compute_workgroup_size_x,
+                        max_compute_workgroup_size_y: vm_result_max_compute_workgroup_size_y,
+                        max_compute_workgroup_size_z: vm_result_max_compute_workgroup_size_z,
                         max_compute_workgroups_per_dimension:
-                            result_recorded_max_compute_workgroups_per_dimension,
+                            vm_result_max_compute_workgroups_per_dimension,
                     };
-                    let payload = GpuDeviceLimitsReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
+                    Ok(vm_result)
                 }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuDeviceLimitsReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_max_bind_groups = value.max_bind_groups;
-                        let vm_result_max_bindings_per_bind_group =
-                            value.max_bindings_per_bind_group;
-                        let vm_result_max_push_constant_bytes = value.max_push_constant_bytes;
-                        let vm_result_max_texture_dimension1_d = value.max_texture_dimension1_d;
-                        let vm_result_max_texture_dimension2_d = value.max_texture_dimension2_d;
-                        let vm_result_max_texture_dimension3_d = value.max_texture_dimension3_d;
-                        let vm_result_max_texture_array_layers = value.max_texture_array_layers;
-                        let vm_result_max_color_attachments = value.max_color_attachments;
-                        let vm_result_max_color_attachment_bytes_per_sample =
-                            value.max_color_attachment_bytes_per_sample;
-                        let vm_result_max_sampled_textures_per_stage =
-                            value.max_sampled_textures_per_stage;
-                        let vm_result_max_samplers_per_stage = value.max_samplers_per_stage;
-                        let vm_result_max_storage_buffers_per_stage =
-                            value.max_storage_buffers_per_stage;
-                        let vm_result_max_storage_textures_per_stage =
-                            value.max_storage_textures_per_stage;
-                        let vm_result_max_uniform_buffers_per_stage =
-                            value.max_uniform_buffers_per_stage;
-                        let vm_result_max_dynamic_uniform_buffers_per_pipeline_layout =
-                            value.max_dynamic_uniform_buffers_per_pipeline_layout;
-                        let vm_result_max_dynamic_storage_buffers_per_pipeline_layout =
-                            value.max_dynamic_storage_buffers_per_pipeline_layout;
-                        let vm_result_max_uniform_buffer_binding_size =
-                            value.max_uniform_buffer_binding_size;
-                        let vm_result_max_storage_buffer_binding_size =
-                            value.max_storage_buffer_binding_size;
-                        let vm_result_min_storage_buffer_offset_alignment =
-                            value.min_storage_buffer_offset_alignment;
-                        let vm_result_min_uniform_buffer_offset_alignment =
-                            value.min_uniform_buffer_offset_alignment;
-                        let vm_result_max_vertex_buffers = value.max_vertex_buffers;
-                        let vm_result_max_vertex_attributes = value.max_vertex_attributes;
-                        let vm_result_max_vertex_buffer_array_stride =
-                            value.max_vertex_buffer_array_stride;
-                        let vm_result_max_buffer_size = value.max_buffer_size;
-                        let vm_result_max_inter_stage_shader_components =
-                            value.max_inter_stage_shader_components;
-                        let vm_result_max_inter_stage_shader_variables =
-                            value.max_inter_stage_shader_variables;
-                        let vm_result_max_compute_workgroup_storage_size =
-                            value.max_compute_workgroup_storage_size;
-                        let vm_result_max_compute_invocations_per_workgroup =
-                            value.max_compute_invocations_per_workgroup;
-                        let vm_result_max_compute_workgroup_size_x =
-                            value.max_compute_workgroup_size_x;
-                        let vm_result_max_compute_workgroup_size_y =
-                            value.max_compute_workgroup_size_y;
-                        let vm_result_max_compute_workgroup_size_z =
-                            value.max_compute_workgroup_size_z;
-                        let vm_result_max_compute_workgroups_per_dimension =
-                            value.max_compute_workgroups_per_dimension;
-                        let vm_result = GpuAdapterLimitsVm {
-                            max_bind_groups: vm_result_max_bind_groups,
-                            max_bindings_per_bind_group: vm_result_max_bindings_per_bind_group,
-                            max_push_constant_bytes: vm_result_max_push_constant_bytes,
-                            max_texture_dimension1_d: vm_result_max_texture_dimension1_d,
-                            max_texture_dimension2_d: vm_result_max_texture_dimension2_d,
-                            max_texture_dimension3_d: vm_result_max_texture_dimension3_d,
-                            max_texture_array_layers: vm_result_max_texture_array_layers,
-                            max_color_attachments: vm_result_max_color_attachments,
-                            max_color_attachment_bytes_per_sample:
-                                vm_result_max_color_attachment_bytes_per_sample,
-                            max_sampled_textures_per_stage:
-                                vm_result_max_sampled_textures_per_stage,
-                            max_samplers_per_stage: vm_result_max_samplers_per_stage,
-                            max_storage_buffers_per_stage: vm_result_max_storage_buffers_per_stage,
-                            max_storage_textures_per_stage:
-                                vm_result_max_storage_textures_per_stage,
-                            max_uniform_buffers_per_stage: vm_result_max_uniform_buffers_per_stage,
-                            max_dynamic_uniform_buffers_per_pipeline_layout:
-                                vm_result_max_dynamic_uniform_buffers_per_pipeline_layout,
-                            max_dynamic_storage_buffers_per_pipeline_layout:
-                                vm_result_max_dynamic_storage_buffers_per_pipeline_layout,
-                            max_uniform_buffer_binding_size:
-                                vm_result_max_uniform_buffer_binding_size,
-                            max_storage_buffer_binding_size:
-                                vm_result_max_storage_buffer_binding_size,
-                            min_storage_buffer_offset_alignment:
-                                vm_result_min_storage_buffer_offset_alignment,
-                            min_uniform_buffer_offset_alignment:
-                                vm_result_min_uniform_buffer_offset_alignment,
-                            max_vertex_buffers: vm_result_max_vertex_buffers,
-                            max_vertex_attributes: vm_result_max_vertex_attributes,
-                            max_vertex_buffer_array_stride:
-                                vm_result_max_vertex_buffer_array_stride,
-                            max_buffer_size: vm_result_max_buffer_size,
-                            max_inter_stage_shader_components:
-                                vm_result_max_inter_stage_shader_components,
-                            max_inter_stage_shader_variables:
-                                vm_result_max_inter_stage_shader_variables,
-                            max_compute_workgroup_storage_size:
-                                vm_result_max_compute_workgroup_storage_size,
-                            max_compute_invocations_per_workgroup:
-                                vm_result_max_compute_invocations_per_workgroup,
-                            max_compute_workgroup_size_x: vm_result_max_compute_workgroup_size_x,
-                            max_compute_workgroup_size_y: vm_result_max_compute_workgroup_size_y,
-                            max_compute_workgroup_size_z: vm_result_max_compute_workgroup_size_z,
-                            max_compute_workgroups_per_dimension:
-                                vm_result_max_compute_workgroups_per_dimension,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_device_limits_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_device_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     adapter: resource::GpuAdapterHandle,
     options: GpuDeviceOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_DEVICE_OPEN,
-            runtime.replay_payload_for(GPU_DEVICE_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_device_open(runtime, context, adapter, options)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_device_open(
-                    runtime, context, adapter, options,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuDeviceHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuDeviceOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_DEVICE_OPEN,
+        runtime.replay_payload_for(GPU_DEVICE_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_device_open(runtime, context, adapter, options)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_device_open(runtime, context, adapter, options)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuDeviceHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuDeviceOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuDeviceOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuDeviceOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_device_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_device_poll_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     wait: bool,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_DEVICE_POLL,
-            runtime.replay_payload_for(GPU_DEVICE_POLL)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_device_poll(runtime, context, device, wait, timeoutns)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_device_poll(
-                    runtime, context, device, wait, timeoutns,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u32 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuDevicePollReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_DEVICE_POLL,
+        runtime.replay_payload_for(GPU_DEVICE_POLL)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_device_poll(runtime, context, device, wait, timeoutns)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_device_poll(
+                runtime, context, device, wait, timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u32 = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuDevicePollReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuDevicePollReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuDevicePollReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_device_poll_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_device_pop_error_scope_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_DEVICE_POP_ERROR_SCOPE,
-            runtime.replay_payload_for(GPU_DEVICE_POP_ERROR_SCOPE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_device_pop_error_scope(
-                    runtime, context, device, timeoutns,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_device_pop_error_scope(
-                        runtime, context, device, timeoutns,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: GpuCapturedErrorVm = value.clone();
-                    let result_recorded_has_error = result_value.has_error;
-                    let result_recorded_message = {
-                        let result_recorded_message_ref = context
-                            .string_ref(result_value.message)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_message_ref.as_str().to_string()
-                    };
-                    let result_recorded_backend_code = result_value.backend_code;
-                    let result_recorded = GpuCapturedErrorReplayRecord {
-                        has_error: result_recorded_has_error,
-                        message: result_recorded_message,
-                        backend_code: result_recorded_backend_code,
-                    };
-                    let payload = GpuDevicePopErrorScopeReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_DEVICE_POP_ERROR_SCOPE,
+        runtime.replay_payload_for(GPU_DEVICE_POP_ERROR_SCOPE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_device_pop_error_scope(runtime, context, device, timeoutns)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_device_pop_error_scope(
+                runtime, context, device, timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: GpuCapturedErrorVm = value.clone();
+                let result_recorded_has_error = result_value.has_error;
+                let result_recorded_message = {
+                    let result_recorded_message_ref = context
+                        .string_ref(result_value.message)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_message_ref.as_str().to_string()
+                };
+                let result_recorded_backend_code = result_value.backend_code;
+                let result_recorded = GpuCapturedErrorReplayRecord {
+                    has_error: result_recorded_has_error,
+                    message: result_recorded_message,
+                    backend_code: result_recorded_backend_code,
+                };
+                let payload = GpuDevicePopErrorScopeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuDevicePopErrorScopeReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuDevicePopErrorScopeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_has_error = value.has_error;
-                        let vm_result_message_value = context.intern_string(value.message.as_str());
-                        let vm_result_message = vm::StringHandle::new(vm_result_message_value);
-                        let vm_result_backend_code = value.backend_code;
-                        let vm_result = GpuCapturedErrorVm {
-                            has_error: vm_result_has_error,
-                            message: vm_result_message,
-                            backend_code: vm_result_backend_code,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_has_error = value.has_error;
+                    let vm_result_message_value = context.intern_string(value.message.as_str());
+                    let vm_result_message = vm::StringHandle::new(vm_result_message_value);
+                    let vm_result_backend_code = value.backend_code;
+                    let vm_result = GpuCapturedErrorVm {
+                        has_error: vm_result_has_error,
+                        message: vm_result_message,
+                        backend_code: vm_result_backend_code,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_device_pop_error_scope_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_device_push_error_scope_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     filter: GpuErrorFilter,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_DEVICE_PUSH_ERROR_SCOPE,
-            runtime.replay_payload_for(GPU_DEVICE_PUSH_ERROR_SCOPE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_device_push_error_scope(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_DEVICE_PUSH_ERROR_SCOPE,
+        runtime.replay_payload_for(GPU_DEVICE_PUSH_ERROR_SCOPE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_device_push_error_scope(runtime, context, device, filter)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_device_push_error_scope(
                     runtime, context, device, filter,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_device_push_error_scope(
-                        runtime, context, device, filter,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuDevicePushErrorScopeReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuDevicePushErrorScopeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuDevicePushErrorScopeReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuDevicePushErrorScopeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_device_push_error_scope_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_device_queue_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_DEVICE_QUEUE,
-            runtime.replay_payload_for(GPU_DEVICE_QUEUE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_device_queue(runtime, context, device)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_device_queue(runtime, context, device)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuQueueHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuDeviceQueueReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_DEVICE_QUEUE,
+        runtime.replay_payload_for(GPU_DEVICE_QUEUE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_device_queue(runtime, context, device),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_device_queue(runtime, context, device)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuQueueHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuDeviceQueueReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuDeviceQueueReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuDeviceQueueReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_device_queue_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_device_status_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_DEVICE_STATUS,
-            runtime.replay_payload_for(GPU_DEVICE_STATUS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_device_status(runtime, context, device)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_device_status(runtime, context, device)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: GpuDeviceStatusVm = value.clone();
-                    let result_recorded_healthy = result_value.healthy;
-                    let result_recorded_loss_reason = result_value.loss_reason;
-                    let result_recorded_backend_code = result_value.backend_code;
-                    let result_recorded_message = {
-                        let result_recorded_message_ref = context
-                            .string_ref(result_value.message)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_message_ref.as_str().to_string()
-                    };
-                    let result_recorded = GpuDeviceStatusReplayRecord {
-                        healthy: result_recorded_healthy,
-                        loss_reason: result_recorded_loss_reason,
-                        backend_code: result_recorded_backend_code,
-                        message: result_recorded_message,
-                    };
-                    let payload = GpuDeviceStatusReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_DEVICE_STATUS,
+        runtime.replay_payload_for(GPU_DEVICE_STATUS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_device_status(runtime, context, device),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_device_status(runtime, context, device)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: GpuDeviceStatusVm = value.clone();
+                let result_recorded_healthy = result_value.healthy;
+                let result_recorded_loss_reason = result_value.loss_reason;
+                let result_recorded_backend_code = result_value.backend_code;
+                let result_recorded_message = {
+                    let result_recorded_message_ref = context
+                        .string_ref(result_value.message)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_message_ref.as_str().to_string()
+                };
+                let result_recorded = GpuDeviceStatusReplayRecord {
+                    healthy: result_recorded_healthy,
+                    loss_reason: result_recorded_loss_reason,
+                    backend_code: result_recorded_backend_code,
+                    message: result_recorded_message,
+                };
+                let payload = GpuDeviceStatusReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuDeviceStatusReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuDeviceStatusReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_healthy = value.healthy;
-                        let vm_result_loss_reason = value.loss_reason;
-                        let vm_result_backend_code = value.backend_code;
-                        let vm_result_message_value = context.intern_string(value.message.as_str());
-                        let vm_result_message = vm::StringHandle::new(vm_result_message_value);
-                        let vm_result = GpuDeviceStatusVm {
-                            healthy: vm_result_healthy,
-                            loss_reason: vm_result_loss_reason,
-                            backend_code: vm_result_backend_code,
-                            message: vm_result_message,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_healthy = value.healthy;
+                    let vm_result_loss_reason = value.loss_reason;
+                    let vm_result_backend_code = value.backend_code;
+                    let vm_result_message_value = context.intern_string(value.message.as_str());
+                    let vm_result_message = vm::StringHandle::new(vm_result_message_value);
+                    let vm_result = GpuDeviceStatusVm {
+                        healthy: vm_result_healthy,
+                        loss_reason: vm_result_loss_reason,
+                        backend_code: vm_result_backend_code,
+                        message: vm_result_message,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_device_status_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_pipeline_bind_group_layout_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pipeline: resource::GpuPipelineHandle,
     groupindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_PIPELINE_BIND_GROUP_LAYOUT,
-            runtime.replay_payload_for(GPU_PIPELINE_BIND_GROUP_LAYOUT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_pipeline_bind_group_layout(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_PIPELINE_BIND_GROUP_LAYOUT,
+        runtime.replay_payload_for(GPU_PIPELINE_BIND_GROUP_LAYOUT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_pipeline_bind_group_layout(
+                runtime, context, pipeline, groupindex,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_pipeline_bind_group_layout(
                     runtime, context, pipeline, groupindex,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_pipeline_bind_group_layout(
-                        runtime, context, pipeline, groupindex,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuBindGroupLayoutHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuPipelineBindGroupLayoutReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuBindGroupLayoutHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuPipelineBindGroupLayoutReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuPipelineBindGroupLayoutReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuPipelineBindGroupLayoutReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_pipeline_bind_group_layout_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_pipeline_compute_create_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuComputePipelineOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_PIPELINE_COMPUTE_CREATE,
-            runtime.replay_payload_for(GPU_PIPELINE_COMPUTE_CREATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_compute_pipeline_create(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_PIPELINE_COMPUTE_CREATE,
+        runtime.replay_payload_for(GPU_PIPELINE_COMPUTE_CREATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_compute_pipeline_create(runtime, context, device, options)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_compute_pipeline_create(
                     runtime, context, device, options,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_compute_pipeline_create(
-                        runtime, context, device, options,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuPipelineHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuPipelineComputeCreateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuPipelineHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuPipelineComputeCreateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuPipelineComputeCreateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuPipelineComputeCreateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_pipeline_compute_create_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_pipeline_destroy_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_PIPELINE_DESTROY,
-            runtime.replay_payload_for(GPU_PIPELINE_DESTROY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_pipeline_destroy(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_pipeline_destroy(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuPipelineDestroyReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_PIPELINE_DESTROY,
+        runtime.replay_payload_for(GPU_PIPELINE_DESTROY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_pipeline_destroy(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_pipeline_destroy(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuPipelineDestroyReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuPipelineDestroyReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuPipelineDestroyReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_pipeline_destroy_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_pipeline_render_create_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuRenderPipelineOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_PIPELINE_RENDER_CREATE,
-            runtime.replay_payload_for(GPU_PIPELINE_RENDER_CREATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_render_pipeline_create(
-                    runtime, context, device, options,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_render_pipeline_create(
-                        runtime, context, device, options,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuPipelineHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuPipelineRenderCreateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_PIPELINE_RENDER_CREATE,
+        runtime.replay_payload_for(GPU_PIPELINE_RENDER_CREATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_render_pipeline_create(runtime, context, device, options)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_render_pipeline_create(
+                runtime, context, device, options,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuPipelineHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuPipelineRenderCreateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuPipelineRenderCreateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuPipelineRenderCreateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_pipeline_render_create_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_pipeline_shader_compilation_info_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuShaderHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_PIPELINE_SHADER_COMPILATION_INFO,
-            runtime.replay_payload_for(GPU_PIPELINE_SHADER_COMPILATION_INFO)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_shader_compilation_info(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_PIPELINE_SHADER_COMPILATION_INFO,
+        runtime.replay_payload_for(GPU_PIPELINE_SHADER_COMPILATION_INFO)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_shader_compilation_info(
+                runtime, context, handle, timeoutns,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_shader_compilation_info(
                     runtime, context, handle, timeoutns,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_shader_compilation_info(
-                        runtime, context, handle, timeoutns,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: GpuCompilationInfoVm = value.clone();
-                    let result_recorded_messages_raw = result_value.messages.raw_values(context)?;
-                    let mut result_recorded_messages =
-                        Vec::with_capacity(result_recorded_messages_raw.len());
-                    for result_recorded_messages_item_value in result_recorded_messages_raw {
-                        let result_recorded_messages_item = {
-                            if result_recorded_messages_item_value.tag() != vm::ValueTag::Aggregate
-                            {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_type(
-                                        "result_recorded_messages_item",
-                                        "item",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let slots = context
-                                .aggregate_slots(result_recorded_messages_item_value)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 6 {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_messages_item",
-                                        "expected 6 fields",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let result_recorded_messages_item_kind_raw = decode_uint8(
-                                slots[0],
-                                "result_recorded_messages_item_kind_raw",
-                                "kind",
-                            )?;
-                            let result_recorded_messages_item_kind =
-                                match result_recorded_messages_item_kind_raw {
-                                    1u8 => GpuCompilationMessageKind::Info,
-                                    2u8 => GpuCompilationMessageKind::Warning,
-                                    3u8 => GpuCompilationMessageKind::Error,
-                                    _ => {
-                                        return Err(RuntimeError::from(
-                                            PlatformError::invalid_argument_value(
-                                                "result_recorded_messages_item_kind",
-                                                "unknown GpuCompilationMessageKind value",
-                                            ),
-                                        )
-                                        .boxed());
-                                    }
-                                };
-                            let result_recorded_messages_item_message = decode_string(
-                                slots[1],
-                                "result_recorded_messages_item_message",
-                                "message",
-                            )?;
-                            let result_recorded_messages_item_line = decode_uint32(
-                                slots[2],
-                                "result_recorded_messages_item_line",
-                                "line",
-                            )?;
-                            let result_recorded_messages_item_column = decode_uint32(
-                                slots[3],
-                                "result_recorded_messages_item_column",
-                                "column",
-                            )?;
-                            let result_recorded_messages_item_offset = decode_uint32(
-                                slots[4],
-                                "result_recorded_messages_item_offset",
-                                "offset",
-                            )?;
-                            let result_recorded_messages_item_length = decode_uint32(
-                                slots[5],
-                                "result_recorded_messages_item_length",
-                                "length",
-                            )?;
-                            GpuCompilationMessageVm {
-                                kind: result_recorded_messages_item_kind,
-                                message: result_recorded_messages_item_message,
-                                line: result_recorded_messages_item_line,
-                                column: result_recorded_messages_item_column,
-                                offset: result_recorded_messages_item_offset,
-                                length: result_recorded_messages_item_length,
-                            }
-                        };
-                        let result_recorded_messages_item_recorded_kind =
-                            result_recorded_messages_item.kind;
-                        let result_recorded_messages_item_recorded_message = {
-                            let result_recorded_messages_item_recorded_message_ref = context
-                                .string_ref(result_recorded_messages_item.message)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_messages_item_recorded_message_ref
-                                .as_str()
-                                .to_string()
-                        };
-                        let result_recorded_messages_item_recorded_line =
-                            result_recorded_messages_item.line;
-                        let result_recorded_messages_item_recorded_column =
-                            result_recorded_messages_item.column;
-                        let result_recorded_messages_item_recorded_offset =
-                            result_recorded_messages_item.offset;
-                        let result_recorded_messages_item_recorded_length =
-                            result_recorded_messages_item.length;
-                        let result_recorded_messages_item_recorded =
-                            GpuCompilationMessageReplayRecord {
-                                kind: result_recorded_messages_item_recorded_kind,
-                                message: result_recorded_messages_item_recorded_message,
-                                line: result_recorded_messages_item_recorded_line,
-                                column: result_recorded_messages_item_recorded_column,
-                                offset: result_recorded_messages_item_recorded_offset,
-                                length: result_recorded_messages_item_recorded_length,
-                            };
-                        result_recorded_messages.push(result_recorded_messages_item_recorded);
-                    }
-                    let result_recorded = GpuCompilationInfoReplayRecord {
-                        messages: result_recorded_messages,
-                    };
-                    let payload = GpuPipelineShaderCompilationInfoReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuPipelineShaderCompilationInfoReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_messages_values =
-                            Vec::with_capacity(value.messages.len());
-                        for vm_result_messages_item in value.messages.iter() {
-                            let vm_result_messages_item = vm_result_messages_item.clone();
-                            let vm_result_messages_item_value_kind = vm_result_messages_item.kind;
-                            let vm_result_messages_item_value_message_value =
-                                context.intern_string(vm_result_messages_item.message.as_str());
-                            let vm_result_messages_item_value_message =
-                                vm::StringHandle::new(vm_result_messages_item_value_message_value);
-                            let vm_result_messages_item_value_line = vm_result_messages_item.line;
-                            let vm_result_messages_item_value_column =
-                                vm_result_messages_item.column;
-                            let vm_result_messages_item_value_offset =
-                                vm_result_messages_item.offset;
-                            let vm_result_messages_item_value_length =
-                                vm_result_messages_item.length;
-                            let vm_result_messages_item_value = GpuCompilationMessageVm {
-                                kind: vm_result_messages_item_value_kind,
-                                message: vm_result_messages_item_value_message,
-                                line: vm_result_messages_item_value_line,
-                                column: vm_result_messages_item_value_column,
-                                offset: vm_result_messages_item_value_offset,
-                                length: vm_result_messages_item_value_length,
-                            };
-                            let vm_result_messages_item_value_encoded = {
-                                let field_0 = vm::Value::uint(
-                                    vm_result_messages_item_value.kind as u8 as u64,
-                                    8,
-                                );
-                                let field_1 = vm_result_messages_item_value.message.value();
-                                let field_2 =
-                                    vm::Value::uint(vm_result_messages_item_value.line as u64, 32);
-                                let field_3 = vm::Value::uint(
-                                    vm_result_messages_item_value.column as u64,
-                                    32,
-                                );
-                                let field_4 = vm::Value::uint(
-                                    vm_result_messages_item_value.offset as u64,
-                                    32,
-                                );
-                                let field_5 = vm::Value::uint(
-                                    vm_result_messages_item_value.length as u64,
-                                    32,
-                                );
-                                context.allocate_aggregate(vec![
-                                    field_0, field_1, field_2, field_3, field_4, field_5,
-                                ])
-                            };
-                            vm_result_messages_values.push(vm_result_messages_item_value_encoded);
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: GpuCompilationInfoVm = value.clone();
+                let result_recorded_messages_raw = result_value.messages.raw_values(context)?;
+                let mut result_recorded_messages =
+                    Vec::with_capacity(result_recorded_messages_raw.len());
+                for result_recorded_messages_item_value in result_recorded_messages_raw {
+                    let result_recorded_messages_item = {
+                        if result_recorded_messages_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_messages_item",
+                                "item",
+                            ))
+                            .boxed());
                         }
-                        let vm_result_messages_data =
-                            context.allocate_raw_values(vm_result_messages_values);
-                        let vm_result_messages: VmSlice<GpuCompilationMessageVm> = VmSlice {
-                            data: vm_result_messages_data,
-                            len: value.messages.len() as u32,
-                            _marker: std::marker::PhantomData,
+                        let slots = context
+                            .aggregate_slots(result_recorded_messages_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 6 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_messages_item",
+                                "expected 6 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_messages_item_kind_raw = decode_uint8(
+                            slots[0],
+                            "result_recorded_messages_item_kind_raw",
+                            "kind",
+                        )?;
+                        let result_recorded_messages_item_kind =
+                            match result_recorded_messages_item_kind_raw {
+                                1u8 => GpuCompilationMessageKind::Info,
+                                2u8 => GpuCompilationMessageKind::Warning,
+                                3u8 => GpuCompilationMessageKind::Error,
+                                _ => {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_value(
+                                            "result_recorded_messages_item_kind",
+                                            "unknown GpuCompilationMessageKind value",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
+                            };
+                        let result_recorded_messages_item_message = decode_string(
+                            slots[1],
+                            "result_recorded_messages_item_message",
+                            "message",
+                        )?;
+                        let result_recorded_messages_item_line =
+                            decode_uint32(slots[2], "result_recorded_messages_item_line", "line")?;
+                        let result_recorded_messages_item_column = decode_uint32(
+                            slots[3],
+                            "result_recorded_messages_item_column",
+                            "column",
+                        )?;
+                        let result_recorded_messages_item_offset = decode_uint32(
+                            slots[4],
+                            "result_recorded_messages_item_offset",
+                            "offset",
+                        )?;
+                        let result_recorded_messages_item_length = decode_uint32(
+                            slots[5],
+                            "result_recorded_messages_item_length",
+                            "length",
+                        )?;
+                        GpuCompilationMessageVm {
+                            kind: result_recorded_messages_item_kind,
+                            message: result_recorded_messages_item_message,
+                            line: result_recorded_messages_item_line,
+                            column: result_recorded_messages_item_column,
+                            offset: result_recorded_messages_item_offset,
+                            length: result_recorded_messages_item_length,
+                        }
+                    };
+                    let result_recorded_messages_item_recorded_kind =
+                        result_recorded_messages_item.kind;
+                    let result_recorded_messages_item_recorded_message = {
+                        let result_recorded_messages_item_recorded_message_ref = context
+                            .string_ref(result_recorded_messages_item.message)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_messages_item_recorded_message_ref
+                            .as_str()
+                            .to_string()
+                    };
+                    let result_recorded_messages_item_recorded_line =
+                        result_recorded_messages_item.line;
+                    let result_recorded_messages_item_recorded_column =
+                        result_recorded_messages_item.column;
+                    let result_recorded_messages_item_recorded_offset =
+                        result_recorded_messages_item.offset;
+                    let result_recorded_messages_item_recorded_length =
+                        result_recorded_messages_item.length;
+                    let result_recorded_messages_item_recorded =
+                        GpuCompilationMessageReplayRecord {
+                            kind: result_recorded_messages_item_recorded_kind,
+                            message: result_recorded_messages_item_recorded_message,
+                            line: result_recorded_messages_item_recorded_line,
+                            column: result_recorded_messages_item_recorded_column,
+                            offset: result_recorded_messages_item_recorded_offset,
+                            length: result_recorded_messages_item_recorded_length,
                         };
-                        let vm_result = GpuCompilationInfoVm {
-                            messages: vm_result_messages,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    result_recorded_messages.push(result_recorded_messages_item_recorded);
                 }
-            },
-        );
+                let result_recorded = GpuCompilationInfoReplayRecord {
+                    messages: result_recorded_messages,
+                };
+                let payload = GpuPipelineShaderCompilationInfoReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuPipelineShaderCompilationInfoReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_messages_values = Vec::with_capacity(value.messages.len());
+                    for vm_result_messages_item in value.messages.iter() {
+                        let vm_result_messages_item = vm_result_messages_item.clone();
+                        let vm_result_messages_item_value_kind = vm_result_messages_item.kind;
+                        let vm_result_messages_item_value_message_value =
+                            context.intern_string(vm_result_messages_item.message.as_str());
+                        let vm_result_messages_item_value_message =
+                            vm::StringHandle::new(vm_result_messages_item_value_message_value);
+                        let vm_result_messages_item_value_line = vm_result_messages_item.line;
+                        let vm_result_messages_item_value_column = vm_result_messages_item.column;
+                        let vm_result_messages_item_value_offset = vm_result_messages_item.offset;
+                        let vm_result_messages_item_value_length = vm_result_messages_item.length;
+                        let vm_result_messages_item_value = GpuCompilationMessageVm {
+                            kind: vm_result_messages_item_value_kind,
+                            message: vm_result_messages_item_value_message,
+                            line: vm_result_messages_item_value_line,
+                            column: vm_result_messages_item_value_column,
+                            offset: vm_result_messages_item_value_offset,
+                            length: vm_result_messages_item_value_length,
+                        };
+                        let vm_result_messages_item_value_encoded = {
+                            let field_0 =
+                                vm::Value::uint(vm_result_messages_item_value.kind as u8 as u64, 8);
+                            let field_1 = vm_result_messages_item_value.message.value();
+                            let field_2 =
+                                vm::Value::uint(vm_result_messages_item_value.line as u64, 32);
+                            let field_3 =
+                                vm::Value::uint(vm_result_messages_item_value.column as u64, 32);
+                            let field_4 =
+                                vm::Value::uint(vm_result_messages_item_value.offset as u64, 32);
+                            let field_5 =
+                                vm::Value::uint(vm_result_messages_item_value.length as u64, 32);
+                            context.allocate_aggregate(vec![
+                                field_0, field_1, field_2, field_3, field_4, field_5,
+                            ])
+                        };
+                        vm_result_messages_values.push(vm_result_messages_item_value_encoded);
+                    }
+                    let vm_result_messages_data =
+                        context.allocate_raw_values(vm_result_messages_values);
+                    let vm_result_messages: VmSlice<GpuCompilationMessageVm> = VmSlice {
+                        data: vm_result_messages_data,
+                        len: value.messages.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    let vm_result = GpuCompilationInfoVm {
+                        messages: vm_result_messages,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_pipeline_shader_compilation_info_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_pipeline_shader_create_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuShaderOptionsVm,
     argument_bytes: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_PIPELINE_SHADER_CREATE,
-            runtime.replay_payload_for(GPU_PIPELINE_SHADER_CREATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_shader_create(
-                    runtime,
-                    context,
-                    device,
-                    options,
-                    argument_bytes,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_shader_create(
-                    runtime,
-                    context,
-                    device,
-                    options,
-                    argument_bytes,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuShaderHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuPipelineShaderCreateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_PIPELINE_SHADER_CREATE,
+        runtime.replay_payload_for(GPU_PIPELINE_SHADER_CREATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_shader_create(
+                runtime,
+                context,
+                device,
+                options,
+                argument_bytes,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_shader_create(
+                runtime,
+                context,
+                device,
+                options,
+                argument_bytes,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuShaderHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuPipelineShaderCreateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuPipelineShaderCreateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuPipelineShaderCreateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_pipeline_shader_create_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_pipeline_shader_destroy_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuShaderHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_PIPELINE_SHADER_DESTROY,
-            runtime.replay_payload_for(GPU_PIPELINE_SHADER_DESTROY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_shader_destroy(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_shader_destroy(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuPipelineShaderDestroyReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_PIPELINE_SHADER_DESTROY,
+        runtime.replay_payload_for(GPU_PIPELINE_SHADER_DESTROY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_shader_destroy(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_shader_destroy(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuPipelineShaderDestroyReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuPipelineShaderDestroyReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuPipelineShaderDestroyReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_pipeline_shader_destroy_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_resource_buffer_create_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuBufferOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_RESOURCE_BUFFER_CREATE,
-            runtime.replay_payload_for(GPU_RESOURCE_BUFFER_CREATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_buffer_create(runtime, context, device, options)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_buffer_create(
-                    runtime, context, device, options,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuBufferHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuResourceBufferCreateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_RESOURCE_BUFFER_CREATE,
+        runtime.replay_payload_for(GPU_RESOURCE_BUFFER_CREATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_buffer_create(runtime, context, device, options)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_buffer_create(runtime, context, device, options)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuBufferHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuResourceBufferCreateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuResourceBufferCreateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuResourceBufferCreateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_resource_buffer_create_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_resource_buffer_destroy_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_RESOURCE_BUFFER_DESTROY,
-            runtime.replay_payload_for(GPU_RESOURCE_BUFFER_DESTROY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_buffer_destroy(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_buffer_destroy(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuResourceBufferDestroyReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_RESOURCE_BUFFER_DESTROY,
+        runtime.replay_payload_for(GPU_RESOURCE_BUFFER_DESTROY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_buffer_destroy(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_buffer_destroy(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuResourceBufferDestroyReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuResourceBufferDestroyReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuResourceBufferDestroyReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_resource_buffer_destroy_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_resource_buffer_info_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_RESOURCE_BUFFER_INFO,
-            runtime.replay_payload_for(GPU_RESOURCE_BUFFER_INFO)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_buffer_info(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_buffer_info(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: GpuBufferInfoVm = value.clone();
-                    let result_recorded_size = result_value.size;
-                    let result_recorded_usage = result_value.usage;
-                    let result_recorded_map_state = result_value.map_state;
-                    let result_recorded = GpuBufferInfo {
-                        size: result_recorded_size,
-                        usage: result_recorded_usage,
-                        map_state: result_recorded_map_state,
-                    };
-                    let payload = GpuResourceBufferInfoReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_RESOURCE_BUFFER_INFO,
+        runtime.replay_payload_for(GPU_RESOURCE_BUFFER_INFO)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_buffer_info(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_buffer_info(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: GpuBufferInfoVm = value.clone();
+                let result_recorded_size = result_value.size;
+                let result_recorded_usage = result_value.usage;
+                let result_recorded_map_state = result_value.map_state;
+                let result_recorded = GpuBufferInfo {
+                    size: result_recorded_size,
+                    usage: result_recorded_usage,
+                    map_state: result_recorded_map_state,
+                };
+                let payload = GpuResourceBufferInfoReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuResourceBufferInfoReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuResourceBufferInfoReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_size = value.size;
-                        let vm_result_usage = value.usage;
-                        let vm_result_map_state = value.map_state;
-                        let vm_result = GpuBufferInfoVm {
-                            size: vm_result_size,
-                            usage: vm_result_usage,
-                            map_state: vm_result_map_state,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_size = value.size;
+                    let vm_result_usage = value.usage;
+                    let vm_result_map_state = value.map_state;
+                    let vm_result = GpuBufferInfoVm {
+                        size: vm_result_size,
+                        usage: vm_result_usage,
+                        map_state: vm_result_map_state,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_resource_buffer_info_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_resource_buffer_map_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
@@ -28675,699 +28373,685 @@ fn destack_gpu_resource_buffer_map_vm_replay(
     length: u64,
     mode: GpuMapMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_RESOURCE_BUFFER_MAP,
-            runtime.replay_payload_for(GPU_RESOURCE_BUFFER_MAP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_buffer_map(
-                    runtime, context, handle, offset, length, mode,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_buffer_map(
-                    runtime, context, handle, offset, length, mode,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: GpuMappedBufferRangeVm = value.clone();
-                    let result_recorded_address = result_value.address;
-                    let result_recorded_length = result_value.length;
-                    let result_recorded_coherent = result_value.coherent;
-                    let result_recorded = GpuMappedBufferRange {
-                        address: result_recorded_address,
-                        length: result_recorded_length,
-                        coherent: result_recorded_coherent,
-                    };
-                    let payload = GpuResourceBufferMapReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_RESOURCE_BUFFER_MAP,
+        runtime.replay_payload_for(GPU_RESOURCE_BUFFER_MAP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_buffer_map(runtime, context, handle, offset, length, mode)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_buffer_map(
+                runtime, context, handle, offset, length, mode,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: GpuMappedBufferRangeVm = value.clone();
+                let result_recorded_address = result_value.address;
+                let result_recorded_length = result_value.length;
+                let result_recorded_coherent = result_value.coherent;
+                let result_recorded = GpuMappedBufferRange {
+                    address: result_recorded_address,
+                    length: result_recorded_length,
+                    coherent: result_recorded_coherent,
+                };
+                let payload = GpuResourceBufferMapReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuResourceBufferMapReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuResourceBufferMapReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_address = value.address;
-                        let vm_result_length = value.length;
-                        let vm_result_coherent = value.coherent;
-                        let vm_result = GpuMappedBufferRangeVm {
-                            address: vm_result_address,
-                            length: vm_result_length,
-                            coherent: vm_result_coherent,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_address = value.address;
+                    let vm_result_length = value.length;
+                    let vm_result_coherent = value.coherent;
+                    let vm_result = GpuMappedBufferRangeVm {
+                        address: vm_result_address,
+                        length: vm_result_length,
+                        coherent: vm_result_coherent,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_resource_buffer_map_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_resource_buffer_read_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
     offset: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_RESOURCE_BUFFER_READ,
-            runtime.replay_payload_for(GPU_RESOURCE_BUFFER_READ)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_buffer_read(runtime, context, handle, offset, length)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_buffer_read(
-                    runtime, context, handle, offset, length,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmSlice<u8> = value.clone();
-                    let result_recorded = result_value.read_bytes(context)?;
-                    let payload = GpuResourceBufferReadReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_RESOURCE_BUFFER_READ,
+        runtime.replay_payload_for(GPU_RESOURCE_BUFFER_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_buffer_read(runtime, context, handle, offset, length)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_buffer_read(
+                runtime, context, handle, offset, length,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<u8> = value.clone();
+                let result_recorded = result_value.read_bytes(context)?;
+                let payload = GpuResourceBufferReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuResourceBufferReadReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuResourceBufferReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = VmSlice::from_bytes(context, value.as_slice());
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmSlice::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_resource_buffer_read_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_resource_buffer_unmap_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_RESOURCE_BUFFER_UNMAP,
-            runtime.replay_payload_for(GPU_RESOURCE_BUFFER_UNMAP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_buffer_unmap(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_buffer_unmap(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuResourceBufferUnmapReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_RESOURCE_BUFFER_UNMAP,
+        runtime.replay_payload_for(GPU_RESOURCE_BUFFER_UNMAP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_buffer_unmap(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_buffer_unmap(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuResourceBufferUnmapReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuResourceBufferUnmapReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuResourceBufferUnmapReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_resource_buffer_unmap_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_resource_buffer_write_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
     offset: u64,
     argument_bytes: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_RESOURCE_BUFFER_WRITE,
-            runtime.replay_payload_for(GPU_RESOURCE_BUFFER_WRITE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_buffer_write(
-                    runtime,
-                    context,
-                    handle,
-                    offset,
-                    argument_bytes,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_buffer_write(
-                    runtime,
-                    context,
-                    handle,
-                    offset,
-                    argument_bytes,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuResourceBufferWriteReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_RESOURCE_BUFFER_WRITE,
+        runtime.replay_payload_for(GPU_RESOURCE_BUFFER_WRITE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_buffer_write(
+                runtime,
+                context,
+                handle,
+                offset,
+                argument_bytes,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_buffer_write(
+                runtime,
+                context,
+                handle,
+                offset,
+                argument_bytes,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuResourceBufferWriteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuResourceBufferWriteReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuResourceBufferWriteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_resource_buffer_write_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_resource_sampler_create_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuSamplerOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_RESOURCE_SAMPLER_CREATE,
-            runtime.replay_payload_for(GPU_RESOURCE_SAMPLER_CREATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_sampler_create(runtime, context, device, options)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_sampler_create(
-                    runtime, context, device, options,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuSamplerHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuResourceSamplerCreateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_RESOURCE_SAMPLER_CREATE,
+        runtime.replay_payload_for(GPU_RESOURCE_SAMPLER_CREATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_sampler_create(runtime, context, device, options)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_sampler_create(
+                runtime, context, device, options,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuSamplerHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuResourceSamplerCreateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuResourceSamplerCreateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuResourceSamplerCreateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_resource_sampler_create_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_resource_sampler_destroy_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuSamplerHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_RESOURCE_SAMPLER_DESTROY,
-            runtime.replay_payload_for(GPU_RESOURCE_SAMPLER_DESTROY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_sampler_destroy(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_sampler_destroy(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuResourceSamplerDestroyReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_RESOURCE_SAMPLER_DESTROY,
+        runtime.replay_payload_for(GPU_RESOURCE_SAMPLER_DESTROY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_sampler_destroy(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_sampler_destroy(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuResourceSamplerDestroyReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuResourceSamplerDestroyReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuResourceSamplerDestroyReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_resource_sampler_destroy_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_resource_texture_create_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuTextureOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_RESOURCE_TEXTURE_CREATE,
-            runtime.replay_payload_for(GPU_RESOURCE_TEXTURE_CREATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_texture_create(runtime, context, device, options)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_texture_create(
-                    runtime, context, device, options,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuTextureHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuResourceTextureCreateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_RESOURCE_TEXTURE_CREATE,
+        runtime.replay_payload_for(GPU_RESOURCE_TEXTURE_CREATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_texture_create(runtime, context, device, options)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_texture_create(
+                runtime, context, device, options,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuTextureHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuResourceTextureCreateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuResourceTextureCreateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuResourceTextureCreateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_resource_texture_create_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_resource_texture_destroy_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_RESOURCE_TEXTURE_DESTROY,
-            runtime.replay_payload_for(GPU_RESOURCE_TEXTURE_DESTROY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_texture_destroy(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_texture_destroy(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuResourceTextureDestroyReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_RESOURCE_TEXTURE_DESTROY,
+        runtime.replay_payload_for(GPU_RESOURCE_TEXTURE_DESTROY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_texture_destroy(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_texture_destroy(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuResourceTextureDestroyReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuResourceTextureDestroyReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuResourceTextureDestroyReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_resource_texture_destroy_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_resource_texture_info_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_RESOURCE_TEXTURE_INFO,
-            runtime.replay_payload_for(GPU_RESOURCE_TEXTURE_INFO)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_texture_info(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_texture_info(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: GpuTextureInfoVm = value.clone();
-                    let result_recorded_width = result_value.width;
-                    let result_recorded_height = result_value.height;
-                    let result_recorded_depth_or_layers = result_value.depth_or_layers;
-                    let result_recorded_mip_levels = result_value.mip_levels;
-                    let result_recorded_samples = result_value.samples;
-                    let result_recorded_format = result_value.format;
-                    let result_recorded_usage = result_value.usage;
-                    let result_recorded_dimension = result_value.dimension;
-                    let result_recorded = GpuTextureInfo {
-                        width: result_recorded_width,
-                        height: result_recorded_height,
-                        depth_or_layers: result_recorded_depth_or_layers,
-                        mip_levels: result_recorded_mip_levels,
-                        samples: result_recorded_samples,
-                        format: result_recorded_format,
-                        usage: result_recorded_usage,
-                        dimension: result_recorded_dimension,
-                    };
-                    let payload = GpuResourceTextureInfoReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_RESOURCE_TEXTURE_INFO,
+        runtime.replay_payload_for(GPU_RESOURCE_TEXTURE_INFO)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_texture_info(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_texture_info(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: GpuTextureInfoVm = value.clone();
+                let result_recorded_width = result_value.width;
+                let result_recorded_height = result_value.height;
+                let result_recorded_depth_or_layers = result_value.depth_or_layers;
+                let result_recorded_mip_levels = result_value.mip_levels;
+                let result_recorded_samples = result_value.samples;
+                let result_recorded_format = result_value.format;
+                let result_recorded_usage = result_value.usage;
+                let result_recorded_dimension = result_value.dimension;
+                let result_recorded = GpuTextureInfo {
+                    width: result_recorded_width,
+                    height: result_recorded_height,
+                    depth_or_layers: result_recorded_depth_or_layers,
+                    mip_levels: result_recorded_mip_levels,
+                    samples: result_recorded_samples,
+                    format: result_recorded_format,
+                    usage: result_recorded_usage,
+                    dimension: result_recorded_dimension,
+                };
+                let payload = GpuResourceTextureInfoReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuResourceTextureInfoReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuResourceTextureInfoReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_width = value.width;
-                        let vm_result_height = value.height;
-                        let vm_result_depth_or_layers = value.depth_or_layers;
-                        let vm_result_mip_levels = value.mip_levels;
-                        let vm_result_samples = value.samples;
-                        let vm_result_format = value.format;
-                        let vm_result_usage = value.usage;
-                        let vm_result_dimension = value.dimension;
-                        let vm_result = GpuTextureInfoVm {
-                            width: vm_result_width,
-                            height: vm_result_height,
-                            depth_or_layers: vm_result_depth_or_layers,
-                            mip_levels: vm_result_mip_levels,
-                            samples: vm_result_samples,
-                            format: vm_result_format,
-                            usage: vm_result_usage,
-                            dimension: vm_result_dimension,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_width = value.width;
+                    let vm_result_height = value.height;
+                    let vm_result_depth_or_layers = value.depth_or_layers;
+                    let vm_result_mip_levels = value.mip_levels;
+                    let vm_result_samples = value.samples;
+                    let vm_result_format = value.format;
+                    let vm_result_usage = value.usage;
+                    let vm_result_dimension = value.dimension;
+                    let vm_result = GpuTextureInfoVm {
+                        width: vm_result_width,
+                        height: vm_result_height,
+                        depth_or_layers: vm_result_depth_or_layers,
+                        mip_levels: vm_result_mip_levels,
+                        samples: vm_result_samples,
+                        format: vm_result_format,
+                        usage: vm_result_usage,
+                        dimension: vm_result_dimension,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_resource_texture_info_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_resource_texture_view_create_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     texture: resource::GpuTextureHandle,
     options: GpuTextureViewOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_RESOURCE_TEXTURE_VIEW_CREATE,
-            runtime.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_CREATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_texture_view_create(runtime, context, texture, options)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_texture_view_create(
-                    runtime, context, texture, options,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuTextureViewHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuResourceTextureViewCreateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_RESOURCE_TEXTURE_VIEW_CREATE,
+        runtime.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_CREATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_texture_view_create(runtime, context, texture, options)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_texture_view_create(
+                runtime, context, texture, options,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuTextureViewHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuResourceTextureViewCreateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuResourceTextureViewCreateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuResourceTextureViewCreateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_resource_texture_view_create_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_resource_texture_view_destroy_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuTextureViewHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_RESOURCE_TEXTURE_VIEW_DESTROY,
-            runtime.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_DESTROY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_texture_view_destroy(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_texture_view_destroy(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuResourceTextureViewDestroyReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_RESOURCE_TEXTURE_VIEW_DESTROY,
+        runtime.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_DESTROY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_texture_view_destroy(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_texture_view_destroy(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuResourceTextureViewDestroyReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuResourceTextureViewDestroyReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuResourceTextureViewDestroyReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_resource_texture_view_destroy_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     computepass: resource::GpuComputePassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_and_payload_policy(
+    let result = runtime.replay().run_binding_with_context_policy(
         GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY,
         runtime.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
         context,
-        |context| {
-            match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_begin_compute_pipeline_statistics_query(runtime, context, computepass, queryset, queryindex),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_begin_compute_pipeline_statistics_query(runtime, context, computepass, queryset, queryindex),
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_command_begin_compute_pipeline_statistics_query(
+                    runtime,
+                    context,
+                    computepass,
+                    queryset,
+                    queryindex,
+                )
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_begin_compute_pipeline_statistics_query(
+                    runtime,
+                    context,
+                    computepass,
+                    queryset,
+                    queryindex,
+                )
             }
         },
         |context, result| {
@@ -29383,9 +29067,7 @@ fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GpuSyncCommandBeginComputePipelineStatisticsQueryReplay {
-                        result,
-                    }
+                    GpuSyncCommandBeginComputePipelineStatisticsQueryReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -29409,79 +29091,83 @@ fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_command_begin_occlusion_query_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY,
-            runtime.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_begin_occlusion_query(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY,
+        runtime.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_begin_occlusion_query(
+                runtime, context, renderpass, queryset, queryindex,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_begin_occlusion_query(
                     runtime, context, renderpass, queryset, queryindex,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_begin_occlusion_query(
-                        runtime, context, renderpass, queryset, queryindex,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuSyncCommandBeginOcclusionQueryReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuSyncCommandBeginOcclusionQueryReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncCommandBeginOcclusionQueryReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncCommandBeginOcclusionQueryReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_sync_command_begin_occlusion_query_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_and_payload_policy(
+    let result = runtime.replay().run_binding_with_context_policy(
         GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY,
         runtime.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?,
         context,
-        |context| {
-            match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_begin_render_pipeline_statistics_query(runtime, context, renderpass, queryset, queryindex),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_begin_render_pipeline_statistics_query(runtime, context, renderpass, queryset, queryindex),
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_command_begin_render_pipeline_statistics_query(
+                    runtime, context, renderpass, queryset, queryindex,
+                )
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_begin_render_pipeline_statistics_query(
+                    runtime, context, renderpass, queryset, queryindex,
+                )
             }
         },
         |context, result| {
@@ -29497,9 +29183,7 @@ fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GpuSyncCommandBeginRenderPipelineStatisticsQueryReplay {
-                        result,
-                    }
+                    GpuSyncCommandBeginRenderPipelineStatisticsQueryReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -29523,19 +29207,29 @@ fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     computepass: resource::GpuComputePassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_and_payload_policy(
+    let result = runtime.replay().run_binding_with_context_policy(
         GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
         runtime.replay_payload_for(GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
         context,
-        |context| {
-            match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_end_compute_pipeline_statistics_query(runtime, context, computepass),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_end_compute_pipeline_statistics_query(runtime, context, computepass),
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_command_end_compute_pipeline_statistics_query(
+                    runtime,
+                    context,
+                    computepass,
+                )
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_end_compute_pipeline_statistics_query(
+                    runtime,
+                    context,
+                    computepass,
+                )
             }
         },
         |context, result| {
@@ -29551,9 +29245,7 @@ fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GpuSyncCommandEndComputePipelineStatisticsQueryReplay {
-                        result,
-                    }
+                    GpuSyncCommandEndComputePipelineStatisticsQueryReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -29577,75 +29269,79 @@ fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_command_end_occlusion_query_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_COMMAND_END_OCCLUSION_QUERY,
-            runtime.replay_payload_for(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_end_occlusion_query(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_SYNC_COMMAND_END_OCCLUSION_QUERY,
+        runtime.replay_payload_for(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_command_end_occlusion_query(runtime, context, renderpass)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_end_occlusion_query(
                     runtime, context, renderpass,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_end_occlusion_query(
-                        runtime, context, renderpass,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuSyncCommandEndOcclusionQueryReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuSyncCommandEndOcclusionQueryReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncCommandEndOcclusionQueryReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncCommandEndOcclusionQueryReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_sync_command_end_occlusion_query_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_sync_command_end_render_pipeline_statistics_query_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_and_payload_policy(
+    let result = runtime.replay().run_binding_with_context_policy(
         GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
         runtime.replay_payload_for(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?,
         context,
-        |context| {
-            match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_end_render_pipeline_statistics_query(runtime, context, renderpass),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_command_end_render_pipeline_statistics_query(runtime, context, renderpass),
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_command_end_render_pipeline_statistics_query(
+                    runtime, context, renderpass,
+                )
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_end_render_pipeline_statistics_query(
+                    runtime, context, renderpass,
+                )
             }
         },
         |context, result| {
@@ -29661,9 +29357,7 @@ fn destack_gpu_sync_command_end_render_pipeline_statistics_query_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    GpuSyncCommandEndRenderPipelineStatisticsQueryReplay {
-                        result,
-                    }
+                    GpuSyncCommandEndRenderPipelineStatisticsQueryReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -29687,7 +29381,7 @@ fn destack_gpu_sync_command_end_render_pipeline_statistics_query_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_command_resolve_queries_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     commandlist: resource::GpuCommandListHandle,
@@ -29697,14 +29391,23 @@ fn destack_gpu_sync_command_resolve_queries_vm_replay(
     destination: resource::GpuBufferHandle,
     destinationoffset: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_COMMAND_RESOLVE_QUERIES,
-            runtime.replay_payload_for(GPU_SYNC_COMMAND_RESOLVE_QUERIES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_resolve_queries(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_SYNC_COMMAND_RESOLVE_QUERIES,
+        runtime.replay_payload_for(GPU_SYNC_COMMAND_RESOLVE_QUERIES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_resolve_queries(
+                runtime,
+                context,
+                commandlist,
+                queryset,
+                firstquery,
+                querycount,
+                destination,
+                destinationoffset,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_resolve_queries(
                     runtime,
                     context,
                     commandlist,
@@ -29713,545 +29416,512 @@ fn destack_gpu_sync_command_resolve_queries_vm_replay(
                     querycount,
                     destination,
                     destinationoffset,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_resolve_queries(
-                        runtime,
-                        context,
-                        commandlist,
-                        queryset,
-                        firstquery,
-                        querycount,
-                        destination,
-                        destinationoffset,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuSyncCommandResolveQueriesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuSyncCommandResolveQueriesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncCommandResolveQueriesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncCommandResolveQueriesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_sync_command_resolve_queries_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_sync_command_write_timestamp_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     commandlist: resource::GpuCommandListHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_COMMAND_WRITE_TIMESTAMP,
-            runtime.replay_payload_for(GPU_SYNC_COMMAND_WRITE_TIMESTAMP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_command_write_timestamp(
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_SYNC_COMMAND_WRITE_TIMESTAMP,
+        runtime.replay_payload_for(GPU_SYNC_COMMAND_WRITE_TIMESTAMP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_command_write_timestamp(
+                runtime,
+                context,
+                commandlist,
+                queryset,
+                queryindex,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_command_write_timestamp(
                     runtime,
                     context,
                     commandlist,
                     queryset,
                     queryindex,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_command_write_timestamp(
-                        runtime,
-                        context,
-                        commandlist,
-                        queryset,
-                        queryindex,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuSyncCommandWriteTimestampReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuSyncCommandWriteTimestampReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncCommandWriteTimestampReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncCommandWriteTimestampReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_sync_command_write_timestamp_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_sync_fence_create_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuFenceOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_FENCE_CREATE,
-            runtime.replay_payload_for(GPU_SYNC_FENCE_CREATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_fence_create(runtime, context, device, options)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_fence_create(
-                    runtime, context, device, options,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuFenceHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuSyncFenceCreateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_SYNC_FENCE_CREATE,
+        runtime.replay_payload_for(GPU_SYNC_FENCE_CREATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_fence_create(runtime, context, device, options)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_fence_create(runtime, context, device, options)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuFenceHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuSyncFenceCreateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncFenceCreateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncFenceCreateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_sync_fence_create_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_sync_fence_destroy_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuFenceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_FENCE_DESTROY,
-            runtime.replay_payload_for(GPU_SYNC_FENCE_DESTROY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_fence_destroy(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_fence_destroy(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuSyncFenceDestroyReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_SYNC_FENCE_DESTROY,
+        runtime.replay_payload_for(GPU_SYNC_FENCE_DESTROY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_fence_destroy(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_fence_destroy(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuSyncFenceDestroyReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncFenceDestroyReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncFenceDestroyReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_sync_fence_destroy_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_sync_query_set_create_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuQuerySetOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_QUERY_SET_CREATE,
-            runtime.replay_payload_for(GPU_SYNC_QUERY_SET_CREATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_query_set_create(runtime, context, device, options)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_query_set_create(
-                    runtime, context, device, options,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::GpuQuerySetHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuSyncQuerySetCreateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_SYNC_QUERY_SET_CREATE,
+        runtime.replay_payload_for(GPU_SYNC_QUERY_SET_CREATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_query_set_create(runtime, context, device, options)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_query_set_create(
+                runtime, context, device, options,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::GpuQuerySetHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuSyncQuerySetCreateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncQuerySetCreateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncQuerySetCreateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_sync_query_set_create_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_sync_query_set_destroy_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_QUERY_SET_DESTROY,
-            runtime.replay_payload_for(GPU_SYNC_QUERY_SET_DESTROY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_query_set_destroy(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_query_set_destroy(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuSyncQuerySetDestroyReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_SYNC_QUERY_SET_DESTROY,
+        runtime.replay_payload_for(GPU_SYNC_QUERY_SET_DESTROY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_query_set_destroy(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_query_set_destroy(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuSyncQuerySetDestroyReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncQuerySetDestroyReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncQuerySetDestroyReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_sync_query_set_destroy_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_sync_query_set_info_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_QUERY_SET_INFO,
-            runtime.replay_payload_for(GPU_SYNC_QUERY_SET_INFO)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_query_set_info(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_query_set_info(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: GpuQuerySetInfoVm = value.clone();
-                    let result_recorded_query_type = result_value.query_type;
-                    let result_recorded_count = result_value.count;
-                    let result_recorded_pipeline_statistics_mask =
-                        result_value.pipeline_statistics_mask;
-                    let result_recorded = GpuQuerySetInfo {
-                        query_type: result_recorded_query_type,
-                        count: result_recorded_count,
-                        pipeline_statistics_mask: result_recorded_pipeline_statistics_mask,
-                    };
-                    let payload = GpuSyncQuerySetInfoReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_SYNC_QUERY_SET_INFO,
+        runtime.replay_payload_for(GPU_SYNC_QUERY_SET_INFO)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_query_set_info(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_query_set_info(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: GpuQuerySetInfoVm = value.clone();
+                let result_recorded_query_type = result_value.query_type;
+                let result_recorded_count = result_value.count;
+                let result_recorded_pipeline_statistics_mask =
+                    result_value.pipeline_statistics_mask;
+                let result_recorded = GpuQuerySetInfo {
+                    query_type: result_recorded_query_type,
+                    count: result_recorded_count,
+                    pipeline_statistics_mask: result_recorded_pipeline_statistics_mask,
+                };
+                let payload = GpuSyncQuerySetInfoReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncQuerySetInfoReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncQuerySetInfoReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_query_type = value.query_type;
-                        let vm_result_count = value.count;
-                        let vm_result_pipeline_statistics_mask = value.pipeline_statistics_mask;
-                        let vm_result = GpuQuerySetInfoVm {
-                            query_type: vm_result_query_type,
-                            count: vm_result_count,
-                            pipeline_statistics_mask: vm_result_pipeline_statistics_mask,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_query_type = value.query_type;
+                    let vm_result_count = value.count;
+                    let vm_result_pipeline_statistics_mask = value.pipeline_statistics_mask;
+                    let vm_result = GpuQuerySetInfoVm {
+                        query_type: vm_result_query_type,
+                        count: vm_result_count,
+                        pipeline_statistics_mask: vm_result_pipeline_statistics_mask,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_sync_query_set_info_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_sync_queue_signal_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     fence: resource::GpuFenceHandle,
     argument_value: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_QUEUE_SIGNAL,
-            runtime.replay_payload_for(GPU_SYNC_QUEUE_SIGNAL)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_queue_signal(
-                    runtime,
-                    context,
-                    queue,
-                    fence,
-                    argument_value,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_queue_signal(
-                    runtime,
-                    context,
-                    queue,
-                    fence,
-                    argument_value,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuSyncQueueSignalReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_SYNC_QUEUE_SIGNAL,
+        runtime.replay_payload_for(GPU_SYNC_QUEUE_SIGNAL)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_queue_signal(
+                runtime,
+                context,
+                queue,
+                fence,
+                argument_value,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_queue_signal(
+                runtime,
+                context,
+                queue,
+                fence,
+                argument_value,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuSyncQueueSignalReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncQueueSignalReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncQueueSignalReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_sync_queue_signal_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_sync_queue_timestamp_period_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_QUEUE_TIMESTAMP_PERIOD,
-            runtime.replay_payload_for(GPU_SYNC_QUEUE_TIMESTAMP_PERIOD)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_queue_timestamp_period(runtime, context, queue)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_gpu_queue_timestamp_period(
-                        runtime, context, queue,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: f64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = GpuSyncQueueTimestampPeriodReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_SYNC_QUEUE_TIMESTAMP_PERIOD,
+        runtime.replay_payload_for(GPU_SYNC_QUEUE_TIMESTAMP_PERIOD)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_queue_timestamp_period(runtime, context, queue)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_gpu_queue_timestamp_period(runtime, context, queue)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: f64 = value.clone();
+                let result_recorded = result_value;
+                let payload = GpuSyncQueueTimestampPeriodReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncQueueTimestampPeriodReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncQueueTimestampPeriodReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_sync_queue_timestamp_period_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_sync_queue_wait_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
@@ -30259,114 +29929,110 @@ fn destack_gpu_sync_queue_wait_vm_replay(
     argument_value: u64,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_QUEUE_WAIT,
-            runtime.replay_payload_for(GPU_SYNC_QUEUE_WAIT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_queue_wait(
-                    runtime,
-                    context,
-                    queue,
-                    fence,
-                    argument_value,
-                    timeoutns,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_queue_wait(
-                    runtime,
-                    context,
-                    queue,
-                    fence,
-                    argument_value,
-                    timeoutns,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuSyncQueueWaitReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_SYNC_QUEUE_WAIT,
+        runtime.replay_payload_for(GPU_SYNC_QUEUE_WAIT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_gpu_queue_wait(
+                runtime,
+                context,
+                queue,
+                fence,
+                argument_value,
+                timeoutns,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_queue_wait(
+                runtime,
+                context,
+                queue,
+                fence,
+                argument_value,
+                timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuSyncQueueWaitReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncQueueWaitReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncQueueWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_sync_queue_wait_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_gpu_sync_queue_work_done_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            GPU_SYNC_QUEUE_WORK_DONE,
-            runtime.replay_payload_for(GPU_SYNC_QUEUE_WORK_DONE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_queue_work_done(runtime, context, queue, timeoutns)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_gpu_queue_work_done(
-                    runtime, context, queue, timeoutns,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = GpuSyncQueueWorkDoneReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        GPU_SYNC_QUEUE_WORK_DONE,
+        runtime.replay_payload_for(GPU_SYNC_QUEUE_WORK_DONE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_gpu_queue_work_done(runtime, context, queue, timeoutns)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_queue_work_done(
+                runtime, context, queue, timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = GpuSyncQueueWorkDoneReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        GpuSyncQueueWorkDoneReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    GpuSyncQueueWorkDoneReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_gpu_sync_queue_work_done_result(context, result)?;
     Ok(result)
 }
@@ -30379,7 +30045,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_ADAPTER_CLOSE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_adapter_close_args(context, args)?;
 
@@ -30398,7 +30064,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_ADAPTER_FEATURES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_adapter_features_args(context, args)?;
 
@@ -30417,7 +30083,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_ADAPTER_FORMAT_CAPABILITIES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, format) =
                         decode_destack_gpu_adapter_format_capabilities_args(context, args)?;
@@ -30439,7 +30105,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_ADAPTER_HAS_FEATURE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, feature) =
                         decode_destack_gpu_adapter_has_feature_args(context, args)?;
@@ -30457,7 +30123,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_ADAPTER_INFO, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_gpu_adapter_info_args(context, args)?;
 
@@ -30475,7 +30141,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_ADAPTER_LIMITS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_adapter_limits_args(context, args)?;
 
@@ -30490,7 +30156,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_ADAPTER_LIST, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (request,) = decode_destack_gpu_adapter_list_args(context, args)?;
 
@@ -30504,7 +30170,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_ADAPTER_OPEN, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (id,) = decode_destack_gpu_adapter_open_args(context, args)?;
 
@@ -30522,7 +30188,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_BIND_GROUP_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, layout, entries, flags) =
                         decode_destack_gpu_bind_group_create_args(context, args)?;
@@ -30544,7 +30210,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_BIND_GROUP_DESTROY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_bind_group_destroy_args(context, args)?;
 
@@ -30563,7 +30229,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_BIND_GROUP_LAYOUT_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, entries, flags) =
                         decode_destack_gpu_bind_group_layout_create_args(context, args)?;
@@ -30585,7 +30251,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_BIND_GROUP_LAYOUT_DESTROY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_bind_group_layout_destroy_args(context, args)?;
@@ -30605,7 +30271,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_BIND_PIPELINE_LAYOUT_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_bind_pipeline_layout_create_args(context, args)?;
@@ -30627,7 +30293,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_BIND_PIPELINE_LAYOUT_DESTROY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_bind_pipeline_layout_destroy_args(context, args)?;
@@ -30650,7 +30316,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_BIND_COMPUTE_PIPELINE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, pipeline) =
                         decode_destack_gpu_command_bind_compute_pipeline_args(context, args)?;
@@ -30673,7 +30339,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_BIND_RENDER_PIPELINE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, pipeline) =
                         decode_destack_gpu_command_bind_render_pipeline_args(context, args)?;
@@ -30696,7 +30362,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_CLEAR_BUFFER,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, buffer, offset, size) =
                         decode_destack_gpu_command_clear_buffer_args(context, args)?;
@@ -30718,7 +30384,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COMPUTE_PASS_BEGIN,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, options) =
                         decode_destack_gpu_command_compute_pass_begin_args(context, args)?;
@@ -30740,7 +30406,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COMPUTE_PASS_END,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_command_compute_pass_end_args(context, args)?;
@@ -30760,7 +30426,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, marker) =
                         decode_destack_gpu_command_compute_pass_insert_debug_marker_args(
@@ -30785,7 +30451,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_command_compute_pass_pop_debug_group_args(
                         context, args,
@@ -30809,7 +30475,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, label) =
                         decode_destack_gpu_command_compute_pass_push_debug_group_args(
@@ -30834,7 +30500,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COPY_BUFFER,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, src, srcoffset, dst, dstoffset, argument_bytes) =
                         decode_destack_gpu_command_copy_buffer_args(context, args)?;
@@ -30864,7 +30530,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COPY_BUFFER_TO_TEXTURE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, source, destination, size) =
                         decode_destack_gpu_command_copy_buffer_to_texture_args(context, args)?;
@@ -30893,7 +30559,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COPY_TEXTURE_TO_BUFFER,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, source, destination, size) =
                         decode_destack_gpu_command_copy_texture_to_buffer_args(context, args)?;
@@ -30922,7 +30588,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, source, destination, size) =
                         decode_destack_gpu_command_copy_texture_to_texture_args(context, args)?;
@@ -30951,7 +30617,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_DISPATCH,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, groupx, groupy, groupz) =
                         decode_destack_gpu_command_dispatch_args(context, args)?;
@@ -30973,7 +30639,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_DISPATCH_INDIRECT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, buffer, offset) =
                         decode_destack_gpu_command_dispatch_indirect_args(context, args)?;
@@ -30991,7 +30657,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_COMMAND_DRAW, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, vertexcount, instancecount, firstvertex, firstinstance) =
                     decode_destack_gpu_command_draw_args(context, args)?;
@@ -31019,7 +30685,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_DRAW_INDEXED,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, indexcount, instancecount, firstindex, basevertex, firstinstance) =
                         decode_destack_gpu_command_draw_indexed_args(context, args)?;
@@ -31049,7 +30715,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_DRAW_INDEXED_INDIRECT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, buffer, offset, drawcount, stride) =
                         decode_destack_gpu_command_draw_indexed_indirect_args(context, args)?;
@@ -31072,7 +30738,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_DRAW_INDIRECT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, buffer, offset, drawcount, stride) =
                         decode_destack_gpu_command_draw_indirect_args(context, args)?;
@@ -31094,7 +30760,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_ENCODER_CLOSE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_command_encoder_close_args(context, args)?;
 
@@ -31113,7 +30779,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_ENCODER_FINISH,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_command_encoder_finish_args(context, args)?;
 
@@ -31132,7 +30798,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_ENCODER_OPEN,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_command_encoder_open_args(context, args)?;
@@ -31154,7 +30820,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_EXECUTE_BUNDLES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, bundles) =
                         decode_destack_gpu_command_execute_bundles_args(context, args)?;
@@ -31176,7 +30842,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_INSERT_DEBUG_MARKER,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, marker) =
                         decode_destack_gpu_command_insert_debug_marker_args(context, args)?;
@@ -31198,7 +30864,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, buffer, offset, drawcount, stride) =
                         decode_destack_gpu_command_multi_draw_indexed_indirect_args(context, args)?;
@@ -31221,7 +30887,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, buffer, offset, countbuffer, countoffset, maxdrawcount, stride) =
                         decode_destack_gpu_command_multi_draw_indexed_indirect_count_args(
@@ -31255,7 +30921,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_MULTI_DRAW_INDIRECT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, buffer, offset, drawcount, stride) =
                         decode_destack_gpu_command_multi_draw_indirect_args(context, args)?;
@@ -31277,7 +30943,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, buffer, offset, countbuffer, countoffset, maxdrawcount, stride) =
                         decode_destack_gpu_command_multi_draw_indirect_count_args(context, args)?;
@@ -31309,7 +30975,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_POP_DEBUG_GROUP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_command_pop_debug_group_args(context, args)?;
 
@@ -31328,7 +30994,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_PUSH_DEBUG_GROUP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, label) =
                         decode_destack_gpu_command_push_debug_group_args(context, args)?;
@@ -31350,7 +31016,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_QUEUE_SUBMIT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (queue, commandlists, options) =
                         decode_destack_gpu_command_queue_submit_args(context, args)?;
@@ -31377,7 +31043,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_QUEUE_WAIT_IDLE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (queue, timeoutns) =
                         decode_destack_gpu_command_queue_wait_idle_args(context, args)?;
@@ -31399,7 +31065,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_QUEUE_WRITE_BUFFER,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (queue, buffer, bufferoffset, data, dataoffset, size) =
                         decode_destack_gpu_command_queue_write_buffer_args(context, args)?;
@@ -31429,7 +31095,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_QUEUE_WRITE_TEXTURE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (queue, destination, data, layout, size) =
                         decode_destack_gpu_command_queue_write_texture_args(context, args)?;
@@ -31458,7 +31124,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_DESTROY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_command_render_bundle_destroy_args(context, args)?;
@@ -31481,7 +31147,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_DRAW,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, vertexcount, instancecount, firstvertex, firstinstance) =
                         decode_destack_gpu_command_render_bundle_draw_args(context, args)?;
@@ -31510,7 +31176,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, indexcount, instancecount, firstindex, basevertex, firstinstance) =
                         decode_destack_gpu_command_render_bundle_draw_indexed_args(context, args)?;
@@ -31541,7 +31207,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, buffer, offset, drawcount, stride) =
                         decode_destack_gpu_command_render_bundle_draw_indexed_indirect_args(
@@ -31566,7 +31232,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, buffer, offset, drawcount, stride) =
                         decode_destack_gpu_command_render_bundle_draw_indirect_args(context, args)?;
@@ -31589,7 +31255,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_command_render_bundle_encoder_close_args(context, args)?;
@@ -31612,7 +31278,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_command_render_bundle_encoder_finish_args(
                         context, args,
@@ -31636,7 +31302,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_command_render_bundle_encoder_open_args(context, args)?;
@@ -31659,7 +31325,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, marker) =
                         decode_destack_gpu_command_render_bundle_insert_debug_marker_args(
@@ -31684,7 +31350,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_command_render_bundle_pop_debug_group_args(
                         context, args,
@@ -31708,7 +31374,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, label) =
                         decode_destack_gpu_command_render_bundle_push_debug_group_args(
@@ -31733,7 +31399,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, index, bindgroup, dynamicoffsets) =
                         decode_destack_gpu_command_render_bundle_set_bind_group_args(
@@ -31764,7 +31430,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, buffer, format, offset, size) =
                         decode_destack_gpu_command_render_bundle_set_index_buffer_args(
@@ -31789,7 +31455,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, pipeline) =
                         decode_destack_gpu_command_render_bundle_set_pipeline_args(context, args)?;
@@ -31812,7 +31478,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, slot, buffer, offset, size) =
                         decode_destack_gpu_command_render_bundle_set_vertex_buffer_args(
@@ -31837,7 +31503,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_PASS_BEGIN,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, options) =
                         decode_destack_gpu_command_render_pass_begin_args(context, args)?;
@@ -31859,7 +31525,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_PASS_END,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_command_render_pass_end_args(context, args)?;
 
@@ -31878,7 +31544,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, marker) =
                         decode_destack_gpu_command_render_pass_insert_debug_marker_args(
@@ -31903,7 +31569,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_command_render_pass_pop_debug_group_args(context, args)?;
@@ -31926,7 +31592,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, label) =
                         decode_destack_gpu_command_render_pass_push_debug_group_args(
@@ -31951,7 +31617,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_BLEND_CONSTANT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, r, g, b, a) =
                         decode_destack_gpu_command_set_blend_constant_args(context, args)?;
@@ -31973,7 +31639,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_COMPUTE_BIND_GROUP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, index, bindgroup, dynamicoffsets) =
                         decode_destack_gpu_command_set_compute_bind_group_args(context, args)?;
@@ -32002,7 +31668,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_INDEX_BUFFER,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, buffer, format, offset, size) =
                         decode_destack_gpu_command_set_index_buffer_args(context, args)?;
@@ -32024,7 +31690,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_RENDER_BIND_GROUP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, index, bindgroup, dynamicoffsets) =
                         decode_destack_gpu_command_set_render_bind_group_args(context, args)?;
@@ -32053,7 +31719,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_SCISSOR,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, x, y, width, height) =
                         decode_destack_gpu_command_set_scissor_args(context, args)?;
@@ -32075,7 +31741,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_STENCIL_REFERENCE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, reference) =
                         decode_destack_gpu_command_set_stencil_reference_args(context, args)?;
@@ -32098,7 +31764,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_VERTEX_BUFFER,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, slot, buffer, offset, size) =
                         decode_destack_gpu_command_set_vertex_buffer_args(context, args)?;
@@ -32120,7 +31786,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_VIEWPORT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, x, y, width, height, mindepth, maxdepth) =
                         decode_destack_gpu_command_set_viewport_args(context, args)?;
@@ -32142,7 +31808,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_DEBUG_SET_LABEL,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, label) = decode_destack_gpu_debug_set_label_args(context, args)?;
 
@@ -32157,7 +31823,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_DEVICE_CLOSE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_gpu_device_close_args(context, args)?;
 
@@ -32175,7 +31841,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_DEVICE_FEATURES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device,) = decode_destack_gpu_device_features_args(context, args)?;
 
@@ -32194,7 +31860,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_DEVICE_HAS_FEATURE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, feature) =
                         decode_destack_gpu_device_has_feature_args(context, args)?;
@@ -32212,7 +31878,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_DEVICE_INFO, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (device,) = decode_destack_gpu_device_info_args(context, args)?;
 
@@ -32230,7 +31896,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_DEVICE_LIMITS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device,) = decode_destack_gpu_device_limits_args(context, args)?;
 
@@ -32245,7 +31911,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_DEVICE_OPEN, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (adapter, options) = decode_destack_gpu_device_open_args(context, args)?;
 
@@ -32259,7 +31925,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_DEVICE_POLL, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (device, wait, timeoutns) = decode_destack_gpu_device_poll_args(context, args)?;
 
@@ -32277,7 +31943,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_DEVICE_POP_ERROR_SCOPE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, timeoutns) =
                         decode_destack_gpu_device_pop_error_scope_args(context, args)?;
@@ -32299,7 +31965,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_DEVICE_PUSH_ERROR_SCOPE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, filter) =
                         decode_destack_gpu_device_push_error_scope_args(context, args)?;
@@ -32317,7 +31983,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_DEVICE_QUEUE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (device,) = decode_destack_gpu_device_queue_args(context, args)?;
 
@@ -32335,7 +32001,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_DEVICE_STATUS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device,) = decode_destack_gpu_device_status_args(context, args)?;
 
@@ -32354,7 +32020,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PIPELINE_BIND_GROUP_LAYOUT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (pipeline, groupindex) =
                         decode_destack_gpu_pipeline_bind_group_layout_args(context, args)?;
@@ -32376,7 +32042,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PIPELINE_COMPUTE_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_pipeline_compute_create_args(context, args)?;
@@ -32398,7 +32064,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PIPELINE_DESTROY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_pipeline_destroy_args(context, args)?;
 
@@ -32417,7 +32083,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PIPELINE_RENDER_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_pipeline_render_create_args(context, args)?;
@@ -32439,7 +32105,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PIPELINE_SHADER_COMPILATION_INFO,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_gpu_pipeline_shader_compilation_info_args(context, args)?;
@@ -32462,7 +32128,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PIPELINE_SHADER_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, options, argument_bytes) =
                         decode_destack_gpu_pipeline_shader_create_args(context, args)?;
@@ -32489,7 +32155,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PIPELINE_SHADER_DESTROY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_pipeline_shader_destroy_args(context, args)?;
 
@@ -32508,7 +32174,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PRESENT_SURFACE_ACQUIRE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (surface, timeoutns) =
                         decode_destack_gpu_present_surface_acquire_args(context, args)?;
@@ -32521,7 +32187,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                             RuntimeWorld::Host => platform_vm::destack_gpu_surface_acquire(
                                 runtime, context, surface, timeoutns,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_gpu_surface_acquire(
                                     runtime, context, surface, timeoutns,
                                 )
@@ -32540,7 +32206,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PRESENT_SURFACE_CAPABILITIES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (surface, adapter) =
                         decode_destack_gpu_present_surface_capabilities_args(context, args)?;
@@ -32554,7 +32220,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                             RuntimeWorld::Host => platform_vm::destack_gpu_surface_capabilities(
                                 runtime, context, surface, adapter,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_gpu_surface_capabilities(
                                     runtime, context, surface, adapter,
                                 )
@@ -32573,7 +32239,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PRESENT_SURFACE_CLOSE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (surface,) = decode_destack_gpu_present_surface_close_args(context, args)?;
 
@@ -32585,7 +32251,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                             RuntimeWorld::Host => {
                                 platform_vm::destack_gpu_surface_close(runtime, context, surface)
                             }
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_gpu_surface_close(
                                     runtime, context, surface,
                                 )
@@ -32604,7 +32270,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PRESENT_SURFACE_CONFIGURE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, surface, options) =
                         decode_destack_gpu_present_surface_configure_args(context, args)?;
@@ -32618,7 +32284,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                             RuntimeWorld::Host => platform_vm::destack_gpu_surface_configure(
                                 runtime, context, device, surface, options,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_gpu_surface_configure(
                                     runtime, context, device, surface, options,
                                 )
@@ -32637,7 +32303,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PRESENT_SURFACE_OPEN,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (window,) = decode_destack_gpu_present_surface_open_args(context, args)?;
 
@@ -32649,7 +32315,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                             RuntimeWorld::Host => {
                                 platform_vm::destack_gpu_surface_open(runtime, context, window)
                             }
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_gpu_surface_open(
                                     runtime, context, window,
                                 )
@@ -32668,7 +32334,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PRESENT_SURFACE_PRESENT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (surface, options) =
                         decode_destack_gpu_present_surface_present_args(context, args)?;
@@ -32681,7 +32347,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                             RuntimeWorld::Host => platform_vm::destack_gpu_surface_present(
                                 runtime, context, surface, options,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_gpu_surface_present(
                                     runtime, context, surface, options,
                                 )
@@ -32700,7 +32366,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PRESENT_SURFACE_UNCONFIGURE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (surface,) =
                         decode_destack_gpu_present_surface_unconfigure_args(context, args)?;
@@ -32714,7 +32380,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                             RuntimeWorld::Host => platform_vm::destack_gpu_surface_unconfigure(
                                 runtime, context, surface,
                             ),
-                            RuntimeWorld::Simulated => {
+                            RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_gpu_surface_unconfigure(
                                     runtime, context, surface,
                                 )
@@ -32733,7 +32399,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_BUFFER_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_resource_buffer_create_args(context, args)?;
@@ -32755,7 +32421,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_BUFFER_DESTROY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_resource_buffer_destroy_args(context, args)?;
 
@@ -32774,7 +32440,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_BUFFER_INFO,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_resource_buffer_info_args(context, args)?;
 
@@ -32793,7 +32459,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_BUFFER_MAP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, offset, length, mode) =
                         decode_destack_gpu_resource_buffer_map_args(context, args)?;
@@ -32815,7 +32481,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_BUFFER_READ,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, offset, length) =
                         decode_destack_gpu_resource_buffer_read_args(context, args)?;
@@ -32837,7 +32503,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_BUFFER_UNMAP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_resource_buffer_unmap_args(context, args)?;
 
@@ -32856,7 +32522,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_BUFFER_WRITE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, offset, argument_bytes) =
                         decode_destack_gpu_resource_buffer_write_args(context, args)?;
@@ -32883,7 +32549,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_SAMPLER_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_resource_sampler_create_args(context, args)?;
@@ -32905,7 +32571,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_SAMPLER_DESTROY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_resource_sampler_destroy_args(context, args)?;
@@ -32925,7 +32591,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_TEXTURE_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_resource_texture_create_args(context, args)?;
@@ -32947,7 +32613,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_TEXTURE_DESTROY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_resource_texture_destroy_args(context, args)?;
@@ -32967,7 +32633,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_TEXTURE_INFO,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_resource_texture_info_args(context, args)?;
 
@@ -32986,7 +32652,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_TEXTURE_VIEW_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (texture, options) =
                         decode_destack_gpu_resource_texture_view_create_args(context, args)?;
@@ -33009,7 +32675,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_TEXTURE_VIEW_DESTROY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_resource_texture_view_destroy_args(context, args)?;
@@ -33032,7 +32698,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                 // decode args
                 let (computepass, queryset, queryindex) = decode_destack_gpu_sync_command_begin_compute_pipeline_statistics_query_args(context, args)?;
 
@@ -33051,7 +32717,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (renderpass, queryset, queryindex) =
                         decode_destack_gpu_sync_command_begin_occlusion_query_args(context, args)?;
@@ -33074,7 +32740,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                 // decode args
                 let (renderpass, queryset, queryindex) = decode_destack_gpu_sync_command_begin_render_pipeline_statistics_query_args(context, args)?;
 
@@ -33093,7 +32759,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (computepass,) =
                         decode_destack_gpu_sync_command_end_compute_pipeline_statistics_query_args(
@@ -33122,7 +32788,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_END_OCCLUSION_QUERY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (renderpass,) =
                         decode_destack_gpu_sync_command_end_occlusion_query_args(context, args)?;
@@ -33145,7 +32811,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (renderpass,) =
                         decode_destack_gpu_sync_command_end_render_pipeline_statistics_query_args(
@@ -33171,7 +32837,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_RESOLVE_QUERIES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (
                         commandlist,
@@ -33208,7 +32874,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_WRITE_TIMESTAMP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (commandlist, queryset, queryindex) =
                         decode_destack_gpu_sync_command_write_timestamp_args(context, args)?;
@@ -33236,7 +32902,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_FENCE_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_sync_fence_create_args(context, args)?;
@@ -33258,7 +32924,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_FENCE_DESTROY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_sync_fence_destroy_args(context, args)?;
 
@@ -33277,7 +32943,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_QUERY_SET_CREATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_sync_query_set_create_args(context, args)?;
@@ -33299,7 +32965,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_QUERY_SET_DESTROY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_sync_query_set_destroy_args(context, args)?;
 
@@ -33318,7 +32984,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_QUERY_SET_INFO,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_gpu_sync_query_set_info_args(context, args)?;
 
@@ -33337,7 +33003,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_QUEUE_SIGNAL,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (queue, fence, argument_value) =
                         decode_destack_gpu_sync_queue_signal_args(context, args)?;
@@ -33364,7 +33030,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_QUEUE_TIMESTAMP_PERIOD,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (queue,) =
                         decode_destack_gpu_sync_queue_timestamp_period_args(context, args)?;
@@ -33386,7 +33052,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_QUEUE_WAIT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (queue, fence, argument_value, timeoutns) =
                         decode_destack_gpu_sync_queue_wait_args(context, args)?;
@@ -33414,7 +33080,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_QUEUE_WORK_DONE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (queue, timeoutns) =
                         decode_destack_gpu_sync_queue_work_done_args(context, args)?;

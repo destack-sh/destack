@@ -10,7 +10,7 @@ use crate::platform::net::{
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeSlice, PlatformError};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Create a UDP socket.
 ///
@@ -30,7 +30,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_udp_socket(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketHandle,
     family: SocketFamily,
 ) -> RuntimeResult<()> {
@@ -70,7 +70,7 @@ pub(crate) unsafe fn destack_net_udp_socket(
 /// Bind a UDP socket to a raw local address.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_udp_bind_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -94,7 +94,7 @@ pub(crate) unsafe fn destack_net_udp_bind_raw(
 /// Connect a UDP socket to a raw remote address.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_udp_connect_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -118,7 +118,7 @@ pub(crate) unsafe fn destack_net_udp_connect_raw(
 /// Receive a UDP datagram with raw sender metadata.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_udp_recv_from_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut UdpReceive,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -176,7 +176,7 @@ pub(crate) unsafe fn destack_net_udp_recv_from_raw(
 /// Send a UDP datagram to a raw destination address.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_udp_send_to_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     address: SocketAddress,

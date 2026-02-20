@@ -8,7 +8,7 @@ use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{core as core_fs, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, net as platform_net, *};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStrExt;
@@ -33,7 +33,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mmap_file(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: FileHandle,
     offset: FileOffset,
@@ -119,7 +119,7 @@ pub(crate) unsafe fn destack_fs_mmap_file(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mmap_anonymous(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     length: FileSize,
     prot: MmapProt,
@@ -195,7 +195,7 @@ pub(crate) unsafe fn destack_fs_mmap_anonymous(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_munmap(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     mapping: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let slice = unsafe { mapping.as_slice()? };
@@ -227,7 +227,7 @@ pub(crate) unsafe fn destack_fs_munmap(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mprotect(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     mapping: NativeSlice<u8>,
     prot: MmapProt,
 ) -> RuntimeResult<()> {
@@ -272,7 +272,7 @@ pub(crate) unsafe fn destack_fs_mprotect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_msync(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     mapping: NativeSlice<u8>,
     flags: MmapSyncFlags,
 ) -> RuntimeResult<()> {
@@ -317,7 +317,7 @@ pub(crate) unsafe fn destack_fs_msync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_madvise(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     mapping: NativeSlice<u8>,
     advice: MmapAdvice,
 ) -> RuntimeResult<()> {

@@ -10,7 +10,7 @@ use crate::platform::resource::{
     DirectoryHandle, FileHandle, ResourceFinalizer, ResourceId, ResourceKind,
 };
 use crate::platform::{NativeStringRef, PlatformError, core as core_platform};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::CString;
 use std::os::unix::ffi::OsStrExt;
@@ -105,7 +105,7 @@ pub(super) fn resolve_name_cstring(name: NativeStringRef, label: &str) -> Runtim
 
 /// Resolve a resource entry for a file handle.
 pub(super) fn file_descriptor(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<RawFd> {
     // resolve the file resource
@@ -122,7 +122,7 @@ pub(super) fn file_descriptor(
 
 /// Resolve a directory resource from a handle.
 pub(super) fn directory_resource(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<DirectoryResource> {
     // resolve the directory resource
@@ -150,7 +150,7 @@ pub(super) fn directory_resource(
 
 /// Resolve a directory handle to its file descriptor.
 pub(super) fn directory_descriptor(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<RawFd> {
     Ok(directory_resource(context, handle)?.fd)

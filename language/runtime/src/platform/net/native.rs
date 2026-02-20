@@ -11,7 +11,7 @@ use crate::platform::net::{
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 pub(crate) use host_net::{
     destack_net_accept, destack_net_close, destack_net_close_listener,
@@ -44,7 +44,7 @@ pub(crate) use host_net::{
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_bind(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -69,7 +69,7 @@ pub(crate) unsafe fn destack_net_bind(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_connect(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -94,7 +94,7 @@ pub(crate) unsafe fn destack_net_connect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_keep_alive(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut KeepAliveConfig,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -119,7 +119,7 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_no_delay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -144,7 +144,7 @@ pub(crate) unsafe fn destack_net_get_no_delay(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_reuse_addr(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -169,7 +169,7 @@ pub(crate) unsafe fn destack_net_get_reuse_addr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_reuse_port(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -194,7 +194,7 @@ pub(crate) unsafe fn destack_net_get_reuse_port(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_linger(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut Linger,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -219,7 +219,7 @@ pub(crate) unsafe fn destack_net_get_linger(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_recv_buffer(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -244,7 +244,7 @@ pub(crate) unsafe fn destack_net_get_recv_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_send_buffer(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -269,7 +269,7 @@ pub(crate) unsafe fn destack_net_get_send_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_broadcast(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -294,7 +294,7 @@ pub(crate) unsafe fn destack_net_get_broadcast(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_ttl(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -319,7 +319,7 @@ pub(crate) unsafe fn destack_net_get_ttl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_tos(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -344,7 +344,7 @@ pub(crate) unsafe fn destack_net_get_tos(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_read_timeout(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -369,7 +369,7 @@ pub(crate) unsafe fn destack_net_get_read_timeout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_write_timeout(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -394,7 +394,7 @@ pub(crate) unsafe fn destack_net_get_write_timeout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_only_v6(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -419,7 +419,7 @@ pub(crate) unsafe fn destack_net_get_only_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_listen(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ListenerHandle,
     address: SocketAddress,
     backlog: u32,
@@ -445,7 +445,7 @@ pub(crate) unsafe fn destack_net_listen(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_local_address(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketAddress,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -470,7 +470,7 @@ pub(crate) unsafe fn destack_net_local_address(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_peer_address(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketAddress,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -495,7 +495,7 @@ pub(crate) unsafe fn destack_net_peer_address(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_recv_from(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketRecvFrom,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -522,7 +522,7 @@ pub(crate) unsafe fn destack_net_recv_from(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_resolve(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<SocketAddress>,
     query: ResolveQuery,
 ) -> RuntimeResult<()> {
@@ -554,7 +554,7 @@ pub(crate) unsafe fn destack_net_resolve(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_reverse_lookup(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<ReverseLookupName>,
     address: SocketAddress,
     flags: ReverseLookupFlags,
@@ -607,7 +607,7 @@ pub(crate) unsafe fn destack_net_reverse_lookup(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_send_to(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -634,7 +634,7 @@ pub(crate) unsafe fn destack_net_send_to(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_keep_alive(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     config: KeepAliveConfig,
 ) -> RuntimeResult<()> {
@@ -668,7 +668,7 @@ pub(crate) unsafe fn destack_net_set_keep_alive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_only_v6(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -693,7 +693,7 @@ pub(crate) unsafe fn destack_net_set_only_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_socket(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketHandle,
     family: SocketFamily,
     sockettype: SocketType,
@@ -720,7 +720,7 @@ pub(crate) unsafe fn destack_net_socket(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_socket_pair(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketPair,
     family: SocketFamily,
     sockettype: SocketType,
@@ -747,7 +747,7 @@ pub(crate) unsafe fn destack_net_socket_pair(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_udp_bind(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -772,7 +772,7 @@ pub(crate) unsafe fn destack_net_udp_bind(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_udp_connect(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -797,7 +797,7 @@ pub(crate) unsafe fn destack_net_udp_connect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_udp_recv_from(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut UdpReceive,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -824,7 +824,7 @@ pub(crate) unsafe fn destack_net_udp_recv_from(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_udp_send_to(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     address: SocketAddress,
@@ -854,7 +854,7 @@ pub(crate) unsafe fn destack_net_udp_send_to(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_recv_msg(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketRecvMessage,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -895,7 +895,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_recv_mmsg(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<SocketRecvMessage>,
     handle: SocketHandle,
     requests: NativeSlice<SocketRecvBatchRequest>,
@@ -956,7 +956,7 @@ pub(crate) unsafe fn destack_net_recv_mmsg(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_send_mmsg(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     messages: NativeSlice<SocketSendBatchEntry>,
@@ -1010,7 +1010,7 @@ pub(crate) unsafe fn destack_net_send_mmsg(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_connect(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketHandle,
     address: UdsAddress,
 ) -> RuntimeResult<()> {
@@ -1039,7 +1039,7 @@ pub(crate) unsafe fn destack_net_uds_connect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_listen(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ListenerHandle,
     address: UdsAddress,
     backlog: u32,
@@ -1069,7 +1069,7 @@ pub(crate) unsafe fn destack_net_uds_listen(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_socket_pair(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketPair,
     sockettype: SocketType,
 ) -> RuntimeResult<()> {
@@ -1078,7 +1078,7 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
 
 /// Resolve a host component from a resolve query.
 fn resolve_host(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     query: ResolveQuery,
 ) -> RuntimeResult<NativeStringRef> {
     if !query.has_host {
@@ -1109,7 +1109,7 @@ fn resolve_port(query: ResolveQuery) -> RuntimeResult<u16> {
 }
 
 /// Map a UDS address into the path shape expected by OS backends.
-fn uds_path(context: &RuntimeCallContext, address: UdsAddress) -> RuntimeResult<OsPath> {
+fn uds_path(context: &BindingCallContext, address: UdsAddress) -> RuntimeResult<OsPath> {
     match address.kind {
         UdsAddressKind::Path => Ok(address.path),
         UdsAddressKind::Abstract => {
@@ -1163,7 +1163,7 @@ unsafe fn check_out_pointer<T>(out: *mut T, name: &'static str) -> RuntimeResult
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_packet_mark(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1192,7 +1192,7 @@ pub(crate) unsafe fn destack_net_get_packet_mark(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_sock_opt_raw(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut NativeArray<u8>,
     handle: SocketHandle,
     level: SocketOptionLevel,
@@ -1224,7 +1224,7 @@ pub(crate) unsafe fn destack_net_get_sock_opt_raw(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_timestamping(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut SocketTimestampingMode,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1253,7 +1253,7 @@ pub(crate) unsafe fn destack_net_get_timestamping(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_interface_index(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u32,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -1282,7 +1282,7 @@ pub(crate) unsafe fn destack_net_interface_index(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_interface_name(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut NativeStringRef,
     index: u32,
 ) -> RuntimeResult<()> {
@@ -1311,7 +1311,7 @@ pub(crate) unsafe fn destack_net_interface_name(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_list_interfaces(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut NativeArray<NetInterface>,
 ) -> RuntimeResult<()> {
     // validate pointer and keep arguments used
@@ -1337,7 +1337,7 @@ pub(crate) unsafe fn destack_net_list_interfaces(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_open(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut SocketHandle,
     options: PacketCaptureOptions,
 ) -> RuntimeResult<()> {
@@ -1366,7 +1366,7 @@ pub(crate) unsafe fn destack_net_packet_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_receive(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut PacketCaptureRecord,
     handle: SocketHandle,
     payload: NativeSlice<u8>,
@@ -1396,7 +1396,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_send(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     payload: NativeSlice<u8>,
@@ -1426,7 +1426,7 @@ pub(crate) unsafe fn destack_net_packet_send(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     mode: PacketTimestampMode,
 ) -> RuntimeResult<()> {
@@ -1454,7 +1454,7 @@ pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_fanout(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _handle: SocketHandle,
 ) -> RuntimeResult<()> {
     missing_binding("destack.net.packetClearFanout")
@@ -1478,7 +1478,7 @@ pub(crate) unsafe fn destack_net_packet_clear_fanout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_filter(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _handle: SocketHandle,
 ) -> RuntimeResult<()> {
     missing_binding("destack.net.packetClearFilter")
@@ -1502,7 +1502,7 @@ pub(crate) unsafe fn destack_net_packet_clear_filter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_ring(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _handle: SocketHandle,
 ) -> RuntimeResult<()> {
     missing_binding("destack.net.packetClearRing")
@@ -1526,7 +1526,7 @@ pub(crate) unsafe fn destack_net_packet_clear_ring(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_fanout(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     options: PacketFanoutOptions,
 ) -> RuntimeResult<()> {
@@ -1553,7 +1553,7 @@ pub(crate) unsafe fn destack_net_packet_set_fanout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_filter(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     filterprogram: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -1580,7 +1580,7 @@ pub(crate) unsafe fn destack_net_packet_set_filter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_rx_ring(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     options: PacketRingOptions,
 ) -> RuntimeResult<()> {
@@ -1607,7 +1607,7 @@ pub(crate) unsafe fn destack_net_packet_set_rx_ring(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_tx_ring(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     options: PacketRingOptions,
 ) -> RuntimeResult<()> {
@@ -1634,7 +1634,7 @@ pub(crate) unsafe fn destack_net_packet_set_tx_ring(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_stats(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut PacketCaptureStats,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1662,7 +1662,7 @@ pub(crate) unsafe fn destack_net_packet_stats(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_interface_v4(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut NativeStringRef,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1690,7 +1690,7 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_interface_v6(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1718,7 +1718,7 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_interface_v4(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     interfaceaddress: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -1745,7 +1745,7 @@ pub(crate) unsafe fn destack_net_set_multicast_interface_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_interface_v6(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     interfaceindex: u32,
 ) -> RuntimeResult<()> {
@@ -1772,7 +1772,7 @@ pub(crate) unsafe fn destack_net_set_multicast_interface_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_loop(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1800,7 +1800,7 @@ pub(crate) unsafe fn destack_net_get_multicast_loop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_ttl(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1828,7 +1828,7 @@ pub(crate) unsafe fn destack_net_get_multicast_ttl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_source_v4(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV4,
 ) -> RuntimeResult<()> {
@@ -1855,7 +1855,7 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_source_v6(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV6,
 ) -> RuntimeResult<()> {
@@ -1882,7 +1882,7 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_source_v4(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV4,
 ) -> RuntimeResult<()> {
@@ -1909,7 +1909,7 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_source_v6(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV6,
 ) -> RuntimeResult<()> {
@@ -1936,7 +1936,7 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_raw_set_header_included(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -1964,7 +1964,7 @@ pub(crate) unsafe fn destack_net_raw_set_header_included(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_raw_socket(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut SocketHandle,
     family: SocketFamily,
     protocol: i32,
@@ -1994,7 +1994,7 @@ pub(crate) unsafe fn destack_net_raw_socket(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_add(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _route: RouteEntry,
 ) -> RuntimeResult<()> {
     // keep arguments used
@@ -2019,7 +2019,7 @@ pub(crate) unsafe fn destack_net_route_add(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_delete(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _route: RouteEntry,
 ) -> RuntimeResult<()> {
     // keep arguments used
@@ -2044,7 +2044,7 @@ pub(crate) unsafe fn destack_net_route_delete(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_list(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut NativeArray<RouteEntry>,
     family: SocketFamily,
 ) -> RuntimeResult<()> {
@@ -2073,7 +2073,7 @@ pub(crate) unsafe fn destack_net_route_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_packet_mark(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     mark: u32,
 ) -> RuntimeResult<()> {
@@ -2101,7 +2101,7 @@ pub(crate) unsafe fn destack_net_set_packet_mark(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_sock_opt_raw(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
@@ -2131,7 +2131,7 @@ pub(crate) unsafe fn destack_net_set_sock_opt_raw(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_timestamping(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: SocketHandle,
     mode: SocketTimestampingMode,
 ) -> RuntimeResult<()> {

@@ -305,15 +305,15 @@ impl From<ExecutionModeArg> for ExecutionModeJson {
 pub enum RuntimeWorldArg {
     /// Use host-backed platform bindings.
     Host,
-    /// Use simulated platform bindings.
-    Simulated,
+    /// Use simulation-backed platform bindings.
+    Simulation,
 }
 
 impl From<RuntimeWorldArg> for RuntimeWorldJson {
     fn from(value: RuntimeWorldArg) -> Self {
         match value {
             RuntimeWorldArg::Host => RuntimeWorldJson::Host,
-            RuntimeWorldArg::Simulated => RuntimeWorldJson::Simulated,
+            RuntimeWorldArg::Simulation => RuntimeWorldJson::Simulation,
         }
     }
 }

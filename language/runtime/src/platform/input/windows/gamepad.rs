@@ -3,11 +3,11 @@ use super::{core as input_core, raw as raw_input, xinput as xinput_input};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::InputGamepadState;
 use crate::platform::{PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Read one gamepad state snapshot for one opened Windows input handle.
 pub(super) fn gamepad_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<InputGamepadState> {
@@ -31,7 +31,7 @@ pub(super) fn gamepad_state(
 
 /// Set one gamepad light color for one opened Windows input handle.
 pub(super) fn gamepad_set_light(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     red: u8,
     green: u8,
@@ -66,7 +66,7 @@ pub(super) fn gamepad_set_light(
 
 /// Set one gamepad player-index override for one opened Windows input handle.
 pub(super) fn gamepad_set_player_index(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     player_index: u8,
     operation: &'static str,
@@ -91,7 +91,7 @@ pub(super) fn gamepad_set_player_index(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_gamepad_set_light(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     red: u8,
     green: u8,
@@ -124,7 +124,7 @@ pub(crate) unsafe fn destack_input_gamepad_set_light(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_gamepad_set_player_index(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     playerindex: u8,
 ) -> RuntimeResult<()> {
@@ -154,7 +154,7 @@ pub(crate) unsafe fn destack_input_gamepad_set_player_index(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_gamepad_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputGamepadState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {

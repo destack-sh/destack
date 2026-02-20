@@ -4,7 +4,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{NativeSlice, NativeStringRef, PlatformError};
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use crate::platform::display::{DisplayDescriptor, DisplayMode, WindowEvent, WindowOptions};
 use crate::platform::resource;
@@ -27,7 +27,7 @@ use crate::platform::resource;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     let _ = context;
@@ -57,7 +57,7 @@ pub(crate) unsafe fn destack_display_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_list(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<DisplayDescriptor>,
 ) -> RuntimeResult<()> {
     let _ = context;
@@ -84,7 +84,7 @@ pub(crate) unsafe fn destack_display_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_modes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<DisplayMode>,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
@@ -115,7 +115,7 @@ pub(crate) unsafe fn destack_display_modes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::DisplayHandle,
     id: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -143,7 +143,7 @@ pub(crate) unsafe fn destack_display_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_display_set_mode(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::DisplayHandle,
     mode: DisplayMode,
 ) -> RuntimeResult<()> {
@@ -174,7 +174,7 @@ pub(crate) unsafe fn destack_display_set_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let _ = context;
@@ -201,7 +201,7 @@ pub(crate) unsafe fn destack_display_window_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut WindowEvent,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
@@ -229,7 +229,7 @@ pub(crate) unsafe fn destack_display_window_event(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::WindowHandle,
     display: resource::DisplayHandle,
     options: WindowOptions,
@@ -258,7 +258,7 @@ pub(crate) unsafe fn destack_display_window_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_set_title(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     title: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -289,7 +289,7 @@ pub(crate) unsafe fn destack_display_window_set_title(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_try_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut WindowEvent,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
@@ -320,7 +320,7 @@ pub(crate) unsafe fn destack_display_window_try_event(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_vsync_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {

@@ -1,7 +1,9 @@
-use destack_runtime::platform::{BindingPolicy, ExecutionMode as RuntimeExecutionMode};
+use destack_runtime::runtime::bindings::BindingPolicy;
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
-use destack_workspace::{DebugMode, Program, Target, TargetId, TrustPolicy};
+use destack_workspace::{
+    DebugMode, ExecutionMode as RuntimeExecutionMode, Program, Target, TargetId, TrustPolicy,
+};
 
 use crate::common::InputSource;
 use crate::error::{CliError, CliResult};

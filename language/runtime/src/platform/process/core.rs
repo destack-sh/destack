@@ -5,7 +5,7 @@ use crate::platform::PlatformErrorCode;
 use crate::platform::diagnostic::process_error_code_from_errno;
 use crate::platform::process::{ProcessId, Signal};
 use crate::platform::{PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 #[cfg(unix)]
 use std::ffi::CString;
 
@@ -159,7 +159,7 @@ pub(crate) fn process_pid_to_windows_target(pid: u32, field: &str) -> RuntimeRes
 
 /// Resolve a signal subscription handle into its signal set.
 pub(crate) fn resolve_signal_subscription(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<Vec<Signal>> {
     let resolved = context.runtime().resources.with_entry(handle.0, |entry| {

@@ -5,10 +5,6 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
-    NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
-};
 use crate::platform::io::{
     CompletionEvent, CompletionEventVm, CompletionOperation, CompletionOperationKind,
     CompletionOperationVm, DescriptorControlCommand, DescriptorControlFlags, DescriptorRequest,
@@ -20,12 +16,16 @@ use crate::platform::io::{
 use crate::platform::{
     NativeArray, NativeSlice, PlatformError, RuntimeStatus, VmArray, VmSlice, abi as platform_abi,
 };
+use crate::runtime::bindings::{
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
+    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
+use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
 
@@ -1550,7 +1550,7 @@ struct IoUringUnregisterFilesReplay {
 pub const IO_COMPLETION_CANCEL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.completion.cancel",
     "export function completionCancel(handle: CompletionHandle, target: ResourceId): Result<uint32, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.completion"],
     BindingScope::Host,
@@ -1563,7 +1563,7 @@ pub const IO_COMPLETION_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.completion.close",
         "export function completionClose(handle: CompletionHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.completion"],
         BindingScope::Host,
@@ -1588,7 +1588,7 @@ pub const IO_COMPLETION_CLOSE: BindingDescriptor =
 pub const IO_COMPLETION_ENTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.completion.enter",
     "export function completionEnter(handle: CompletionHandle, minComplete: uint32, timeoutNs: uint64, flags: uint32): Result<uint32, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.submit"],
     BindingScope::Host,
@@ -1601,7 +1601,7 @@ pub const IO_COMPLETION_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.completion.open",
         "export function completionOpen(entries: uint32): Result<CompletionHandle, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.completion"],
         BindingScope::Host,
@@ -1626,7 +1626,7 @@ pub const IO_COMPLETION_OPEN: BindingDescriptor =
 pub const IO_COMPLETION_SUBMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.completion.submit",
     "export function completionSubmit(handle: CompletionHandle, operation: CompletionOperation): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.submit"],
     BindingScope::Host,
@@ -1638,7 +1638,7 @@ pub const IO_COMPLETION_SUBMIT: BindingDescriptor = BindingDescriptor::external_
 pub const IO_COMPLETION_SUBMIT_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.completion.submitBatch",
     "export function completionSubmitBatch(handle: CompletionHandle, operationWords: Slice<uint64>, operationCount: uint32, operationWordStride: uint32): Result<uint32, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.submit"],
     BindingScope::Host,
@@ -1650,7 +1650,7 @@ pub const IO_COMPLETION_SUBMIT_BATCH: BindingDescriptor = BindingDescriptor::ext
 pub const IO_COMPLETION_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.completion.wait",
     "export function completionWait(handle: CompletionHandle, timeoutNs: uint64, maxEvents: uint32): Result<CompletionEvent[], PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.completion"],
     BindingScope::Host,
@@ -1662,7 +1662,7 @@ pub const IO_COMPLETION_WAIT: BindingDescriptor = BindingDescriptor::external_wi
 pub const IO_CONTROL_FCNTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.control.fcntl",
     "export function controlFcntl(handle: ResourceId, command: DescriptorControlCommand, argument: uint64, flags: DescriptorControlFlags): Result<int64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.control"],
     BindingScope::Host,
@@ -1674,7 +1674,7 @@ pub const IO_CONTROL_FCNTL: BindingDescriptor = BindingDescriptor::external_with
 pub const IO_CONTROL_IOCTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.control.ioctl",
     "export function controlIoctl(handle: ResourceId, request: DescriptorRequest): Result<DescriptorResult, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.control"],
     BindingScope::Host,
@@ -1687,7 +1687,7 @@ pub const IO_DEVICE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.device.close",
         "export function deviceClose(handle: DeviceHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.device.read", "io.device.write"],
         BindingScope::Host,
@@ -1712,7 +1712,7 @@ pub const IO_DEVICE_CLOSE: BindingDescriptor =
 pub const IO_DEVICE_CONTROL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.device.control",
     "export function deviceControl(handle: DeviceHandle, request: DescriptorRequest): Result<DescriptorResult, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.device.control"],
     BindingScope::Host,
@@ -1724,7 +1724,7 @@ pub const IO_DEVICE_CONTROL: BindingDescriptor = BindingDescriptor::external_wit
 pub const IO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.device.open",
     "export function deviceOpen(path: OsPath, flags: uint32, mode: uint32): Result<DeviceHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.device.read", "io.device.write"],
     BindingScope::Host,
@@ -1736,7 +1736,7 @@ pub const IO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_r
 pub const IO_DEVICE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.device.read",
     "export function deviceRead(handle: DeviceHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.device.read"],
     BindingScope::Host,
@@ -1748,7 +1748,7 @@ pub const IO_DEVICE_READ: BindingDescriptor = BindingDescriptor::external_with_r
 pub const IO_DEVICE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.device.write",
     "export function deviceWrite(handle: DeviceHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.device.write"],
     BindingScope::Host,
@@ -1760,7 +1760,7 @@ pub const IO_DEVICE_WRITE: BindingDescriptor = BindingDescriptor::external_with_
 pub const IO_EVENT_ATTACH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.event.attach",
     "export function eventAttach(token: EventToken, target: ResourceId, key: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.event"],
     BindingScope::Host,
@@ -1773,7 +1773,7 @@ pub const IO_EVENT_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.event.close",
         "export function eventClose(token: EventToken): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.event"],
         BindingScope::Host,
@@ -1799,7 +1799,7 @@ pub const IO_EVENT_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.event.open",
         "export function eventOpen(initial: uint64): Result<EventToken, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.event"],
         BindingScope::Host,
@@ -1824,7 +1824,7 @@ pub const IO_EVENT_OPEN: BindingDescriptor =
 pub const IO_EVENT_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.event.signal",
     "export function eventSignal(token: EventToken, value: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.event"],
     BindingScope::Host,
@@ -1837,7 +1837,7 @@ pub const IO_POLL_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.poll.close",
         "export function pollClose(handle: PollHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.poll"],
         BindingScope::Host,
@@ -1862,7 +1862,7 @@ pub const IO_POLL_CLOSE: BindingDescriptor =
 pub const IO_POLL_DEREGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.poll.deregister",
     "export function pollDeregister(handle: PollHandle, target: ResourceId): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.poll"],
     BindingScope::Host,
@@ -1874,7 +1874,7 @@ pub const IO_POLL_DEREGISTER: BindingDescriptor = BindingDescriptor::external_wi
 pub const IO_POLL_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.poll.open",
     "export function pollOpen(backend: PollBackend): Result<PollHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.poll"],
     BindingScope::Host,
@@ -1899,7 +1899,7 @@ pub const IO_POLL_OPEN: BindingDescriptor = BindingDescriptor::external_with_req
 pub const IO_POLL_REGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.poll.register",
     "export function pollRegister(handle: PollHandle, target: ResourceId, key: uint64, interest: PollInterest): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.poll"],
     BindingScope::Host,
@@ -1911,7 +1911,7 @@ pub const IO_POLL_REGISTER: BindingDescriptor = BindingDescriptor::external_with
 pub const IO_POLL_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.poll.update",
     "export function pollUpdate(handle: PollHandle, target: ResourceId, key: uint64, interest: PollInterest): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.poll"],
     BindingScope::Host,
@@ -1923,7 +1923,7 @@ pub const IO_POLL_UPDATE: BindingDescriptor = BindingDescriptor::external_with_r
 pub const IO_POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.poll.wait",
     "export function pollWait(handle: PollHandle, timeoutNs: uint64, maxEvents: uint32): Result<PollEvent[], PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.poll"],
     BindingScope::Host,
@@ -1936,7 +1936,7 @@ pub const IO_TIMERFD_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.timerfd.close",
         "export function timerFdClose(handle: TimerFdHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.timerfd"],
         BindingScope::Host,
@@ -1962,7 +1962,7 @@ pub const IO_TIMERFD_GET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.timerfd.get",
         "export function timerFdGet(handle: TimerFdHandle): Result<TimerFdSpec, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.timerfd"],
         BindingScope::Host,
@@ -1987,7 +1987,7 @@ pub const IO_TIMERFD_GET: BindingDescriptor =
 pub const IO_TIMERFD_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.timerfd.open",
     "export function timerFdOpen(clock: TimerFdClock, flags: TimerFdFlags): Result<TimerFdHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.timerfd"],
     BindingScope::Host,
@@ -2000,7 +2000,7 @@ pub const IO_TIMERFD_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.timerfd.read",
         "export function timerFdRead(handle: TimerFdHandle): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.timerfd"],
         BindingScope::Host,
@@ -2025,7 +2025,7 @@ pub const IO_TIMERFD_READ: BindingDescriptor =
 pub const IO_TIMERFD_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.timerfd.set",
     "export function timerFdSet(handle: TimerFdHandle, spec: TimerFdSpec, flags: TimerFdSetFlags): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.timerfd"],
     BindingScope::Host,
@@ -2038,7 +2038,7 @@ pub const IO_URING_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.uring.close",
         "export function uringClose(handle: UringHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.uring"],
         BindingScope::Host,
@@ -2051,7 +2051,7 @@ pub const IO_URING_FEATURES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.uring.features",
         "export function uringFeatures(handle: UringHandle): Result<UringFeatures, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.uring"],
         BindingScope::Host,
@@ -2063,7 +2063,7 @@ pub const IO_URING_FEATURES: BindingDescriptor =
 pub const IO_URING_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.uring.open",
     "export function uringOpen(parameters: UringParameters): Result<UringHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.uring"],
     BindingScope::Host,
@@ -2075,7 +2075,7 @@ pub const IO_URING_OPEN: BindingDescriptor = BindingDescriptor::external_with_re
 pub const IO_URING_REGISTER_BUFFERS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.uring.registerBuffers",
     "export function uringRegisterBuffers(handle: UringHandle, addresses: Slice<uint64>, lengths: Slice<uint32>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.register"],
     BindingScope::Host,
@@ -2087,7 +2087,7 @@ pub const IO_URING_REGISTER_BUFFERS: BindingDescriptor = BindingDescriptor::exte
 pub const IO_URING_REGISTER_FILES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.uring.registerFiles",
     "export function uringRegisterFiles(handle: UringHandle, files: Slice<ResourceId>): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.register"],
     BindingScope::Host,
@@ -2100,7 +2100,7 @@ pub const IO_URING_UNREGISTER_BUFFERS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.uring.unregisterBuffers",
         "export function uringUnregisterBuffers(handle: UringHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.register"],
         BindingScope::Host,
@@ -2113,7 +2113,7 @@ pub const IO_URING_UNREGISTER_FILES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.uring.unregisterFiles",
         "export function uringUnregisterFiles(handle: UringHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.register"],
         BindingScope::Host,
@@ -2351,7 +2351,7 @@ pub const IO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for io bindings.
 #[inline]
 fn destack_io_completion_cancel_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::CompletionHandle,
@@ -2359,14 +2359,14 @@ fn destack_io_completion_cancel_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_COMPLETION_CANCEL,
         context.replay_payload_for(IO_COMPLETION_CANCEL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_completion_cancel(context, out, handle, target)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_completion_cancel(
                     context, out, handle, target,
                 )
@@ -2415,20 +2415,20 @@ fn destack_io_completion_cancel_replay(
 
 #[inline]
 fn destack_io_completion_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_COMPLETION_CLOSE,
         context.replay_payload_for(IO_COMPLETION_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_completion_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_completion_close(context, handle)
             },
         },
@@ -2463,7 +2463,7 @@ fn destack_io_completion_close_replay(
 
 #[inline]
 fn destack_io_completion_enter_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::CompletionHandle,
@@ -2473,7 +2473,7 @@ fn destack_io_completion_enter_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mincomplete, &timeoutns, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_COMPLETION_ENTER,
         context.replay_payload_for(IO_COMPLETION_ENTER)?,
         || match world {
@@ -2487,7 +2487,7 @@ fn destack_io_completion_enter_replay(
                     flags,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_completion_enter(
                     context,
                     out,
@@ -2541,21 +2541,21 @@ fn destack_io_completion_enter_replay(
 
 #[inline]
 fn destack_io_completion_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::CompletionHandle,
     entries: u32,
 ) -> RuntimeResult<()> {
     let _ = &entries;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_COMPLETION_OPEN,
         context.replay_payload_for(IO_COMPLETION_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_completion_open(context, out, entries)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_completion_open(context, out, entries)
             },
         },
@@ -2602,21 +2602,21 @@ fn destack_io_completion_open_replay(
 
 #[inline]
 fn destack_io_completion_submit_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
     operation: CompletionOperation,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &operation);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_COMPLETION_SUBMIT,
         context.replay_payload_for(IO_COMPLETION_SUBMIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_completion_submit(context, handle, operation)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_completion_submit(context, handle, operation)
             },
         },
@@ -2651,7 +2651,7 @@ fn destack_io_completion_submit_replay(
 
 #[inline]
 fn destack_io_completion_submit_batch_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::CompletionHandle,
@@ -2666,7 +2666,7 @@ fn destack_io_completion_submit_batch_replay(
         &operationwordstride,
     );
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_COMPLETION_SUBMIT_BATCH,
         context.replay_payload_for(IO_COMPLETION_SUBMIT_BATCH)?,
         || match world {
@@ -2680,7 +2680,7 @@ fn destack_io_completion_submit_batch_replay(
                     operationwordstride,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_completion_submit_batch(
                     context,
                     out,
@@ -2734,7 +2734,7 @@ fn destack_io_completion_submit_batch_replay(
 
 #[inline]
 fn destack_io_completion_wait_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<CompletionEvent>,
     handle: resource::CompletionHandle,
@@ -2743,7 +2743,7 @@ fn destack_io_completion_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns, &maxevents);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_COMPLETION_WAIT,
         context.replay_payload_for(IO_COMPLETION_WAIT)?,
         || match world {
@@ -2752,7 +2752,7 @@ fn destack_io_completion_wait_replay(
                     context, out, handle, timeoutns, maxevents,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_completion_wait(
                     context, out, handle, timeoutns, maxevents,
                 )
@@ -2826,7 +2826,7 @@ fn destack_io_completion_wait_replay(
 
 #[inline]
 fn destack_io_control_fcntl_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut i64,
     handle: resource::ResourceId,
@@ -2836,7 +2836,7 @@ fn destack_io_control_fcntl_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &command, &argument, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_CONTROL_FCNTL,
         context.replay_payload_for(IO_CONTROL_FCNTL)?,
         || match world {
@@ -2845,7 +2845,7 @@ fn destack_io_control_fcntl_replay(
                     context, out, handle, command, argument, flags,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_control_fcntl(
                     context, out, handle, command, argument, flags,
                 )
@@ -2894,7 +2894,7 @@ fn destack_io_control_fcntl_replay(
 
 #[inline]
 fn destack_io_control_ioctl_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut DescriptorResult,
     handle: resource::ResourceId,
@@ -2902,14 +2902,14 @@ fn destack_io_control_ioctl_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &request);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_CONTROL_IOCTL,
         context.replay_payload_for(IO_CONTROL_IOCTL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_control_ioctl(context, out, handle, request)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_control_ioctl(context, out, handle, request)
             },
         },
@@ -2978,20 +2978,20 @@ fn destack_io_control_ioctl_replay(
 
 #[inline]
 fn destack_io_device_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::DeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_DEVICE_CLOSE,
         context.replay_payload_for(IO_DEVICE_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_device_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_device_close(context, handle)
             },
         },
@@ -3026,7 +3026,7 @@ fn destack_io_device_close_replay(
 
 #[inline]
 fn destack_io_device_control_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut DescriptorResult,
     handle: resource::DeviceHandle,
@@ -3034,14 +3034,14 @@ fn destack_io_device_control_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &request);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_DEVICE_CONTROL,
         context.replay_payload_for(IO_DEVICE_CONTROL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_device_control(context, out, handle, request)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_device_control(context, out, handle, request)
             },
         },
@@ -3110,7 +3110,7 @@ fn destack_io_device_control_replay(
 
 #[inline]
 fn destack_io_device_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::DeviceHandle,
     path: fs::OsPath,
@@ -3119,14 +3119,14 @@ fn destack_io_device_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &flags, &mode);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_DEVICE_OPEN,
         context.replay_payload_for(IO_DEVICE_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_device_open(context, out, path, flags, mode)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_device_open(context, out, path, flags, mode)
             },
         },
@@ -3173,7 +3173,7 @@ fn destack_io_device_open_replay(
 
 #[inline]
 fn destack_io_device_read_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::DeviceHandle,
@@ -3181,14 +3181,14 @@ fn destack_io_device_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_DEVICE_READ,
         context.replay_payload_for(IO_DEVICE_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_device_read(context, out, handle, buffer)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_device_read(context, out, handle, buffer)
             },
         },
@@ -3235,7 +3235,7 @@ fn destack_io_device_read_replay(
 
 #[inline]
 fn destack_io_device_write_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::DeviceHandle,
@@ -3243,14 +3243,14 @@ fn destack_io_device_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_DEVICE_WRITE,
         context.replay_payload_for(IO_DEVICE_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_device_write(context, out, handle, buffer)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_device_write(context, out, handle, buffer)
             },
         },
@@ -3297,7 +3297,7 @@ fn destack_io_device_write_replay(
 
 #[inline]
 fn destack_io_event_attach_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     token: EventToken,
     target: resource::ResourceId,
@@ -3305,14 +3305,14 @@ fn destack_io_event_attach_replay(
 ) -> RuntimeResult<()> {
     let _ = (&token, &target, &key);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_EVENT_ATTACH,
         context.replay_payload_for(IO_EVENT_ATTACH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_event_attach(context, token, target, key)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_event_attach(context, token, target, key)
             },
         },
@@ -3347,20 +3347,20 @@ fn destack_io_event_attach_replay(
 
 #[inline]
 fn destack_io_event_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     token: EventToken,
 ) -> RuntimeResult<()> {
     let _ = &token;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_EVENT_CLOSE,
         context.replay_payload_for(IO_EVENT_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_event_close(context, token)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_event_close(context, token)
             },
         },
@@ -3395,21 +3395,21 @@ fn destack_io_event_close_replay(
 
 #[inline]
 fn destack_io_event_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut EventToken,
     initial: u64,
 ) -> RuntimeResult<()> {
     let _ = &initial;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_EVENT_OPEN,
         context.replay_payload_for(IO_EVENT_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_event_open(context, out, initial)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_event_open(context, out, initial)
             },
         },
@@ -3456,21 +3456,21 @@ fn destack_io_event_open_replay(
 
 #[inline]
 fn destack_io_event_signal_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     token: EventToken,
     argument_value: u64,
 ) -> RuntimeResult<()> {
     let _ = (&token, &argument_value);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_EVENT_SIGNAL,
         context.replay_payload_for(IO_EVENT_SIGNAL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_event_signal(context, token, argument_value)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_event_signal(context, token, argument_value)
             },
         },
@@ -3505,20 +3505,20 @@ fn destack_io_event_signal_replay(
 
 #[inline]
 fn destack_io_poll_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::PollHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_POLL_CLOSE,
         context.replay_payload_for(IO_POLL_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_poll_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_poll_close(context, handle)
             },
         },
@@ -3553,21 +3553,21 @@ fn destack_io_poll_close_replay(
 
 #[inline]
 fn destack_io_poll_deregister_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::PollHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_POLL_DEREGISTER,
         context.replay_payload_for(IO_POLL_DEREGISTER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_poll_deregister(context, handle, target)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_poll_deregister(context, handle, target)
             },
         },
@@ -3602,21 +3602,21 @@ fn destack_io_poll_deregister_replay(
 
 #[inline]
 fn destack_io_poll_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::PollHandle,
     backend: PollBackend,
 ) -> RuntimeResult<()> {
     let _ = &backend;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_POLL_OPEN,
         context.replay_payload_for(IO_POLL_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_poll_open(context, out, backend)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_poll_open(context, out, backend)
             },
         },
@@ -3663,7 +3663,7 @@ fn destack_io_poll_open_replay(
 
 #[inline]
 fn destack_io_poll_register_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::PollHandle,
     target: resource::ResourceId,
@@ -3672,14 +3672,14 @@ fn destack_io_poll_register_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &key, &interest);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_POLL_REGISTER,
         context.replay_payload_for(IO_POLL_REGISTER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_poll_register(context, handle, target, key, interest)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_poll_register(
                     context, handle, target, key, interest,
                 )
@@ -3716,7 +3716,7 @@ fn destack_io_poll_register_replay(
 
 #[inline]
 fn destack_io_poll_update_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::PollHandle,
     target: resource::ResourceId,
@@ -3725,14 +3725,14 @@ fn destack_io_poll_update_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &key, &interest);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_POLL_UPDATE,
         context.replay_payload_for(IO_POLL_UPDATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_poll_update(context, handle, target, key, interest)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_poll_update(
                     context, handle, target, key, interest,
                 )
@@ -3769,7 +3769,7 @@ fn destack_io_poll_update_replay(
 
 #[inline]
 fn destack_io_poll_wait_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<PollEvent>,
     handle: resource::PollHandle,
@@ -3778,14 +3778,14 @@ fn destack_io_poll_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns, &maxevents);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_POLL_WAIT,
         context.replay_payload_for(IO_POLL_WAIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_poll_wait(context, out, handle, timeoutns, maxevents)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_poll_wait(
                     context, out, handle, timeoutns, maxevents,
                 )
@@ -3859,20 +3859,20 @@ fn destack_io_poll_wait_replay(
 
 #[inline]
 fn destack_io_timerfd_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_TIMERFD_CLOSE,
         context.replay_payload_for(IO_TIMERFD_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_timer_fd_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_timer_fd_close(context, handle)
             },
         },
@@ -3907,21 +3907,21 @@ fn destack_io_timerfd_close_replay(
 
 #[inline]
 fn destack_io_timerfd_get_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut TimerFdSpec,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_TIMERFD_GET,
         context.replay_payload_for(IO_TIMERFD_GET)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_timer_fd_get(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_timer_fd_get(context, out, handle)
             },
         },
@@ -3978,7 +3978,7 @@ fn destack_io_timerfd_get_replay(
 
 #[inline]
 fn destack_io_timerfd_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::TimerFdHandle,
     clock: TimerFdClock,
@@ -3986,14 +3986,14 @@ fn destack_io_timerfd_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&clock, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_TIMERFD_OPEN,
         context.replay_payload_for(IO_TIMERFD_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_timer_fd_open(context, out, clock, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_timer_fd_open(context, out, clock, flags)
             },
         },
@@ -4040,21 +4040,21 @@ fn destack_io_timerfd_open_replay(
 
 #[inline]
 fn destack_io_timerfd_read_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_TIMERFD_READ,
         context.replay_payload_for(IO_TIMERFD_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_timer_fd_read(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_timer_fd_read(context, out, handle)
             },
         },
@@ -4101,7 +4101,7 @@ fn destack_io_timerfd_read_replay(
 
 #[inline]
 fn destack_io_timerfd_set_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
     spec: TimerFdSpec,
@@ -4109,14 +4109,14 @@ fn destack_io_timerfd_set_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &spec, &flags);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_TIMERFD_SET,
         context.replay_payload_for(IO_TIMERFD_SET)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_timer_fd_set(context, handle, spec, flags)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_timer_fd_set(context, handle, spec, flags)
             },
         },
@@ -4151,20 +4151,20 @@ fn destack_io_timerfd_set_replay(
 
 #[inline]
 fn destack_io_uring_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_URING_CLOSE,
         context.replay_payload_for(IO_URING_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_uring_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_uring_close(context, handle)
             },
         },
@@ -4199,21 +4199,21 @@ fn destack_io_uring_close_replay(
 
 #[inline]
 fn destack_io_uring_features_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut UringFeatures,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_URING_FEATURES,
         context.replay_payload_for(IO_URING_FEATURES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_uring_features(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_uring_features(context, out, handle)
             },
         },
@@ -4282,21 +4282,21 @@ fn destack_io_uring_features_replay(
 
 #[inline]
 fn destack_io_uring_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::UringHandle,
     parameters: UringParameters,
 ) -> RuntimeResult<()> {
     let _ = &parameters;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_URING_OPEN,
         context.replay_payload_for(IO_URING_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_uring_open(context, out, parameters)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_uring_open(context, out, parameters)
             },
         },
@@ -4343,7 +4343,7 @@ fn destack_io_uring_open_replay(
 
 #[inline]
 fn destack_io_uring_register_buffers_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UringHandle,
     addresses: NativeSlice<u64>,
@@ -4351,7 +4351,7 @@ fn destack_io_uring_register_buffers_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &addresses, &lengths);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_URING_REGISTER_BUFFERS,
         context.replay_payload_for(IO_URING_REGISTER_BUFFERS)?,
         || match world {
@@ -4360,7 +4360,7 @@ fn destack_io_uring_register_buffers_replay(
                     context, handle, addresses, lengths,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_uring_register_buffers(
                     context, handle, addresses, lengths,
                 )
@@ -4397,21 +4397,21 @@ fn destack_io_uring_register_buffers_replay(
 
 #[inline]
 fn destack_io_uring_register_files_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UringHandle,
     files: NativeSlice<resource::ResourceId>,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &files);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_URING_REGISTER_FILES,
         context.replay_payload_for(IO_URING_REGISTER_FILES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_uring_register_files(context, handle, files)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_uring_register_files(context, handle, files)
             },
         },
@@ -4446,20 +4446,20 @@ fn destack_io_uring_register_files_replay(
 
 #[inline]
 fn destack_io_uring_unregister_buffers_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_URING_UNREGISTER_BUFFERS,
         context.replay_payload_for(IO_URING_UNREGISTER_BUFFERS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_uring_unregister_buffers(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_uring_unregister_buffers(context, handle)
             },
         },
@@ -4494,20 +4494,20 @@ fn destack_io_uring_unregister_buffers_replay(
 
 #[inline]
 fn destack_io_uring_unregister_files_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         IO_URING_UNREGISTER_FILES,
         context.replay_payload_for(IO_URING_UNREGISTER_FILES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_uring_unregister_files(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_uring_unregister_files(context, handle)
             },
         },
@@ -5139,120 +5139,116 @@ pub unsafe extern "C" fn destack_io_uring_unregister_files(
 /// VM replay implementations for io bindings.
 #[inline]
 fn destack_io_completion_cancel_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_COMPLETION_CANCEL,
-            runtime.replay_payload_for(IO_COMPLETION_CANCEL)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_completion_cancel(runtime, context, handle, target)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_completion_cancel(
-                    runtime, context, handle, target,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u32 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IoCompletionCancelReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_COMPLETION_CANCEL,
+        runtime.replay_payload_for(IO_COMPLETION_CANCEL)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_completion_cancel(runtime, context, handle, target)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_io_completion_cancel(
+                runtime, context, handle, target,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u32 = value.clone();
+                let result_recorded = result_value;
+                let payload = IoCompletionCancelReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoCompletionCancelReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoCompletionCancelReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_completion_cancel_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_completion_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_COMPLETION_CLOSE,
-            runtime.replay_payload_for(IO_COMPLETION_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_completion_close(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_completion_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoCompletionCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_COMPLETION_CLOSE,
+        runtime.replay_payload_for(IO_COMPLETION_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_completion_close(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_completion_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoCompletionCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoCompletionCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoCompletionCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_completion_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_completion_enter_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
@@ -5260,183 +5256,177 @@ fn destack_io_completion_enter_vm_replay(
     timeoutns: u64,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_COMPLETION_ENTER,
-            runtime.replay_payload_for(IO_COMPLETION_ENTER)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_io_completion_enter(
-                    runtime,
-                    context,
-                    handle,
-                    mincomplete,
-                    timeoutns,
-                    flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_completion_enter(
-                    runtime,
-                    context,
-                    handle,
-                    mincomplete,
-                    timeoutns,
-                    flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u32 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IoCompletionEnterReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_COMPLETION_ENTER,
+        runtime.replay_payload_for(IO_COMPLETION_ENTER)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_completion_enter(
+                runtime,
+                context,
+                handle,
+                mincomplete,
+                timeoutns,
+                flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_io_completion_enter(
+                runtime,
+                context,
+                handle,
+                mincomplete,
+                timeoutns,
+                flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u32 = value.clone();
+                let result_recorded = result_value;
+                let payload = IoCompletionEnterReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoCompletionEnterReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoCompletionEnterReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_completion_enter_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_completion_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     entries: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_COMPLETION_OPEN,
-            runtime.replay_payload_for(IO_COMPLETION_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_completion_open(runtime, context, entries)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_completion_open(runtime, context, entries)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::CompletionHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IoCompletionOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_COMPLETION_OPEN,
+        runtime.replay_payload_for(IO_COMPLETION_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_completion_open(runtime, context, entries)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_completion_open(runtime, context, entries)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::CompletionHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = IoCompletionOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoCompletionOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoCompletionOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_completion_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_completion_submit_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
     operation: CompletionOperationVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_COMPLETION_SUBMIT,
-            runtime.replay_payload_for(IO_COMPLETION_SUBMIT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_completion_submit(runtime, context, handle, operation)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_completion_submit(
-                    runtime, context, handle, operation,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoCompletionSubmitReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_COMPLETION_SUBMIT,
+        runtime.replay_payload_for(IO_COMPLETION_SUBMIT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_completion_submit(runtime, context, handle, operation)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_io_completion_submit(
+                runtime, context, handle, operation,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoCompletionSubmitReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoCompletionSubmitReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoCompletionSubmitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_completion_submit_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_completion_submit_batch_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
@@ -5444,204 +5434,193 @@ fn destack_io_completion_submit_batch_vm_replay(
     operationcount: u32,
     operationwordstride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_COMPLETION_SUBMIT_BATCH,
-            runtime.replay_payload_for(IO_COMPLETION_SUBMIT_BATCH)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_io_completion_submit_batch(
-                    runtime,
-                    context,
-                    handle,
-                    operationwords,
-                    operationcount,
-                    operationwordstride,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_completion_submit_batch(
-                        runtime,
-                        context,
-                        handle,
-                        operationwords,
-                        operationcount,
-                        operationwordstride,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u32 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IoCompletionSubmitBatchReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_COMPLETION_SUBMIT_BATCH,
+        runtime.replay_payload_for(IO_COMPLETION_SUBMIT_BATCH)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_completion_submit_batch(
+                runtime,
+                context,
+                handle,
+                operationwords,
+                operationcount,
+                operationwordstride,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_io_completion_submit_batch(
+                runtime,
+                context,
+                handle,
+                operationwords,
+                operationcount,
+                operationwordstride,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u32 = value.clone();
+                let result_recorded = result_value;
+                let payload = IoCompletionSubmitBatchReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoCompletionSubmitBatchReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoCompletionSubmitBatchReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_completion_submit_batch_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_completion_wait_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
     timeoutns: u64,
     maxevents: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_COMPLETION_WAIT,
-            runtime.replay_payload_for(IO_COMPLETION_WAIT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_io_completion_wait(
-                    runtime, context, handle, timeoutns, maxevents,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_completion_wait(
-                    runtime, context, handle, timeoutns, maxevents,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<CompletionEventVm> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item = {
-                            if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_type(
-                                        "result_recorded_item",
-                                        "item",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let slots = context
-                                .aggregate_slots(result_recorded_item_value)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 3 {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item",
-                                        "expected 3 fields",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let result_recorded_item_key =
-                                decode_uint64(slots[0], "result_recorded_item_key", "key")?;
-                            let result_recorded_item_result =
-                                decode_int64(slots[1], "result_recorded_item_result", "result")?;
-                            let result_recorded_item_flags =
-                                decode_uint32(slots[2], "result_recorded_item_flags", "flags")?;
-                            CompletionEventVm {
-                                key: result_recorded_item_key,
-                                result: result_recorded_item_result,
-                                flags: result_recorded_item_flags,
-                            }
-                        };
-                        let result_recorded_item_recorded_key = result_recorded_item.key;
-                        let result_recorded_item_recorded_result = result_recorded_item.result;
-                        let result_recorded_item_recorded_flags = result_recorded_item.flags;
-                        let result_recorded_item_recorded = CompletionEvent {
-                            key: result_recorded_item_recorded_key,
-                            result: result_recorded_item_recorded_result,
-                            flags: result_recorded_item_recorded_flags,
-                        };
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = IoCompletionWaitReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoCompletionWaitReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item = *vm_result_item;
-                            let vm_result_item_value_key = vm_result_item.key;
-                            let vm_result_item_value_result = vm_result_item.result;
-                            let vm_result_item_value_flags = vm_result_item.flags;
-                            let vm_result_item_value = CompletionEventVm {
-                                key: vm_result_item_value_key,
-                                result: vm_result_item_value_result,
-                                flags: vm_result_item_value_flags,
-                            };
-                            let vm_result_item_value_encoded = {
-                                let field_0 = vm::Value::uint(vm_result_item_value.key, 64);
-                                let field_1 = vm::Value::int(vm_result_item_value.result, 64);
-                                let field_2 =
-                                    vm::Value::uint(vm_result_item_value.flags as u64, 32);
-                                context.allocate_aggregate(vec![field_0, field_1, field_2])
-                            };
-                            vm_result_values.push(vm_result_item_value_encoded);
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_COMPLETION_WAIT,
+        runtime.replay_payload_for(IO_COMPLETION_WAIT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_completion_wait(
+                runtime, context, handle, timeoutns, maxevents,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_io_completion_wait(
+                runtime, context, handle, timeoutns, maxevents,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<CompletionEventVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_item",
+                                "item",
+                            ))
+                            .boxed());
                         }
-                        let vm_result_data = context.allocate_raw_values(vm_result_values);
-                        let vm_result: VmArray<CompletionEventVm> = VmArray {
-                            data: vm_result_data,
-                            len: value.len() as u32,
-                            capacity: value.len() as u32,
-                            _marker: std::marker::PhantomData,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                        let slots = context
+                            .aggregate_slots(result_recorded_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 3 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "expected 3 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_item_key =
+                            decode_uint64(slots[0], "result_recorded_item_key", "key")?;
+                        let result_recorded_item_result =
+                            decode_int64(slots[1], "result_recorded_item_result", "result")?;
+                        let result_recorded_item_flags =
+                            decode_uint32(slots[2], "result_recorded_item_flags", "flags")?;
+                        CompletionEventVm {
+                            key: result_recorded_item_key,
+                            result: result_recorded_item_result,
+                            flags: result_recorded_item_flags,
+                        }
+                    };
+                    let result_recorded_item_recorded_key = result_recorded_item.key;
+                    let result_recorded_item_recorded_result = result_recorded_item.result;
+                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
+                    let result_recorded_item_recorded = CompletionEvent {
+                        key: result_recorded_item_recorded_key,
+                        result: result_recorded_item_recorded_result,
+                        flags: result_recorded_item_recorded_flags,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
                 }
-            },
-        );
+                let payload = IoCompletionWaitReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoCompletionWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value_key = vm_result_item.key;
+                        let vm_result_item_value_result = vm_result_item.result;
+                        let vm_result_item_value_flags = vm_result_item.flags;
+                        let vm_result_item_value = CompletionEventVm {
+                            key: vm_result_item_value_key,
+                            result: vm_result_item_value_result,
+                            flags: vm_result_item_value_flags,
+                        };
+                        let vm_result_item_value_encoded = {
+                            let field_0 = vm::Value::uint(vm_result_item_value.key, 64);
+                            let field_1 = vm::Value::int(vm_result_item_value.result, 64);
+                            let field_2 = vm::Value::uint(vm_result_item_value.flags as u64, 32);
+                            context.allocate_aggregate(vec![field_0, field_1, field_2])
+                        };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<CompletionEventVm> = VmArray {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        capacity: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_completion_wait_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_control_fcntl_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::ResourceId,
@@ -5649,817 +5628,785 @@ fn destack_io_control_fcntl_vm_replay(
     argument: u64,
     flags: DescriptorControlFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_CONTROL_FCNTL,
-            runtime.replay_payload_for(IO_CONTROL_FCNTL)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_io_control_fcntl(
-                    runtime, context, handle, command, argument, flags,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_control_fcntl(
-                    runtime, context, handle, command, argument, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: i64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IoControlFcntlReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_CONTROL_FCNTL,
+        runtime.replay_payload_for(IO_CONTROL_FCNTL)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_control_fcntl(
+                runtime, context, handle, command, argument, flags,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_io_control_fcntl(
+                runtime, context, handle, command, argument, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: i64 = value.clone();
+                let result_recorded = result_value;
+                let payload = IoControlFcntlReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoControlFcntlReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoControlFcntlReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_control_fcntl_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_control_ioctl_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::ResourceId,
     request: DescriptorRequestVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_CONTROL_IOCTL,
-            runtime.replay_payload_for(IO_CONTROL_IOCTL)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_control_ioctl(runtime, context, handle, request)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_control_ioctl(
-                    runtime, context, handle, request,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: DescriptorResultVm = value.clone();
-                    let result_recorded_return_value = result_value.return_value;
-                    let result_recorded_output = result_value.output.read_bytes(context)?;
-                    let result_recorded = DescriptorResultReplayRecord {
-                        return_value: result_recorded_return_value,
-                        output: result_recorded_output,
-                    };
-                    let payload = IoControlIoctlReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_CONTROL_IOCTL,
+        runtime.replay_payload_for(IO_CONTROL_IOCTL)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_control_ioctl(runtime, context, handle, request)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_control_ioctl(runtime, context, handle, request)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: DescriptorResultVm = value.clone();
+                let result_recorded_return_value = result_value.return_value;
+                let result_recorded_output = result_value.output.read_bytes(context)?;
+                let result_recorded = DescriptorResultReplayRecord {
+                    return_value: result_recorded_return_value,
+                    output: result_recorded_output,
+                };
+                let payload = IoControlIoctlReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoControlIoctlReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoControlIoctlReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_return_value = value.return_value;
-                        let vm_result_output =
-                            VmSlice::from_bytes(context, value.output.as_slice());
-                        let vm_result = DescriptorResultVm {
-                            return_value: vm_result_return_value,
-                            output: vm_result_output,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_return_value = value.return_value;
+                    let vm_result_output = VmSlice::from_bytes(context, value.output.as_slice());
+                    let vm_result = DescriptorResultVm {
+                        return_value: vm_result_return_value,
+                        output: vm_result_output,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_control_ioctl_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_device_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_DEVICE_CLOSE,
-            runtime.replay_payload_for(IO_DEVICE_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_device_close(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_device_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoDeviceCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_DEVICE_CLOSE,
+        runtime.replay_payload_for(IO_DEVICE_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_device_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_device_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoDeviceCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoDeviceCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoDeviceCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_device_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_device_control_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DeviceHandle,
     request: DescriptorRequestVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_DEVICE_CONTROL,
-            runtime.replay_payload_for(IO_DEVICE_CONTROL)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_device_control(runtime, context, handle, request)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_device_control(
-                    runtime, context, handle, request,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: DescriptorResultVm = value.clone();
-                    let result_recorded_return_value = result_value.return_value;
-                    let result_recorded_output = result_value.output.read_bytes(context)?;
-                    let result_recorded = DescriptorResultReplayRecord {
-                        return_value: result_recorded_return_value,
-                        output: result_recorded_output,
-                    };
-                    let payload = IoDeviceControlReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_DEVICE_CONTROL,
+        runtime.replay_payload_for(IO_DEVICE_CONTROL)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_device_control(runtime, context, handle, request)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_device_control(runtime, context, handle, request)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: DescriptorResultVm = value.clone();
+                let result_recorded_return_value = result_value.return_value;
+                let result_recorded_output = result_value.output.read_bytes(context)?;
+                let result_recorded = DescriptorResultReplayRecord {
+                    return_value: result_recorded_return_value,
+                    output: result_recorded_output,
+                };
+                let payload = IoDeviceControlReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoDeviceControlReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoDeviceControlReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_return_value = value.return_value;
-                        let vm_result_output =
-                            VmSlice::from_bytes(context, value.output.as_slice());
-                        let vm_result = DescriptorResultVm {
-                            return_value: vm_result_return_value,
-                            output: vm_result_output,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_return_value = value.return_value;
+                    let vm_result_output = VmSlice::from_bytes(context, value.output.as_slice());
+                    let vm_result = DescriptorResultVm {
+                        return_value: vm_result_return_value,
+                        output: vm_result_output,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_device_control_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_device_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: fs::OsPathVm,
     flags: u32,
     mode: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_DEVICE_OPEN,
-            runtime.replay_payload_for(IO_DEVICE_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_device_open(runtime, context, path, flags, mode)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_device_open(
-                    runtime, context, path, flags, mode,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::DeviceHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IoDeviceOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_DEVICE_OPEN,
+        runtime.replay_payload_for(IO_DEVICE_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_device_open(runtime, context, path, flags, mode)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_device_open(runtime, context, path, flags, mode)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::DeviceHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = IoDeviceOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoDeviceOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoDeviceOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_device_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_device_read_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DeviceHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_DEVICE_READ,
-            runtime.replay_payload_for(IO_DEVICE_READ)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_device_read(runtime, context, handle, buffer)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_device_read(runtime, context, handle, buffer)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IoDeviceReadReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_DEVICE_READ,
+        runtime.replay_payload_for(IO_DEVICE_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_device_read(runtime, context, handle, buffer)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_device_read(runtime, context, handle, buffer)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = IoDeviceReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoDeviceReadReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoDeviceReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_device_read_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_device_write_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DeviceHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_DEVICE_WRITE,
-            runtime.replay_payload_for(IO_DEVICE_WRITE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_device_write(runtime, context, handle, buffer)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_device_write(
-                    runtime, context, handle, buffer,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IoDeviceWriteReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_DEVICE_WRITE,
+        runtime.replay_payload_for(IO_DEVICE_WRITE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_device_write(runtime, context, handle, buffer)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_device_write(runtime, context, handle, buffer)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = IoDeviceWriteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoDeviceWriteReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoDeviceWriteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_device_write_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_event_attach_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     token: EventToken,
     target: resource::ResourceId,
     key: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_EVENT_ATTACH,
-            runtime.replay_payload_for(IO_EVENT_ATTACH)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_event_attach(runtime, context, token, target, key)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_event_attach(
-                    runtime, context, token, target, key,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoEventAttachReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_EVENT_ATTACH,
+        runtime.replay_payload_for(IO_EVENT_ATTACH)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_event_attach(runtime, context, token, target, key)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_io_event_attach(
+                runtime, context, token, target, key,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoEventAttachReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoEventAttachReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoEventAttachReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_event_attach_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_event_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     token: EventToken,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_EVENT_CLOSE,
-            runtime.replay_payload_for(IO_EVENT_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_io_event_close(runtime, context, token),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_event_close(runtime, context, token)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoEventCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_EVENT_CLOSE,
+        runtime.replay_payload_for(IO_EVENT_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_event_close(runtime, context, token),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_event_close(runtime, context, token)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoEventCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoEventCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoEventCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_event_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_event_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     initial: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_EVENT_OPEN,
-            runtime.replay_payload_for(IO_EVENT_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_io_event_open(runtime, context, initial),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_event_open(runtime, context, initial)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: EventToken = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IoEventOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_EVENT_OPEN,
+        runtime.replay_payload_for(IO_EVENT_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_event_open(runtime, context, initial),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_event_open(runtime, context, initial)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: EventToken = value.clone();
+                let result_recorded = result_value;
+                let payload = IoEventOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoEventOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoEventOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_event_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_event_signal_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     token: EventToken,
     argument_value: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_EVENT_SIGNAL,
-            runtime.replay_payload_for(IO_EVENT_SIGNAL)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_event_signal(runtime, context, token, argument_value)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_event_signal(
-                    runtime,
-                    context,
-                    token,
-                    argument_value,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoEventSignalReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_EVENT_SIGNAL,
+        runtime.replay_payload_for(IO_EVENT_SIGNAL)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_event_signal(runtime, context, token, argument_value)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_io_event_signal(
+                runtime,
+                context,
+                token,
+                argument_value,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoEventSignalReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoEventSignalReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoEventSignalReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_event_signal_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_poll_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::PollHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_POLL_CLOSE,
-            runtime.replay_payload_for(IO_POLL_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_io_poll_close(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_poll_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoPollCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_POLL_CLOSE,
+        runtime.replay_payload_for(IO_POLL_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_poll_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_poll_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoPollCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoPollCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoPollCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_poll_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_poll_deregister_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::PollHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_POLL_DEREGISTER,
-            runtime.replay_payload_for(IO_POLL_DEREGISTER)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_poll_deregister(runtime, context, handle, target)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_poll_deregister(
-                    runtime, context, handle, target,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoPollDeregisterReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_POLL_DEREGISTER,
+        runtime.replay_payload_for(IO_POLL_DEREGISTER)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_poll_deregister(runtime, context, handle, target)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_poll_deregister(runtime, context, handle, target)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoPollDeregisterReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoPollDeregisterReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoPollDeregisterReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_poll_deregister_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_poll_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     backend: PollBackend,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_POLL_OPEN,
-            runtime.replay_payload_for(IO_POLL_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_io_poll_open(runtime, context, backend),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_poll_open(runtime, context, backend)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::PollHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IoPollOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_POLL_OPEN,
+        runtime.replay_payload_for(IO_POLL_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_poll_open(runtime, context, backend),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_poll_open(runtime, context, backend)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::PollHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = IoPollOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoPollOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoPollOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_poll_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_poll_register_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::PollHandle,
@@ -6467,56 +6414,54 @@ fn destack_io_poll_register_vm_replay(
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_POLL_REGISTER,
-            runtime.replay_payload_for(IO_POLL_REGISTER)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_io_poll_register(
-                    runtime, context, handle, target, key, interest,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_poll_register(
-                    runtime, context, handle, target, key, interest,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoPollRegisterReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_POLL_REGISTER,
+        runtime.replay_payload_for(IO_POLL_REGISTER)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_poll_register(
+                runtime, context, handle, target, key, interest,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_io_poll_register(
+                runtime, context, handle, target, key, interest,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoPollRegisterReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoPollRegisterReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoPollRegisterReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_poll_register_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_poll_update_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::PollHandle,
@@ -6524,897 +6469,846 @@ fn destack_io_poll_update_vm_replay(
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_POLL_UPDATE,
-            runtime.replay_payload_for(IO_POLL_UPDATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_io_poll_update(
-                    runtime, context, handle, target, key, interest,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_poll_update(
-                    runtime, context, handle, target, key, interest,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoPollUpdateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_POLL_UPDATE,
+        runtime.replay_payload_for(IO_POLL_UPDATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_poll_update(runtime, context, handle, target, key, interest)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_io_poll_update(
+                runtime, context, handle, target, key, interest,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoPollUpdateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoPollUpdateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoPollUpdateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_poll_update_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_poll_wait_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::PollHandle,
     timeoutns: u64,
     maxevents: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_POLL_WAIT,
-            runtime.replay_payload_for(IO_POLL_WAIT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_io_poll_wait(
-                    runtime, context, handle, timeoutns, maxevents,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_poll_wait(
-                    runtime, context, handle, timeoutns, maxevents,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmArray<PollEventVm> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item = {
-                            if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_type(
-                                        "result_recorded_item",
-                                        "item",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let slots = context
-                                .aggregate_slots(result_recorded_item_value)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 3 {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item",
-                                        "expected 3 fields",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let result_recorded_item_key =
-                                decode_uint64(slots[0], "result_recorded_item_key", "key")?;
-                            let result_recorded_item_ready_inner = decode_uint32(
-                                slots[1],
-                                "result_recorded_item_ready_inner",
-                                "ready",
-                            )?;
-                            let result_recorded_item_ready =
-                                PollInterest(result_recorded_item_ready_inner);
-                            let result_recorded_item_data =
-                                decode_int32(slots[2], "result_recorded_item_data", "data")?;
-                            PollEventVm {
-                                key: result_recorded_item_key,
-                                ready: result_recorded_item_ready,
-                                data: result_recorded_item_data,
-                            }
-                        };
-                        let result_recorded_item_recorded_key = result_recorded_item.key;
-                        let result_recorded_item_recorded_ready = result_recorded_item.ready;
-                        let result_recorded_item_recorded_data = result_recorded_item.data;
-                        let result_recorded_item_recorded = PollEvent {
-                            key: result_recorded_item_recorded_key,
-                            ready: result_recorded_item_recorded_ready,
-                            data: result_recorded_item_recorded_data,
-                        };
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = IoPollWaitReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoPollWaitReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item = *vm_result_item;
-                            let vm_result_item_value_key = vm_result_item.key;
-                            let vm_result_item_value_ready = vm_result_item.ready;
-                            let vm_result_item_value_data = vm_result_item.data;
-                            let vm_result_item_value = PollEventVm {
-                                key: vm_result_item_value_key,
-                                ready: vm_result_item_value_ready,
-                                data: vm_result_item_value_data,
-                            };
-                            let vm_result_item_value_encoded = {
-                                let field_0 = vm::Value::uint(vm_result_item_value.key, 64);
-                                let field_1 =
-                                    vm::Value::uint(vm_result_item_value.ready.0 as u64, 32);
-                                let field_2 = vm::Value::int(vm_result_item_value.data as i64, 32);
-                                context.allocate_aggregate(vec![field_0, field_1, field_2])
-                            };
-                            vm_result_values.push(vm_result_item_value_encoded);
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_POLL_WAIT,
+        runtime.replay_payload_for(IO_POLL_WAIT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_poll_wait(runtime, context, handle, timeoutns, maxevents)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_io_poll_wait(
+                runtime, context, handle, timeoutns, maxevents,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<PollEventVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_item",
+                                "item",
+                            ))
+                            .boxed());
                         }
-                        let vm_result_data = context.allocate_raw_values(vm_result_values);
-                        let vm_result: VmArray<PollEventVm> = VmArray {
-                            data: vm_result_data,
-                            len: value.len() as u32,
-                            capacity: value.len() as u32,
-                            _marker: std::marker::PhantomData,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                        let slots = context
+                            .aggregate_slots(result_recorded_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 3 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "expected 3 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_item_key =
+                            decode_uint64(slots[0], "result_recorded_item_key", "key")?;
+                        let result_recorded_item_ready_inner =
+                            decode_uint32(slots[1], "result_recorded_item_ready_inner", "ready")?;
+                        let result_recorded_item_ready =
+                            PollInterest(result_recorded_item_ready_inner);
+                        let result_recorded_item_data =
+                            decode_int32(slots[2], "result_recorded_item_data", "data")?;
+                        PollEventVm {
+                            key: result_recorded_item_key,
+                            ready: result_recorded_item_ready,
+                            data: result_recorded_item_data,
+                        }
+                    };
+                    let result_recorded_item_recorded_key = result_recorded_item.key;
+                    let result_recorded_item_recorded_ready = result_recorded_item.ready;
+                    let result_recorded_item_recorded_data = result_recorded_item.data;
+                    let result_recorded_item_recorded = PollEvent {
+                        key: result_recorded_item_recorded_key,
+                        ready: result_recorded_item_recorded_ready,
+                        data: result_recorded_item_recorded_data,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
                 }
-            },
-        );
+                let payload = IoPollWaitReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoPollWaitReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value_key = vm_result_item.key;
+                        let vm_result_item_value_ready = vm_result_item.ready;
+                        let vm_result_item_value_data = vm_result_item.data;
+                        let vm_result_item_value = PollEventVm {
+                            key: vm_result_item_value_key,
+                            ready: vm_result_item_value_ready,
+                            data: vm_result_item_value_data,
+                        };
+                        let vm_result_item_value_encoded = {
+                            let field_0 = vm::Value::uint(vm_result_item_value.key, 64);
+                            let field_1 = vm::Value::uint(vm_result_item_value.ready.0 as u64, 32);
+                            let field_2 = vm::Value::int(vm_result_item_value.data as i64, 32);
+                            context.allocate_aggregate(vec![field_0, field_1, field_2])
+                        };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<PollEventVm> = VmArray {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        capacity: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_poll_wait_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_timerfd_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_TIMERFD_CLOSE,
-            runtime.replay_payload_for(IO_TIMERFD_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_timer_fd_close(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_timer_fd_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoTimerfdCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_TIMERFD_CLOSE,
+        runtime.replay_payload_for(IO_TIMERFD_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_timer_fd_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_timer_fd_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoTimerfdCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoTimerfdCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoTimerfdCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_timerfd_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_timerfd_get_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_TIMERFD_GET,
-            runtime.replay_payload_for(IO_TIMERFD_GET)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_timer_fd_get(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_timer_fd_get(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: TimerFdSpecVm = value.clone();
-                    let result_recorded_initial_ns = result_value.initial_ns;
-                    let result_recorded_interval_ns = result_value.interval_ns;
-                    let result_recorded = TimerFdSpec {
-                        initial_ns: result_recorded_initial_ns,
-                        interval_ns: result_recorded_interval_ns,
-                    };
-                    let payload = IoTimerfdGetReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_TIMERFD_GET,
+        runtime.replay_payload_for(IO_TIMERFD_GET)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_timer_fd_get(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_timer_fd_get(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: TimerFdSpecVm = value.clone();
+                let result_recorded_initial_ns = result_value.initial_ns;
+                let result_recorded_interval_ns = result_value.interval_ns;
+                let result_recorded = TimerFdSpec {
+                    initial_ns: result_recorded_initial_ns,
+                    interval_ns: result_recorded_interval_ns,
+                };
+                let payload = IoTimerfdGetReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoTimerfdGetReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoTimerfdGetReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_initial_ns = value.initial_ns;
-                        let vm_result_interval_ns = value.interval_ns;
-                        let vm_result = TimerFdSpecVm {
-                            initial_ns: vm_result_initial_ns,
-                            interval_ns: vm_result_interval_ns,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_initial_ns = value.initial_ns;
+                    let vm_result_interval_ns = value.interval_ns;
+                    let vm_result = TimerFdSpecVm {
+                        initial_ns: vm_result_initial_ns,
+                        interval_ns: vm_result_interval_ns,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_timerfd_get_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_timerfd_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     clock: TimerFdClock,
     flags: TimerFdFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_TIMERFD_OPEN,
-            runtime.replay_payload_for(IO_TIMERFD_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_timer_fd_open(runtime, context, clock, flags)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_timer_fd_open(runtime, context, clock, flags)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::TimerFdHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IoTimerfdOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_TIMERFD_OPEN,
+        runtime.replay_payload_for(IO_TIMERFD_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_timer_fd_open(runtime, context, clock, flags)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_timer_fd_open(runtime, context, clock, flags)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::TimerFdHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = IoTimerfdOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoTimerfdOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoTimerfdOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_timerfd_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_timerfd_read_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_TIMERFD_READ,
-            runtime.replay_payload_for(IO_TIMERFD_READ)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_timer_fd_read(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_timer_fd_read(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IoTimerfdReadReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_TIMERFD_READ,
+        runtime.replay_payload_for(IO_TIMERFD_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_timer_fd_read(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_timer_fd_read(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = IoTimerfdReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoTimerfdReadReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoTimerfdReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_timerfd_read_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_timerfd_set_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
     spec: TimerFdSpecVm,
     flags: TimerFdSetFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_TIMERFD_SET,
-            runtime.replay_payload_for(IO_TIMERFD_SET)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_timer_fd_set(runtime, context, handle, spec, flags)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_timer_fd_set(
-                    runtime, context, handle, spec, flags,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoTimerfdSetReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_TIMERFD_SET,
+        runtime.replay_payload_for(IO_TIMERFD_SET)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_timer_fd_set(runtime, context, handle, spec, flags)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_io_timer_fd_set(
+                runtime, context, handle, spec, flags,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoTimerfdSetReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoTimerfdSetReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoTimerfdSetReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_timerfd_set_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_uring_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_URING_CLOSE,
-            runtime.replay_payload_for(IO_URING_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_io_uring_close(runtime, context, handle),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_uring_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoUringCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_URING_CLOSE,
+        runtime.replay_payload_for(IO_URING_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_uring_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_uring_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoUringCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoUringCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoUringCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_uring_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_uring_features_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_URING_FEATURES,
-            runtime.replay_payload_for(IO_URING_FEATURES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_uring_features(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_uring_features(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: UringFeaturesVm = value.clone();
-                    let result_recorded_has_submission_polling =
-                        result_value.has_submission_polling;
-                    let result_recorded_has_kernel_polling = result_value.has_kernel_polling;
-                    let result_recorded_has_fixed_files = result_value.has_fixed_files;
-                    let result_recorded_has_fixed_buffers = result_value.has_fixed_buffers;
-                    let result_recorded_max_entries = result_value.max_entries;
-                    let result_recorded = UringFeatures {
-                        has_submission_polling: result_recorded_has_submission_polling,
-                        has_kernel_polling: result_recorded_has_kernel_polling,
-                        has_fixed_files: result_recorded_has_fixed_files,
-                        has_fixed_buffers: result_recorded_has_fixed_buffers,
-                        max_entries: result_recorded_max_entries,
-                    };
-                    let payload = IoUringFeaturesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_URING_FEATURES,
+        runtime.replay_payload_for(IO_URING_FEATURES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_uring_features(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_uring_features(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: UringFeaturesVm = value.clone();
+                let result_recorded_has_submission_polling = result_value.has_submission_polling;
+                let result_recorded_has_kernel_polling = result_value.has_kernel_polling;
+                let result_recorded_has_fixed_files = result_value.has_fixed_files;
+                let result_recorded_has_fixed_buffers = result_value.has_fixed_buffers;
+                let result_recorded_max_entries = result_value.max_entries;
+                let result_recorded = UringFeatures {
+                    has_submission_polling: result_recorded_has_submission_polling,
+                    has_kernel_polling: result_recorded_has_kernel_polling,
+                    has_fixed_files: result_recorded_has_fixed_files,
+                    has_fixed_buffers: result_recorded_has_fixed_buffers,
+                    max_entries: result_recorded_max_entries,
+                };
+                let payload = IoUringFeaturesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoUringFeaturesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoUringFeaturesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_has_submission_polling = value.has_submission_polling;
-                        let vm_result_has_kernel_polling = value.has_kernel_polling;
-                        let vm_result_has_fixed_files = value.has_fixed_files;
-                        let vm_result_has_fixed_buffers = value.has_fixed_buffers;
-                        let vm_result_max_entries = value.max_entries;
-                        let vm_result = UringFeaturesVm {
-                            has_submission_polling: vm_result_has_submission_polling,
-                            has_kernel_polling: vm_result_has_kernel_polling,
-                            has_fixed_files: vm_result_has_fixed_files,
-                            has_fixed_buffers: vm_result_has_fixed_buffers,
-                            max_entries: vm_result_max_entries,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_has_submission_polling = value.has_submission_polling;
+                    let vm_result_has_kernel_polling = value.has_kernel_polling;
+                    let vm_result_has_fixed_files = value.has_fixed_files;
+                    let vm_result_has_fixed_buffers = value.has_fixed_buffers;
+                    let vm_result_max_entries = value.max_entries;
+                    let vm_result = UringFeaturesVm {
+                        has_submission_polling: vm_result_has_submission_polling,
+                        has_kernel_polling: vm_result_has_kernel_polling,
+                        has_fixed_files: vm_result_has_fixed_files,
+                        has_fixed_buffers: vm_result_has_fixed_buffers,
+                        max_entries: vm_result_max_entries,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_uring_features_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_uring_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     parameters: UringParametersVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_URING_OPEN,
-            runtime.replay_payload_for(IO_URING_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_uring_open(runtime, context, parameters)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_uring_open(runtime, context, parameters)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::UringHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = IoUringOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_URING_OPEN,
+        runtime.replay_payload_for(IO_URING_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_uring_open(runtime, context, parameters),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_uring_open(runtime, context, parameters)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::UringHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = IoUringOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoUringOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoUringOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_uring_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_uring_register_buffers_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
     addresses: VmSlice<u64>,
     lengths: VmSlice<u32>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_URING_REGISTER_BUFFERS,
-            runtime.replay_payload_for(IO_URING_REGISTER_BUFFERS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_io_uring_register_buffers(
-                    runtime, context, handle, addresses, lengths,
-                ),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_uring_register_buffers(
-                        runtime, context, handle, addresses, lengths,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoUringRegisterBuffersReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_URING_REGISTER_BUFFERS,
+        runtime.replay_payload_for(IO_URING_REGISTER_BUFFERS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_io_uring_register_buffers(
+                runtime, context, handle, addresses, lengths,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_io_uring_register_buffers(
+                runtime, context, handle, addresses, lengths,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoUringRegisterBuffersReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoUringRegisterBuffersReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoUringRegisterBuffersReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_uring_register_buffers_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_uring_register_files_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
     files: VmSlice<resource::ResourceId>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_URING_REGISTER_FILES,
-            runtime.replay_payload_for(IO_URING_REGISTER_FILES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_uring_register_files(runtime, context, handle, files)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_io_uring_register_files(
-                    runtime, context, handle, files,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoUringRegisterFilesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_URING_REGISTER_FILES,
+        runtime.replay_payload_for(IO_URING_REGISTER_FILES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_uring_register_files(runtime, context, handle, files)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_io_uring_register_files(
+                runtime, context, handle, files,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoUringRegisterFilesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoUringRegisterFilesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoUringRegisterFilesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_uring_register_files_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_uring_unregister_buffers_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_URING_UNREGISTER_BUFFERS,
-            runtime.replay_payload_for(IO_URING_UNREGISTER_BUFFERS)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_uring_unregister_buffers(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_uring_unregister_buffers(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoUringUnregisterBuffersReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_URING_UNREGISTER_BUFFERS,
+        runtime.replay_payload_for(IO_URING_UNREGISTER_BUFFERS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_uring_unregister_buffers(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_uring_unregister_buffers(
+                    runtime, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoUringUnregisterBuffersReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoUringUnregisterBuffersReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoUringUnregisterBuffersReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_uring_unregister_buffers_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_io_uring_unregister_files_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            IO_URING_UNREGISTER_FILES,
-            runtime.replay_payload_for(IO_URING_UNREGISTER_FILES)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_io_uring_unregister_files(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_io_uring_unregister_files(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = IoUringUnregisterFilesReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        IO_URING_UNREGISTER_FILES,
+        runtime.replay_payload_for(IO_URING_UNREGISTER_FILES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_io_uring_unregister_files(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_io_uring_unregister_files(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoUringUnregisterFilesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        IoUringUnregisterFilesReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoUringUnregisterFilesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_io_uring_unregister_files_result(context, result)?;
     Ok(result)
 }
@@ -7427,7 +7321,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_COMPLETION_CANCEL,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, target) = decode_destack_io_completion_cancel_args(context, args)?;
 
@@ -7446,7 +7340,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_COMPLETION_CLOSE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_io_completion_close_args(context, args)?;
 
@@ -7465,7 +7359,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_COMPLETION_ENTER,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, mincomplete, timeoutns, flags) =
                         decode_destack_io_completion_enter_args(context, args)?;
@@ -7493,7 +7387,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_COMPLETION_OPEN,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (entries,) = decode_destack_io_completion_open_args(context, args)?;
 
@@ -7512,7 +7406,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_COMPLETION_SUBMIT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, operation) =
                         decode_destack_io_completion_submit_args(context, args)?;
@@ -7534,7 +7428,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_COMPLETION_SUBMIT_BATCH,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, operationwords, operationcount, operationwordstride) =
                         decode_destack_io_completion_submit_batch_args(context, args)?;
@@ -7562,7 +7456,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_COMPLETION_WAIT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, timeoutns, maxevents) =
                         decode_destack_io_completion_wait_args(context, args)?;
@@ -7580,7 +7474,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_CONTROL_FCNTL, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, command, argument, flags) =
                     decode_destack_io_control_fcntl_args(context, args)?;
@@ -7597,7 +7491,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_CONTROL_IOCTL, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, request) = decode_destack_io_control_ioctl_args(context, args)?;
 
@@ -7611,7 +7505,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_DEVICE_CLOSE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_io_device_close_args(context, args)?;
 
@@ -7629,7 +7523,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_DEVICE_CONTROL,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, request) = decode_destack_io_device_control_args(context, args)?;
 
@@ -7644,7 +7538,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_DEVICE_OPEN, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (path, flags, mode) = decode_destack_io_device_open_args(context, args)?;
 
@@ -7658,7 +7552,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_DEVICE_READ, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffer) = decode_destack_io_device_read_args(context, args)?;
 
@@ -7672,7 +7566,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_DEVICE_WRITE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, buffer) = decode_destack_io_device_write_args(context, args)?;
 
@@ -7686,7 +7580,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_EVENT_ATTACH, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (token, target, key) = decode_destack_io_event_attach_args(context, args)?;
 
@@ -7700,7 +7594,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_EVENT_CLOSE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (token,) = decode_destack_io_event_close_args(context, args)?;
 
@@ -7714,7 +7608,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_EVENT_OPEN, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (initial,) = decode_destack_io_event_open_args(context, args)?;
 
@@ -7728,7 +7622,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_EVENT_SIGNAL, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (token, argument_value) = decode_destack_io_event_signal_args(context, args)?;
 
@@ -7742,7 +7636,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_POLL_CLOSE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_io_poll_close_args(context, args)?;
 
@@ -7760,7 +7654,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_POLL_DEREGISTER,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, target) = decode_destack_io_poll_deregister_args(context, args)?;
 
@@ -7775,7 +7669,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_POLL_OPEN, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (backend,) = decode_destack_io_poll_open_args(context, args)?;
 
@@ -7789,7 +7683,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_POLL_REGISTER, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, target, key, interest) =
                     decode_destack_io_poll_register_args(context, args)?;
@@ -7806,7 +7700,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_POLL_UPDATE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, target, key, interest) =
                     decode_destack_io_poll_update_args(context, args)?;
@@ -7823,7 +7717,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_POLL_WAIT, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, timeoutns, maxevents) =
                     decode_destack_io_poll_wait_args(context, args)?;
@@ -7840,7 +7734,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_TIMERFD_CLOSE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_io_timerfd_close_args(context, args)?;
 
@@ -7854,7 +7748,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_TIMERFD_GET, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_io_timerfd_get_args(context, args)?;
 
@@ -7868,7 +7762,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_TIMERFD_OPEN, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (clock, flags) = decode_destack_io_timerfd_open_args(context, args)?;
 
@@ -7882,7 +7776,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_TIMERFD_READ, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_io_timerfd_read_args(context, args)?;
 
@@ -7896,7 +7790,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_TIMERFD_SET, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, spec, flags) = decode_destack_io_timerfd_set_args(context, args)?;
 
@@ -7910,7 +7804,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_URING_CLOSE, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle,) = decode_destack_io_uring_close_args(context, args)?;
 
@@ -7928,7 +7822,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_URING_FEATURES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_io_uring_features_args(context, args)?;
 
@@ -7943,7 +7837,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_URING_OPEN, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (parameters,) = decode_destack_io_uring_open_args(context, args)?;
 
@@ -7961,7 +7855,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_URING_REGISTER_BUFFERS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, addresses, lengths) =
                         decode_destack_io_uring_register_buffers_args(context, args)?;
@@ -7983,7 +7877,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_URING_REGISTER_FILES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, files) =
                         decode_destack_io_uring_register_files_args(context, args)?;
@@ -8005,7 +7899,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_URING_UNREGISTER_BUFFERS,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_io_uring_unregister_buffers_args(context, args)?;
 
@@ -8024,7 +7918,7 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_URING_UNREGISTER_FILES,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_io_uring_unregister_files_args(context, args)?;
 

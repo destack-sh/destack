@@ -5,7 +5,7 @@ use crate::platform::io::{
     host as io_host,
 };
 use crate::platform::resource;
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Execute one fcntl-style descriptor command.
 ///
@@ -25,7 +25,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_control_fcntl(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut i64,
     handle: resource::ResourceId,
     command: DescriptorControlCommand,
@@ -60,7 +60,7 @@ pub(crate) unsafe fn destack_io_control_fcntl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_control_ioctl(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut DescriptorResult,
     handle: resource::ResourceId,
     request: DescriptorRequest,

@@ -1,6 +1,6 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::ExecutionMode;
 use crate::runtime::replay::{ReplayController, ReplayEvent, TimeEvent, TimeEventKind};
+use destack_workspace::ExecutionMode;
 
 impl ReplayController {
     /// Read the next time event for replay.

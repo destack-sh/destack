@@ -4,7 +4,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use crate::platform::memory::{MemoryRange, ProtectedMemoryRange};
 
@@ -26,7 +26,7 @@ use crate::platform::memory::{MemoryRange, ProtectedMemoryRange};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_memory_advise(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     address: u64,
     length: u64,
     advice: u32,
@@ -58,7 +58,7 @@ pub(crate) unsafe fn destack_memory_advise(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_memory_discard(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -89,7 +89,7 @@ pub(crate) unsafe fn destack_memory_discard(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_memory_huge_page(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     address: u64,
     length: u64,
     enabled: bool,
@@ -121,7 +121,7 @@ pub(crate) unsafe fn destack_memory_huge_page(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_memory_lock(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -152,7 +152,7 @@ pub(crate) unsafe fn destack_memory_lock(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_memory_unlock(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -180,7 +180,7 @@ pub(crate) unsafe fn destack_memory_unlock(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_memory_commit(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     address: u64,
     length: u64,
     flags: u32,
@@ -209,7 +209,7 @@ pub(crate) unsafe fn destack_memory_commit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_memory_decommit(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -237,7 +237,7 @@ pub(crate) unsafe fn destack_memory_decommit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_memory_numa_bind(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     address: u64,
     length: u64,
     policy: u32,
@@ -267,7 +267,7 @@ pub(crate) unsafe fn destack_memory_numa_bind(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_memory_release(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -295,7 +295,7 @@ pub(crate) unsafe fn destack_memory_release(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_memory_reserve(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut MemoryRange,
     length: u64,
     flags: u32,
@@ -324,7 +324,7 @@ pub(crate) unsafe fn destack_memory_reserve(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_memory_protect_execute(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     address: u64,
     length: u64,
     enabled: bool,
@@ -356,7 +356,7 @@ pub(crate) unsafe fn destack_memory_protect_execute(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_memory_flush_instruction_cache(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -387,7 +387,7 @@ pub(crate) unsafe fn destack_memory_flush_instruction_cache(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_memory_protect(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     address: u64,
     length: u64,
     protection: u32,
@@ -419,7 +419,7 @@ pub(crate) unsafe fn destack_memory_protect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_memory_remap(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProtectedMemoryRange,
     address: u64,
     oldlength: u64,

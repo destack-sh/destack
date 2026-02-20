@@ -3,7 +3,7 @@ use destack_vm as vm;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::security::{PlatformCapabilityVm, SecurityPolicyRuleVm, vm as security_vm};
 use crate::platform::{VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Check one capability.
 ///
@@ -23,7 +23,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_capability_has(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     capability: PlatformCapabilityVm,
 ) -> RuntimeResult<bool> {
@@ -48,7 +48,7 @@ pub(crate) fn destack_security_capability_has(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_capability_list(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<PlatformCapabilityVm>> {
     security_vm::destack_security_capability_list(runtime, context)
@@ -72,7 +72,7 @@ pub(crate) fn destack_security_capability_list(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_policy_get(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     scope: vm::StringHandle,
 ) -> RuntimeResult<VmSlice<PlatformCapabilityVm>> {
@@ -97,7 +97,7 @@ pub(crate) fn destack_security_policy_get(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_policy_get_rules(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     scope: vm::StringHandle,
 ) -> RuntimeResult<VmSlice<SecurityPolicyRuleVm>> {
@@ -122,7 +122,7 @@ pub(crate) fn destack_security_policy_get_rules(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_policy_set(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     scope: vm::StringHandle,
     capabilities: VmSlice<PlatformCapabilityVm>,
@@ -148,7 +148,7 @@ pub(crate) fn destack_security_policy_set(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_policy_set_rules(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     scope: vm::StringHandle,
     rules: VmSlice<SecurityPolicyRuleVm>,
@@ -174,7 +174,7 @@ pub(crate) fn destack_security_policy_set_rules(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_security_sandbox_enter(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<resource::SandboxHandle> {
@@ -199,7 +199,7 @@ pub(crate) fn destack_security_sandbox_enter(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_security_sandbox_exit(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
@@ -224,7 +224,7 @@ pub(crate) fn destack_security_sandbox_exit(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_sandbox_seal(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
@@ -249,7 +249,7 @@ pub(crate) fn destack_security_sandbox_seal(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_sandbox_set_capabilities(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SandboxHandle,
     capabilities: VmSlice<PlatformCapabilityVm>,
@@ -275,7 +275,7 @@ pub(crate) fn destack_security_sandbox_set_capabilities(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_set_write_xor_execute(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     enabled: bool,
 ) -> RuntimeResult<()> {

@@ -4,7 +4,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::resource;
 use crate::platform::time::runtime::native as runtime_native;
 use crate::platform::time::{ClockId, ClockMetadata, SleepClock, TimerOptions};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Query one selected clock metadata.
 ///
@@ -24,7 +24,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_clock_metadata(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ClockMetadata,
     clock: ClockId,
 ) -> RuntimeResult<()> {
@@ -49,7 +49,7 @@ pub(crate) unsafe fn destack_time_clock_metadata(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_mono_ns(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
     unsafe { runtime_native::destack_time_mono_ns(context, out) }
@@ -73,7 +73,7 @@ pub(crate) unsafe fn destack_time_mono_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_now_ns(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     clock: ClockId,
 ) -> RuntimeResult<()> {
@@ -98,7 +98,7 @@ pub(crate) unsafe fn destack_time_now_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_process_cpu_ns(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
     unsafe { runtime_native::destack_time_process_cpu_ns(context, out) }
@@ -122,7 +122,7 @@ pub(crate) unsafe fn destack_time_process_cpu_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_thread_cpu_ns(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
     unsafe { runtime_native::destack_time_thread_cpu_ns(context, out) }
@@ -146,7 +146,7 @@ pub(crate) unsafe fn destack_time_thread_cpu_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_wall_ns(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
     unsafe { runtime_native::destack_time_wall_ns(context, out) }
@@ -170,7 +170,7 @@ pub(crate) unsafe fn destack_time_wall_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_sleep_ns(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     duration: u64,
 ) -> RuntimeResult<()> {
     unsafe { runtime_native::destack_time_sleep_ns(context, duration) }
@@ -194,7 +194,7 @@ pub(crate) unsafe fn destack_time_sleep_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_sleep_on_ns(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     duration: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {
@@ -219,7 +219,7 @@ pub(crate) unsafe fn destack_time_sleep_on_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_sleep_until_ns(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     deadline: u64,
 ) -> RuntimeResult<()> {
     unsafe { runtime_native::destack_time_sleep_until_ns(context, deadline) }
@@ -243,7 +243,7 @@ pub(crate) unsafe fn destack_time_sleep_until_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_sleep_until_on_ns(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     deadline: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {
@@ -268,7 +268,7 @@ pub(crate) unsafe fn destack_time_sleep_until_on_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_timer_at(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::TimerHandle,
     deadlinens: u64,
     options: TimerOptions,
@@ -294,7 +294,7 @@ pub(crate) unsafe fn destack_time_timer_at(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_timer_cancel(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     unsafe { runtime_native::destack_time_timer_cancel(context, handle) }
@@ -318,7 +318,7 @@ pub(crate) unsafe fn destack_time_timer_cancel(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_timer_interval(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::TimerHandle,
     periodns: u64,
     options: TimerOptions,
@@ -344,7 +344,7 @@ pub(crate) unsafe fn destack_time_timer_interval(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_timer_is_active(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut bool,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
@@ -369,7 +369,7 @@ pub(crate) unsafe fn destack_time_timer_is_active(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_timer_once(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::TimerHandle,
     delayns: u64,
     options: TimerOptions,
@@ -395,7 +395,7 @@ pub(crate) unsafe fn destack_time_timer_once(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_timer_pause(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     unsafe { runtime_native::destack_time_timer_pause(context, handle) }
@@ -419,7 +419,7 @@ pub(crate) unsafe fn destack_time_timer_pause(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_timer_remaining_ns(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
@@ -444,7 +444,7 @@ pub(crate) unsafe fn destack_time_timer_remaining_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_timer_reset(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
     delayns: u64,
 ) -> RuntimeResult<()> {
@@ -469,7 +469,7 @@ pub(crate) unsafe fn destack_time_timer_reset(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_timer_resume(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     unsafe { runtime_native::destack_time_timer_resume(context, handle) }
@@ -493,7 +493,7 @@ pub(crate) unsafe fn destack_time_timer_resume(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_timer_update_interval(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
     periodns: u64,
 ) -> RuntimeResult<()> {

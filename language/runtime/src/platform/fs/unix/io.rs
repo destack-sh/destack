@@ -8,7 +8,7 @@ use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{core as core_fs, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, net as platform_net, *};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStrExt;
@@ -33,7 +33,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
@@ -78,7 +78,7 @@ pub(crate) unsafe fn destack_fs_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pread(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
@@ -132,7 +132,7 @@ pub(crate) unsafe fn destack_fs_pread(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readv(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -185,7 +185,7 @@ pub(crate) unsafe fn destack_fs_readv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_preadv(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -240,7 +240,7 @@ pub(crate) unsafe fn destack_fs_preadv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_write(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
@@ -285,7 +285,7 @@ pub(crate) unsafe fn destack_fs_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pwrite(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
@@ -339,7 +339,7 @@ pub(crate) unsafe fn destack_fs_pwrite(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_writev(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -392,7 +392,7 @@ pub(crate) unsafe fn destack_fs_writev(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pwritev(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -447,7 +447,7 @@ pub(crate) unsafe fn destack_fs_pwritev(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_preadv2(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -477,7 +477,7 @@ pub(crate) unsafe fn destack_fs_preadv2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pwritev2(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -507,7 +507,7 @@ pub(crate) unsafe fn destack_fs_pwritev2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_splice(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _out: *mut u64,
     source: ResourceId,
     sourcecursor: SpliceCursor,
@@ -540,7 +540,7 @@ pub(crate) unsafe fn destack_fs_splice(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_tee(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _out: *mut u64,
     sourcepipe: PipeHandle,
     targetpipe: PipeHandle,
@@ -571,7 +571,7 @@ pub(crate) unsafe fn destack_fs_tee(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_vmsplice(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _out: *mut u64,
     pipe: PipeHandle,
     buffers: NativeSlice<NativeSlice<u8>>,

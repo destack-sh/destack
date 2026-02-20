@@ -4,7 +4,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{NativeStringRef, PlatformError};
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use crate::platform::resource;
 use crate::platform::thread::ThreadOptions;
@@ -27,7 +27,7 @@ use crate::platform::thread::ThreadOptions;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_create(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _out: *mut resource::ThreadLocalKey,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.create")).boxed())
@@ -51,7 +51,7 @@ pub(crate) unsafe fn destack_thread_local_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_delete(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _key: resource::ThreadLocalKey,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.delete")).boxed())
@@ -75,7 +75,7 @@ pub(crate) unsafe fn destack_thread_local_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_get(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u64,
     key: resource::ThreadLocalKey,
 ) -> RuntimeResult<()> {
@@ -102,7 +102,7 @@ pub(crate) unsafe fn destack_thread_local_get(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_set(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     key: resource::ThreadLocalKey,
     argument_value: u64,
 ) -> RuntimeResult<()> {
@@ -129,7 +129,7 @@ pub(crate) unsafe fn destack_thread_local_set(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_affinity(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u64,
     handle: resource::ThreadHandle,
 ) -> RuntimeResult<()> {
@@ -159,7 +159,7 @@ pub(crate) unsafe fn destack_thread_get_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_priority(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut i32,
     handle: resource::ThreadHandle,
 ) -> RuntimeResult<()> {
@@ -189,7 +189,7 @@ pub(crate) unsafe fn destack_thread_get_priority(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_affinity(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::ThreadHandle,
     mask: u64,
 ) -> RuntimeResult<()> {
@@ -219,7 +219,7 @@ pub(crate) unsafe fn destack_thread_set_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_priority(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::ThreadHandle,
     priority: i32,
 ) -> RuntimeResult<()> {
@@ -249,7 +249,7 @@ pub(crate) unsafe fn destack_thread_set_priority(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_detach(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _handle: resource::ThreadHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.spawn.detach")).boxed())
@@ -273,7 +273,7 @@ pub(crate) unsafe fn destack_thread_detach(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_join(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u32,
     handle: resource::ThreadHandle,
 ) -> RuntimeResult<()> {
@@ -300,7 +300,7 @@ pub(crate) unsafe fn destack_thread_join(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_spawn(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut resource::ThreadHandle,
     entry: NativeStringRef,
     argument: u64,
@@ -329,7 +329,7 @@ pub(crate) unsafe fn destack_thread_spawn(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_address_wait(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     address: u64,
     expected: u32,
     timeoutns: u64,
@@ -360,7 +360,7 @@ pub(crate) unsafe fn destack_thread_address_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_address_wake_all(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _address: u64,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -387,7 +387,7 @@ pub(crate) unsafe fn destack_thread_address_wake_all(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_address_wake_one(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _address: u64,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -414,7 +414,7 @@ pub(crate) unsafe fn destack_thread_address_wake_one(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_barrier_create(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut resource::BarrierHandle,
     participants: u32,
     flags: u32,
@@ -445,7 +445,7 @@ pub(crate) unsafe fn destack_thread_barrier_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_barrier_wait(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut bool,
     handle: resource::BarrierHandle,
     timeoutns: u64,
@@ -476,7 +476,7 @@ pub(crate) unsafe fn destack_thread_barrier_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_create(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut resource::CondVarHandle,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -506,7 +506,7 @@ pub(crate) unsafe fn destack_thread_cond_var_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_notify_all(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _condvar: resource::CondVarHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -533,7 +533,7 @@ pub(crate) unsafe fn destack_thread_cond_var_notify_all(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_notify_one(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _condvar: resource::CondVarHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -560,7 +560,7 @@ pub(crate) unsafe fn destack_thread_cond_var_notify_one(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_wait(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     condvar: resource::CondVarHandle,
     mutex: resource::MutexHandle,
     timeoutns: u64,
@@ -591,7 +591,7 @@ pub(crate) unsafe fn destack_thread_cond_var_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_mutex_create(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut resource::MutexHandle,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -621,7 +621,7 @@ pub(crate) unsafe fn destack_thread_mutex_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_mutex_lock(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::MutexHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
@@ -651,7 +651,7 @@ pub(crate) unsafe fn destack_thread_mutex_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_mutex_unlock(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _handle: resource::MutexHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -678,7 +678,7 @@ pub(crate) unsafe fn destack_thread_mutex_unlock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_create(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut resource::RwLockHandle,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -708,7 +708,7 @@ pub(crate) unsafe fn destack_thread_rwlock_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_read_lock(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::RwLockHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
@@ -738,7 +738,7 @@ pub(crate) unsafe fn destack_thread_rwlock_read_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_unlock(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _handle: resource::RwLockHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -765,7 +765,7 @@ pub(crate) unsafe fn destack_thread_rwlock_unlock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_write_lock(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::RwLockHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
@@ -795,7 +795,7 @@ pub(crate) unsafe fn destack_thread_rwlock_write_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_semaphore_create(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut resource::ThreadSemaphoreHandle,
     initial: u32,
     maximum: u32,
@@ -827,7 +827,7 @@ pub(crate) unsafe fn destack_thread_semaphore_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_semaphore_post(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::ThreadSemaphoreHandle,
     count: u32,
 ) -> RuntimeResult<()> {
@@ -857,7 +857,7 @@ pub(crate) unsafe fn destack_thread_semaphore_post(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_semaphore_wait(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: resource::ThreadSemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {

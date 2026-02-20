@@ -15,19 +15,19 @@ use crate::platform::audio::{
     AudioStreamSnapshotReplayRecord, AudioStreamSnapshotVm, AudioStreamState, AudioStreamStateVm,
     AudioStreamTiming, AudioStreamTimingVm, AudioStreamTransferMode,
 };
-use crate::platform::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
-    NativeBinding, NativeBindingSet, ReplayPolicy, RuntimeWorld, native_call,
-};
 use crate::platform::{
     NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmSlice, abi as platform_abi,
+};
+use crate::runtime::bindings::{
+    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
+    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
+use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
 
@@ -1321,7 +1321,7 @@ pub const AUDIO_CLOCK_NOW: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.clock.now",
         "export function clockNow(domain: AudioClockDomain): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.control"],
         BindingScope::Host,
@@ -1346,7 +1346,7 @@ pub const AUDIO_CLOCK_NOW: BindingDescriptor =
 pub const AUDIO_CLOCK_STREAM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.clock.stream",
     "export function streamClock(handle: AudioStreamHandle, domain: AudioClockDomain): Result<AudioClockSnapshot, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.control"],
     BindingScope::Host,
@@ -1359,7 +1359,7 @@ pub const AUDIO_DEVICE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.device.close",
         "export function deviceClose(handle: AudioDeviceHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.device"],
         BindingScope::Host,
@@ -1384,7 +1384,7 @@ pub const AUDIO_DEVICE_CLOSE: BindingDescriptor =
 pub const AUDIO_DEVICE_DEFAULT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.device.default",
     "export function deviceDefault(direction: AudioDeviceDirection): Result<string, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.device"],
     BindingScope::Host,
@@ -1396,7 +1396,7 @@ pub const AUDIO_DEVICE_DEFAULT: BindingDescriptor = BindingDescriptor::external_
 pub const AUDIO_DEVICE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.device.descriptor",
     "export function deviceDescriptor(handle: AudioDeviceHandle): Result<AudioDeviceDescriptor, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.device"],
     BindingScope::Host,
@@ -1408,7 +1408,7 @@ pub const AUDIO_DEVICE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::extern
 pub const AUDIO_DEVICE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.device.list",
     "export function deviceList(request: AudioDeviceListRequest): Result<Slice<AudioDeviceDescriptor>, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.device"],
     BindingScope::Host,
@@ -1420,7 +1420,7 @@ pub const AUDIO_DEVICE_LIST: BindingDescriptor = BindingDescriptor::external_wit
 pub const AUDIO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.device.open",
     "export function deviceOpen(id: string, options: AudioDeviceOpenOptions): Result<AudioDeviceHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.device"],
     BindingScope::Host,
@@ -1433,7 +1433,7 @@ pub const AUDIO_EVENT_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.event.close",
         "export function eventClose(handle: AudioEventHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.device.monitor"],
         BindingScope::Host,
@@ -1459,7 +1459,7 @@ pub const AUDIO_EVENT_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.event.open",
         "export function eventOpen(): Result<AudioEventHandle, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.device.monitor"],
         BindingScope::Host,
@@ -1484,7 +1484,7 @@ pub const AUDIO_EVENT_OPEN: BindingDescriptor =
 pub const AUDIO_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.event.read",
     "export function eventRead(handle: AudioEventHandle, timeoutNs: uint64): Result<AudioDeviceEvent, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.device.monitor"],
     BindingScope::Host,
@@ -1496,7 +1496,7 @@ pub const AUDIO_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with
 pub const AUDIO_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.event.tryRead",
     "export function eventTryRead(handle: AudioEventHandle): Result<AudioDeviceEvent, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.device.monitor"],
     BindingScope::Host,
@@ -1508,7 +1508,7 @@ pub const AUDIO_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_
 pub const AUDIO_STREAM_AVAILABILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.availability",
     "export function streamAvailability(handle: AudioStreamHandle): Result<AudioStreamAvailability, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.control"],
     BindingScope::Host,
@@ -1521,7 +1521,7 @@ pub const AUDIO_STREAM_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.stream.close",
         "export function streamClose(handle: AudioStreamHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.stream"],
         BindingScope::Host,
@@ -1546,7 +1546,7 @@ pub const AUDIO_STREAM_CLOSE: BindingDescriptor =
 pub const AUDIO_STREAM_DRAIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.drain",
     "export function streamDrain(handle: AudioStreamHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.playback"],
     BindingScope::Host,
@@ -1559,7 +1559,7 @@ pub const AUDIO_STREAM_FLUSH: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.stream.flush",
         "export function streamFlush(handle: AudioStreamHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.control"],
         BindingScope::Host,
@@ -1584,7 +1584,7 @@ pub const AUDIO_STREAM_FLUSH: BindingDescriptor =
 pub const AUDIO_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.open",
     "export function streamOpen(device: AudioDeviceHandle, config: AudioStreamConfig): Result<AudioStreamHandle, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.stream"],
     BindingScope::Host,
@@ -1596,7 +1596,7 @@ pub const AUDIO_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_wit
 pub const AUDIO_STREAM_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.read",
     "export function streamRead(handle: AudioStreamHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.capture"],
     BindingScope::Host,
@@ -1608,7 +1608,7 @@ pub const AUDIO_STREAM_READ: BindingDescriptor = BindingDescriptor::external_wit
 pub const AUDIO_STREAM_SET_MUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.setMute",
     "export function streamSetMute(handle: AudioStreamHandle, muted: boolean): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.control"],
     BindingScope::Host,
@@ -1620,7 +1620,7 @@ pub const AUDIO_STREAM_SET_MUTE: BindingDescriptor = BindingDescriptor::external
 pub const AUDIO_STREAM_SET_VOLUME: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.setVolume",
     "export function streamSetVolume(handle: AudioStreamHandle, linearGain: float64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.control"],
     BindingScope::Host,
@@ -1632,7 +1632,7 @@ pub const AUDIO_STREAM_SET_VOLUME: BindingDescriptor = BindingDescriptor::extern
 pub const AUDIO_STREAM_SNAPSHOT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.snapshot",
     "export function streamSnapshot(handle: AudioStreamHandle): Result<AudioStreamSnapshot, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.control"],
     BindingScope::Host,
@@ -1645,7 +1645,7 @@ pub const AUDIO_STREAM_START: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.stream.start",
         "export function streamStart(handle: AudioStreamHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.stream"],
         BindingScope::Host,
@@ -1670,7 +1670,7 @@ pub const AUDIO_STREAM_START: BindingDescriptor =
 pub const AUDIO_STREAM_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.state",
     "export function streamState(handle: AudioStreamHandle): Result<AudioStreamState, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.control"],
     BindingScope::Host,
@@ -1683,7 +1683,7 @@ pub const AUDIO_STREAM_STOP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.stream.stop",
         "export function streamStop(handle: AudioStreamHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
+        BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["audio.stream"],
         BindingScope::Host,
@@ -1708,7 +1708,7 @@ pub const AUDIO_STREAM_STOP: BindingDescriptor =
 pub const AUDIO_STREAM_TIMING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.timing",
     "export function streamTiming(handle: AudioStreamHandle): Result<AudioStreamTiming, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.control"],
     BindingScope::Host,
@@ -1720,7 +1720,7 @@ pub const AUDIO_STREAM_TIMING: BindingDescriptor = BindingDescriptor::external_w
 pub const AUDIO_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.tryRead",
     "export function streamTryRead(handle: AudioStreamHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.capture"],
     BindingScope::Host,
@@ -1732,7 +1732,7 @@ pub const AUDIO_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::external
 pub const AUDIO_STREAM_TRY_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.tryWrite",
     "export function streamTryWrite(handle: AudioStreamHandle, data: Slice<uint8>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.playback"],
     BindingScope::Host,
@@ -1744,7 +1744,7 @@ pub const AUDIO_STREAM_TRY_WRITE: BindingDescriptor = BindingDescriptor::externa
 pub const AUDIO_STREAM_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.write",
     "export function streamWrite(handle: AudioStreamHandle, data: Slice<uint8>): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.playback"],
     BindingScope::Host,
@@ -1756,7 +1756,7 @@ pub const AUDIO_STREAM_WRITE: BindingDescriptor = BindingDescriptor::external_wi
 pub const AUDIO_STREAM_WRITE_AT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.writeAt",
     "export function streamWriteAt(handle: AudioStreamHandle, data: Slice<uint8>, presentationTimeNs: uint64): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
+    BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.playback.schedule"],
     BindingScope::Host,
@@ -1946,21 +1946,21 @@ pub const AUDIO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for audio bindings.
 #[inline]
 fn destack_audio_clock_now_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     domain: AudioClockDomain,
 ) -> RuntimeResult<()> {
     let _ = &domain;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_CLOCK_NOW,
         context.replay_payload_for(AUDIO_CLOCK_NOW)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_clock_now(context, out, domain)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_clock_now(context, out, domain)
             },
         },
@@ -2007,7 +2007,7 @@ fn destack_audio_clock_now_replay(
 
 #[inline]
 fn destack_audio_clock_stream_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioClockSnapshot,
     handle: resource::AudioStreamHandle,
@@ -2015,14 +2015,14 @@ fn destack_audio_clock_stream_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &domain);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_CLOCK_STREAM,
         context.replay_payload_for(AUDIO_CLOCK_STREAM)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_clock(context, out, handle, domain)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_clock(context, out, handle, domain)
             },
         },
@@ -2083,20 +2083,20 @@ fn destack_audio_clock_stream_replay(
 
 #[inline]
 fn destack_audio_device_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_DEVICE_CLOSE,
         context.replay_payload_for(AUDIO_DEVICE_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_device_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_device_close(context, handle)
             },
         },
@@ -2131,21 +2131,21 @@ fn destack_audio_device_close_replay(
 
 #[inline]
 fn destack_audio_device_default_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeStringRef,
     direction: AudioDeviceDirection,
 ) -> RuntimeResult<()> {
     let _ = &direction;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_DEVICE_DEFAULT,
         context.replay_payload_for(AUDIO_DEVICE_DEFAULT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_device_default(context, out, direction)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_device_default(context, out, direction)
             },
         },
@@ -2192,21 +2192,21 @@ fn destack_audio_device_default_replay(
 
 #[inline]
 fn destack_audio_device_descriptor_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioDeviceDescriptor,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_DEVICE_DESCRIPTOR,
         context.replay_payload_for(AUDIO_DEVICE_DESCRIPTOR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_device_descriptor(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_device_descriptor(context, out, handle)
             },
         },
@@ -2327,21 +2327,21 @@ fn destack_audio_device_descriptor_replay(
 
 #[inline]
 fn destack_audio_device_list_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<AudioDeviceDescriptor>,
     request: AudioDeviceListRequest,
 ) -> RuntimeResult<()> {
     let _ = &request;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_DEVICE_LIST,
         context.replay_payload_for(AUDIO_DEVICE_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_device_list(context, out, request)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_device_list(context, out, request)
             },
         },
@@ -2502,7 +2502,7 @@ fn destack_audio_device_list_replay(
 
 #[inline]
 fn destack_audio_device_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::AudioDeviceHandle,
     id: NativeStringRef,
@@ -2510,14 +2510,14 @@ fn destack_audio_device_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&id, &options);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_DEVICE_OPEN,
         context.replay_payload_for(AUDIO_DEVICE_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_device_open(context, out, id, options)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_device_open(context, out, id, options)
             },
         },
@@ -2564,20 +2564,20 @@ fn destack_audio_device_open_replay(
 
 #[inline]
 fn destack_audio_event_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_EVENT_CLOSE,
         context.replay_payload_for(AUDIO_EVENT_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_event_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_event_close(context, handle)
             },
         },
@@ -2612,18 +2612,18 @@ fn destack_audio_event_close_replay(
 
 #[inline]
 fn destack_audio_event_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::AudioEventHandle,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_EVENT_OPEN,
         context.replay_payload_for(AUDIO_EVENT_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_event_open(context, out)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_event_open(context, out)
             },
         },
@@ -2670,7 +2670,7 @@ fn destack_audio_event_open_replay(
 
 #[inline]
 fn destack_audio_event_read_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioDeviceEvent,
     handle: resource::AudioEventHandle,
@@ -2678,14 +2678,14 @@ fn destack_audio_event_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_EVENT_READ,
         context.replay_payload_for(AUDIO_EVENT_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_event_read(context, out, handle, timeoutns)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_event_read(
                     context, out, handle, timeoutns,
                 )
@@ -2753,21 +2753,21 @@ fn destack_audio_event_read_replay(
 
 #[inline]
 fn destack_audio_event_try_read_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioDeviceEvent,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_EVENT_TRY_READ,
         context.replay_payload_for(AUDIO_EVENT_TRY_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_event_try_read(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_event_try_read(context, out, handle)
             },
         },
@@ -2833,21 +2833,21 @@ fn destack_audio_event_try_read_replay(
 
 #[inline]
 fn destack_audio_stream_availability_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioStreamAvailability,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_AVAILABILITY,
         context.replay_payload_for(AUDIO_STREAM_AVAILABILITY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_availability(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_availability(context, out, handle)
             },
         },
@@ -2908,20 +2908,20 @@ fn destack_audio_stream_availability_replay(
 
 #[inline]
 fn destack_audio_stream_close_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_CLOSE,
         context.replay_payload_for(AUDIO_STREAM_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_close(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_close(context, handle)
             },
         },
@@ -2956,21 +2956,21 @@ fn destack_audio_stream_close_replay(
 
 #[inline]
 fn destack_audio_stream_drain_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_DRAIN,
         context.replay_payload_for(AUDIO_STREAM_DRAIN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_drain(context, handle, timeoutns)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_drain(context, handle, timeoutns)
             },
         },
@@ -3005,20 +3005,20 @@ fn destack_audio_stream_drain_replay(
 
 #[inline]
 fn destack_audio_stream_flush_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_FLUSH,
         context.replay_payload_for(AUDIO_STREAM_FLUSH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_flush(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_flush(context, handle)
             },
         },
@@ -3053,7 +3053,7 @@ fn destack_audio_stream_flush_replay(
 
 #[inline]
 fn destack_audio_stream_open_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::AudioStreamHandle,
     device: resource::AudioDeviceHandle,
@@ -3061,14 +3061,14 @@ fn destack_audio_stream_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &config);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_OPEN,
         context.replay_payload_for(AUDIO_STREAM_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_open(context, out, device, config)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_open(context, out, device, config)
             },
         },
@@ -3115,7 +3115,7 @@ fn destack_audio_stream_open_replay(
 
 #[inline]
 fn destack_audio_stream_read_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::AudioStreamHandle,
@@ -3123,14 +3123,14 @@ fn destack_audio_stream_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxbytes);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_READ,
         context.replay_payload_for(AUDIO_STREAM_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_read(context, out, handle, maxbytes)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_read(
                     context, out, handle, maxbytes,
                 )
@@ -3190,21 +3190,21 @@ fn destack_audio_stream_read_replay(
 
 #[inline]
 fn destack_audio_stream_set_mute_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     muted: bool,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &muted);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_SET_MUTE,
         context.replay_payload_for(AUDIO_STREAM_SET_MUTE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_set_mute(context, handle, muted)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_set_mute(context, handle, muted)
             },
         },
@@ -3239,21 +3239,21 @@ fn destack_audio_stream_set_mute_replay(
 
 #[inline]
 fn destack_audio_stream_set_volume_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     lineargain: f64,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &lineargain);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_SET_VOLUME,
         context.replay_payload_for(AUDIO_STREAM_SET_VOLUME)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_set_volume(context, handle, lineargain)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_set_volume(
                     context, handle, lineargain,
                 )
@@ -3290,21 +3290,21 @@ fn destack_audio_stream_set_volume_replay(
 
 #[inline]
 fn destack_audio_stream_snapshot_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioStreamSnapshot,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_SNAPSHOT,
         context.replay_payload_for(AUDIO_STREAM_SNAPSHOT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_snapshot(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_snapshot(context, out, handle)
             },
         },
@@ -3394,20 +3394,20 @@ fn destack_audio_stream_snapshot_replay(
 
 #[inline]
 fn destack_audio_stream_start_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_START,
         context.replay_payload_for(AUDIO_STREAM_START)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_start(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_start(context, handle)
             },
         },
@@ -3442,21 +3442,21 @@ fn destack_audio_stream_start_replay(
 
 #[inline]
 fn destack_audio_stream_state_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioStreamState,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_STATE,
         context.replay_payload_for(AUDIO_STREAM_STATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_state(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_state(context, out, handle)
             },
         },
@@ -3525,20 +3525,20 @@ fn destack_audio_stream_state_replay(
 
 #[inline]
 fn destack_audio_stream_stop_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_STOP,
         context.replay_payload_for(AUDIO_STREAM_STOP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_stop(context, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_stop(context, handle)
             },
         },
@@ -3573,21 +3573,21 @@ fn destack_audio_stream_stop_replay(
 
 #[inline]
 fn destack_audio_stream_timing_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioStreamTiming,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_TIMING,
         context.replay_payload_for(AUDIO_STREAM_TIMING)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_timing(context, out, handle)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_timing(context, out, handle)
             },
         },
@@ -3652,7 +3652,7 @@ fn destack_audio_stream_timing_replay(
 
 #[inline]
 fn destack_audio_stream_try_read_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::AudioStreamHandle,
@@ -3660,14 +3660,14 @@ fn destack_audio_stream_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxbytes);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_TRY_READ,
         context.replay_payload_for(AUDIO_STREAM_TRY_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_try_read(context, out, handle, maxbytes)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_try_read(
                     context, out, handle, maxbytes,
                 )
@@ -3727,7 +3727,7 @@ fn destack_audio_stream_try_read_replay(
 
 #[inline]
 fn destack_audio_stream_try_write_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
@@ -3735,14 +3735,14 @@ fn destack_audio_stream_try_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &data);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_TRY_WRITE,
         context.replay_payload_for(AUDIO_STREAM_TRY_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_try_write(context, out, handle, data)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_try_write(
                     context, out, handle, data,
                 )
@@ -3791,7 +3791,7 @@ fn destack_audio_stream_try_write_replay(
 
 #[inline]
 fn destack_audio_stream_write_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
@@ -3799,14 +3799,14 @@ fn destack_audio_stream_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &data);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_WRITE,
         context.replay_payload_for(AUDIO_STREAM_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_write(context, out, handle, data)
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_write(context, out, handle, data)
             },
         },
@@ -3853,7 +3853,7 @@ fn destack_audio_stream_write_replay(
 
 #[inline]
 fn destack_audio_stream_write_at_replay(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
@@ -3862,7 +3862,7 @@ fn destack_audio_stream_write_at_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &data, &presentationtimens);
 
-    context.replay().run_binding_with_payload_policy(
+    context.replay().run_binding_with_policy(
         AUDIO_STREAM_WRITE_AT,
         context.replay_payload_for(AUDIO_STREAM_WRITE_AT)?,
         || match world {
@@ -3875,7 +3875,7 @@ fn destack_audio_stream_write_at_replay(
                     presentationtimens,
                 )
             },
-            RuntimeWorld::Simulated => unsafe {
+            RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_write_at(
                     context,
                     out,
@@ -4382,2242 +4382,2130 @@ pub unsafe extern "C" fn destack_audio_stream_write_at(
 /// VM replay implementations for audio bindings.
 #[inline]
 fn destack_audio_clock_now_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     domain: AudioClockDomain,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_CLOCK_NOW,
-            runtime.replay_payload_for(AUDIO_CLOCK_NOW)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_clock_now(runtime, context, domain)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_audio_clock_now(runtime, context, domain)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = AudioClockNowReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_CLOCK_NOW,
+        runtime.replay_payload_for(AUDIO_CLOCK_NOW)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_audio_clock_now(runtime, context, domain),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_clock_now(runtime, context, domain)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = AudioClockNowReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioClockNowReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioClockNowReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_clock_now_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_clock_stream_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     domain: AudioClockDomain,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_CLOCK_STREAM,
-            runtime.replay_payload_for(AUDIO_CLOCK_STREAM)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_clock(runtime, context, handle, domain)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_clock(
-                    runtime, context, handle, domain,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: AudioClockSnapshotVm = value.clone();
-                    let result_recorded_stream_frames = result_value.stream_frames;
-                    let result_recorded_clock_ns = result_value.clock_ns;
-                    let result_recorded_monotonic_ns = result_value.monotonic_ns;
-                    let result_recorded = AudioClockSnapshot {
-                        stream_frames: result_recorded_stream_frames,
-                        clock_ns: result_recorded_clock_ns,
-                        monotonic_ns: result_recorded_monotonic_ns,
-                    };
-                    let payload = AudioClockStreamReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_CLOCK_STREAM,
+        runtime.replay_payload_for(AUDIO_CLOCK_STREAM)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_stream_clock(runtime, context, handle, domain)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_stream_clock(runtime, context, handle, domain)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: AudioClockSnapshotVm = value.clone();
+                let result_recorded_stream_frames = result_value.stream_frames;
+                let result_recorded_clock_ns = result_value.clock_ns;
+                let result_recorded_monotonic_ns = result_value.monotonic_ns;
+                let result_recorded = AudioClockSnapshot {
+                    stream_frames: result_recorded_stream_frames,
+                    clock_ns: result_recorded_clock_ns,
+                    monotonic_ns: result_recorded_monotonic_ns,
+                };
+                let payload = AudioClockStreamReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioClockStreamReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioClockStreamReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_stream_frames = value.stream_frames;
-                        let vm_result_clock_ns = value.clock_ns;
-                        let vm_result_monotonic_ns = value.monotonic_ns;
-                        let vm_result = AudioClockSnapshotVm {
-                            stream_frames: vm_result_stream_frames,
-                            clock_ns: vm_result_clock_ns,
-                            monotonic_ns: vm_result_monotonic_ns,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_stream_frames = value.stream_frames;
+                    let vm_result_clock_ns = value.clock_ns;
+                    let vm_result_monotonic_ns = value.monotonic_ns;
+                    let vm_result = AudioClockSnapshotVm {
+                        stream_frames: vm_result_stream_frames,
+                        clock_ns: vm_result_clock_ns,
+                        monotonic_ns: vm_result_monotonic_ns,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_clock_stream_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_device_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_DEVICE_CLOSE,
-            runtime.replay_payload_for(AUDIO_DEVICE_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_device_close(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_audio_device_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = AudioDeviceCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_DEVICE_CLOSE,
+        runtime.replay_payload_for(AUDIO_DEVICE_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_audio_device_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_device_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioDeviceCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioDeviceCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioDeviceCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_device_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_device_default_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     direction: AudioDeviceDirection,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_DEVICE_DEFAULT,
-            runtime.replay_payload_for(AUDIO_DEVICE_DEFAULT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_device_default(runtime, context, direction)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_device_default(
-                    runtime, context, direction,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: vm::StringHandle = value.clone();
-                    let result_recorded = {
-                        let result_recorded_ref = context
-                            .string_ref(result_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_ref.as_str().to_string()
-                    };
-                    let payload = AudioDeviceDefaultReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_DEVICE_DEFAULT,
+        runtime.replay_payload_for(AUDIO_DEVICE_DEFAULT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_device_default(runtime, context, direction)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_device_default(runtime, context, direction)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: vm::StringHandle = value.clone();
+                let result_recorded = {
+                    let result_recorded_ref = context
+                        .string_ref(result_value)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_ref.as_str().to_string()
+                };
+                let payload = AudioDeviceDefaultReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioDeviceDefaultReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioDeviceDefaultReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_value = context.intern_string(value.as_str());
-                        let vm_result = vm::StringHandle::new(vm_result_value);
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_value = context.intern_string(value.as_str());
+                    let vm_result = vm::StringHandle::new(vm_result_value);
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_device_default_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_device_descriptor_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_DEVICE_DESCRIPTOR,
-            runtime.replay_payload_for(AUDIO_DEVICE_DESCRIPTOR)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_device_descriptor(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_device_descriptor(
-                    runtime, context, handle,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: AudioDeviceDescriptorVm = value.clone();
-                    let result_recorded_id = {
-                        let result_recorded_id_ref = context
-                            .string_ref(result_value.id)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_id_ref.as_str().to_string()
-                    };
-                    let result_recorded_name = {
-                        let result_recorded_name_ref = context
-                            .string_ref(result_value.name)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_name_ref.as_str().to_string()
-                    };
-                    let result_recorded_backend = result_value.backend;
-                    let result_recorded_direction = result_value.direction;
-                    let result_recorded_connected = result_value.connected;
-                    let result_recorded_is_default_playback = result_value.is_default_playback;
-                    let result_recorded_is_default_capture = result_value.is_default_capture;
-                    let result_recorded_preferred_sample_rate = result_value.preferred_sample_rate;
-                    let result_recorded_min_sample_rate = result_value.min_sample_rate;
-                    let result_recorded_max_sample_rate = result_value.max_sample_rate;
-                    let result_recorded_min_channels = result_value.min_channels;
-                    let result_recorded_max_channels = result_value.max_channels;
-                    let result_recorded_preferred_layout = result_value.preferred_layout;
-                    let result_recorded_preferred_channel_mask =
-                        result_value.preferred_channel_mask;
-                    let result_recorded_supported_channel_mask =
-                        result_value.supported_channel_mask;
-                    let result_recorded_min_period_frames = result_value.min_period_frames;
-                    let result_recorded_max_period_frames = result_value.max_period_frames;
-                    let result_recorded_format_mask = result_value.format_mask;
-                    let result_recorded = AudioDeviceDescriptorReplayRecord {
-                        id: result_recorded_id,
-                        name: result_recorded_name,
-                        backend: result_recorded_backend,
-                        direction: result_recorded_direction,
-                        connected: result_recorded_connected,
-                        is_default_playback: result_recorded_is_default_playback,
-                        is_default_capture: result_recorded_is_default_capture,
-                        preferred_sample_rate: result_recorded_preferred_sample_rate,
-                        min_sample_rate: result_recorded_min_sample_rate,
-                        max_sample_rate: result_recorded_max_sample_rate,
-                        min_channels: result_recorded_min_channels,
-                        max_channels: result_recorded_max_channels,
-                        preferred_layout: result_recorded_preferred_layout,
-                        preferred_channel_mask: result_recorded_preferred_channel_mask,
-                        supported_channel_mask: result_recorded_supported_channel_mask,
-                        min_period_frames: result_recorded_min_period_frames,
-                        max_period_frames: result_recorded_max_period_frames,
-                        format_mask: result_recorded_format_mask,
-                    };
-                    let payload = AudioDeviceDescriptorReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_DEVICE_DESCRIPTOR,
+        runtime.replay_payload_for(AUDIO_DEVICE_DESCRIPTOR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_device_descriptor(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_device_descriptor(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: AudioDeviceDescriptorVm = value.clone();
+                let result_recorded_id = {
+                    let result_recorded_id_ref = context
+                        .string_ref(result_value.id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_id_ref.as_str().to_string()
+                };
+                let result_recorded_name = {
+                    let result_recorded_name_ref = context
+                        .string_ref(result_value.name)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_name_ref.as_str().to_string()
+                };
+                let result_recorded_backend = result_value.backend;
+                let result_recorded_direction = result_value.direction;
+                let result_recorded_connected = result_value.connected;
+                let result_recorded_is_default_playback = result_value.is_default_playback;
+                let result_recorded_is_default_capture = result_value.is_default_capture;
+                let result_recorded_preferred_sample_rate = result_value.preferred_sample_rate;
+                let result_recorded_min_sample_rate = result_value.min_sample_rate;
+                let result_recorded_max_sample_rate = result_value.max_sample_rate;
+                let result_recorded_min_channels = result_value.min_channels;
+                let result_recorded_max_channels = result_value.max_channels;
+                let result_recorded_preferred_layout = result_value.preferred_layout;
+                let result_recorded_preferred_channel_mask = result_value.preferred_channel_mask;
+                let result_recorded_supported_channel_mask = result_value.supported_channel_mask;
+                let result_recorded_min_period_frames = result_value.min_period_frames;
+                let result_recorded_max_period_frames = result_value.max_period_frames;
+                let result_recorded_format_mask = result_value.format_mask;
+                let result_recorded = AudioDeviceDescriptorReplayRecord {
+                    id: result_recorded_id,
+                    name: result_recorded_name,
+                    backend: result_recorded_backend,
+                    direction: result_recorded_direction,
+                    connected: result_recorded_connected,
+                    is_default_playback: result_recorded_is_default_playback,
+                    is_default_capture: result_recorded_is_default_capture,
+                    preferred_sample_rate: result_recorded_preferred_sample_rate,
+                    min_sample_rate: result_recorded_min_sample_rate,
+                    max_sample_rate: result_recorded_max_sample_rate,
+                    min_channels: result_recorded_min_channels,
+                    max_channels: result_recorded_max_channels,
+                    preferred_layout: result_recorded_preferred_layout,
+                    preferred_channel_mask: result_recorded_preferred_channel_mask,
+                    supported_channel_mask: result_recorded_supported_channel_mask,
+                    min_period_frames: result_recorded_min_period_frames,
+                    max_period_frames: result_recorded_max_period_frames,
+                    format_mask: result_recorded_format_mask,
+                };
+                let payload = AudioDeviceDescriptorReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioDeviceDescriptorReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioDeviceDescriptorReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_id_value = context.intern_string(value.id.as_str());
-                        let vm_result_id = vm::StringHandle::new(vm_result_id_value);
-                        let vm_result_name_value = context.intern_string(value.name.as_str());
-                        let vm_result_name = vm::StringHandle::new(vm_result_name_value);
-                        let vm_result_backend = value.backend;
-                        let vm_result_direction = value.direction;
-                        let vm_result_connected = value.connected;
-                        let vm_result_is_default_playback = value.is_default_playback;
-                        let vm_result_is_default_capture = value.is_default_capture;
-                        let vm_result_preferred_sample_rate = value.preferred_sample_rate;
-                        let vm_result_min_sample_rate = value.min_sample_rate;
-                        let vm_result_max_sample_rate = value.max_sample_rate;
-                        let vm_result_min_channels = value.min_channels;
-                        let vm_result_max_channels = value.max_channels;
-                        let vm_result_preferred_layout = value.preferred_layout;
-                        let vm_result_preferred_channel_mask = value.preferred_channel_mask;
-                        let vm_result_supported_channel_mask = value.supported_channel_mask;
-                        let vm_result_min_period_frames = value.min_period_frames;
-                        let vm_result_max_period_frames = value.max_period_frames;
-                        let vm_result_format_mask = value.format_mask;
-                        let vm_result = AudioDeviceDescriptorVm {
-                            id: vm_result_id,
-                            name: vm_result_name,
-                            backend: vm_result_backend,
-                            direction: vm_result_direction,
-                            connected: vm_result_connected,
-                            is_default_playback: vm_result_is_default_playback,
-                            is_default_capture: vm_result_is_default_capture,
-                            preferred_sample_rate: vm_result_preferred_sample_rate,
-                            min_sample_rate: vm_result_min_sample_rate,
-                            max_sample_rate: vm_result_max_sample_rate,
-                            min_channels: vm_result_min_channels,
-                            max_channels: vm_result_max_channels,
-                            preferred_layout: vm_result_preferred_layout,
-                            preferred_channel_mask: vm_result_preferred_channel_mask,
-                            supported_channel_mask: vm_result_supported_channel_mask,
-                            min_period_frames: vm_result_min_period_frames,
-                            max_period_frames: vm_result_max_period_frames,
-                            format_mask: vm_result_format_mask,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_id_value = context.intern_string(value.id.as_str());
+                    let vm_result_id = vm::StringHandle::new(vm_result_id_value);
+                    let vm_result_name_value = context.intern_string(value.name.as_str());
+                    let vm_result_name = vm::StringHandle::new(vm_result_name_value);
+                    let vm_result_backend = value.backend;
+                    let vm_result_direction = value.direction;
+                    let vm_result_connected = value.connected;
+                    let vm_result_is_default_playback = value.is_default_playback;
+                    let vm_result_is_default_capture = value.is_default_capture;
+                    let vm_result_preferred_sample_rate = value.preferred_sample_rate;
+                    let vm_result_min_sample_rate = value.min_sample_rate;
+                    let vm_result_max_sample_rate = value.max_sample_rate;
+                    let vm_result_min_channels = value.min_channels;
+                    let vm_result_max_channels = value.max_channels;
+                    let vm_result_preferred_layout = value.preferred_layout;
+                    let vm_result_preferred_channel_mask = value.preferred_channel_mask;
+                    let vm_result_supported_channel_mask = value.supported_channel_mask;
+                    let vm_result_min_period_frames = value.min_period_frames;
+                    let vm_result_max_period_frames = value.max_period_frames;
+                    let vm_result_format_mask = value.format_mask;
+                    let vm_result = AudioDeviceDescriptorVm {
+                        id: vm_result_id,
+                        name: vm_result_name,
+                        backend: vm_result_backend,
+                        direction: vm_result_direction,
+                        connected: vm_result_connected,
+                        is_default_playback: vm_result_is_default_playback,
+                        is_default_capture: vm_result_is_default_capture,
+                        preferred_sample_rate: vm_result_preferred_sample_rate,
+                        min_sample_rate: vm_result_min_sample_rate,
+                        max_sample_rate: vm_result_max_sample_rate,
+                        min_channels: vm_result_min_channels,
+                        max_channels: vm_result_max_channels,
+                        preferred_layout: vm_result_preferred_layout,
+                        preferred_channel_mask: vm_result_preferred_channel_mask,
+                        supported_channel_mask: vm_result_supported_channel_mask,
+                        min_period_frames: vm_result_min_period_frames,
+                        max_period_frames: vm_result_max_period_frames,
+                        format_mask: vm_result_format_mask,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_device_descriptor_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_device_list_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     request: AudioDeviceListRequestVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_DEVICE_LIST,
-            runtime.replay_payload_for(AUDIO_DEVICE_LIST)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_device_list(runtime, context, request)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_audio_device_list(runtime, context, request)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmSlice<AudioDeviceDescriptorVm> = value.clone();
-                    let result_recorded_raw = result_value.raw_values(context)?;
-                    let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                    for result_recorded_item_value in result_recorded_raw {
-                        let result_recorded_item = {
-                            if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_type(
-                                        "result_recorded_item",
-                                        "item",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let slots = context
-                                .aggregate_slots(result_recorded_item_value)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 18 {
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_DEVICE_LIST,
+        runtime.replay_payload_for(AUDIO_DEVICE_LIST)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_audio_device_list(runtime, context, request),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_device_list(runtime, context, request)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<AudioDeviceDescriptorVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_item",
+                                "item",
+                            ))
+                            .boxed());
+                        }
+                        let slots = context
+                            .aggregate_slots(result_recorded_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 18 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "expected 18 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_item_id =
+                            decode_string(slots[0], "result_recorded_item_id", "id")?;
+                        let result_recorded_item_name =
+                            decode_string(slots[1], "result_recorded_item_name", "name")?;
+                        let result_recorded_item_backend_raw =
+                            decode_uint8(slots[2], "result_recorded_item_backend_raw", "backend")?;
+                        let result_recorded_item_backend = match result_recorded_item_backend_raw {
+                            0u8 => AudioBackend::Auto,
+                            1u8 => AudioBackend::Alsa,
+                            2u8 => AudioBackend::PulseAudio,
+                            3u8 => AudioBackend::PipeWire,
+                            4u8 => AudioBackend::CoreAudio,
+                            5u8 => AudioBackend::Wasapi,
+                            6u8 => AudioBackend::AAudio,
+                            7u8 => AudioBackend::OpenSLES,
+                            255u8 => AudioBackend::Null,
+                            _ => {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
-                                        "result_recorded_item",
-                                        "expected 18 fields",
+                                        "result_recorded_item_backend",
+                                        "unknown AudioBackend value",
                                     ),
                                 )
                                 .boxed());
                             }
-                            let result_recorded_item_id =
-                                decode_string(slots[0], "result_recorded_item_id", "id")?;
-                            let result_recorded_item_name =
-                                decode_string(slots[1], "result_recorded_item_name", "name")?;
-                            let result_recorded_item_backend_raw = decode_uint8(
-                                slots[2],
-                                "result_recorded_item_backend_raw",
-                                "backend",
-                            )?;
-                            let result_recorded_item_backend =
-                                match result_recorded_item_backend_raw {
-                                    0u8 => AudioBackend::Auto,
-                                    1u8 => AudioBackend::Alsa,
-                                    2u8 => AudioBackend::PulseAudio,
-                                    3u8 => AudioBackend::PipeWire,
-                                    4u8 => AudioBackend::CoreAudio,
-                                    5u8 => AudioBackend::Wasapi,
-                                    6u8 => AudioBackend::AAudio,
-                                    7u8 => AudioBackend::OpenSLES,
-                                    255u8 => AudioBackend::Null,
-                                    _ => {
-                                        return Err(RuntimeError::from(
-                                            PlatformError::invalid_argument_value(
-                                                "result_recorded_item_backend",
-                                                "unknown AudioBackend value",
-                                            ),
-                                        )
-                                        .boxed());
-                                    }
-                                };
-                            let result_recorded_item_direction_raw = decode_uint8(
-                                slots[3],
-                                "result_recorded_item_direction_raw",
-                                "direction",
-                            )?;
-                            let result_recorded_item_direction =
-                                match result_recorded_item_direction_raw {
-                                    1u8 => AudioDeviceDirection::Playback,
-                                    2u8 => AudioDeviceDirection::Capture,
-                                    3u8 => AudioDeviceDirection::Duplex,
-                                    _ => {
-                                        return Err(RuntimeError::from(
-                                            PlatformError::invalid_argument_value(
-                                                "result_recorded_item_direction",
-                                                "unknown AudioDeviceDirection value",
-                                            ),
-                                        )
-                                        .boxed());
-                                    }
-                                };
-                            let result_recorded_item_connected = decode_bool(
-                                slots[4],
-                                "result_recorded_item_connected",
-                                "connected",
-                            )?;
-                            let result_recorded_item_is_default_playback = decode_bool(
-                                slots[5],
-                                "result_recorded_item_is_default_playback",
-                                "isDefaultPlayback",
-                            )?;
-                            let result_recorded_item_is_default_capture = decode_bool(
-                                slots[6],
-                                "result_recorded_item_is_default_capture",
-                                "isDefaultCapture",
-                            )?;
-                            let result_recorded_item_preferred_sample_rate = decode_uint32(
-                                slots[7],
-                                "result_recorded_item_preferred_sample_rate",
-                                "preferredSampleRate",
-                            )?;
-                            let result_recorded_item_min_sample_rate = decode_uint32(
-                                slots[8],
-                                "result_recorded_item_min_sample_rate",
-                                "minSampleRate",
-                            )?;
-                            let result_recorded_item_max_sample_rate = decode_uint32(
-                                slots[9],
-                                "result_recorded_item_max_sample_rate",
-                                "maxSampleRate",
-                            )?;
-                            let result_recorded_item_min_channels = decode_uint16(
-                                slots[10],
-                                "result_recorded_item_min_channels",
-                                "minChannels",
-                            )?;
-                            let result_recorded_item_max_channels = decode_uint16(
-                                slots[11],
-                                "result_recorded_item_max_channels",
-                                "maxChannels",
-                            )?;
-                            let result_recorded_item_preferred_layout_raw = decode_uint8(
-                                slots[12],
-                                "result_recorded_item_preferred_layout_raw",
-                                "preferredLayout",
-                            )?;
-                            let result_recorded_item_preferred_layout =
-                                match result_recorded_item_preferred_layout_raw {
-                                    0u8 => AudioChannelLayout::Unknown,
-                                    1u8 => AudioChannelLayout::Mono,
-                                    2u8 => AudioChannelLayout::Stereo,
-                                    3u8 => AudioChannelLayout::Quad,
-                                    4u8 => AudioChannelLayout::Surround51,
-                                    5u8 => AudioChannelLayout::Surround71,
-                                    255u8 => AudioChannelLayout::Custom,
-                                    _ => {
-                                        return Err(RuntimeError::from(
-                                            PlatformError::invalid_argument_value(
-                                                "result_recorded_item_preferred_layout",
-                                                "unknown AudioChannelLayout value",
-                                            ),
-                                        )
-                                        .boxed());
-                                    }
-                                };
-                            let result_recorded_item_preferred_channel_mask = decode_uint64(
-                                slots[13],
-                                "result_recorded_item_preferred_channel_mask",
-                                "preferredChannelMask",
-                            )?;
-                            let result_recorded_item_supported_channel_mask = decode_uint64(
-                                slots[14],
-                                "result_recorded_item_supported_channel_mask",
-                                "supportedChannelMask",
-                            )?;
-                            let result_recorded_item_min_period_frames = decode_uint32(
-                                slots[15],
-                                "result_recorded_item_min_period_frames",
-                                "minPeriodFrames",
-                            )?;
-                            let result_recorded_item_max_period_frames = decode_uint32(
-                                slots[16],
-                                "result_recorded_item_max_period_frames",
-                                "maxPeriodFrames",
-                            )?;
-                            let result_recorded_item_format_mask = decode_uint32(
-                                slots[17],
-                                "result_recorded_item_format_mask",
-                                "formatMask",
-                            )?;
-                            AudioDeviceDescriptorVm {
-                                id: result_recorded_item_id,
-                                name: result_recorded_item_name,
-                                backend: result_recorded_item_backend,
-                                direction: result_recorded_item_direction,
-                                connected: result_recorded_item_connected,
-                                is_default_playback: result_recorded_item_is_default_playback,
-                                is_default_capture: result_recorded_item_is_default_capture,
-                                preferred_sample_rate: result_recorded_item_preferred_sample_rate,
-                                min_sample_rate: result_recorded_item_min_sample_rate,
-                                max_sample_rate: result_recorded_item_max_sample_rate,
-                                min_channels: result_recorded_item_min_channels,
-                                max_channels: result_recorded_item_max_channels,
-                                preferred_layout: result_recorded_item_preferred_layout,
-                                preferred_channel_mask: result_recorded_item_preferred_channel_mask,
-                                supported_channel_mask: result_recorded_item_supported_channel_mask,
-                                min_period_frames: result_recorded_item_min_period_frames,
-                                max_period_frames: result_recorded_item_max_period_frames,
-                                format_mask: result_recorded_item_format_mask,
-                            }
                         };
-                        let result_recorded_item_recorded_id = {
-                            let result_recorded_item_recorded_id_ref = context
-                                .string_ref(result_recorded_item.id)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_item_recorded_id_ref.as_str().to_string()
-                        };
-                        let result_recorded_item_recorded_name = {
-                            let result_recorded_item_recorded_name_ref = context
-                                .string_ref(result_recorded_item.name)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_item_recorded_name_ref.as_str().to_string()
-                        };
-                        let result_recorded_item_recorded_backend = result_recorded_item.backend;
-                        let result_recorded_item_recorded_direction =
-                            result_recorded_item.direction;
-                        let result_recorded_item_recorded_connected =
-                            result_recorded_item.connected;
-                        let result_recorded_item_recorded_is_default_playback =
-                            result_recorded_item.is_default_playback;
-                        let result_recorded_item_recorded_is_default_capture =
-                            result_recorded_item.is_default_capture;
-                        let result_recorded_item_recorded_preferred_sample_rate =
-                            result_recorded_item.preferred_sample_rate;
-                        let result_recorded_item_recorded_min_sample_rate =
-                            result_recorded_item.min_sample_rate;
-                        let result_recorded_item_recorded_max_sample_rate =
-                            result_recorded_item.max_sample_rate;
-                        let result_recorded_item_recorded_min_channels =
-                            result_recorded_item.min_channels;
-                        let result_recorded_item_recorded_max_channels =
-                            result_recorded_item.max_channels;
-                        let result_recorded_item_recorded_preferred_layout =
-                            result_recorded_item.preferred_layout;
-                        let result_recorded_item_recorded_preferred_channel_mask =
-                            result_recorded_item.preferred_channel_mask;
-                        let result_recorded_item_recorded_supported_channel_mask =
-                            result_recorded_item.supported_channel_mask;
-                        let result_recorded_item_recorded_min_period_frames =
-                            result_recorded_item.min_period_frames;
-                        let result_recorded_item_recorded_max_period_frames =
-                            result_recorded_item.max_period_frames;
-                        let result_recorded_item_recorded_format_mask =
-                            result_recorded_item.format_mask;
-                        let result_recorded_item_recorded = AudioDeviceDescriptorReplayRecord {
-                            id: result_recorded_item_recorded_id,
-                            name: result_recorded_item_recorded_name,
-                            backend: result_recorded_item_recorded_backend,
-                            direction: result_recorded_item_recorded_direction,
-                            connected: result_recorded_item_recorded_connected,
-                            is_default_playback: result_recorded_item_recorded_is_default_playback,
-                            is_default_capture: result_recorded_item_recorded_is_default_capture,
-                            preferred_sample_rate:
-                                result_recorded_item_recorded_preferred_sample_rate,
-                            min_sample_rate: result_recorded_item_recorded_min_sample_rate,
-                            max_sample_rate: result_recorded_item_recorded_max_sample_rate,
-                            min_channels: result_recorded_item_recorded_min_channels,
-                            max_channels: result_recorded_item_recorded_max_channels,
-                            preferred_layout: result_recorded_item_recorded_preferred_layout,
-                            preferred_channel_mask:
-                                result_recorded_item_recorded_preferred_channel_mask,
-                            supported_channel_mask:
-                                result_recorded_item_recorded_supported_channel_mask,
-                            min_period_frames: result_recorded_item_recorded_min_period_frames,
-                            max_period_frames: result_recorded_item_recorded_max_period_frames,
-                            format_mask: result_recorded_item_recorded_format_mask,
-                        };
-                        result_recorded.push(result_recorded_item_recorded);
-                    }
-                    let payload = AudioDeviceListReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
-
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioDeviceListReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
-
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let mut vm_result_values = Vec::with_capacity(value.len());
-                        for vm_result_item in value.iter() {
-                            let vm_result_item = vm_result_item.clone();
-                            let vm_result_item_value_id_value =
-                                context.intern_string(vm_result_item.id.as_str());
-                            let vm_result_item_value_id =
-                                vm::StringHandle::new(vm_result_item_value_id_value);
-                            let vm_result_item_value_name_value =
-                                context.intern_string(vm_result_item.name.as_str());
-                            let vm_result_item_value_name =
-                                vm::StringHandle::new(vm_result_item_value_name_value);
-                            let vm_result_item_value_backend = vm_result_item.backend;
-                            let vm_result_item_value_direction = vm_result_item.direction;
-                            let vm_result_item_value_connected = vm_result_item.connected;
-                            let vm_result_item_value_is_default_playback =
-                                vm_result_item.is_default_playback;
-                            let vm_result_item_value_is_default_capture =
-                                vm_result_item.is_default_capture;
-                            let vm_result_item_value_preferred_sample_rate =
-                                vm_result_item.preferred_sample_rate;
-                            let vm_result_item_value_min_sample_rate =
-                                vm_result_item.min_sample_rate;
-                            let vm_result_item_value_max_sample_rate =
-                                vm_result_item.max_sample_rate;
-                            let vm_result_item_value_min_channels = vm_result_item.min_channels;
-                            let vm_result_item_value_max_channels = vm_result_item.max_channels;
-                            let vm_result_item_value_preferred_layout =
-                                vm_result_item.preferred_layout;
-                            let vm_result_item_value_preferred_channel_mask =
-                                vm_result_item.preferred_channel_mask;
-                            let vm_result_item_value_supported_channel_mask =
-                                vm_result_item.supported_channel_mask;
-                            let vm_result_item_value_min_period_frames =
-                                vm_result_item.min_period_frames;
-                            let vm_result_item_value_max_period_frames =
-                                vm_result_item.max_period_frames;
-                            let vm_result_item_value_format_mask = vm_result_item.format_mask;
-                            let vm_result_item_value = AudioDeviceDescriptorVm {
-                                id: vm_result_item_value_id,
-                                name: vm_result_item_value_name,
-                                backend: vm_result_item_value_backend,
-                                direction: vm_result_item_value_direction,
-                                connected: vm_result_item_value_connected,
-                                is_default_playback: vm_result_item_value_is_default_playback,
-                                is_default_capture: vm_result_item_value_is_default_capture,
-                                preferred_sample_rate: vm_result_item_value_preferred_sample_rate,
-                                min_sample_rate: vm_result_item_value_min_sample_rate,
-                                max_sample_rate: vm_result_item_value_max_sample_rate,
-                                min_channels: vm_result_item_value_min_channels,
-                                max_channels: vm_result_item_value_max_channels,
-                                preferred_layout: vm_result_item_value_preferred_layout,
-                                preferred_channel_mask: vm_result_item_value_preferred_channel_mask,
-                                supported_channel_mask: vm_result_item_value_supported_channel_mask,
-                                min_period_frames: vm_result_item_value_min_period_frames,
-                                max_period_frames: vm_result_item_value_max_period_frames,
-                                format_mask: vm_result_item_value_format_mask,
+                        let result_recorded_item_direction_raw = decode_uint8(
+                            slots[3],
+                            "result_recorded_item_direction_raw",
+                            "direction",
+                        )?;
+                        let result_recorded_item_direction =
+                            match result_recorded_item_direction_raw {
+                                1u8 => AudioDeviceDirection::Playback,
+                                2u8 => AudioDeviceDirection::Capture,
+                                3u8 => AudioDeviceDirection::Duplex,
+                                _ => {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_value(
+                                            "result_recorded_item_direction",
+                                            "unknown AudioDeviceDirection value",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
                             };
-                            let vm_result_item_value_encoded = {
-                                let field_0 = vm_result_item_value.id.value();
-                                let field_1 = vm_result_item_value.name.value();
-                                let field_2 =
-                                    vm::Value::uint(vm_result_item_value.backend as u8 as u64, 8);
-                                let field_3 =
-                                    vm::Value::uint(vm_result_item_value.direction as u8 as u64, 8);
-                                let field_4 = vm::Value::bool(vm_result_item_value.connected);
-                                let field_5 =
-                                    vm::Value::bool(vm_result_item_value.is_default_playback);
-                                let field_6 =
-                                    vm::Value::bool(vm_result_item_value.is_default_capture);
-                                let field_7 = vm::Value::uint(
-                                    vm_result_item_value.preferred_sample_rate as u64,
-                                    32,
-                                );
-                                let field_8 = vm::Value::uint(
-                                    vm_result_item_value.min_sample_rate as u64,
-                                    32,
-                                );
-                                let field_9 = vm::Value::uint(
-                                    vm_result_item_value.max_sample_rate as u64,
-                                    32,
-                                );
-                                let field_10 =
-                                    vm::Value::uint(vm_result_item_value.min_channels as u64, 16);
-                                let field_11 =
-                                    vm::Value::uint(vm_result_item_value.max_channels as u64, 16);
-                                let field_12 = vm::Value::uint(
-                                    vm_result_item_value.preferred_layout as u8 as u64,
-                                    8,
-                                );
-                                let field_13 = vm::Value::uint(
-                                    vm_result_item_value.preferred_channel_mask,
-                                    64,
-                                );
-                                let field_14 = vm::Value::uint(
-                                    vm_result_item_value.supported_channel_mask,
-                                    64,
-                                );
-                                let field_15 = vm::Value::uint(
-                                    vm_result_item_value.min_period_frames as u64,
-                                    32,
-                                );
-                                let field_16 = vm::Value::uint(
-                                    vm_result_item_value.max_period_frames as u64,
-                                    32,
-                                );
-                                let field_17 =
-                                    vm::Value::uint(vm_result_item_value.format_mask as u64, 32);
-                                context.allocate_aggregate(vec![
-                                    field_0, field_1, field_2, field_3, field_4, field_5, field_6,
-                                    field_7, field_8, field_9, field_10, field_11, field_12,
-                                    field_13, field_14, field_15, field_16, field_17,
-                                ])
+                        let result_recorded_item_connected =
+                            decode_bool(slots[4], "result_recorded_item_connected", "connected")?;
+                        let result_recorded_item_is_default_playback = decode_bool(
+                            slots[5],
+                            "result_recorded_item_is_default_playback",
+                            "isDefaultPlayback",
+                        )?;
+                        let result_recorded_item_is_default_capture = decode_bool(
+                            slots[6],
+                            "result_recorded_item_is_default_capture",
+                            "isDefaultCapture",
+                        )?;
+                        let result_recorded_item_preferred_sample_rate = decode_uint32(
+                            slots[7],
+                            "result_recorded_item_preferred_sample_rate",
+                            "preferredSampleRate",
+                        )?;
+                        let result_recorded_item_min_sample_rate = decode_uint32(
+                            slots[8],
+                            "result_recorded_item_min_sample_rate",
+                            "minSampleRate",
+                        )?;
+                        let result_recorded_item_max_sample_rate = decode_uint32(
+                            slots[9],
+                            "result_recorded_item_max_sample_rate",
+                            "maxSampleRate",
+                        )?;
+                        let result_recorded_item_min_channels = decode_uint16(
+                            slots[10],
+                            "result_recorded_item_min_channels",
+                            "minChannels",
+                        )?;
+                        let result_recorded_item_max_channels = decode_uint16(
+                            slots[11],
+                            "result_recorded_item_max_channels",
+                            "maxChannels",
+                        )?;
+                        let result_recorded_item_preferred_layout_raw = decode_uint8(
+                            slots[12],
+                            "result_recorded_item_preferred_layout_raw",
+                            "preferredLayout",
+                        )?;
+                        let result_recorded_item_preferred_layout =
+                            match result_recorded_item_preferred_layout_raw {
+                                0u8 => AudioChannelLayout::Unknown,
+                                1u8 => AudioChannelLayout::Mono,
+                                2u8 => AudioChannelLayout::Stereo,
+                                3u8 => AudioChannelLayout::Quad,
+                                4u8 => AudioChannelLayout::Surround51,
+                                5u8 => AudioChannelLayout::Surround71,
+                                255u8 => AudioChannelLayout::Custom,
+                                _ => {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_value(
+                                            "result_recorded_item_preferred_layout",
+                                            "unknown AudioChannelLayout value",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
                             };
-                            vm_result_values.push(vm_result_item_value_encoded);
+                        let result_recorded_item_preferred_channel_mask = decode_uint64(
+                            slots[13],
+                            "result_recorded_item_preferred_channel_mask",
+                            "preferredChannelMask",
+                        )?;
+                        let result_recorded_item_supported_channel_mask = decode_uint64(
+                            slots[14],
+                            "result_recorded_item_supported_channel_mask",
+                            "supportedChannelMask",
+                        )?;
+                        let result_recorded_item_min_period_frames = decode_uint32(
+                            slots[15],
+                            "result_recorded_item_min_period_frames",
+                            "minPeriodFrames",
+                        )?;
+                        let result_recorded_item_max_period_frames = decode_uint32(
+                            slots[16],
+                            "result_recorded_item_max_period_frames",
+                            "maxPeriodFrames",
+                        )?;
+                        let result_recorded_item_format_mask = decode_uint32(
+                            slots[17],
+                            "result_recorded_item_format_mask",
+                            "formatMask",
+                        )?;
+                        AudioDeviceDescriptorVm {
+                            id: result_recorded_item_id,
+                            name: result_recorded_item_name,
+                            backend: result_recorded_item_backend,
+                            direction: result_recorded_item_direction,
+                            connected: result_recorded_item_connected,
+                            is_default_playback: result_recorded_item_is_default_playback,
+                            is_default_capture: result_recorded_item_is_default_capture,
+                            preferred_sample_rate: result_recorded_item_preferred_sample_rate,
+                            min_sample_rate: result_recorded_item_min_sample_rate,
+                            max_sample_rate: result_recorded_item_max_sample_rate,
+                            min_channels: result_recorded_item_min_channels,
+                            max_channels: result_recorded_item_max_channels,
+                            preferred_layout: result_recorded_item_preferred_layout,
+                            preferred_channel_mask: result_recorded_item_preferred_channel_mask,
+                            supported_channel_mask: result_recorded_item_supported_channel_mask,
+                            min_period_frames: result_recorded_item_min_period_frames,
+                            max_period_frames: result_recorded_item_max_period_frames,
+                            format_mask: result_recorded_item_format_mask,
                         }
-                        let vm_result_data = context.allocate_raw_values(vm_result_values);
-                        let vm_result: VmSlice<AudioDeviceDescriptorVm> = VmSlice {
-                            data: vm_result_data,
-                            len: value.len() as u32,
-                            _marker: std::marker::PhantomData,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                    };
+                    let result_recorded_item_recorded_id = {
+                        let result_recorded_item_recorded_id_ref = context
+                            .string_ref(result_recorded_item.id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_name = {
+                        let result_recorded_item_recorded_name_ref = context
+                            .string_ref(result_recorded_item.name)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_name_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
+                    let result_recorded_item_recorded_direction = result_recorded_item.direction;
+                    let result_recorded_item_recorded_connected = result_recorded_item.connected;
+                    let result_recorded_item_recorded_is_default_playback =
+                        result_recorded_item.is_default_playback;
+                    let result_recorded_item_recorded_is_default_capture =
+                        result_recorded_item.is_default_capture;
+                    let result_recorded_item_recorded_preferred_sample_rate =
+                        result_recorded_item.preferred_sample_rate;
+                    let result_recorded_item_recorded_min_sample_rate =
+                        result_recorded_item.min_sample_rate;
+                    let result_recorded_item_recorded_max_sample_rate =
+                        result_recorded_item.max_sample_rate;
+                    let result_recorded_item_recorded_min_channels =
+                        result_recorded_item.min_channels;
+                    let result_recorded_item_recorded_max_channels =
+                        result_recorded_item.max_channels;
+                    let result_recorded_item_recorded_preferred_layout =
+                        result_recorded_item.preferred_layout;
+                    let result_recorded_item_recorded_preferred_channel_mask =
+                        result_recorded_item.preferred_channel_mask;
+                    let result_recorded_item_recorded_supported_channel_mask =
+                        result_recorded_item.supported_channel_mask;
+                    let result_recorded_item_recorded_min_period_frames =
+                        result_recorded_item.min_period_frames;
+                    let result_recorded_item_recorded_max_period_frames =
+                        result_recorded_item.max_period_frames;
+                    let result_recorded_item_recorded_format_mask =
+                        result_recorded_item.format_mask;
+                    let result_recorded_item_recorded = AudioDeviceDescriptorReplayRecord {
+                        id: result_recorded_item_recorded_id,
+                        name: result_recorded_item_recorded_name,
+                        backend: result_recorded_item_recorded_backend,
+                        direction: result_recorded_item_recorded_direction,
+                        connected: result_recorded_item_recorded_connected,
+                        is_default_playback: result_recorded_item_recorded_is_default_playback,
+                        is_default_capture: result_recorded_item_recorded_is_default_capture,
+                        preferred_sample_rate: result_recorded_item_recorded_preferred_sample_rate,
+                        min_sample_rate: result_recorded_item_recorded_min_sample_rate,
+                        max_sample_rate: result_recorded_item_recorded_max_sample_rate,
+                        min_channels: result_recorded_item_recorded_min_channels,
+                        max_channels: result_recorded_item_recorded_max_channels,
+                        preferred_layout: result_recorded_item_recorded_preferred_layout,
+                        preferred_channel_mask:
+                            result_recorded_item_recorded_preferred_channel_mask,
+                        supported_channel_mask:
+                            result_recorded_item_recorded_supported_channel_mask,
+                        min_period_frames: result_recorded_item_recorded_min_period_frames,
+                        max_period_frames: result_recorded_item_recorded_max_period_frames,
+                        format_mask: result_recorded_item_recorded_format_mask,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
                 }
-            },
-        );
+                let payload = AudioDeviceListReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioDeviceListReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value_id_value =
+                            context.intern_string(vm_result_item.id.as_str());
+                        let vm_result_item_value_id =
+                            vm::StringHandle::new(vm_result_item_value_id_value);
+                        let vm_result_item_value_name_value =
+                            context.intern_string(vm_result_item.name.as_str());
+                        let vm_result_item_value_name =
+                            vm::StringHandle::new(vm_result_item_value_name_value);
+                        let vm_result_item_value_backend = vm_result_item.backend;
+                        let vm_result_item_value_direction = vm_result_item.direction;
+                        let vm_result_item_value_connected = vm_result_item.connected;
+                        let vm_result_item_value_is_default_playback =
+                            vm_result_item.is_default_playback;
+                        let vm_result_item_value_is_default_capture =
+                            vm_result_item.is_default_capture;
+                        let vm_result_item_value_preferred_sample_rate =
+                            vm_result_item.preferred_sample_rate;
+                        let vm_result_item_value_min_sample_rate = vm_result_item.min_sample_rate;
+                        let vm_result_item_value_max_sample_rate = vm_result_item.max_sample_rate;
+                        let vm_result_item_value_min_channels = vm_result_item.min_channels;
+                        let vm_result_item_value_max_channels = vm_result_item.max_channels;
+                        let vm_result_item_value_preferred_layout = vm_result_item.preferred_layout;
+                        let vm_result_item_value_preferred_channel_mask =
+                            vm_result_item.preferred_channel_mask;
+                        let vm_result_item_value_supported_channel_mask =
+                            vm_result_item.supported_channel_mask;
+                        let vm_result_item_value_min_period_frames =
+                            vm_result_item.min_period_frames;
+                        let vm_result_item_value_max_period_frames =
+                            vm_result_item.max_period_frames;
+                        let vm_result_item_value_format_mask = vm_result_item.format_mask;
+                        let vm_result_item_value = AudioDeviceDescriptorVm {
+                            id: vm_result_item_value_id,
+                            name: vm_result_item_value_name,
+                            backend: vm_result_item_value_backend,
+                            direction: vm_result_item_value_direction,
+                            connected: vm_result_item_value_connected,
+                            is_default_playback: vm_result_item_value_is_default_playback,
+                            is_default_capture: vm_result_item_value_is_default_capture,
+                            preferred_sample_rate: vm_result_item_value_preferred_sample_rate,
+                            min_sample_rate: vm_result_item_value_min_sample_rate,
+                            max_sample_rate: vm_result_item_value_max_sample_rate,
+                            min_channels: vm_result_item_value_min_channels,
+                            max_channels: vm_result_item_value_max_channels,
+                            preferred_layout: vm_result_item_value_preferred_layout,
+                            preferred_channel_mask: vm_result_item_value_preferred_channel_mask,
+                            supported_channel_mask: vm_result_item_value_supported_channel_mask,
+                            min_period_frames: vm_result_item_value_min_period_frames,
+                            max_period_frames: vm_result_item_value_max_period_frames,
+                            format_mask: vm_result_item_value_format_mask,
+                        };
+                        let vm_result_item_value_encoded = {
+                            let field_0 = vm_result_item_value.id.value();
+                            let field_1 = vm_result_item_value.name.value();
+                            let field_2 =
+                                vm::Value::uint(vm_result_item_value.backend as u8 as u64, 8);
+                            let field_3 =
+                                vm::Value::uint(vm_result_item_value.direction as u8 as u64, 8);
+                            let field_4 = vm::Value::bool(vm_result_item_value.connected);
+                            let field_5 = vm::Value::bool(vm_result_item_value.is_default_playback);
+                            let field_6 = vm::Value::bool(vm_result_item_value.is_default_capture);
+                            let field_7 = vm::Value::uint(
+                                vm_result_item_value.preferred_sample_rate as u64,
+                                32,
+                            );
+                            let field_8 =
+                                vm::Value::uint(vm_result_item_value.min_sample_rate as u64, 32);
+                            let field_9 =
+                                vm::Value::uint(vm_result_item_value.max_sample_rate as u64, 32);
+                            let field_10 =
+                                vm::Value::uint(vm_result_item_value.min_channels as u64, 16);
+                            let field_11 =
+                                vm::Value::uint(vm_result_item_value.max_channels as u64, 16);
+                            let field_12 = vm::Value::uint(
+                                vm_result_item_value.preferred_layout as u8 as u64,
+                                8,
+                            );
+                            let field_13 =
+                                vm::Value::uint(vm_result_item_value.preferred_channel_mask, 64);
+                            let field_14 =
+                                vm::Value::uint(vm_result_item_value.supported_channel_mask, 64);
+                            let field_15 =
+                                vm::Value::uint(vm_result_item_value.min_period_frames as u64, 32);
+                            let field_16 =
+                                vm::Value::uint(vm_result_item_value.max_period_frames as u64, 32);
+                            let field_17 =
+                                vm::Value::uint(vm_result_item_value.format_mask as u64, 32);
+                            context.allocate_aggregate(vec![
+                                field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+                                field_7, field_8, field_9, field_10, field_11, field_12, field_13,
+                                field_14, field_15, field_16, field_17,
+                            ])
+                        };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmSlice<AudioDeviceDescriptorVm> = VmSlice {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_device_list_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_device_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
     options: AudioDeviceOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_DEVICE_OPEN,
-            runtime.replay_payload_for(AUDIO_DEVICE_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_device_open(runtime, context, id, options)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_audio_device_open(runtime, context, id, options)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::AudioDeviceHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = AudioDeviceOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_DEVICE_OPEN,
+        runtime.replay_payload_for(AUDIO_DEVICE_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_device_open(runtime, context, id, options)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_device_open(runtime, context, id, options)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::AudioDeviceHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = AudioDeviceOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioDeviceOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioDeviceOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_device_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_event_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_EVENT_CLOSE,
-            runtime.replay_payload_for(AUDIO_EVENT_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_event_close(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_audio_event_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = AudioEventCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_EVENT_CLOSE,
+        runtime.replay_payload_for(AUDIO_EVENT_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_audio_event_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_event_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioEventCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioEventCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioEventCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_event_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_event_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_EVENT_OPEN,
-            runtime.replay_payload_for(AUDIO_EVENT_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_audio_event_open(runtime, context),
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_audio_event_open(runtime, context)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::AudioEventHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = AudioEventOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_EVENT_OPEN,
+        runtime.replay_payload_for(AUDIO_EVENT_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_audio_event_open(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_event_open(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::AudioEventHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = AudioEventOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioEventOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioEventOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_event_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_event_read_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_EVENT_READ,
-            runtime.replay_payload_for(AUDIO_EVENT_READ)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_event_read(runtime, context, handle, timeoutns)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_event_read(
-                    runtime, context, handle, timeoutns,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: AudioDeviceEventVm = value.clone();
-                    let result_recorded_kind = result_value.kind;
-                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                    let result_recorded_device_id = {
-                        let result_recorded_device_id_ref = context
-                            .string_ref(result_value.device_id)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_device_id_ref.as_str().to_string()
-                    };
-                    let result_recorded_flags = result_value.flags;
-                    let result_recorded = AudioDeviceEventReplayRecord {
-                        kind: result_recorded_kind,
-                        timestamp_ns: result_recorded_timestamp_ns,
-                        device_id: result_recorded_device_id,
-                        flags: result_recorded_flags,
-                    };
-                    let payload = AudioEventReadReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_EVENT_READ,
+        runtime.replay_payload_for(AUDIO_EVENT_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_event_read(runtime, context, handle, timeoutns)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_read(
+                runtime, context, handle, timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: AudioDeviceEventVm = value.clone();
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_device_id = {
+                    let result_recorded_device_id_ref = context
+                        .string_ref(result_value.device_id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_device_id_ref.as_str().to_string()
+                };
+                let result_recorded_flags = result_value.flags;
+                let result_recorded = AudioDeviceEventReplayRecord {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    device_id: result_recorded_device_id,
+                    flags: result_recorded_flags,
+                };
+                let payload = AudioEventReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioEventReadReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioEventReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_kind = value.kind;
-                        let vm_result_timestamp_ns = value.timestamp_ns;
-                        let vm_result_device_id_value =
-                            context.intern_string(value.device_id.as_str());
-                        let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
-                        let vm_result_flags = value.flags;
-                        let vm_result = AudioDeviceEventVm {
-                            kind: vm_result_kind,
-                            timestamp_ns: vm_result_timestamp_ns,
-                            device_id: vm_result_device_id,
-                            flags: vm_result_flags,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_kind = value.kind;
+                    let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_device_id_value = context.intern_string(value.device_id.as_str());
+                    let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
+                    let vm_result_flags = value.flags;
+                    let vm_result = AudioDeviceEventVm {
+                        kind: vm_result_kind,
+                        timestamp_ns: vm_result_timestamp_ns,
+                        device_id: vm_result_device_id,
+                        flags: vm_result_flags,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_event_read_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_event_try_read_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_EVENT_TRY_READ,
-            runtime.replay_payload_for(AUDIO_EVENT_TRY_READ)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_event_try_read(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_audio_event_try_read(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: AudioDeviceEventVm = value.clone();
-                    let result_recorded_kind = result_value.kind;
-                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                    let result_recorded_device_id = {
-                        let result_recorded_device_id_ref = context
-                            .string_ref(result_value.device_id)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_device_id_ref.as_str().to_string()
-                    };
-                    let result_recorded_flags = result_value.flags;
-                    let result_recorded = AudioDeviceEventReplayRecord {
-                        kind: result_recorded_kind,
-                        timestamp_ns: result_recorded_timestamp_ns,
-                        device_id: result_recorded_device_id,
-                        flags: result_recorded_flags,
-                    };
-                    let payload = AudioEventTryReadReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_EVENT_TRY_READ,
+        runtime.replay_payload_for(AUDIO_EVENT_TRY_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_event_try_read(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_event_try_read(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: AudioDeviceEventVm = value.clone();
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_device_id = {
+                    let result_recorded_device_id_ref = context
+                        .string_ref(result_value.device_id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_device_id_ref.as_str().to_string()
+                };
+                let result_recorded_flags = result_value.flags;
+                let result_recorded = AudioDeviceEventReplayRecord {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    device_id: result_recorded_device_id,
+                    flags: result_recorded_flags,
+                };
+                let payload = AudioEventTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioEventTryReadReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioEventTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_kind = value.kind;
-                        let vm_result_timestamp_ns = value.timestamp_ns;
-                        let vm_result_device_id_value =
-                            context.intern_string(value.device_id.as_str());
-                        let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
-                        let vm_result_flags = value.flags;
-                        let vm_result = AudioDeviceEventVm {
-                            kind: vm_result_kind,
-                            timestamp_ns: vm_result_timestamp_ns,
-                            device_id: vm_result_device_id,
-                            flags: vm_result_flags,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_kind = value.kind;
+                    let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_device_id_value = context.intern_string(value.device_id.as_str());
+                    let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
+                    let vm_result_flags = value.flags;
+                    let vm_result = AudioDeviceEventVm {
+                        kind: vm_result_kind,
+                        timestamp_ns: vm_result_timestamp_ns,
+                        device_id: vm_result_device_id,
+                        flags: vm_result_flags,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_event_try_read_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_availability_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_AVAILABILITY,
-            runtime.replay_payload_for(AUDIO_STREAM_AVAILABILITY)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_availability(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_audio_stream_availability(
-                        runtime, context, handle,
-                    )
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: AudioStreamAvailabilityVm = value.clone();
-                    let result_recorded_readable_frames = result_value.readable_frames;
-                    let result_recorded_writable_frames = result_value.writable_frames;
-                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                    let result_recorded = AudioStreamAvailability {
-                        readable_frames: result_recorded_readable_frames,
-                        writable_frames: result_recorded_writable_frames,
-                        timestamp_ns: result_recorded_timestamp_ns,
-                    };
-                    let payload = AudioStreamAvailabilityReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_AVAILABILITY,
+        runtime.replay_payload_for(AUDIO_STREAM_AVAILABILITY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_stream_availability(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_stream_availability(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: AudioStreamAvailabilityVm = value.clone();
+                let result_recorded_readable_frames = result_value.readable_frames;
+                let result_recorded_writable_frames = result_value.writable_frames;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded = AudioStreamAvailability {
+                    readable_frames: result_recorded_readable_frames,
+                    writable_frames: result_recorded_writable_frames,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                };
+                let payload = AudioStreamAvailabilityReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamAvailabilityReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamAvailabilityReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_readable_frames = value.readable_frames;
-                        let vm_result_writable_frames = value.writable_frames;
-                        let vm_result_timestamp_ns = value.timestamp_ns;
-                        let vm_result = AudioStreamAvailabilityVm {
-                            readable_frames: vm_result_readable_frames,
-                            writable_frames: vm_result_writable_frames,
-                            timestamp_ns: vm_result_timestamp_ns,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_readable_frames = value.readable_frames;
+                    let vm_result_writable_frames = value.writable_frames;
+                    let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result = AudioStreamAvailabilityVm {
+                        readable_frames: vm_result_readable_frames,
+                        writable_frames: vm_result_writable_frames,
+                        timestamp_ns: vm_result_timestamp_ns,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_availability_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_close_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_CLOSE,
-            runtime.replay_payload_for(AUDIO_STREAM_CLOSE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_close(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_audio_stream_close(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = AudioStreamCloseReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_CLOSE,
+        runtime.replay_payload_for(AUDIO_STREAM_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_audio_stream_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_stream_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioStreamCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamCloseReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_close_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_drain_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_DRAIN,
-            runtime.replay_payload_for(AUDIO_STREAM_DRAIN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_drain(runtime, context, handle, timeoutns)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_drain(
-                    runtime, context, handle, timeoutns,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = AudioStreamDrainReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_DRAIN,
+        runtime.replay_payload_for(AUDIO_STREAM_DRAIN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_stream_drain(runtime, context, handle, timeoutns)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_drain(
+                runtime, context, handle, timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioStreamDrainReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamDrainReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamDrainReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_drain_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_flush_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_FLUSH,
-            runtime.replay_payload_for(AUDIO_STREAM_FLUSH)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_flush(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_audio_stream_flush(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = AudioStreamFlushReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_FLUSH,
+        runtime.replay_payload_for(AUDIO_STREAM_FLUSH)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_audio_stream_flush(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_stream_flush(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioStreamFlushReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamFlushReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamFlushReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_flush_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_open_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfigVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_OPEN,
-            runtime.replay_payload_for(AUDIO_STREAM_OPEN)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_open(runtime, context, device, config)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_open(
-                    runtime, context, device, config,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: resource::AudioStreamHandle = value.clone();
-                    let result_recorded = result_value;
-                    let payload = AudioStreamOpenReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_OPEN,
+        runtime.replay_payload_for(AUDIO_STREAM_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_stream_open(runtime, context, device, config)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_stream_open(runtime, context, device, config)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::AudioStreamHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = AudioStreamOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamOpenReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_read_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_READ,
-            runtime.replay_payload_for(AUDIO_STREAM_READ)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_read(runtime, context, handle, maxbytes)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_read(
-                    runtime, context, handle, maxbytes,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmSlice<u8> = value.clone();
-                    let result_recorded = result_value.read_bytes(context)?;
-                    let payload = AudioStreamReadReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_READ,
+        runtime.replay_payload_for(AUDIO_STREAM_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_stream_read(runtime, context, handle, maxbytes)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_read(
+                runtime, context, handle, maxbytes,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<u8> = value.clone();
+                let result_recorded = result_value.read_bytes(context)?;
+                let payload = AudioStreamReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamReadReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = VmSlice::from_bytes(context, value.as_slice());
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmSlice::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_read_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_set_mute_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     muted: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_SET_MUTE,
-            runtime.replay_payload_for(AUDIO_STREAM_SET_MUTE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_set_mute(runtime, context, handle, muted)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_set_mute(
-                    runtime, context, handle, muted,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = AudioStreamSetMuteReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_SET_MUTE,
+        runtime.replay_payload_for(AUDIO_STREAM_SET_MUTE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_stream_set_mute(runtime, context, handle, muted)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_set_mute(
+                runtime, context, handle, muted,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioStreamSetMuteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamSetMuteReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamSetMuteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_set_mute_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_set_volume_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     lineargain: f64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_SET_VOLUME,
-            runtime.replay_payload_for(AUDIO_STREAM_SET_VOLUME)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_audio_stream_set_volume(
-                    runtime, context, handle, lineargain,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_set_volume(
-                    runtime, context, handle, lineargain,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = AudioStreamSetVolumeReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_SET_VOLUME,
+        runtime.replay_payload_for(AUDIO_STREAM_SET_VOLUME)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_stream_set_volume(runtime, context, handle, lineargain)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_set_volume(
+                runtime, context, handle, lineargain,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioStreamSetVolumeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamSetVolumeReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamSetVolumeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_set_volume_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_snapshot_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_SNAPSHOT,
-            runtime.replay_payload_for(AUDIO_STREAM_SNAPSHOT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_snapshot(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_audio_stream_snapshot(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: AudioStreamSnapshotVm = value.clone();
-                    let result_recorded_sample_rate = result_value.sample_rate;
-                    let result_recorded_channels = result_value.channels;
-                    let result_recorded_channel_layout = result_value.channel_layout;
-                    let result_recorded_channel_mask = result_value.channel_mask;
-                    let result_recorded_format = result_value.format;
-                    let result_recorded_period_frames = result_value.period_frames;
-                    let result_recorded_transfer_mode = result_value.transfer_mode;
-                    let result_recorded_exclusive_mode = result_value.exclusive_mode;
-                    let result_recorded_period_jitter_ns = result_value.period_jitter_ns;
-                    let result_recorded_backend_id = {
-                        let result_recorded_backend_id_ref = context
-                            .string_ref(result_value.backend_id)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_backend_id_ref.as_str().to_string()
-                    };
-                    let result_recorded = AudioStreamSnapshotReplayRecord {
-                        sample_rate: result_recorded_sample_rate,
-                        channels: result_recorded_channels,
-                        channel_layout: result_recorded_channel_layout,
-                        channel_mask: result_recorded_channel_mask,
-                        format: result_recorded_format,
-                        period_frames: result_recorded_period_frames,
-                        transfer_mode: result_recorded_transfer_mode,
-                        exclusive_mode: result_recorded_exclusive_mode,
-                        period_jitter_ns: result_recorded_period_jitter_ns,
-                        backend_id: result_recorded_backend_id,
-                    };
-                    let payload = AudioStreamSnapshotReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_SNAPSHOT,
+        runtime.replay_payload_for(AUDIO_STREAM_SNAPSHOT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_stream_snapshot(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_stream_snapshot(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: AudioStreamSnapshotVm = value.clone();
+                let result_recorded_sample_rate = result_value.sample_rate;
+                let result_recorded_channels = result_value.channels;
+                let result_recorded_channel_layout = result_value.channel_layout;
+                let result_recorded_channel_mask = result_value.channel_mask;
+                let result_recorded_format = result_value.format;
+                let result_recorded_period_frames = result_value.period_frames;
+                let result_recorded_transfer_mode = result_value.transfer_mode;
+                let result_recorded_exclusive_mode = result_value.exclusive_mode;
+                let result_recorded_period_jitter_ns = result_value.period_jitter_ns;
+                let result_recorded_backend_id = {
+                    let result_recorded_backend_id_ref = context
+                        .string_ref(result_value.backend_id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_backend_id_ref.as_str().to_string()
+                };
+                let result_recorded = AudioStreamSnapshotReplayRecord {
+                    sample_rate: result_recorded_sample_rate,
+                    channels: result_recorded_channels,
+                    channel_layout: result_recorded_channel_layout,
+                    channel_mask: result_recorded_channel_mask,
+                    format: result_recorded_format,
+                    period_frames: result_recorded_period_frames,
+                    transfer_mode: result_recorded_transfer_mode,
+                    exclusive_mode: result_recorded_exclusive_mode,
+                    period_jitter_ns: result_recorded_period_jitter_ns,
+                    backend_id: result_recorded_backend_id,
+                };
+                let payload = AudioStreamSnapshotReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamSnapshotReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamSnapshotReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_sample_rate = value.sample_rate;
-                        let vm_result_channels = value.channels;
-                        let vm_result_channel_layout = value.channel_layout;
-                        let vm_result_channel_mask = value.channel_mask;
-                        let vm_result_format = value.format;
-                        let vm_result_period_frames = value.period_frames;
-                        let vm_result_transfer_mode = value.transfer_mode;
-                        let vm_result_exclusive_mode = value.exclusive_mode;
-                        let vm_result_period_jitter_ns = value.period_jitter_ns;
-                        let vm_result_backend_id_value =
-                            context.intern_string(value.backend_id.as_str());
-                        let vm_result_backend_id =
-                            vm::StringHandle::new(vm_result_backend_id_value);
-                        let vm_result = AudioStreamSnapshotVm {
-                            sample_rate: vm_result_sample_rate,
-                            channels: vm_result_channels,
-                            channel_layout: vm_result_channel_layout,
-                            channel_mask: vm_result_channel_mask,
-                            format: vm_result_format,
-                            period_frames: vm_result_period_frames,
-                            transfer_mode: vm_result_transfer_mode,
-                            exclusive_mode: vm_result_exclusive_mode,
-                            period_jitter_ns: vm_result_period_jitter_ns,
-                            backend_id: vm_result_backend_id,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_sample_rate = value.sample_rate;
+                    let vm_result_channels = value.channels;
+                    let vm_result_channel_layout = value.channel_layout;
+                    let vm_result_channel_mask = value.channel_mask;
+                    let vm_result_format = value.format;
+                    let vm_result_period_frames = value.period_frames;
+                    let vm_result_transfer_mode = value.transfer_mode;
+                    let vm_result_exclusive_mode = value.exclusive_mode;
+                    let vm_result_period_jitter_ns = value.period_jitter_ns;
+                    let vm_result_backend_id_value =
+                        context.intern_string(value.backend_id.as_str());
+                    let vm_result_backend_id = vm::StringHandle::new(vm_result_backend_id_value);
+                    let vm_result = AudioStreamSnapshotVm {
+                        sample_rate: vm_result_sample_rate,
+                        channels: vm_result_channels,
+                        channel_layout: vm_result_channel_layout,
+                        channel_mask: vm_result_channel_mask,
+                        format: vm_result_format,
+                        period_frames: vm_result_period_frames,
+                        transfer_mode: vm_result_transfer_mode,
+                        exclusive_mode: vm_result_exclusive_mode,
+                        period_jitter_ns: vm_result_period_jitter_ns,
+                        backend_id: vm_result_backend_id,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_snapshot_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_start_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_START,
-            runtime.replay_payload_for(AUDIO_STREAM_START)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_start(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_audio_stream_start(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = AudioStreamStartReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_START,
+        runtime.replay_payload_for(AUDIO_STREAM_START)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_audio_stream_start(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_stream_start(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioStreamStartReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamStartReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamStartReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_start_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_state_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_STATE,
-            runtime.replay_payload_for(AUDIO_STREAM_STATE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_state(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_audio_stream_state(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: AudioStreamStateVm = value.clone();
-                    let result_recorded_state = result_value.state;
-                    let result_recorded_running = result_value.running;
-                    let result_recorded_buffered_frames = result_value.buffered_frames;
-                    let result_recorded_latency_ns = result_value.latency_ns;
-                    let result_recorded_xrun_count = result_value.xrun_count;
-                    let result_recorded = AudioStreamState {
-                        state: result_recorded_state,
-                        running: result_recorded_running,
-                        buffered_frames: result_recorded_buffered_frames,
-                        latency_ns: result_recorded_latency_ns,
-                        xrun_count: result_recorded_xrun_count,
-                    };
-                    let payload = AudioStreamStateReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_STATE,
+        runtime.replay_payload_for(AUDIO_STREAM_STATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_audio_stream_state(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_stream_state(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: AudioStreamStateVm = value.clone();
+                let result_recorded_state = result_value.state;
+                let result_recorded_running = result_value.running;
+                let result_recorded_buffered_frames = result_value.buffered_frames;
+                let result_recorded_latency_ns = result_value.latency_ns;
+                let result_recorded_xrun_count = result_value.xrun_count;
+                let result_recorded = AudioStreamState {
+                    state: result_recorded_state,
+                    running: result_recorded_running,
+                    buffered_frames: result_recorded_buffered_frames,
+                    latency_ns: result_recorded_latency_ns,
+                    xrun_count: result_recorded_xrun_count,
+                };
+                let payload = AudioStreamStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamStateReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamStateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_state = value.state;
-                        let vm_result_running = value.running;
-                        let vm_result_buffered_frames = value.buffered_frames;
-                        let vm_result_latency_ns = value.latency_ns;
-                        let vm_result_xrun_count = value.xrun_count;
-                        let vm_result = AudioStreamStateVm {
-                            state: vm_result_state,
-                            running: vm_result_running,
-                            buffered_frames: vm_result_buffered_frames,
-                            latency_ns: vm_result_latency_ns,
-                            xrun_count: vm_result_xrun_count,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_state = value.state;
+                    let vm_result_running = value.running;
+                    let vm_result_buffered_frames = value.buffered_frames;
+                    let vm_result_latency_ns = value.latency_ns;
+                    let vm_result_xrun_count = value.xrun_count;
+                    let vm_result = AudioStreamStateVm {
+                        state: vm_result_state,
+                        running: vm_result_running,
+                        buffered_frames: vm_result_buffered_frames,
+                        latency_ns: vm_result_latency_ns,
+                        xrun_count: vm_result_xrun_count,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_state_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_stop_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_STOP,
-            runtime.replay_payload_for(AUDIO_STREAM_STOP)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_stop(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_audio_stream_stop(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(()) = result {
-                    let result_recorded = ();
-                    let payload = AudioStreamStopReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_STOP,
+        runtime.replay_payload_for(AUDIO_STREAM_STOP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_audio_stream_stop(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_stream_stop(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioStreamStopReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamStopReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamStopReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(()) => Ok(()),
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
-                }
-            },
-        );
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_stop_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_timing_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_TIMING,
-            runtime.replay_payload_for(AUDIO_STREAM_TIMING)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_timing(runtime, context, handle)
-                }
-                RuntimeWorld::Simulated => {
-                    platform_simulation_vm::destack_audio_stream_timing(runtime, context, handle)
-                }
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: AudioStreamTimingVm = value.clone();
-                    let result_recorded_stream_frames = result_value.stream_frames;
-                    let result_recorded_device_clock_ns = result_value.device_clock_ns;
-                    let result_recorded_monotonic_clock_ns = result_value.monotonic_clock_ns;
-                    let result_recorded_drift_ppm = result_value.drift_ppm;
-                    let result_recorded = AudioStreamTiming {
-                        stream_frames: result_recorded_stream_frames,
-                        device_clock_ns: result_recorded_device_clock_ns,
-                        monotonic_clock_ns: result_recorded_monotonic_clock_ns,
-                        drift_ppm: result_recorded_drift_ppm,
-                    };
-                    let payload = AudioStreamTimingReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_TIMING,
+        runtime.replay_payload_for(AUDIO_STREAM_TIMING)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_stream_timing(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_stream_timing(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: AudioStreamTimingVm = value.clone();
+                let result_recorded_stream_frames = result_value.stream_frames;
+                let result_recorded_device_clock_ns = result_value.device_clock_ns;
+                let result_recorded_monotonic_clock_ns = result_value.monotonic_clock_ns;
+                let result_recorded_drift_ppm = result_value.drift_ppm;
+                let result_recorded = AudioStreamTiming {
+                    stream_frames: result_recorded_stream_frames,
+                    device_clock_ns: result_recorded_device_clock_ns,
+                    monotonic_clock_ns: result_recorded_monotonic_clock_ns,
+                    drift_ppm: result_recorded_drift_ppm,
+                };
+                let payload = AudioStreamTimingReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamTimingReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamTimingReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result_stream_frames = value.stream_frames;
-                        let vm_result_device_clock_ns = value.device_clock_ns;
-                        let vm_result_monotonic_clock_ns = value.monotonic_clock_ns;
-                        let vm_result_drift_ppm = value.drift_ppm;
-                        let vm_result = AudioStreamTimingVm {
-                            stream_frames: vm_result_stream_frames,
-                            device_clock_ns: vm_result_device_clock_ns,
-                            monotonic_clock_ns: vm_result_monotonic_clock_ns,
-                            drift_ppm: vm_result_drift_ppm,
-                        };
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_stream_frames = value.stream_frames;
+                    let vm_result_device_clock_ns = value.device_clock_ns;
+                    let vm_result_monotonic_clock_ns = value.monotonic_clock_ns;
+                    let vm_result_drift_ppm = value.drift_ppm;
+                    let vm_result = AudioStreamTimingVm {
+                        stream_frames: vm_result_stream_frames,
+                        device_clock_ns: vm_result_device_clock_ns,
+                        monotonic_clock_ns: vm_result_monotonic_clock_ns,
+                        drift_ppm: vm_result_drift_ppm,
+                    };
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_timing_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_try_read_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_TRY_READ,
-            runtime.replay_payload_for(AUDIO_STREAM_TRY_READ)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_try_read(runtime, context, handle, maxbytes)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_try_read(
-                    runtime, context, handle, maxbytes,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: VmSlice<u8> = value.clone();
-                    let result_recorded = result_value.read_bytes(context)?;
-                    let payload = AudioStreamTryReadReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_TRY_READ,
+        runtime.replay_payload_for(AUDIO_STREAM_TRY_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_stream_try_read(runtime, context, handle, maxbytes)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_try_read(
+                runtime, context, handle, maxbytes,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<u8> = value.clone();
+                let result_recorded = result_value.read_bytes(context)?;
+                let payload = AudioStreamTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamTryReadReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = VmSlice::from_bytes(context, value.as_slice());
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmSlice::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_try_read_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_try_write_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_TRY_WRITE,
-            runtime.replay_payload_for(AUDIO_STREAM_TRY_WRITE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_try_write(runtime, context, handle, data)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_try_write(
-                    runtime, context, handle, data,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = AudioStreamTryWriteReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_TRY_WRITE,
+        runtime.replay_payload_for(AUDIO_STREAM_TRY_WRITE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_stream_try_write(runtime, context, handle, data)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_try_write(
+                runtime, context, handle, data,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = AudioStreamTryWriteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamTryWriteReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamTryWriteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_try_write_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_write_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_WRITE,
-            runtime.replay_payload_for(AUDIO_STREAM_WRITE)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_audio_stream_write(runtime, context, handle, data)
-                }
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_write(
-                    runtime, context, handle, data,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = AudioStreamWriteReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_WRITE,
+        runtime.replay_payload_for(AUDIO_STREAM_WRITE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_stream_write(runtime, context, handle, data)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_stream_write(runtime, context, handle, data)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = AudioStreamWriteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamWriteReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamWriteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_write_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
 fn destack_audio_stream_write_at_vm_replay(
-    runtime: &RuntimeCallContext,
+    runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
     presentationtimens: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime
-        .replay()
-        .run_binding_with_context_and_payload_policy(
-            AUDIO_STREAM_WRITE_AT,
-            runtime.replay_payload_for(AUDIO_STREAM_WRITE_AT)?,
-            context,
-            |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_audio_stream_write_at(
-                    runtime,
-                    context,
-                    handle,
-                    data,
-                    presentationtimens,
-                ),
-                RuntimeWorld::Simulated => platform_simulation_vm::destack_audio_stream_write_at(
-                    runtime,
-                    context,
-                    handle,
-                    data,
-                    presentationtimens,
-                ),
-            },
-            |context, result| {
-                let _ = &context;
-                if let Ok(value) = result {
-                    let result_value: u64 = value.clone();
-                    let result_recorded = result_value;
-                    let payload = AudioStreamWriteAtReplay {
-                        result: Ok(result_recorded),
-                    };
-                    return Ok(Some(payload));
-                }
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_WRITE_AT,
+        runtime.replay_payload_for(AUDIO_STREAM_WRITE_AT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_audio_stream_write_at(
+                runtime,
+                context,
+                handle,
+                data,
+                presentationtimens,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_write_at(
+                runtime,
+                context,
+                handle,
+                data,
+                presentationtimens,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = AudioStreamWriteAtReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
 
-                if let Err(error) = result {
-                    let payload = {
-                        let result = Err(PlatformError::from(error.as_ref()));
-                        AudioStreamWriteAtReplay { result }
-                    };
-                    return Ok(Some(payload));
-                }
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamWriteAtReplay { result }
+                };
+                return Ok(Some(payload));
+            }
 
-                Ok(None)
-            },
-            |context, payload| {
-                let _ = &context;
-                // replay result
-                match payload.result {
-                    Ok(value) => {
-                        let vm_result = value;
-                        Ok(vm_result)
-                    }
-                    Err(error) => Err(RuntimeError::from(error).boxed()),
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
                 }
-            },
-        );
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
     let result = encode_destack_audio_stream_write_at_result(context, result)?;
     Ok(result)
 }
@@ -6626,7 +6514,7 @@ fn destack_audio_stream_write_at_vm_replay(
 pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(registry, isolate, AUDIO_CLOCK_NOW, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (domain,) = decode_destack_audio_clock_now_args(context, args)?;
 
@@ -6644,7 +6532,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_CLOCK_STREAM,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, domain) = decode_destack_audio_clock_stream_args(context, args)?;
 
@@ -6663,7 +6551,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_DEVICE_CLOSE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_audio_device_close_args(context, args)?;
 
@@ -6682,7 +6570,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_DEVICE_DEFAULT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (direction,) = decode_destack_audio_device_default_args(context, args)?;
 
@@ -6701,7 +6589,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_DEVICE_DESCRIPTOR,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_audio_device_descriptor_args(context, args)?;
 
@@ -6720,7 +6608,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_DEVICE_LIST,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (request,) = decode_destack_audio_device_list_args(context, args)?;
 
@@ -6739,7 +6627,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_DEVICE_OPEN,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (id, options) = decode_destack_audio_device_open_args(context, args)?;
 
@@ -6758,7 +6646,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_EVENT_CLOSE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_audio_event_close_args(context, args)?;
 
@@ -6777,7 +6665,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_EVENT_OPEN,
             move |context, _args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // execute binding
                     runtime.check_policy(AUDIO_EVENT_OPEN)?;
                     let world = runtime.check_and_resolve_world(AUDIO_EVENT_OPEN)?;
@@ -6789,7 +6677,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
     }
     {
         binding!(registry, isolate, AUDIO_EVENT_READ, move |context, args| {
-            with_runtime_call_context(|runtime| {
+            with_binding_call_context(|runtime| {
                 // decode args
                 let (handle, timeoutns) = decode_destack_audio_event_read_args(context, args)?;
 
@@ -6807,7 +6695,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_EVENT_TRY_READ,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_audio_event_try_read_args(context, args)?;
 
@@ -6826,7 +6714,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_AVAILABILITY,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_availability_args(context, args)?;
 
@@ -6845,7 +6733,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_CLOSE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_close_args(context, args)?;
 
@@ -6864,7 +6752,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_DRAIN,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_audio_stream_drain_args(context, args)?;
@@ -6884,7 +6772,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_FLUSH,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_flush_args(context, args)?;
 
@@ -6903,7 +6791,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_OPEN,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (device, config) = decode_destack_audio_stream_open_args(context, args)?;
 
@@ -6922,7 +6810,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_READ,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, maxbytes) = decode_destack_audio_stream_read_args(context, args)?;
 
@@ -6941,7 +6829,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_SET_MUTE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, muted) = decode_destack_audio_stream_set_mute_args(context, args)?;
 
@@ -6960,7 +6848,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_SET_VOLUME,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, lineargain) =
                         decode_destack_audio_stream_set_volume_args(context, args)?;
@@ -6982,7 +6870,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_SNAPSHOT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_snapshot_args(context, args)?;
 
@@ -7001,7 +6889,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_START,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_start_args(context, args)?;
 
@@ -7020,7 +6908,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_STATE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_state_args(context, args)?;
 
@@ -7039,7 +6927,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_STOP,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_stop_args(context, args)?;
 
@@ -7058,7 +6946,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_TIMING,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_timing_args(context, args)?;
 
@@ -7077,7 +6965,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_TRY_READ,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, maxbytes) =
                         decode_destack_audio_stream_try_read_args(context, args)?;
@@ -7099,7 +6987,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_TRY_WRITE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, data) = decode_destack_audio_stream_try_write_args(context, args)?;
 
@@ -7118,7 +7006,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_WRITE,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, data) = decode_destack_audio_stream_write_args(context, args)?;
 
@@ -7137,7 +7025,7 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_WRITE_AT,
             move |context, args| {
-                with_runtime_call_context(|runtime| {
+                with_binding_call_context(|runtime| {
                     // decode args
                     let (handle, data, presentationtimens) =
                         decode_destack_audio_stream_write_at_args(context, args)?;

@@ -8,7 +8,7 @@ use crate::platform::fs::OsPath;
 use crate::platform::net::{core as core_net, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -32,7 +32,7 @@ use std::os::unix::io::RawFd;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_connect(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketHandle,
     path: OsPath,
 ) -> RuntimeResult<()> {
@@ -90,7 +90,7 @@ pub(crate) unsafe fn destack_net_uds_connect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_listen(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ListenerHandle,
     path: OsPath,
     backlog: u32,
@@ -176,7 +176,7 @@ pub(crate) unsafe fn destack_net_uds_listen(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_accept(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketHandle,
     listener: ListenerHandle,
 ) -> RuntimeResult<()> {
@@ -220,7 +220,7 @@ pub(crate) unsafe fn destack_net_uds_accept(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_close_listener(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
     unsafe { super::destack_net_close_listener(context, handle) }
@@ -245,7 +245,7 @@ pub(crate) unsafe fn destack_net_uds_close_listener(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_uds_socket_pair(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketPair,
     socket_type: SocketType,
 ) -> RuntimeResult<()> {

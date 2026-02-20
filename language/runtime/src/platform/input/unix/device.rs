@@ -11,11 +11,11 @@ use crate::platform::input::{
 };
 use crate::platform::resource::ResourceEntry;
 use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Build one capabilities payload from available device summary metadata.
 fn derive_capabilities_from_device_summary(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     device: InputDeviceDescriptor,
 ) -> InputDeviceCapabilities {
     let mut kinds = Vec::new();
@@ -94,7 +94,7 @@ fn derive_capabilities_from_device_summary(
 
 /// Resolve one best-effort device kind for one normalized open spec.
 fn resolve_device_kind_for_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     backend: input_core::UnixInputBackend,
     device_id: &str,
 ) -> InputDeviceKind {
@@ -136,7 +136,7 @@ fn resolve_device_kind_for_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     input_core::resolve_unix_input_binding(context, handle, "destack.input.device.close")?;
@@ -176,7 +176,7 @@ pub(crate) unsafe fn destack_input_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_list(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<InputDeviceDescriptor>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -212,7 +212,7 @@ pub(crate) unsafe fn destack_input_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_open(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::InputDeviceHandle,
     id: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -314,7 +314,7 @@ pub(crate) unsafe fn destack_input_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_capabilities(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputDeviceCapabilities,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {

@@ -11,7 +11,7 @@ use crate::platform::core as core_platform;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{InputRawHidReport, validation as input_validation};
 use crate::platform::{NativeSlice, PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Linux hidraw node prefix.
 const HIDRAW_NODE_PREFIX: &str = "hidraw";
@@ -100,7 +100,7 @@ fn io_would_block(
 
 /// Validate one opened raw-hid-capable unix binding.
 fn resolve_raw_hid_binding(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<input_core::UnixInputBinding> {
@@ -161,7 +161,7 @@ fn timeout_ns_to_ms(timeout_ns: u64) -> i32 {
 /// Read one raw-hid report from one linux hidraw descriptor.
 #[cfg(target_os = "linux")]
 fn read_raw_hid_report_linux(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     descriptor: i32,
     maxbytes: u32,
@@ -380,7 +380,7 @@ fn write_output_report_linux(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_get_feature(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::InputDeviceHandle,
     reportid: u8,
@@ -442,7 +442,7 @@ pub(crate) unsafe fn destack_input_raw_hid_get_feature(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputRawHidReport,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
@@ -503,7 +503,7 @@ pub(crate) unsafe fn destack_input_raw_hid_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_set_feature(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     reportid: u8,
     data: NativeSlice<u8>,
@@ -556,7 +556,7 @@ pub(crate) unsafe fn destack_input_raw_hid_set_feature(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_try_read(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputRawHidReport,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
@@ -620,7 +620,7 @@ pub(crate) unsafe fn destack_input_raw_hid_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_write(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     handle: resource::InputDeviceHandle,
     reportid: u8,

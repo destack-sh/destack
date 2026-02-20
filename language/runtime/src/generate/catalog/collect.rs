@@ -13,8 +13,9 @@ use super::format::{
     binding_type_symbols, collect_binding_params, collect_binding_return, format_declared_signature,
 };
 use crate::model::{
-    BindingBlocking, BindingCatalog, BindingEntry, BindingReplayKind, BindingReturn, BindingScope,
-    EffectClass, RandomEventKind, ReplayPayload, ReplayPolicy, TimeEventKind,
+    BindingCatalog, BindingEntry, BindingReturn, CatalogBindingBlocking, CatalogBindingReplayKind,
+    CatalogBindingScope, CatalogEffectClass, CatalogRandomEventKind, CatalogReplayPayload,
+    CatalogReplayPolicy, CatalogTimeEventKind,
 };
 
 /// Binding metadata extracted from a declaration node.
@@ -33,19 +34,19 @@ struct BindingRecord {
     /// Return binding type for generated wrappers.
     return_binding: BindingReturn,
     /// Effect classification for replay and policy.
-    effect_class: EffectClass,
+    effect_class: CatalogEffectClass,
     /// Replay routing for the binding.
-    replay_kind: BindingReplayKind,
+    replay_kind: CatalogBindingReplayKind,
     /// Replay payload policy for recorded bindings.
-    replay_payload: ReplayPayload,
+    replay_payload: CatalogReplayPayload,
     /// Required platform capabilities for this binding.
     requires: Vec<String>,
     /// Host platforms where this binding is supported.
     host_platforms: Vec<String>,
     /// Platform scope for this binding.
-    scope: BindingScope,
+    scope: CatalogBindingScope,
     /// Blocking behavior for this binding.
-    blocking: BindingBlocking,
+    blocking: CatalogBindingBlocking,
 }
 
 /// Binding decorator payload extracted from an annotation.
@@ -54,53 +55,53 @@ struct BindingDecorator {
     /// Optional binding name override.
     extern_name: Option<String>,
     /// Optional effect class override.
-    effect_class: EffectClass,
+    effect_class: CatalogEffectClass,
     /// Optional replay payload override.
-    replay_payload: ReplayPayload,
+    replay_payload: CatalogReplayPayload,
     /// Required platform capabilities for this binding.
     requires: Vec<String>,
     /// Host platforms where this binding is supported.
     host_platforms: Vec<String>,
     /// Platform scope for this binding.
-    scope: BindingScope,
+    scope: CatalogBindingScope,
     /// Blocking behavior for this binding.
-    blocking: BindingBlocking,
+    blocking: CatalogBindingBlocking,
 }
 
 /// Resolve replay routing for a binding name.
-fn binding_replay_kind_for_name(name: &str) -> BindingReplayKind {
+fn binding_replay_kind_for_name(name: &str) -> CatalogBindingReplayKind {
     let mut segments = name.split('.');
     let Some(prefix) = segments.next() else {
-        return BindingReplayKind::Regular;
+        return CatalogBindingReplayKind::Regular;
     };
     if prefix != "destack" {
-        return BindingReplayKind::Regular;
+        return CatalogBindingReplayKind::Regular;
     }
 
     let Some(domain) = segments.next() else {
-        return BindingReplayKind::Regular;
+        return CatalogBindingReplayKind::Regular;
     };
     let operation = segments.next_back().unwrap_or_default();
 
     if domain == "time" {
         if operation == "wallNs" {
-            return BindingReplayKind::Time(TimeEventKind::WallClockRead);
+            return CatalogBindingReplayKind::Time(CatalogTimeEventKind::WallClockRead);
         }
 
         if operation == "monoNs" {
-            return BindingReplayKind::Time(TimeEventKind::MonotonicSample);
+            return CatalogBindingReplayKind::Time(CatalogTimeEventKind::MonotonicSample);
         }
 
-        return BindingReplayKind::Regular;
+        return CatalogBindingReplayKind::Regular;
     }
 
     if domain == "random" {
         if operation == "stream" || operation == "streamIn" {
-            return BindingReplayKind::Random(RandomEventKind::Stream);
+            return CatalogBindingReplayKind::Random(CatalogRandomEventKind::Stream);
         }
 
         if operation == "nextU64" || operation == "nextU64From" {
-            return BindingReplayKind::Random(RandomEventKind::NextU64);
+            return CatalogBindingReplayKind::Random(CatalogRandomEventKind::NextU64);
         }
 
         if operation == "fillBytes"
@@ -108,11 +109,11 @@ fn binding_replay_kind_for_name(name: &str) -> BindingReplayKind {
             || operation == "secureBytes"
             || operation == "bytes"
         {
-            return BindingReplayKind::Random(RandomEventKind::Bytes);
+            return CatalogBindingReplayKind::Random(CatalogRandomEventKind::Bytes);
         }
     }
 
-    BindingReplayKind::Regular
+    CatalogBindingReplayKind::Regular
 }
 
 /// Collect platform bindings from builtin modules.
@@ -280,12 +281,12 @@ fn binding_from_node(
     signature: String,
     params: Vec<crate::model::BindingParameter>,
     return_binding: BindingReturn,
-    effect_class: EffectClass,
-    replay_payload: ReplayPayload,
+    effect_class: CatalogEffectClass,
+    replay_payload: CatalogReplayPayload,
     requires: Vec<String>,
     host_platforms: Vec<String>,
-    scope: BindingScope,
-    blocking: BindingBlocking,
+    scope: CatalogBindingScope,
+    blocking: CatalogBindingBlocking,
 ) -> Option<BindingRecord> {
     let implementation_name = implementation_name?;
     let extern_name = extern_name?;
@@ -509,17 +510,17 @@ fn decorator_binding_argument(
 /// Parsed effect options for bindings.
 struct BindingEffectSpec {
     /// Effect classification for the binding.
-    effect_class: EffectClass,
+    effect_class: CatalogEffectClass,
     /// Replay payload policy for recorded bindings.
-    replay_payload: ReplayPayload,
+    replay_payload: CatalogReplayPayload,
     /// Required platform capabilities for this binding.
     requires: Vec<String>,
     /// Host platforms where this binding is supported.
     host_platforms: Vec<String>,
     /// Platform scope for this binding.
-    scope: BindingScope,
+    scope: CatalogBindingScope,
     /// Blocking behavior for this binding.
-    blocking: BindingBlocking,
+    blocking: CatalogBindingBlocking,
 }
 
 /// Parse effect options from a binding decorator.
@@ -626,8 +627,8 @@ fn parse_effect_spec(
     if payload.is_some()
         && !matches!(
             effect_class,
-            EffectClass::External {
-                replay: ReplayPolicy::Recordable
+            CatalogEffectClass::External {
+                replay: CatalogReplayPolicy::Recordable
             }
         )
     {
@@ -648,10 +649,10 @@ fn parse_effect_spec(
 }
 
 /// Parse a binding scope from a string.
-fn parse_binding_scope(value: Option<&str>) -> BindingScope {
+fn parse_binding_scope(value: Option<&str>) -> CatalogBindingScope {
     match value {
-        Some("host") => BindingScope::Host,
-        Some("runtime") => BindingScope::Runtime,
+        Some("host") => CatalogBindingScope::Host,
+        Some("runtime") => CatalogBindingScope::Runtime,
         Some(value) => {
             panic!("unsupported @binding scope {value}");
         }
@@ -662,11 +663,11 @@ fn parse_binding_scope(value: Option<&str>) -> BindingScope {
 }
 
 /// Parse a binding blocking behavior from a string.
-fn parse_binding_blocking(value: Option<&str>) -> BindingBlocking {
+fn parse_binding_blocking(value: Option<&str>) -> CatalogBindingBlocking {
     match value {
-        Some("always") => BindingBlocking::Always,
-        Some("never") => BindingBlocking::Never,
-        Some("sometimes") => BindingBlocking::Sometimes,
+        Some("always") => CatalogBindingBlocking::Always,
+        Some("never") => CatalogBindingBlocking::Never,
+        Some("sometimes") => CatalogBindingBlocking::Sometimes,
         Some(value) => {
             panic!("unsupported @binding blocking value {value}");
         }
@@ -677,11 +678,11 @@ fn parse_binding_blocking(value: Option<&str>) -> BindingBlocking {
 }
 
 /// Build an effect class from optional effect and replay names.
-fn build_effect_class(effect: Option<&str>, replay: &str) -> EffectClass {
+fn build_effect_class(effect: Option<&str>, replay: &str) -> CatalogEffectClass {
     // parse replay policy
     let replay = match replay {
-        "recordable" => ReplayPolicy::Recordable,
-        "nonrecordable" => ReplayPolicy::NonRecordable,
+        "recordable" => CatalogReplayPolicy::Recordable,
+        "nonrecordable" => CatalogReplayPolicy::NonRecordable,
         value => {
             panic!("unsupported @binding replay policy {value}");
         }
@@ -693,18 +694,18 @@ fn build_effect_class(effect: Option<&str>, replay: &str) -> EffectClass {
             panic!("@binding requires an explicit effect classification");
         }
         Some("pure") => {
-            if replay != ReplayPolicy::NonRecordable {
+            if replay != CatalogReplayPolicy::NonRecordable {
                 panic!("pure bindings must use replay: nonrecordable");
             }
-            EffectClass::Pure
+            CatalogEffectClass::Pure
         }
         Some("deterministic") => {
-            if replay != ReplayPolicy::NonRecordable {
+            if replay != CatalogReplayPolicy::NonRecordable {
                 panic!("deterministic bindings must use replay: nonrecordable");
             }
-            EffectClass::Deterministic
+            CatalogEffectClass::Deterministic
         }
-        Some("external" | "io") => EffectClass::External { replay },
+        Some("external" | "io") => CatalogEffectClass::External { replay },
         Some(value) => {
             panic!("unsupported @binding effect {value}");
         }
@@ -712,11 +713,11 @@ fn build_effect_class(effect: Option<&str>, replay: &str) -> EffectClass {
 }
 
 /// Parse a replay payload policy from a string.
-fn parse_replay_payload(value: Option<&str>) -> ReplayPayload {
+fn parse_replay_payload(value: Option<&str>) -> CatalogReplayPayload {
     match value {
-        None => ReplayPayload::ResultsOnly,
-        Some("results") => ReplayPayload::ResultsOnly,
-        Some("argumentsAndResults") => ReplayPayload::ArgumentsAndResults,
+        None => CatalogReplayPayload::ResultsOnly,
+        Some("results") => CatalogReplayPayload::ResultsOnly,
+        Some("argumentsAndResults") => CatalogReplayPayload::ArgumentsAndResults,
         Some(value) => {
             panic!("unsupported @binding payload {value}");
         }

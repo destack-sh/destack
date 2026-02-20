@@ -7,7 +7,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
@@ -38,7 +38,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_exit(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     code: u32,
 ) -> RuntimeResult<()> {
     unsafe { windows_sys::Win32::System::Threading::ExitProcess(code) }

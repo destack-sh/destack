@@ -8,7 +8,7 @@ use crate::platform::fs::OsPath;
 use crate::platform::net::{core as core_net, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -32,7 +32,7 @@ use std::os::unix::io::RawFd;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_accept(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketHandle,
     listener: ListenerHandle,
     _flags: AcceptFlags,
@@ -82,7 +82,7 @@ pub(crate) unsafe fn destack_net_accept(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
     // validate the handle kind
@@ -129,7 +129,7 @@ pub(crate) unsafe fn destack_net_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_close_listener(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
     // validate the handle kind
@@ -161,7 +161,7 @@ pub(crate) unsafe fn destack_net_close_listener(
 /// Connect an existing socket to a raw remote address.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_connect_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -200,7 +200,7 @@ pub(crate) unsafe fn destack_net_connect_raw(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_bind(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -221,7 +221,7 @@ pub(crate) unsafe fn destack_net_bind(
 /// Start listening on a raw local socket address.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_listen_raw(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ListenerHandle,
     address: SocketAddress,
     backlog: u32,
@@ -325,7 +325,7 @@ pub(crate) unsafe fn destack_net_listen_raw(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_socket(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketHandle,
     family: SocketFamily,
     socket_type: SocketType,
@@ -379,7 +379,7 @@ pub(crate) unsafe fn destack_net_socket(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_socket_pair(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SocketPair,
     family: SocketFamily,
     socket_type: SocketType,

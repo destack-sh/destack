@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_compiler::{Compiler, LowerTask, OptimizeTask};
-use destack_runtime::engine::VmEntry;
 use destack_runtime::platform::PlatformContext;
+use destack_runtime::runtime::engine::VmEntry;
 use destack_runtime::runtime::Runtime;
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
@@ -230,7 +230,7 @@ fn run_entry_module(
 
     let entry = VmEntry::new(entry_name);
     let result = runtime
-        .run_entry(&mut isolate, &entry, &[])
+        .run_entrypoint(&mut isolate, &entry, &[])
         .map_err(|error| format!("{error}"))?;
     let exit_code = exit_status_from_value(result.value);
 

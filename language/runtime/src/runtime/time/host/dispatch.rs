@@ -1,7 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::time::{ClockId, ClockMetadata, ClockSource, SleepClock};
-use crate::runtime::RuntimeCallContext;
 use crate::runtime::time::core as time_core;
+use crate::runtime::{BindingCallContext, RuntimeHookState};
 
 #[cfg(unix)]
 #[path = "../unix/mod.rs"]
@@ -54,7 +54,7 @@ fn virtual_clock_info(clock: ClockId) -> Option<ClockMetadata> {
 
 /// Query one selected clock metadata.
 pub(crate) unsafe fn host_clock_info(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ClockMetadata,
     clock: ClockId,
 ) -> RuntimeResult<()> {
@@ -71,7 +71,7 @@ pub(crate) unsafe fn host_clock_info(
 
 /// Return monotonic time in nanoseconds.
 pub(crate) unsafe fn host_mono_nanos(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
     // read monotonic time from the runtime clock service
@@ -83,7 +83,7 @@ pub(crate) unsafe fn host_mono_nanos(
 
 /// Read one selected clock in nanoseconds.
 pub(crate) unsafe fn host_now_nanos(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     clock: ClockId,
 ) -> RuntimeResult<()> {
@@ -108,9 +108,13 @@ pub(crate) unsafe fn host_now_nanos(
 
 /// Return process CPU time in nanoseconds.
 pub(crate) unsafe fn host_process_cpu_nanos(
-    _context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
+    context
+        .rules()
+        .on_time_read(RuntimeHookState::from_engine(Some(context.engine())));
+
     // sample process cpu time from the host backend
     let value = host_time::host_process_cpu_nanos()?;
 
@@ -120,9 +124,13 @@ pub(crate) unsafe fn host_process_cpu_nanos(
 
 /// Return current thread CPU time in nanoseconds.
 pub(crate) unsafe fn host_thread_cpu_nanos(
-    _context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
+    context
+        .rules()
+        .on_time_read(RuntimeHookState::from_engine(Some(context.engine())));
+
     // sample thread cpu time from the host backend
     let value = host_time::host_thread_cpu_nanos()?;
 
@@ -132,7 +140,7 @@ pub(crate) unsafe fn host_thread_cpu_nanos(
 
 /// Return wall clock time in nanoseconds.
 pub(crate) unsafe fn host_wall_nanos(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
     // read wall time from the runtime clock service
@@ -144,7 +152,7 @@ pub(crate) unsafe fn host_wall_nanos(
 
 /// Sleep for one duration in nanoseconds.
 pub(crate) unsafe fn host_sleep_nanos(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     duration: u64,
 ) -> RuntimeResult<()> {
     // route sleep through virtual or host mode behavior
@@ -158,7 +166,7 @@ pub(crate) unsafe fn host_sleep_nanos(
 
 /// Sleep for one duration on one clock domain.
 pub(crate) unsafe fn host_sleep_on_nanos(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     duration: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {
@@ -178,7 +186,7 @@ pub(crate) unsafe fn host_sleep_on_nanos(
 
 /// Sleep until one wall deadline in nanoseconds.
 pub(crate) unsafe fn host_sleep_until_nanos(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     deadline: u64,
 ) -> RuntimeResult<()> {
     // route wall-deadline sleep through runtime policy
@@ -199,7 +207,7 @@ pub(crate) unsafe fn host_sleep_until_nanos(
 
 /// Sleep until one deadline on one clock domain.
 pub(crate) unsafe fn host_sleep_until_on_nanos(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     deadline: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {

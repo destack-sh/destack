@@ -6,7 +6,7 @@ use windows_sys::Win32::System::IO::{OVERLAPPED, OVERLAPPED_0_0};
 use super::util::*;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::fs::{FileHandle, FileLockFlags};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// File lock flag value for exclusive locks.
 const LOCK_EX: u32 = 0x2;
@@ -33,7 +33,7 @@ const LOCK_UN: u32 = 0x8;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lock(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeResult<()> {

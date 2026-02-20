@@ -1,9 +1,9 @@
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
-use super::runnable::PlatformRunnable;
+use crate::runtime::engine::EngineContinuation;
 
-/// Opaque task identifier used by the scheduler.
+/// Opaque task identifier used by the event loop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct TaskId(u64);
 
@@ -30,18 +30,18 @@ pub enum TaskState {
     Completed,
 }
 
-/// Scheduler task metadata for event loop execution.
+/// Task metadata for event loop execution.
 #[derive(Debug)]
 pub struct Task {
     /// Task identifier used for ordering and logging.
     pub id: TaskId,
     /// Runnable continuation for this task.
-    pub runnable: PlatformRunnable,
+    pub runnable: EngineContinuation,
     /// Resume payload passed back into the executor.
     pub resume_value: vm::Value,
     /// Current scheduling state.
     pub state: TaskState,
-    // NOTE #Incomplete: priority is not used by the scheduler yet
-    /// Priority value for scheduler ordering.
+    // NOTE #Incomplete: priority is not used by the event loop yet
+    /// Priority value for event loop ordering.
     pub priority: u8,
 }

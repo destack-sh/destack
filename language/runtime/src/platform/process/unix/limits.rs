@@ -7,7 +7,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
@@ -38,7 +38,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_limit(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut ProcessLimit,
     resource: ProcessLimitResource,
 ) -> RuntimeResult<()> {
@@ -83,7 +83,7 @@ pub(crate) unsafe fn destack_process_get_limit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_limit(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     resource: ProcessLimitResource,
     limit: ProcessLimit,
 ) -> RuntimeResult<()> {

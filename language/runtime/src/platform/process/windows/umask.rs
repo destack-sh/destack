@@ -7,7 +7,7 @@ use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
@@ -37,7 +37,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_umask(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut u32,
     _mask: u32,
 ) -> RuntimeResult<()> {

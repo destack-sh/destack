@@ -8,7 +8,7 @@ use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{core as core_fs, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, net as platform_net, *};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStrExt;
@@ -33,7 +33,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fadvise(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
@@ -110,7 +110,7 @@ pub(crate) unsafe fn destack_fs_fadvise(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fallocate(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
@@ -196,7 +196,7 @@ pub(crate) unsafe fn destack_fs_fallocate(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_sync_file_range(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,

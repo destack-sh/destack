@@ -20,7 +20,7 @@ use crate::platform::fs::{
     FdFlags, FileHandle, FileMode, FileOffset, OpenFlags, SeekWhence, Stat, StatFs, StatusFlags,
 };
 use crate::platform::resource::{DirectoryHandle, ResourceEntry, ResourceKind};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Close an open file handle.
 ///
@@ -40,7 +40,7 @@ use crate::runtime::RuntimeCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     // remove the resource entry
@@ -80,7 +80,7 @@ pub(crate) unsafe fn destack_fs_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -153,7 +153,7 @@ pub(crate) unsafe fn destack_fs_dup(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup2(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     handle: FileHandle,
     target: FileHandle,
@@ -192,7 +192,7 @@ pub(crate) unsafe fn destack_fs_dup2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup3(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     handle: FileHandle,
     target: FileHandle,
@@ -219,7 +219,7 @@ pub(crate) unsafe fn destack_fs_dup3(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_closedir(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
     // remove the resource entry
@@ -259,7 +259,7 @@ pub(crate) unsafe fn destack_fs_closedir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmod(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: FileHandle,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -307,7 +307,7 @@ pub(crate) unsafe fn destack_fs_fchmod(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchown(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     uid: u32,
     gid: u32,
@@ -353,7 +353,7 @@ pub(crate) unsafe fn destack_fs_fchown(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fdatasync(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     // resolve the file handle
@@ -386,7 +386,7 @@ pub(crate) unsafe fn destack_fs_fdatasync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fstat(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut Stat,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -427,7 +427,7 @@ pub(crate) unsafe fn destack_fs_fstat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fstatfs(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut StatFs,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -469,7 +469,7 @@ pub(crate) unsafe fn destack_fs_fstatfs(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsync(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     unsafe { destack_fs_fdatasync(context, handle) }
@@ -493,7 +493,7 @@ pub(crate) unsafe fn destack_fs_fsync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_ftruncate(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: FileHandle,
     size: FileOffset,
 ) -> RuntimeResult<()> {
@@ -532,7 +532,7 @@ pub(crate) unsafe fn destack_fs_ftruncate(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_seek(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut FileOffset,
     handle: FileHandle,
     offset: FileOffset,
@@ -584,7 +584,7 @@ pub(crate) unsafe fn destack_fs_seek(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_futimes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: FileHandle,
     atime_ns: u64,
     mtime_ns: u64,
@@ -612,7 +612,7 @@ pub(crate) unsafe fn destack_fs_futimes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dirfd(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
@@ -664,7 +664,7 @@ pub(crate) unsafe fn destack_fs_dirfd(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_get_fd_flags(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FdFlags,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -711,7 +711,7 @@ pub(crate) unsafe fn destack_fs_get_fd_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_get_status_flags(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut StatusFlags,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -758,7 +758,7 @@ pub(crate) unsafe fn destack_fs_get_status_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_set_fd_flags(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     flags: FdFlags,
 ) -> RuntimeResult<()> {
@@ -797,7 +797,7 @@ pub(crate) unsafe fn destack_fs_set_fd_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_set_status_flags(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     flags: StatusFlags,
 ) -> RuntimeResult<()> {
@@ -836,7 +836,7 @@ pub(crate) unsafe fn destack_fs_set_status_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_syncfs(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     #[cfg(unix)]

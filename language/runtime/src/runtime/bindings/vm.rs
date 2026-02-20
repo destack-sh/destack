@@ -1,4 +1,4 @@
-use crate::platform::bindings::BindingRegistry;
+use crate::runtime::bindings::BindingRegistry;
 use destack_vm::Isolate;
 
 /// VM binding set for a platform domain.

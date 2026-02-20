@@ -5,7 +5,7 @@ use crate::platform::input::{
     InputCompositionEvent, InputTextInputArea, InputTextInputType, InputWindowTarget,
 };
 use crate::platform::{PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Return whether one resolved binding supports text input semantics.
 fn is_text_capable_backend(resolved: &input_core::WindowsInputResolved) -> bool {
@@ -25,7 +25,7 @@ fn is_text_capable_backend(resolved: &input_core::WindowsInputResolved) -> bool 
 
 /// Query text-session active state for one opened Windows input handle.
 pub(super) fn text_is_active(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<bool> {
@@ -39,7 +39,7 @@ pub(super) fn text_is_active(
 
 /// Read text-area hint state for one opened Windows input handle.
 pub(super) fn text_get_area(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     operation: &'static str,
@@ -57,7 +57,7 @@ pub(super) fn text_get_area(
 
 /// Update text-area hint state for one opened Windows input handle.
 pub(super) fn text_set_area(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     area: InputTextInputArea,
@@ -76,7 +76,7 @@ pub(super) fn text_set_area(
 
 /// Start one text session for one opened Windows input handle.
 pub(super) fn text_start(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     input_type: InputTextInputType,
@@ -95,7 +95,7 @@ pub(super) fn text_start(
 
 /// Stop one text session for one opened Windows input handle.
 pub(super) fn text_stop(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     operation: &'static str,
@@ -113,7 +113,7 @@ pub(super) fn text_stop(
 
 /// Read one composition event for one opened Windows input handle.
 pub(super) fn text_read_composition(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
     operation: &'static str,
@@ -177,7 +177,7 @@ pub(super) fn text_read_composition(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_get_area(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputTextInputArea,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
@@ -215,7 +215,7 @@ pub(crate) unsafe fn destack_input_text_get_area(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_is_active(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut bool,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -253,7 +253,7 @@ pub(crate) unsafe fn destack_input_text_is_active(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_read_composition(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputCompositionEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -292,7 +292,7 @@ pub(crate) unsafe fn destack_input_text_read_composition(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_set_area(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     area: InputTextInputArea,
@@ -320,7 +320,7 @@ pub(crate) unsafe fn destack_input_text_set_area(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_start(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     inputtype: InputTextInputType,
@@ -352,7 +352,7 @@ pub(crate) unsafe fn destack_input_text_start(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_stop(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
 ) -> RuntimeResult<()> {
@@ -377,7 +377,7 @@ pub(crate) unsafe fn destack_input_text_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_try_read_composition(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputCompositionEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {

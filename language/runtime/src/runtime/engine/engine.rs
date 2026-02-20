@@ -12,7 +12,7 @@ pub enum EngineOutcome<Output, Continuation, Value> {
     },
 }
 
-/// Execution engine used by the runtime scheduler.
+/// Execution engine used by the runtime event loop.
 pub trait Engine {
     /// Entry point handle for this engine.
     type Entry;

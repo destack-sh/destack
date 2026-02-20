@@ -2,7 +2,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{OsPath, XattrFlags};
 use crate::platform::resource::FileHandle;
 use crate::platform::{NativeArray, NativeSlice, PlatformError};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 #[allow(unused_imports)]
 pub(crate) use super::host::*;
@@ -25,7 +25,7 @@ pub(crate) use super::host::*;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     _path: OsPath,
     _name: NativeSlice<u8>,
@@ -54,7 +54,7 @@ pub(crate) unsafe fn destack_fs_getxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     _path: OsPath,
     _name: NativeSlice<u8>,
@@ -83,7 +83,7 @@ pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _path: OsPath,
     _name: NativeSlice<u8>,
     _value: NativeSlice<u8>,
@@ -113,7 +113,7 @@ pub(crate) unsafe fn destack_fs_setxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _path: OsPath,
     _name: NativeSlice<u8>,
     _value: NativeSlice<u8>,
@@ -143,7 +143,7 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _out: *mut NativeArray<NativeArray<u8>>,
     _path: OsPath,
 ) -> RuntimeResult<()> {
@@ -171,7 +171,7 @@ pub(crate) unsafe fn destack_fs_listxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _out: *mut NativeArray<NativeArray<u8>>,
     _path: OsPath,
 ) -> RuntimeResult<()> {
@@ -199,7 +199,7 @@ pub(crate) unsafe fn destack_fs_llistxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _path: OsPath,
     _name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -227,7 +227,7 @@ pub(crate) unsafe fn destack_fs_removexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _path: OsPath,
     _name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -255,7 +255,7 @@ pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fgetxattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut NativeArray<u8>,
     handle: FileHandle,
     name: NativeSlice<u8>,
@@ -285,7 +285,7 @@ pub(crate) unsafe fn destack_fs_fgetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsetxattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: FileHandle,
     name: NativeSlice<u8>,
     value: NativeSlice<u8>,
@@ -316,7 +316,7 @@ pub(crate) unsafe fn destack_fs_fsetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_flistxattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut NativeArray<NativeArray<u8>>,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -345,7 +345,7 @@ pub(crate) unsafe fn destack_fs_flistxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fremovexattr_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     handle: FileHandle,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {

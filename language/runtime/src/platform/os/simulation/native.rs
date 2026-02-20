@@ -4,7 +4,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{NativeArray, NativeStringRef, PlatformError};
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use crate::platform::fs;
 use crate::platform::os::{HostIdentity, LoadAverage, MountEntry, PowerState, SystemSnapshot};
@@ -27,7 +27,7 @@ use crate::platform::os::{HostIdentity, LoadAverage, MountEntry, PowerState, Sys
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_host_identity(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut HostIdentity,
 ) -> RuntimeResult<()> {
     let _ = context;
@@ -54,7 +54,7 @@ pub(crate) unsafe fn destack_os_host_identity(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_boot_time_unix_ns(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
     let _ = context;
@@ -84,7 +84,7 @@ pub(crate) unsafe fn destack_os_boot_time_unix_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_load_average(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut LoadAverage,
 ) -> RuntimeResult<()> {
     let _ = context;
@@ -111,7 +111,7 @@ pub(crate) unsafe fn destack_os_load_average(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_system_snapshot(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut SystemSnapshot,
 ) -> RuntimeResult<()> {
     let _ = context;
@@ -138,7 +138,7 @@ pub(crate) unsafe fn destack_os_system_snapshot(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_uptime_ns(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
     let _ = context;
@@ -165,7 +165,7 @@ pub(crate) unsafe fn destack_os_uptime_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_add(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     source: fs::OsPath,
     target: fs::OsPath,
     filesystem: NativeStringRef,
@@ -196,7 +196,7 @@ pub(crate) unsafe fn destack_os_add(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_list(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<MountEntry>,
 ) -> RuntimeResult<()> {
     let _ = context;
@@ -223,7 +223,7 @@ pub(crate) unsafe fn destack_os_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_remove(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     target: fs::OsPath,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -251,7 +251,7 @@ pub(crate) unsafe fn destack_os_remove(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_power_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut PowerState,
 ) -> RuntimeResult<()> {
     let _ = context;
@@ -277,7 +277,7 @@ pub(crate) unsafe fn destack_os_power_state(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_suspend(context: &RuntimeCallContext) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_suspend(context: &BindingCallContext) -> RuntimeResult<()> {
     let _ = context;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.power.suspend")).boxed())

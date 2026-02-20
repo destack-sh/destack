@@ -19,7 +19,7 @@ use crate::platform::input::{
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Resource-table label for opened input-device entries.
 pub(super) const INPUT_RESOURCE_LABEL: &str = "input.device";
@@ -37,7 +37,7 @@ const UNIX_INPUT_TTY_NAME: &str = "unix terminal input";
 pub(super) const UNIX_INPUT_EMPTY_TEXT: &str = "";
 
 /// Build one zeroed payload shell for event-kind projection.
-pub(super) fn empty_unix_event_payload(context: &RuntimeCallContext) -> InputEventPayload {
+pub(super) fn empty_unix_event_payload(context: &BindingCallContext) -> InputEventPayload {
     let empty_text = context.store_string(UNIX_INPUT_EMPTY_TEXT);
     InputEventPayload {
         key: InputKeyEventPayload {
@@ -106,7 +106,7 @@ pub(super) fn empty_unix_event_payload(context: &RuntimeCallContext) -> InputEve
 
 /// Build one typed input event from one prepared payload.
 pub(super) fn build_unix_input_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     kind: InputEventKind,
     timestamp_ns: u64,
     sequence: u64,
@@ -235,7 +235,7 @@ pub(super) fn input_not_found(
 
 /// Resolve one Unix input binding from the resource table.
 pub(super) fn resolve_unix_input_binding(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<UnixInputBinding> {
@@ -326,7 +326,7 @@ pub(super) fn normalize_unix_input_spec(id: &str) -> RuntimeResult<UnixInputOpen
 
 /// Enumerate Unix input devices for the active platform.
 pub(super) fn list_unix_devices(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
 ) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
     list_platform_devices(context)
 }
@@ -435,7 +435,7 @@ pub(super) fn wait_for_readable_descriptor(descriptor: RawFd) -> RuntimeResult<(
 
 /// Read one Unix input event from the selected backend.
 pub(super) fn read_unix_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     binding: &UnixInputBinding,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
@@ -483,7 +483,7 @@ pub(super) fn set_unix_grab(
 
 /// Set read mode for one Unix input binding.
 pub(super) fn set_unix_read_mode(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     mode: InputReadMode,
     operation: &'static str,
@@ -549,7 +549,7 @@ pub(super) fn set_unix_read_mode(
 
 /// Persist one text active flag and type for one Unix input handle.
 pub(super) fn set_text_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     active: bool,
     input_type: InputTextInputType,
@@ -583,7 +583,7 @@ pub(super) fn set_text_state(
 
 /// Persist one text-area hint for one Unix input handle.
 pub(super) fn set_text_area(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     area: InputTextInputArea,
     operation: &'static str,
@@ -615,7 +615,7 @@ pub(super) fn set_text_area(
 
 /// Return whether text input is active for one Unix input handle.
 pub(super) fn is_text_active(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<bool> {
@@ -642,7 +642,7 @@ pub(super) fn is_text_active(
 
 /// Return the text-area hint for one Unix input handle.
 pub(super) fn text_area(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<InputTextInputArea> {
@@ -669,7 +669,7 @@ pub(super) fn text_area(
 
 /// Persist one gamepad player-index override for one Unix input handle.
 pub(super) fn set_gamepad_player_index(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     player_index: u8,
     operation: &'static str,
@@ -709,7 +709,7 @@ pub(super) fn set_gamepad_player_index(
 
 /// Return the effective gamepad player index for one Unix input handle.
 pub(super) fn gamepad_player_index(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u8> {
@@ -736,7 +736,7 @@ pub(super) fn gamepad_player_index(
 
 /// Persist one relative-mode flag for one unix input handle.
 pub(super) fn set_relative_mode_flag(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enabled: bool,
     operation: &'static str,
@@ -768,7 +768,7 @@ pub(super) fn set_relative_mode_flag(
 
 /// Persist one pointer snapshot baseline for one unix input handle.
 pub(super) fn set_pointer_snapshot(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     x: f64,
     y: f64,
@@ -802,7 +802,7 @@ pub(super) fn set_pointer_snapshot(
 
 /// Persist one effective sensor-stream configuration for one handle and one sensor lane.
 pub(super) fn set_sensor_stream_config(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     sensor_kind: InputSensorKind,
     config: InputSensorEffectiveConfig,
@@ -842,7 +842,7 @@ pub(super) fn set_sensor_stream_config(
 
 /// Return whether one sensor stream is currently enabled for one handle and one sensor lane.
 pub(super) fn is_sensor_stream_enabled(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     sensor_kind: InputSensorKind,
     operation: &'static str,
@@ -871,7 +871,7 @@ pub(super) fn is_sensor_stream_enabled(
 /// Persist the active uploaded rumble effect id for one Linux handle.
 #[cfg(target_os = "linux")]
 pub(super) fn set_linux_active_rumble_effect_id(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     effect_id: Option<i16>,
     operation: &'static str,
@@ -904,7 +904,7 @@ pub(super) fn set_linux_active_rumble_effect_id(
 /// Return the active uploaded rumble effect id for one Linux handle, when present.
 #[cfg(target_os = "linux")]
 pub(super) fn linux_active_rumble_effect_id(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<i16>> {
@@ -949,7 +949,7 @@ pub(super) fn initial_macos_state(
 /// Release one macOS platform subscription for one handle before close.
 #[cfg(target_os = "macos")]
 pub(super) fn release_macos_subscription(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) {
     input_macos::release_macos_session_subscription(context, handle);
@@ -999,7 +999,7 @@ fn normalize_platform_input_spec(_id: &str, _id_lower: &str) -> RuntimeResult<Un
 /// Enumerate platform-specific devices on Linux with terminal fallback.
 #[cfg(target_os = "linux")]
 fn list_platform_devices(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
 ) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
     let devices = input_linux::list_linux_devices(context)?;
     if !devices.is_empty() {
@@ -1013,7 +1013,7 @@ fn list_platform_devices(
 /// Enumerate platform-specific devices on macOS and include terminal fallback.
 #[cfg(target_os = "macos")]
 fn list_platform_devices(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
 ) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
     let mut devices = Vec::new();
     devices.push(InputDeviceDescriptor {
@@ -1050,7 +1050,7 @@ fn list_platform_devices(
 /// Enumerate platform-specific devices on other Unix hosts with terminal-only discovery.
 #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
 fn list_platform_devices(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
 ) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
     let tty_device = list_terminal_device(context)?;
     Ok(tty_device.into_iter().collect())
@@ -1059,7 +1059,7 @@ fn list_platform_devices(
 /// Read one platform-specific event from one opened platform backend on Linux.
 #[cfg(target_os = "linux")]
 fn read_platform_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     _binding: &UnixInputBinding,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
@@ -1118,7 +1118,7 @@ fn read_platform_event(
 /// Read one platform-specific event from one opened platform backend on macOS.
 #[cfg(target_os = "macos")]
 fn read_platform_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     binding: &UnixInputBinding,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
@@ -1131,7 +1131,7 @@ fn read_platform_event(
 /// Read one platform-specific event from one opened platform backend on other Unix hosts.
 #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
 fn read_platform_event(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     _binding: &UnixInputBinding,
     _handle: resource::InputDeviceHandle,
     _nonblocking: bool,
@@ -1191,7 +1191,7 @@ fn set_platform_read_mode(_mode: InputReadMode) -> RuntimeResult<()> {
 
 /// Build terminal input metadata when `/dev/tty` is available.
 fn list_terminal_device(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
 ) -> RuntimeResult<Option<InputDeviceDescriptor>> {
     // encode terminal path for one open probe
     let path = CString::new(UNIX_INPUT_TTY_PATH).map_err(|_| {
@@ -1249,7 +1249,7 @@ fn list_terminal_device(
 
 /// Read one byte-oriented event from terminal input.
 fn read_terminal_event(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     descriptor: RawFd,
     device_id: &str,
     nonblocking: bool,
@@ -1394,7 +1394,7 @@ pub(super) fn monotonic_timestamp_ns() -> u64 {
 
 /// Allocate the next sequence number for one Unix input stream.
 pub(super) fn next_unix_event_sequence(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {

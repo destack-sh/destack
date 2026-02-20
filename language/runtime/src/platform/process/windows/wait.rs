@@ -8,7 +8,7 @@ use crate::platform::{
     core as core_platform,
 };
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
@@ -23,7 +23,7 @@ use crate::platform::{fs, resource};
 
 /// Resolve a process handle into its process id payload.
 fn resolve_spawned_process_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<(ProcessId, Option<windows_sys::Win32::Foundation::HANDLE>)> {
     let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
@@ -151,7 +151,7 @@ fn wait_process_handle_with_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_wait_pid(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     pid: ProcessId,
     flags: ProcessWaitFlags,
@@ -185,7 +185,7 @@ pub(crate) unsafe fn destack_process_wait_pid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_try_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<()> {
@@ -231,7 +231,7 @@ pub(crate) unsafe fn destack_process_try_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_wait(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessHandle,
     flags: ProcessWaitFlags,

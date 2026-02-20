@@ -472,7 +472,7 @@ fn render_native_like_stub(
         output.push_str("    NativeStringSlice,\n");
     }
     output.push_str("};\n\n");
-    output.push_str("use crate::runtime::RuntimeCallContext;\n");
+    output.push_str("use crate::runtime::BindingCallContext;\n");
     output.push_str("use bindings::*;\n\n");
     if !type_domains.is_empty() {
         let imports = type_domains
@@ -519,7 +519,7 @@ fn render_native_like_stub(
 
         write_stub_docs(&mut output, entry, binding.extern_name, false);
         output.push_str(&format!(
-            "{function_visibility} unsafe fn {function_name}(context: &RuntimeCallContext{}) -> RuntimeResult<()> {{\n",
+            "{function_visibility} unsafe fn {function_name}(context: &BindingCallContext{}) -> RuntimeResult<()> {{\n",
             if params.is_empty() {
                 String::new()
             } else {
@@ -593,7 +593,7 @@ pub(crate) fn render_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> St
         let names = vm_types.iter().cloned().collect::<Vec<_>>().join(", ");
         output.push_str(&format!("use crate::platform::{domain}::{{{names}}};\n"));
     }
-    output.push_str("use crate::runtime::RuntimeCallContext;\n\n");
+    output.push_str("use crate::runtime::BindingCallContext;\n\n");
 
     for binding in &consts {
         let entry = binding.entry;
@@ -608,7 +608,7 @@ pub(crate) fn render_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> St
 
         write_stub_docs(&mut output, entry, binding.extern_name, false);
         output.push_str(&format!("pub(crate) fn {method_name}(\n"));
-        output.push_str("    _runtime: &RuntimeCallContext,\n");
+        output.push_str("    _runtime: &BindingCallContext,\n");
         output.push_str("    _context: &mut vm::ExternalCallContext<'_>,\n");
         for param in &params {
             output.push_str(&format!("    {param},\n"));
@@ -672,7 +672,7 @@ pub(crate) fn render_simulation_native_stub(
         output.push_str("    NativeStringSlice,\n");
     }
     output.push_str("};\n\n");
-    output.push_str("use crate::runtime::RuntimeCallContext;\n\n");
+    output.push_str("use crate::runtime::BindingCallContext;\n\n");
     if !type_domains.is_empty() {
         let imports = type_domains
             .iter()
@@ -718,7 +718,7 @@ pub(crate) fn render_simulation_native_stub(
 
         write_stub_docs(&mut output, entry, binding.extern_name, true);
         output.push_str(&format!(
-            "pub(crate) unsafe fn {function_name}(_context: &RuntimeCallContext{}) -> RuntimeResult<()> {{\n",
+            "pub(crate) unsafe fn {function_name}(_context: &BindingCallContext{}) -> RuntimeResult<()> {{\n",
             if params.is_empty() {
                 String::new()
             } else {
@@ -785,7 +785,7 @@ pub(crate) fn render_simulation_vm_stub(domain: &str, bindings: &BindingCatalogE
         let names = vm_types.iter().cloned().collect::<Vec<_>>().join(", ");
         output.push_str(&format!("use crate::platform::{domain}::{{{names}}};\n"));
     }
-    output.push_str("use crate::runtime::RuntimeCallContext;\n\n");
+    output.push_str("use crate::runtime::BindingCallContext;\n\n");
 
     for binding in &consts {
         let entry = binding.entry;
@@ -800,7 +800,7 @@ pub(crate) fn render_simulation_vm_stub(domain: &str, bindings: &BindingCatalogE
 
         write_stub_docs(&mut output, entry, binding.extern_name, true);
         output.push_str(&format!("pub(crate) fn {method_name}(\n"));
-        output.push_str("    _runtime: &RuntimeCallContext,\n");
+        output.push_str("    _runtime: &BindingCallContext,\n");
         output.push_str("    _context: &mut vm::ExternalCallContext<'_>,\n");
         for param in &params {
             output.push_str(&format!("    {param},\n"));
@@ -908,7 +908,7 @@ fn collect_runtime_bindings(bindings: &BindingCatalogEntry) -> BindingCatalogEnt
     let mut runtime_bindings = BindingCatalogEntry::new();
 
     for (extern_name, entry) in bindings {
-        if entry.scope == BindingScope::Runtime {
+        if entry.scope == CatalogBindingScope::Runtime {
             runtime_bindings.insert(extern_name.clone(), entry.clone());
         }
     }
@@ -941,7 +941,7 @@ pub(crate) fn render_runtime_native_stub(domain: &str, bindings: &BindingCatalog
         output.push_str("    NativeStringSlice,\n");
     }
     output.push_str("};\n");
-    output.push_str("use crate::runtime::RuntimeCallContext;\n\n");
+    output.push_str("use crate::runtime::BindingCallContext;\n\n");
     if !type_domains.is_empty() {
         let imports = type_domains
             .iter()
@@ -960,7 +960,7 @@ pub(crate) fn render_runtime_native_stub(domain: &str, bindings: &BindingCatalog
 
     for binding in &consts {
         let entry = binding.entry;
-        if entry.scope != BindingScope::Runtime {
+        if entry.scope != CatalogBindingScope::Runtime {
             continue;
         }
         if !entry.return_is_result {
@@ -989,7 +989,7 @@ pub(crate) fn render_runtime_native_stub(domain: &str, bindings: &BindingCatalog
 
         write_stub_docs(&mut output, entry, binding.extern_name, false);
         output.push_str(&format!(
-            "pub(crate) unsafe fn {function_name}(context: &RuntimeCallContext{}) -> RuntimeResult<()> {{\n",
+            "pub(crate) unsafe fn {function_name}(context: &BindingCallContext{}) -> RuntimeResult<()> {{\n",
             if params.is_empty() {
                 String::new()
             } else {
@@ -1046,11 +1046,11 @@ pub(crate) fn render_runtime_vm_stub(domain: &str, bindings: &BindingCatalogEntr
     output.push_str(&format!(
         "use crate::platform::{domain}::vm as {vm_alias};\n"
     ));
-    output.push_str("use crate::runtime::RuntimeCallContext;\n\n");
+    output.push_str("use crate::runtime::BindingCallContext;\n\n");
 
     for binding in &consts {
         let entry = binding.entry;
-        if entry.scope != BindingScope::Runtime {
+        if entry.scope != CatalogBindingScope::Runtime {
             continue;
         }
 
@@ -1064,7 +1064,7 @@ pub(crate) fn render_runtime_vm_stub(domain: &str, bindings: &BindingCatalogEntr
 
         write_stub_docs(&mut output, entry, binding.extern_name, false);
         output.push_str(&format!("pub(crate) fn {method_name}(\n"));
-        output.push_str("    runtime: &RuntimeCallContext,\n");
+        output.push_str("    runtime: &BindingCallContext,\n");
         output.push_str("    context: &mut vm::ExternalCallContext<'_>,\n");
         for param in &params {
             output.push_str(&format!("    {param},\n"));

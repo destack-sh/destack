@@ -8,7 +8,7 @@ use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{core as core_fs, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, net as platform_net, *};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStrExt;
@@ -33,7 +33,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_bytes(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     from: PathBytes,
     to: PathBytes,
     flags: CopyFlags,
@@ -177,7 +177,7 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_utf16(
-    _context: &RuntimeCallContext,
+    _context: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
     flags: CopyFlags,
@@ -214,7 +214,7 @@ pub(crate) unsafe fn destack_fs_copyfile_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copy_file_range(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     src: FileHandle,
     src_offset: FileOffset,
@@ -302,7 +302,7 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_sendfile(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     socket: SocketHandle,
     file: FileHandle,
@@ -655,7 +655,7 @@ pub(super) unsafe fn fremovexattr_fd(fd: libc::c_int, name: *const libc::c_char)
 }
 
 pub(super) fn decode_xattr_list(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     buffer: Vec<u8>,
 ) -> RuntimeResult<NativeArray<NativeStringRef>> {
     // split on nul separators
@@ -695,7 +695,7 @@ pub(super) fn decode_xattr_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     from: OsPath,
     to: OsPath,
     flags: CopyFlags,

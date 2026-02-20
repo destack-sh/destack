@@ -8,7 +8,7 @@ use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{core as core_fs, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, net as platform_net, *};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStrExt;
@@ -33,7 +33,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut PathBytes,
     template: PathBytes,
 ) -> RuntimeResult<()> {
@@ -86,7 +86,7 @@ pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut PathUtf16,
     template: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -118,7 +118,7 @@ pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdtemp(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut OsPath,
     template: OsPath,
 ) -> RuntimeResult<()> {

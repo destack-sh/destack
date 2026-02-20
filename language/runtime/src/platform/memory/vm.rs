@@ -3,7 +3,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::memory::{MemoryRangeVm, ProtectedMemoryRangeVm};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 /// Apply memory access advice.
@@ -24,7 +24,7 @@ use destack_vm as vm;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_memory_advise(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
@@ -55,7 +55,7 @@ pub(crate) fn destack_memory_advise(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_memory_discard(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
@@ -85,7 +85,7 @@ pub(crate) fn destack_memory_discard(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_memory_huge_page(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
@@ -116,7 +116,7 @@ pub(crate) fn destack_memory_huge_page(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_memory_lock(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
@@ -146,7 +146,7 @@ pub(crate) fn destack_memory_lock(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_memory_unlock(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
@@ -176,7 +176,7 @@ pub(crate) fn destack_memory_unlock(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_memory_commit(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
@@ -207,7 +207,7 @@ pub(crate) fn destack_memory_commit(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_memory_decommit(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
@@ -237,7 +237,7 @@ pub(crate) fn destack_memory_decommit(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_memory_numa_bind(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
@@ -269,7 +269,7 @@ pub(crate) fn destack_memory_numa_bind(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_memory_release(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
@@ -299,7 +299,7 @@ pub(crate) fn destack_memory_release(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_memory_reserve(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     length: u64,
     flags: u32,
@@ -329,7 +329,7 @@ pub(crate) fn destack_memory_reserve(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_memory_protect_execute(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
@@ -360,7 +360,7 @@ pub(crate) fn destack_memory_protect_execute(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_memory_flush_instruction_cache(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
@@ -390,7 +390,7 @@ pub(crate) fn destack_memory_flush_instruction_cache(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_memory_protect(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
@@ -421,7 +421,7 @@ pub(crate) fn destack_memory_protect(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_memory_remap(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     oldlength: u64,

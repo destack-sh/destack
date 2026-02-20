@@ -15,7 +15,7 @@ use crate::platform::resource::{
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError, ResourceId, core as core_platform,
 };
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::os::unix::io::RawFd;
@@ -61,7 +61,7 @@ impl ResourceFinalizer for FileFinalizer {
 
 /// Build a raw socket address from a raw fd query.
 pub(super) fn socket_address_raw_from_fd(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     fd: RawFd,
     syscall: &str,
     query: unsafe extern "C" fn(RawFd, *mut libc::sockaddr, *mut libc::socklen_t) -> libc::c_int,
@@ -83,7 +83,7 @@ pub(super) fn socket_address_raw_from_fd(
 
 /// Decode a raw socket address from raw storage.
 pub(super) fn socket_address_raw_from_storage(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     storage: &libc::sockaddr_storage,
     length: libc::socklen_t,
 ) -> RuntimeResult<SocketAddress> {
@@ -113,7 +113,7 @@ pub(super) fn socket_address_raw_from_storage(
 
 /// Decode a socket address from raw storage.
 pub(super) fn socket_address_from_storage(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     storage: &libc::sockaddr_storage,
     length: libc::socklen_t,
 ) -> RuntimeResult<SocketAddress> {
@@ -198,7 +198,7 @@ pub(super) fn sockaddr_un_from_path(
 
 /// Resolve a socket descriptor from a handle.
 pub(super) fn socket_descriptor(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<RawFd> {
     // resolve the socket resource
@@ -215,7 +215,7 @@ pub(super) fn socket_descriptor(
 
 /// Resolve a transferable file descriptor from a resource handle.
 pub(super) fn transferable_descriptor(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: TransferredHandle,
 ) -> RuntimeResult<RawFd> {
     let descriptor = context
@@ -352,7 +352,7 @@ pub(super) fn peer_socket_credentials(fd: RawFd) -> RuntimeResult<SocketCredenti
 
 /// Resolve a listener descriptor from a handle.
 pub(super) fn listener_descriptor(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<RawFd> {
     // resolve the listener resource

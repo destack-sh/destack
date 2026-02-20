@@ -7,11 +7,11 @@ use super::macos as input_macos;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::InputKeyboardState;
 use crate::platform::{PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Read one keyboard snapshot for one opened Unix input handle.
 fn keyboard_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<InputKeyboardState> {
@@ -75,7 +75,7 @@ fn keyboard_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_keyboard_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputKeyboardState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {

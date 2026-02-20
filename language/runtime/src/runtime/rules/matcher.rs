@@ -1,20 +1,25 @@
-use crate::platform::bindings::{
-    BindingBlocking, BindingDescriptor, BindingScope, EffectClass, ExecutionMode, PolicyEngine,
-    ReplayPolicy,
+use crate::runtime::bindings::{
+    BindingBlocking, BindingDescriptor, BindingEffect, BindingEffectClass, BindingEngine,
+    BindingScope,
 };
 use destack_source::matches as glob_matches;
-use destack_workspace::{
-    RuntimeFilter, RuntimeFilterBlocking, RuntimeFilterEffect, RuntimeFilterEngine,
-    RuntimeFilterScope,
-};
+use destack_workspace::{ExecutionMode, RuntimeFilter};
 
 /// Match one binding descriptor against one runtime filter.
 pub(crate) fn matches_runtime_filter(
     filter: &RuntimeFilter,
-    descriptor: BindingDescriptor,
+    descriptor: Option<BindingDescriptor>,
     mode: ExecutionMode,
-    engine: Option<PolicyEngine>,
+    engine: Option<BindingEngine>,
 ) -> bool {
+    // descriptor-aware filters require a binding descriptor
+    if descriptor.is_none() && filter_has_binding_clauses(filter) {
+        return false;
+    }
+    let descriptor = descriptor.unwrap_or_else(|| {
+        unreachable!("descriptor-aware filters must have returned false before this point")
+    });
+
     // match binding name glob
     if let Some(pattern) = &filter.binding
         && !glob_match(pattern, descriptor.name)
@@ -64,10 +69,7 @@ pub(crate) fn matches_runtime_filter(
 
     // match execution mode selector when present
     if let Some(modes) = &filter.execution_modes {
-        let matches_mode = modes
-            .iter()
-            .copied()
-            .any(|rule_mode| rule_mode == mode.into());
+        let matches_mode = modes.iter().copied().any(|rule_mode| rule_mode == mode);
         if !matches_mode {
             return false;
         }
@@ -108,56 +110,35 @@ pub(crate) fn matches_runtime_filter(
     true
 }
 
+/// Return true when a filter depends on descriptor fields.
+fn filter_has_binding_clauses(filter: &RuntimeFilter) -> bool {
+    filter.binding.is_some()
+        || filter.capability.is_some()
+        || filter.component.is_some()
+        || filter.module.is_some()
+        || filter.scope.is_some()
+        || filter.blocking.is_some()
+        || filter.effect.is_some()
+}
+
 /// Match a runtime filter engine against one call engine.
-fn matches_engine(rule_engine: RuntimeFilterEngine, engine: PolicyEngine) -> bool {
-    matches!(
-        (rule_engine, engine),
-        (RuntimeFilterEngine::Vm, PolicyEngine::Vm)
-            | (RuntimeFilterEngine::Native, PolicyEngine::Native)
-    )
+fn matches_engine(rule_engine: BindingEngine, engine: BindingEngine) -> bool {
+    rule_engine == engine
 }
 
 /// Match a runtime filter scope against one binding scope.
-fn matches_scope(rule_scope: RuntimeFilterScope, scope: BindingScope) -> bool {
-    matches!(
-        (rule_scope, scope),
-        (RuntimeFilterScope::Host, BindingScope::Host)
-            | (RuntimeFilterScope::Runtime, BindingScope::Runtime)
-    )
+fn matches_scope(rule_scope: BindingScope, scope: BindingScope) -> bool {
+    rule_scope == scope
 }
 
 /// Match a runtime filter blocking class against one binding class.
-fn matches_blocking(rule_blocking: RuntimeFilterBlocking, blocking: BindingBlocking) -> bool {
-    matches!(
-        (rule_blocking, blocking),
-        (RuntimeFilterBlocking::Always, BindingBlocking::Always)
-            | (RuntimeFilterBlocking::Never, BindingBlocking::Never)
-            | (RuntimeFilterBlocking::Sometimes, BindingBlocking::Sometimes)
-    )
+fn matches_blocking(rule_blocking: BindingBlocking, blocking: BindingBlocking) -> bool {
+    rule_blocking == blocking
 }
 
 /// Match a runtime filter effect class against one binding effect.
-fn matches_effect(rule_effect: RuntimeFilterEffect, effect_class: EffectClass) -> bool {
-    matches!(
-        (rule_effect, effect_class),
-        (RuntimeFilterEffect::Pure, EffectClass::Pure)
-            | (
-                RuntimeFilterEffect::Deterministic,
-                EffectClass::Deterministic
-            )
-            | (
-                RuntimeFilterEffect::ExternalRecordable,
-                EffectClass::External {
-                    replay: ReplayPolicy::Recordable,
-                },
-            )
-            | (
-                RuntimeFilterEffect::ExternalNonRecordable,
-                EffectClass::External {
-                    replay: ReplayPolicy::NonRecordable,
-                },
-            )
-    )
+fn matches_effect(rule_effect: BindingEffect, effect_class: BindingEffectClass) -> bool {
+    rule_effect == effect_class.binding_effect()
 }
 
 /// Match one text value against one glob pattern.

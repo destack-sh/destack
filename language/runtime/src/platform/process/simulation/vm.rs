@@ -9,7 +9,7 @@ use crate::platform::process::{
     SignalMaskHow, SyscallFilterFlags, UserId,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 /// Return the process argument vector.
@@ -30,7 +30,7 @@ use destack_vm as vm;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_args(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<vm::StringHandle>> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.args.list")).boxed())
@@ -54,7 +54,7 @@ pub(crate) fn destack_process_args(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_chdir(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     path: fs::OsPathVm,
 ) -> RuntimeResult<()> {
@@ -80,7 +80,7 @@ pub(crate) fn destack_process_chdir(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_cwd(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<fs::OsPathVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.cwd.get")).boxed())
@@ -104,7 +104,7 @@ pub(crate) fn destack_process_cwd(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_env_delete(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -130,7 +130,7 @@ pub(crate) fn destack_process_env_delete(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_env_delete_bytes(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     name: VmSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -159,7 +159,7 @@ pub(crate) fn destack_process_env_delete_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_env_get(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::StringHandle> {
@@ -185,7 +185,7 @@ pub(crate) fn destack_process_env_get(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_env_get_bytes(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     name: VmSlice<u8>,
 ) -> RuntimeResult<VmArray<u8>> {
@@ -211,7 +211,7 @@ pub(crate) fn destack_process_env_get_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_env_set(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
     argument_value: vm::StringHandle,
@@ -238,7 +238,7 @@ pub(crate) fn destack_process_env_set(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_env_set_bytes(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     name: VmSlice<u8>,
     argument_value: VmSlice<u8>,
@@ -265,7 +265,7 @@ pub(crate) fn destack_process_env_set_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_exec(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     command: fs::OsPathVm,
     arguments: VmSlice<vm::StringHandle>,
@@ -293,7 +293,7 @@ pub(crate) fn destack_process_exec(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_execat(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     directory: resource::DirectoryHandle,
     path: fs::OsPathVm,
@@ -323,7 +323,7 @@ pub(crate) fn destack_process_execat(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_fexec(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     executable: resource::FileHandle,
     arguments: VmSlice<vm::StringHandle>,
@@ -351,7 +351,7 @@ pub(crate) fn destack_process_fexec(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_exit(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     code: u32,
 ) -> RuntimeResult<()> {
@@ -380,7 +380,7 @@ pub(crate) fn destack_process_exit(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_process_fd_close(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
@@ -409,7 +409,7 @@ pub(crate) fn destack_process_process_fd_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_process_fd_open(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     flags: ProcessFdFlags,
@@ -439,7 +439,7 @@ pub(crate) fn destack_process_process_fd_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_process_fd_send_signal(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessFdHandle,
     signal: Signal,
@@ -470,7 +470,7 @@ pub(crate) fn destack_process_process_fd_send_signal(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_process_fd_try_wait(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<ProcessWaitStatusVm> {
@@ -499,7 +499,7 @@ pub(crate) fn destack_process_process_fd_try_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_process_fd_wait(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessFdHandle,
     timeoutns: u64,
@@ -529,7 +529,7 @@ pub(crate) fn destack_process_process_fd_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_signal_fd_close(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
@@ -558,7 +558,7 @@ pub(crate) fn destack_process_signal_fd_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_signal_fd_open(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     signals: VmSlice<Signal>,
     flags: SignalFdFlags,
@@ -588,7 +588,7 @@ pub(crate) fn destack_process_signal_fd_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_signal_fd_read(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<SignalEventVm> {
@@ -617,7 +617,7 @@ pub(crate) fn destack_process_signal_fd_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_signal_fd_set_mask(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalFdHandle,
     signals: VmSlice<Signal>,
@@ -647,7 +647,7 @@ pub(crate) fn destack_process_signal_fd_set_mask(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_signal_fd_try_read(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<SignalEventVm> {
@@ -676,7 +676,7 @@ pub(crate) fn destack_process_signal_fd_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_stdio_stderr(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<resource::FileHandle> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -703,7 +703,7 @@ pub(crate) fn destack_process_stdio_stderr(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_stdio_stdin(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<resource::FileHandle> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -730,7 +730,7 @@ pub(crate) fn destack_process_stdio_stdin(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_stdio_stdout(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<resource::FileHandle> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -757,7 +757,7 @@ pub(crate) fn destack_process_stdio_stdout(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_process_cgroup_get_limit(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     path: vm::StringHandle,
     resource: ProcessLimitResource,
@@ -787,7 +787,7 @@ pub(crate) fn destack_process_cgroup_get_limit(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_process_cgroup_join(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     path: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -816,7 +816,7 @@ pub(crate) fn destack_process_cgroup_join(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_process_cgroup_set_limit(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     path: vm::StringHandle,
     resource: ProcessLimitResource,
@@ -847,7 +847,7 @@ pub(crate) fn destack_process_cgroup_set_limit(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_process_job_assign(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
     pids: VmSlice<ProcessId>,
@@ -877,7 +877,7 @@ pub(crate) fn destack_process_job_assign(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_process_job_set_limit(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
     resource: ProcessLimitResource,
@@ -908,7 +908,7 @@ pub(crate) fn destack_process_job_set_limit(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_egid(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<GroupId> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.egid")).boxed())
@@ -932,7 +932,7 @@ pub(crate) fn destack_process_egid(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_euid(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<UserId> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.euid")).boxed())
@@ -956,7 +956,7 @@ pub(crate) fn destack_process_euid(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_gid(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<GroupId> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.gid")).boxed())
@@ -980,7 +980,7 @@ pub(crate) fn destack_process_gid(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_group_ids(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<ProcessGroupIdsVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.groupIds")).boxed())
@@ -1004,7 +1004,7 @@ pub(crate) fn destack_process_group_ids(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_groups(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<GroupId>> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.groups")).boxed())
@@ -1028,7 +1028,7 @@ pub(crate) fn destack_process_groups(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_pid(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<ProcessId> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.pid")).boxed())
@@ -1052,7 +1052,7 @@ pub(crate) fn destack_process_pid(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_ppid(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<ProcessId> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.ppid")).boxed())
@@ -1076,7 +1076,7 @@ pub(crate) fn destack_process_ppid(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_set_egid(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     groupid: GroupId,
 ) -> RuntimeResult<()> {
@@ -1102,7 +1102,7 @@ pub(crate) fn destack_process_set_egid(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_set_euid(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     userid: UserId,
 ) -> RuntimeResult<()> {
@@ -1128,7 +1128,7 @@ pub(crate) fn destack_process_set_euid(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_set_gid(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     groupid: GroupId,
 ) -> RuntimeResult<()> {
@@ -1154,7 +1154,7 @@ pub(crate) fn destack_process_set_gid(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_set_group_ids(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     ids: ProcessGroupIdsVm,
 ) -> RuntimeResult<()> {
@@ -1183,7 +1183,7 @@ pub(crate) fn destack_process_set_group_ids(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_set_groups(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     groups: VmSlice<GroupId>,
 ) -> RuntimeResult<()> {
@@ -1212,7 +1212,7 @@ pub(crate) fn destack_process_set_groups(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_set_uid(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     userid: UserId,
 ) -> RuntimeResult<()> {
@@ -1238,7 +1238,7 @@ pub(crate) fn destack_process_set_uid(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_set_user_ids(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     ids: ProcessUserIdsVm,
 ) -> RuntimeResult<()> {
@@ -1267,7 +1267,7 @@ pub(crate) fn destack_process_set_user_ids(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_uid(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<UserId> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.uid")).boxed())
@@ -1291,7 +1291,7 @@ pub(crate) fn destack_process_uid(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_user_ids(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<ProcessUserIdsVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.userIds")).boxed())
@@ -1315,7 +1315,7 @@ pub(crate) fn destack_process_user_ids(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_process_chroot(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     path: fs::OsPathVm,
 ) -> RuntimeResult<()> {
@@ -1344,7 +1344,7 @@ pub(crate) fn destack_process_chroot(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_process_install_syscall_filter(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     program: VmArray<u8>,
     flags: SyscallFilterFlags,
@@ -1374,7 +1374,7 @@ pub(crate) fn destack_process_install_syscall_filter(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_process_set_host_name(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -1403,7 +1403,7 @@ pub(crate) fn destack_process_set_host_name(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_process_set_network_namespace(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     path: fs::OsPathVm,
 ) -> RuntimeResult<()> {
@@ -1432,7 +1432,7 @@ pub(crate) fn destack_process_set_network_namespace(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_process_setns(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     namespace: ProcessNamespaceKind,
@@ -1462,7 +1462,7 @@ pub(crate) fn destack_process_setns(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_process_unshare(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     flags: ProcessUnshareFlags,
 ) -> RuntimeResult<()> {
@@ -1491,7 +1491,7 @@ pub(crate) fn destack_process_unshare(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_get_limit(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     resource: ProcessLimitResource,
 ) -> RuntimeResult<ProcessLimitVm> {
@@ -1520,7 +1520,7 @@ pub(crate) fn destack_process_get_limit(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_set_limit(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     resource: ProcessLimitResource,
     limit: ProcessLimitVm,
@@ -1550,7 +1550,7 @@ pub(crate) fn destack_process_set_limit(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_get_affinity(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
 ) -> RuntimeResult<ProcessCpuSetVm> {
@@ -1579,7 +1579,7 @@ pub(crate) fn destack_process_get_affinity(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_get_priority(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
 ) -> RuntimeResult<i32> {
@@ -1608,7 +1608,7 @@ pub(crate) fn destack_process_get_priority(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_get_scheduler(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
 ) -> RuntimeResult<ProcessSchedulerConfigVm> {
@@ -1637,7 +1637,7 @@ pub(crate) fn destack_process_get_scheduler(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_set_affinity(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     cpus: ProcessCpuSetVm,
@@ -1667,7 +1667,7 @@ pub(crate) fn destack_process_set_affinity(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_set_priority(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     priority: i32,
@@ -1697,7 +1697,7 @@ pub(crate) fn destack_process_set_priority(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_set_scheduler(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     config: ProcessSchedulerConfigVm,
@@ -1727,7 +1727,7 @@ pub(crate) fn destack_process_set_scheduler(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_yield_now(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1754,7 +1754,7 @@ pub(crate) fn destack_process_yield_now(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_getpgid(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
 ) -> RuntimeResult<ProcessId> {
@@ -1783,7 +1783,7 @@ pub(crate) fn destack_process_getpgid(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_setpgid(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     pgid: ProcessId,
@@ -1813,7 +1813,7 @@ pub(crate) fn destack_process_setpgid(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_setsid(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<ProcessId> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1840,7 +1840,7 @@ pub(crate) fn destack_process_setsid(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_kill(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     signal: Signal,
@@ -1867,7 +1867,7 @@ pub(crate) fn destack_process_kill(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_signal_mask_read(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<Signal>> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1894,7 +1894,7 @@ pub(crate) fn destack_process_signal_mask_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_signal_mask_update(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     how: SignalMaskHow,
     signals: VmSlice<Signal>,
@@ -1924,7 +1924,7 @@ pub(crate) fn destack_process_signal_mask_update(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_signal_receive(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<SignalEventVm> {
@@ -1953,7 +1953,7 @@ pub(crate) fn destack_process_signal_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_signal_subscribe(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     signal: Signal,
 ) -> RuntimeResult<resource::SignalHandle> {
@@ -1982,7 +1982,7 @@ pub(crate) fn destack_process_signal_subscribe(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_signal_try_receive(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<SignalEventVm> {
@@ -2011,7 +2011,7 @@ pub(crate) fn destack_process_signal_try_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_signal_try_wait(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<SignalEventVm> {
@@ -2040,7 +2040,7 @@ pub(crate) fn destack_process_signal_try_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_signal_unsubscribe(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
@@ -2069,7 +2069,7 @@ pub(crate) fn destack_process_signal_unsubscribe(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_signal_wait(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<SignalEventVm> {
@@ -2098,7 +2098,7 @@ pub(crate) fn destack_process_signal_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_spawn(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     command: fs::OsPathVm,
     arguments: VmSlice<vm::StringHandle>,
@@ -2127,7 +2127,7 @@ pub(crate) fn destack_process_spawn(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_spawn_with_actions(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     command: fs::OsPathVm,
     arguments: VmSlice<vm::StringHandle>,
@@ -2161,7 +2161,7 @@ pub(crate) fn destack_process_spawn_with_actions(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_umask(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     mask: u32,
 ) -> RuntimeResult<u32> {
@@ -2187,7 +2187,7 @@ pub(crate) fn destack_process_umask(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_wait_pid(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     flags: ProcessWaitFlags,
@@ -2214,7 +2214,7 @@ pub(crate) fn destack_process_wait_pid(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_try_wait(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<ProcessWaitStatusVm> {
@@ -2240,7 +2240,7 @@ pub(crate) fn destack_process_try_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_process_wait(
-    _runtime: &RuntimeCallContext,
+    _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessHandle,
     flags: ProcessWaitFlags,

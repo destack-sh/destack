@@ -6,11 +6,11 @@ use crate::platform::input::{
     validation as input_validation,
 };
 use crate::platform::{NativeArray, PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// List supported haptic effects for one opened Windows input handle.
 pub(super) fn haptics_effects(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Vec<InputHapticEffectType>> {
@@ -28,7 +28,7 @@ pub(super) fn haptics_effects(
 
 /// Play one haptic effect for one opened Windows input handle.
 pub(super) fn haptics_play(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     effect: InputHapticEffectType,
     params: InputHapticEffectParameters,
@@ -51,7 +51,7 @@ pub(super) fn haptics_play(
 
 /// Stop active haptic effects for one opened Windows input handle.
 pub(super) fn haptics_stop(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -84,7 +84,7 @@ pub(super) fn haptics_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_effects(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<InputHapticEffectType>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -122,7 +122,7 @@ pub(crate) unsafe fn destack_input_haptics_effects(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_play(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputHapticsResult,
     handle: resource::InputDeviceHandle,
     effect: InputHapticEffectType,
@@ -167,7 +167,7 @@ pub(crate) unsafe fn destack_input_haptics_play(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_stop(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     haptics_stop(context, handle, "destack.input.haptics.stop")

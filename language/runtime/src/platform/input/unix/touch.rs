@@ -5,11 +5,11 @@ use super::linux as input_linux;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{InputDeviceKind, InputTouchState};
 use crate::platform::{PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Resolve one opened touch-capable unix binding.
 fn resolve_touch_binding(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<input_core::UnixInputBinding> {
@@ -51,7 +51,7 @@ fn resolve_touch_binding(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_touch_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut InputTouchState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {

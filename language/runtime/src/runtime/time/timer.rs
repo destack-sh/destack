@@ -6,8 +6,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::time::{TimerClock, TimerOptions};
 use crate::platform::{PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
-use crate::runtime::scheduler::Timer as SchedulerTimer;
+use crate::runtime::BindingCallContext;
+use crate::runtime::scheduler::Timer as EventLoopTimer;
 
 /// Runtime state for one scheduled timer handle.
 #[derive(Debug)]
@@ -54,15 +54,15 @@ fn invalid_period_error(field: &str) -> Box<RuntimeError> {
 }
 
 /// Resolve one clock domain into one current nanosecond timestamp.
-fn now_for_clock(context: &RuntimeCallContext, clock: TimerClock) -> u64 {
+fn now_for_clock(context: &BindingCallContext, clock: TimerClock) -> u64 {
     match clock {
         TimerClock::Wall => context.runtime().time.wall_nanos(),
         TimerClock::Monotonic => context.runtime().time.mono_nanos(),
     }
 }
 
-/// Convert one clock-domain deadline into one scheduler wall-clock deadline.
-fn scheduler_deadline(context: &RuntimeCallContext, clock: TimerClock, deadline_ns: u64) -> u64 {
+/// Convert one clock-domain deadline into one event loop wall-clock deadline.
+fn event_loop_deadline(context: &BindingCallContext, clock: TimerClock, deadline_ns: u64) -> u64 {
     match clock {
         TimerClock::Wall => deadline_ns,
         TimerClock::Monotonic => {
@@ -85,7 +85,7 @@ fn validate_timer_options(options: TimerOptions) -> RuntimeResult<()> {
 
 /// Resolve one timer handle into one mutable state payload.
 fn timer_state_for_handle(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<Arc<Mutex<TimerState>>> {
     let state = context
@@ -108,7 +108,7 @@ fn timer_state_for_handle(
 }
 
 /// Insert one timer state payload and return its handle.
-fn insert_timer_state(context: &RuntimeCallContext, state: TimerState) -> resource::TimerHandle {
+fn insert_timer_state(context: &BindingCallContext, state: TimerState) -> resource::TimerHandle {
     let entry = ResourceEntry::new(ResourceKind::Timer)
         .with_label("timer.schedule")
         .with_payload(Arc::new(Mutex::new(state)));
@@ -116,9 +116,9 @@ fn insert_timer_state(context: &RuntimeCallContext, state: TimerState) -> resour
     resource::TimerHandle(resource_id)
 }
 
-/// Enqueue one active timer state into the scheduler queue.
+/// Enqueue one active timer state into the event loop queue.
 fn schedule_timer_state(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
     state: &TimerState,
 ) -> RuntimeResult<()> {
@@ -126,8 +126,8 @@ fn schedule_timer_state(
         return Ok(());
     }
 
-    let fire_at_nanos = scheduler_deadline(context, state.clock, state.next_deadline_ns);
-    context.scheduler().schedule_timer(SchedulerTimer {
+    let fire_at_nanos = event_loop_deadline(context, state.clock, state.next_deadline_ns);
+    context.event_loop().schedule_timer(EventLoopTimer {
         handle: handle.0,
         fire_at_nanos,
         interval_nanos: state.interval_ns,
@@ -135,7 +135,7 @@ fn schedule_timer_state(
 }
 
 /// Refresh one timer state against the current clock value.
-fn refresh_timer_state(context: &RuntimeCallContext, state: &mut TimerState) {
+fn refresh_timer_state(context: &BindingCallContext, state: &mut TimerState) {
     // skip inactive and paused timers
     if !state.active || state.paused {
         return;
@@ -169,7 +169,7 @@ fn refresh_timer_state(context: &RuntimeCallContext, state: &mut TimerState) {
 }
 
 /// Return remaining nanoseconds for one timer state snapshot.
-fn remaining_nanos(context: &RuntimeCallContext, state: &TimerState) -> u64 {
+fn remaining_nanos(context: &BindingCallContext, state: &TimerState) -> u64 {
     if !state.active {
         return 0;
     }
@@ -183,7 +183,7 @@ fn remaining_nanos(context: &RuntimeCallContext, state: &TimerState) -> u64 {
 
 /// Create one timer state and schedule it.
 fn create_timer(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     options: TimerOptions,
     deadline_ns: u64,
     interval_ns: Option<u64>,
@@ -202,7 +202,7 @@ fn create_timer(
     };
     let handle = insert_timer_state(context, state);
 
-    // schedule the timer in the runtime scheduler
+    // schedule the timer in the runtime event loop
     let state = timer_state_for_handle(context, handle)?;
     let state = state.lock();
     if let Err(error) = schedule_timer_state(context, handle, &state) {
@@ -215,10 +215,10 @@ fn create_timer(
 
 /// Cancel a scheduled timer.
 ///
-/// Remove one timer from the runtime scheduler.
+/// Remove one timer from the runtime event loop.
 /// Cancellation is idempotent when supported by the runtime implementation.
 pub(crate) unsafe fn destack_timer_cancel(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     // remove one timer handle from the resource table
@@ -231,17 +231,17 @@ pub(crate) unsafe fn destack_timer_cancel(
         return Err(invalid_timer_handle_error());
     }
 
-    // cancel one queued scheduler timer entry
-    context.scheduler().cancel_timer(handle.0)?;
+    // cancel one queued event loop timer entry
+    context.event_loop().cancel_timer(handle.0)?;
     Ok(())
 }
 
 /// Return whether a timer is currently active.
 ///
 /// Read active-state metadata for one timer handle.
-/// Active state reflects runtime scheduler ownership and cancellation state.
+/// Active state reflects runtime event loop ownership and cancellation state.
 pub(crate) unsafe fn destack_timer_is_active(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut bool,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
@@ -255,7 +255,7 @@ pub(crate) unsafe fn destack_timer_is_active(
     let mut state = state.lock();
     refresh_timer_state(context, &mut state);
     if !state.active {
-        context.scheduler().cancel_timer(handle.0)?;
+        context.event_loop().cancel_timer(handle.0)?;
     }
 
     // write one active marker
@@ -270,7 +270,7 @@ pub(crate) unsafe fn destack_timer_is_active(
 /// Suspend one timer without discarding its scheduling state.
 /// Resume behavior and retained delay follow the active runtime timer policy.
 pub(crate) unsafe fn destack_timer_pause(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     // refresh one timer state before pausing
@@ -284,7 +284,7 @@ pub(crate) unsafe fn destack_timer_pause(
     // capture one remaining duration and pause scheduling
     state.paused_remaining_ns = remaining_nanos(context, &state);
     state.paused = true;
-    context.scheduler().cancel_timer(handle.0)?;
+    context.event_loop().cancel_timer(handle.0)?;
     Ok(())
 }
 
@@ -293,7 +293,7 @@ pub(crate) unsafe fn destack_timer_pause(
 /// Read remaining delay for one timer relative to its configured clock domain.
 /// Remaining delay is zero when timer has fired or is inactive.
 pub(crate) unsafe fn destack_timer_remaining_ns(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
@@ -307,7 +307,7 @@ pub(crate) unsafe fn destack_timer_remaining_ns(
     let mut state = state.lock();
     refresh_timer_state(context, &mut state);
     if !state.active {
-        context.scheduler().cancel_timer(handle.0)?;
+        context.event_loop().cancel_timer(handle.0)?;
     }
     let remaining = remaining_nanos(context, &state);
 
@@ -323,7 +323,7 @@ pub(crate) unsafe fn destack_timer_remaining_ns(
 /// Replace one timer schedule with a new relative delay.
 /// Reset semantics preserve timer identity and replay ordering.
 pub(crate) unsafe fn destack_timer_reset(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
     delayns: u64,
 ) -> RuntimeResult<()> {
@@ -337,16 +337,16 @@ pub(crate) unsafe fn destack_timer_reset(
     state.paused_remaining_ns = 0;
     state.paused = false;
     state.active = true;
-    context.scheduler().cancel_timer(handle.0)?;
+    context.event_loop().cancel_timer(handle.0)?;
     schedule_timer_state(context, handle, &state)
 }
 
 /// Resume a paused timer.
 ///
-/// Reactivate one paused timer in the runtime scheduler.
+/// Reactivate one paused timer in the runtime event loop.
 /// Resume timing semantics follow runtime timer policy.
 pub(crate) unsafe fn destack_timer_resume(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     // resolve one timer state payload
@@ -369,7 +369,7 @@ pub(crate) unsafe fn destack_timer_resume(
 /// Replace one interval timer period while preserving timer identity.
 /// Update semantics are runtime-defined for already-expired intervals.
 pub(crate) unsafe fn destack_timer_update_interval(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: resource::TimerHandle,
     periodns: u64,
 ) -> RuntimeResult<()> {
@@ -390,7 +390,7 @@ pub(crate) unsafe fn destack_timer_update_interval(
 
     // reschedule the timer with the updated interval
     refresh_timer_state(context, &mut state);
-    context.scheduler().cancel_timer(handle.0)?;
+    context.event_loop().cancel_timer(handle.0)?;
     schedule_timer_state(context, handle, &state)
 }
 
@@ -399,7 +399,7 @@ pub(crate) unsafe fn destack_timer_update_interval(
 /// Register one timer that fires at a specific deadline in nanoseconds with explicit timer options.
 /// Deadline interpretation follows runtime wall-clock and monotonic policy.
 pub(crate) unsafe fn destack_timer_at(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::TimerHandle,
     deadlinens: u64,
     options: TimerOptions,
@@ -424,7 +424,7 @@ pub(crate) unsafe fn destack_timer_at(
 /// Register one timer that fires repeatedly at a fixed period with explicit timer options.
 /// Drift and catch-up behavior follow runtime timer policy.
 pub(crate) unsafe fn destack_timer_interval(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::TimerHandle,
     periodns: u64,
     options: TimerOptions,
@@ -454,7 +454,7 @@ pub(crate) unsafe fn destack_timer_interval(
 /// Register one timer that fires once after a relative delay with explicit timer options.
 /// The handle remains valid until explicit cancel or one-shot completion.
 pub(crate) unsafe fn destack_timer_once(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut resource::TimerHandle,
     delayns: u64,
     options: TimerOptions,

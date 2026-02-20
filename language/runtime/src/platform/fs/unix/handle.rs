@@ -8,7 +8,7 @@ use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{core as core_fs, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, net as platform_net, *};
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStrExt;
@@ -33,7 +33,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_close(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     // validate the handle kind
@@ -80,7 +80,7 @@ pub(crate) unsafe fn destack_fs_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_closedir(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
     // validate the handle kind
@@ -127,7 +127,7 @@ pub(crate) unsafe fn destack_fs_closedir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmod(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -159,7 +159,7 @@ pub(crate) unsafe fn destack_fs_fchmod(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchown(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     uid: u32,
     gid: u32,
@@ -192,7 +192,7 @@ pub(crate) unsafe fn destack_fs_fchown(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fdatasync(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     // resolve the file descriptor
@@ -223,7 +223,7 @@ pub(crate) unsafe fn destack_fs_fdatasync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fstat(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut Stat,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -265,7 +265,7 @@ pub(crate) unsafe fn destack_fs_fstat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fstatfs(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut StatFs,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -301,7 +301,7 @@ pub(crate) unsafe fn destack_fs_fstatfs(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsync(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     // resolve the file descriptor
@@ -332,7 +332,7 @@ pub(crate) unsafe fn destack_fs_fsync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_ftruncate(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     size: FileOffset,
 ) -> RuntimeResult<()> {
@@ -365,7 +365,7 @@ pub(crate) unsafe fn destack_fs_ftruncate(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_seek(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileOffset,
     handle: FileHandle,
     offset: FileOffset,
@@ -416,7 +416,7 @@ pub(crate) unsafe fn destack_fs_seek(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -462,7 +462,7 @@ pub(crate) unsafe fn destack_fs_dup(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup2(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     handle: FileHandle,
     target: FileHandle,
@@ -512,7 +512,7 @@ pub(crate) unsafe fn destack_fs_dup2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup3(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     handle: FileHandle,
     target: FileHandle,
@@ -574,7 +574,7 @@ pub(crate) unsafe fn destack_fs_dup3(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_futimes(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     atimens: u64,
     mtimens: u64,
@@ -608,7 +608,7 @@ pub(crate) unsafe fn destack_fs_futimes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dirfd(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FileHandle,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
@@ -660,7 +660,7 @@ pub(crate) unsafe fn destack_fs_dirfd(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_get_fd_flags(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut FdFlags,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -707,7 +707,7 @@ pub(crate) unsafe fn destack_fs_get_fd_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_get_status_flags(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut StatusFlags,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -754,7 +754,7 @@ pub(crate) unsafe fn destack_fs_get_status_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_set_fd_flags(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     flags: FdFlags,
 ) -> RuntimeResult<()> {
@@ -793,7 +793,7 @@ pub(crate) unsafe fn destack_fs_set_fd_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_set_status_flags(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     flags: StatusFlags,
 ) -> RuntimeResult<()> {
@@ -832,7 +832,7 @@ pub(crate) unsafe fn destack_fs_set_status_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_syncfs(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     #[cfg(unix)]

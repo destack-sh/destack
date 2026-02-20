@@ -13,7 +13,7 @@ use windows_sys::Win32::System::Threading::{
 };
 use windows_sys::Win32::System::WindowsProgramming::THREAD_PRIORITY_ERROR_RETURN;
 
-use crate::runtime::RuntimeCallContext;
+use crate::runtime::BindingCallContext;
 
 /// Build one thread-priority error from the last Win32 error.
 fn thread_priority_error(syscall: &str) -> Box<RuntimeError> {
@@ -45,7 +45,7 @@ fn thread_priority_error(syscall: &str) -> Box<RuntimeError> {
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_affinity(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: ThreadHandle,
 ) -> RuntimeResult<()> {
@@ -99,7 +99,7 @@ pub(crate) unsafe fn destack_thread_get_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_priority(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     out: *mut i32,
     handle: ThreadHandle,
 ) -> RuntimeResult<()> {
@@ -147,7 +147,7 @@ pub(crate) unsafe fn destack_thread_get_priority(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_affinity(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ThreadHandle,
     mask: u64,
 ) -> RuntimeResult<()> {
@@ -204,7 +204,7 @@ pub(crate) unsafe fn destack_thread_set_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_priority(
-    context: &RuntimeCallContext,
+    context: &BindingCallContext,
     handle: ThreadHandle,
     priority: i32,
 ) -> RuntimeResult<()> {
