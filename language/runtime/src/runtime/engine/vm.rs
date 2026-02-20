@@ -2,21 +2,22 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::engine::{Engine, EngineOutcome, VmEntry};
+use crate::runtime::engine::{
+    Engine, EngineContinuation, EngineOutcome, RuntimeOutput, RuntimeValue, VmEntry,
+};
 
 /// VM engine implementation for the runtime.
 impl Engine for Isolate {
     type Entry = VmEntry;
-    type Output = vm::ExecutionOutput;
-    type Continuation = vm::Continuation;
-    type Value = vm::Value;
+    type Output = RuntimeOutput;
+    type Value = RuntimeValue;
 
     /// Run a VM entrypoint by name.
     fn run(
         &mut self,
         entry: &VmEntry,
-        args: &[vm::Value],
-    ) -> RuntimeResult<EngineOutcome<vm::ExecutionOutput, vm::Continuation, vm::Value>> {
+        args: &[RuntimeValue],
+    ) -> RuntimeResult<EngineOutcome<RuntimeOutput, RuntimeValue>> {
         let outcome = self
             .run_function_by_name_yielding(&entry.name, args)
             .map_err(Box::<RuntimeError>::from)?;
@@ -26,9 +27,15 @@ impl Engine for Isolate {
     /// Resume a VM continuation.
     fn resume(
         &mut self,
-        continuation: vm::Continuation,
-        value: vm::Value,
-    ) -> RuntimeResult<EngineOutcome<vm::ExecutionOutput, vm::Continuation, vm::Value>> {
+        continuation: EngineContinuation,
+        value: RuntimeValue,
+    ) -> RuntimeResult<EngineOutcome<RuntimeOutput, RuntimeValue>> {
+        let EngineContinuation::Vm(continuation) = continuation else {
+            return Err(RuntimeError::Internal {
+                message: "vm engine cannot resume native continuation".to_string(),
+            }
+            .boxed());
+        };
         let outcome = self
             .resume(continuation, value)
             .map_err(Box::<RuntimeError>::from)?;
@@ -37,13 +44,11 @@ impl Engine for Isolate {
 }
 
 /// Convert a VM execution outcome into a runtime engine outcome.
-fn map_vm_outcome(
-    outcome: vm::ExecutionOutcome,
-) -> EngineOutcome<vm::ExecutionOutput, vm::Continuation, vm::Value> {
+fn map_vm_outcome(outcome: vm::ExecutionOutcome) -> EngineOutcome<RuntimeOutput, RuntimeValue> {
     match outcome {
         vm::ExecutionOutcome::Completed { output } => EngineOutcome::Completed { output },
         vm::ExecutionOutcome::Yielded { yielded } => EngineOutcome::Yielded {
-            continuation: yielded.continuation,
+            continuation: EngineContinuation::Vm(yielded.continuation),
             value: yielded.value,
         },
     }

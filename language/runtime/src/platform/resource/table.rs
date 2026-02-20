@@ -332,7 +332,7 @@ impl ResourceTable {
         let id = ResourceId(self.next_id.fetch_add(1, Ordering::Relaxed));
         self.entries.write().insert(id, entry);
         let _ = with_current_binding_call_context(|context| {
-            context.rules().on_resource_attach(RuntimeHookState {
+            context.hooks().on_resource_attach(RuntimeHookState {
                 engine: Some(context.engine()),
                 resource_id: Some(id),
                 ..RuntimeHookState::empty()
@@ -346,7 +346,7 @@ impl ResourceTable {
         self.entries.write().insert(resource_id, entry);
         self.next_id.fetch_max(resource_id.0 + 1, Ordering::Relaxed);
         let _ = with_current_binding_call_context(|context| {
-            context.rules().on_resource_attach(RuntimeHookState {
+            context.hooks().on_resource_attach(RuntimeHookState {
                 engine: Some(context.engine()),
                 resource_id: Some(resource_id),
                 ..RuntimeHookState::empty()
@@ -386,7 +386,7 @@ impl ResourceTable {
         let removed = self.entries.write().remove(&resource_id);
         if removed.is_some() {
             let _ = with_current_binding_call_context(|context| {
-                context.rules().on_resource_detach(RuntimeHookState {
+                context.hooks().on_resource_detach(RuntimeHookState {
                     engine: Some(context.engine()),
                     resource_id: Some(resource_id),
                     ..RuntimeHookState::empty()

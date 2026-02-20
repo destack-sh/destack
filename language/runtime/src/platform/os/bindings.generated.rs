@@ -1452,7 +1452,6 @@ pub unsafe extern "C" fn destack_os_host_identity(out: *mut HostIdentity) -> Run
         }
         let _ = &out;
 
-        context.check_policy(OS_HOST_IDENTITY)?;
         let world = context.check_and_resolve_world(OS_HOST_IDENTITY)?;
         destack_os_host_identity_replay(context, world, out)
     })
@@ -1466,7 +1465,6 @@ pub unsafe extern "C" fn destack_os_info_boot_time_unix_ns(out: *mut u64) -> Run
         }
         let _ = &out;
 
-        context.check_policy(OS_INFO_BOOT_TIME_UNIX_NS)?;
         let world = context.check_and_resolve_world(OS_INFO_BOOT_TIME_UNIX_NS)?;
         destack_os_info_boot_time_unix_ns_replay(context, world, out)
     })
@@ -1480,7 +1478,6 @@ pub unsafe extern "C" fn destack_os_info_load_average(out: *mut LoadAverage) -> 
         }
         let _ = &out;
 
-        context.check_policy(OS_INFO_LOAD_AVERAGE)?;
         let world = context.check_and_resolve_world(OS_INFO_LOAD_AVERAGE)?;
         destack_os_info_load_average_replay(context, world, out)
     })
@@ -1496,7 +1493,6 @@ pub unsafe extern "C" fn destack_os_info_system_snapshot(
         }
         let _ = &out;
 
-        context.check_policy(OS_INFO_SYSTEM_SNAPSHOT)?;
         let world = context.check_and_resolve_world(OS_INFO_SYSTEM_SNAPSHOT)?;
         destack_os_info_system_snapshot_replay(context, world, out)
     })
@@ -1510,7 +1506,6 @@ pub unsafe extern "C" fn destack_os_info_uptime_ns(out: *mut u64) -> RuntimeStat
         }
         let _ = &out;
 
-        context.check_policy(OS_INFO_UPTIME_NS)?;
         let world = context.check_and_resolve_world(OS_INFO_UPTIME_NS)?;
         destack_os_info_uptime_ns_replay(context, world, out)
     })
@@ -1527,7 +1522,6 @@ pub unsafe extern "C" fn destack_os_mount_add(
     native_call(|context| {
         let _ = (&source, &target, &filesystem, &flags, &data);
 
-        context.check_policy(OS_MOUNT_ADD)?;
         let world = context.check_and_resolve_world(OS_MOUNT_ADD)?;
         destack_os_mount_add_replay(context, world, source, target, filesystem, flags, data)
     })
@@ -1541,7 +1535,6 @@ pub unsafe extern "C" fn destack_os_mount_list(out: *mut NativeArray<MountEntry>
         }
         let _ = &out;
 
-        context.check_policy(OS_MOUNT_LIST)?;
         let world = context.check_and_resolve_world(OS_MOUNT_LIST)?;
         destack_os_mount_list_replay(context, world, out)
     })
@@ -1552,7 +1545,6 @@ pub unsafe extern "C" fn destack_os_mount_remove(target: fs::OsPath, flags: u32)
     native_call(|context| {
         let _ = (&target, &flags);
 
-        context.check_policy(OS_MOUNT_REMOVE)?;
         let world = context.check_and_resolve_world(OS_MOUNT_REMOVE)?;
         destack_os_mount_remove_replay(context, world, target, flags)
     })
@@ -1566,7 +1558,6 @@ pub unsafe extern "C" fn destack_os_power_state(out: *mut PowerState) -> Runtime
         }
         let _ = &out;
 
-        context.check_policy(OS_POWER_STATE)?;
         let world = context.check_and_resolve_world(OS_POWER_STATE)?;
         destack_os_power_state_replay(context, world, out)
     })
@@ -1575,7 +1566,6 @@ pub unsafe extern "C" fn destack_os_power_state(out: *mut PowerState) -> Runtime
 #[unsafe(export_name = "destack.os.power.suspend")]
 pub unsafe extern "C" fn destack_os_power_suspend() -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(OS_POWER_SUSPEND)?;
         let world = context.check_and_resolve_world(OS_POWER_SUSPEND)?;
         match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_os_suspend(context) },
@@ -2381,7 +2371,6 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    runtime.check_policy(OS_HOST_IDENTITY)?;
                     let world = runtime.check_and_resolve_world(OS_HOST_IDENTITY)?;
                     destack_os_host_identity_vm_replay(runtime, context, world)
                 })
@@ -2397,7 +2386,6 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    runtime.check_policy(OS_INFO_BOOT_TIME_UNIX_NS)?;
                     let world = runtime.check_and_resolve_world(OS_INFO_BOOT_TIME_UNIX_NS)?;
                     destack_os_info_boot_time_unix_ns_vm_replay(runtime, context, world)
                 })
@@ -2413,7 +2401,6 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    runtime.check_policy(OS_INFO_LOAD_AVERAGE)?;
                     let world = runtime.check_and_resolve_world(OS_INFO_LOAD_AVERAGE)?;
                     destack_os_info_load_average_vm_replay(runtime, context, world)
                 })
@@ -2429,7 +2416,6 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    runtime.check_policy(OS_INFO_SYSTEM_SNAPSHOT)?;
                     let world = runtime.check_and_resolve_world(OS_INFO_SYSTEM_SNAPSHOT)?;
                     destack_os_info_system_snapshot_vm_replay(runtime, context, world)
                 })
@@ -2445,7 +2431,6 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    runtime.check_policy(OS_INFO_UPTIME_NS)?;
                     let world = runtime.check_and_resolve_world(OS_INFO_UPTIME_NS)?;
                     destack_os_info_uptime_ns_vm_replay(runtime, context, world)
                 })
@@ -2461,7 +2446,6 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_os_mount_add_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(OS_MOUNT_ADD)?;
                 let world = runtime.check_and_resolve_world(OS_MOUNT_ADD)?;
                 destack_os_mount_add_vm_replay(
                     runtime, context, world, source, target, filesystem, flags, data,
@@ -2474,7 +2458,6 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         binding!(registry, isolate, OS_MOUNT_LIST, move |context, _args| {
             with_binding_call_context(|runtime| {
                 // execute binding
-                runtime.check_policy(OS_MOUNT_LIST)?;
                 let world = runtime.check_and_resolve_world(OS_MOUNT_LIST)?;
                 destack_os_mount_list_vm_replay(runtime, context, world)
             })
@@ -2488,7 +2471,6 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (target, flags) = decode_destack_os_mount_remove_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(OS_MOUNT_REMOVE)?;
                 let world = runtime.check_and_resolve_world(OS_MOUNT_REMOVE)?;
                 destack_os_mount_remove_vm_replay(runtime, context, world, target, flags)
             })
@@ -2499,7 +2481,6 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         binding!(registry, isolate, OS_POWER_STATE, move |context, _args| {
             with_binding_call_context(|runtime| {
                 // execute binding
-                runtime.check_policy(OS_POWER_STATE)?;
                 let world = runtime.check_and_resolve_world(OS_POWER_STATE)?;
                 destack_os_power_state_vm_replay(runtime, context, world)
             })
@@ -2515,7 +2496,6 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 with_binding_call_context(|runtime| {
                     // execute binding
                     let result = {
-                        runtime.check_policy(OS_POWER_SUSPEND)?;
                         let world = runtime.check_and_resolve_world(OS_POWER_SUSPEND)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_suspend(runtime, context),

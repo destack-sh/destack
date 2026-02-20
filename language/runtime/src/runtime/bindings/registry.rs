@@ -172,7 +172,7 @@ impl BindingRegistry {
         // NOTE #Incomplete: serialize args/results for replay payloads
         // register the external handler with policy enforcement
         isolate.register_vm_binding(descriptor.name, move |context, args| {
-            policy.check(descriptor)?;
+            policy.check_for_engine(descriptor, Some(BindingEngine::Vm))?;
             let call_context = BindingCallContext::from_raw(
                 handles.runtime_ptr(),
                 handles.event_loop_ptr(),

@@ -17207,7 +17207,6 @@ pub unsafe extern "C" fn destack_fs_attrs_access(path: OsPath, mode: AccessMode)
     native_call(|context| {
         let _ = (&path, &mode);
 
-        context.check_policy(FS_ATTRS_ACCESS)?;
         let world = context.check_and_resolve_world(FS_ATTRS_ACCESS)?;
         destack_fs_attrs_access_replay(context, world, path, mode)
     })
@@ -17223,7 +17222,6 @@ pub unsafe extern "C" fn destack_fs_attrs_accessat(
     native_call(|context| {
         let _ = (&dir, &path, &mode, &flags);
 
-        context.check_policy(FS_ATTRS_ACCESSAT)?;
         let world = context.check_and_resolve_world(FS_ATTRS_ACCESSAT)?;
         destack_fs_attrs_accessat_replay(context, world, dir, path, mode, flags)
     })
@@ -17234,7 +17232,6 @@ pub unsafe extern "C" fn destack_fs_attrs_chmod(path: OsPath, mode: FileMode) ->
     native_call(|context| {
         let _ = (&path, &mode);
 
-        context.check_policy(FS_ATTRS_CHMOD)?;
         let world = context.check_and_resolve_world(FS_ATTRS_CHMOD)?;
         destack_fs_attrs_chmod_replay(context, world, path, mode)
     })
@@ -17245,7 +17242,6 @@ pub unsafe extern "C" fn destack_fs_attrs_chown(path: OsPath, uid: u32, gid: u32
     native_call(|context| {
         let _ = (&path, &uid, &gid);
 
-        context.check_policy(FS_ATTRS_CHOWN)?;
         let world = context.check_and_resolve_world(FS_ATTRS_CHOWN)?;
         destack_fs_attrs_chown_replay(context, world, path, uid, gid)
     })
@@ -17259,7 +17255,6 @@ pub unsafe extern "C" fn destack_fs_attrs_fchmod(
     native_call(|context| {
         let _ = (&handle, &mode);
 
-        context.check_policy(FS_ATTRS_FCHMOD)?;
         let world = context.check_and_resolve_world(FS_ATTRS_FCHMOD)?;
         destack_fs_attrs_fchmod_replay(context, world, handle, mode)
     })
@@ -17275,7 +17270,6 @@ pub unsafe extern "C" fn destack_fs_attrs_fchmodat(
     native_call(|context| {
         let _ = (&dir, &path, &mode, &flags);
 
-        context.check_policy(FS_ATTRS_FCHMODAT)?;
         let world = context.check_and_resolve_world(FS_ATTRS_FCHMODAT)?;
         destack_fs_attrs_fchmodat_replay(context, world, dir, path, mode, flags)
     })
@@ -17290,7 +17284,6 @@ pub unsafe extern "C" fn destack_fs_attrs_fchown(
     native_call(|context| {
         let _ = (&handle, &uid, &gid);
 
-        context.check_policy(FS_ATTRS_FCHOWN)?;
         let world = context.check_and_resolve_world(FS_ATTRS_FCHOWN)?;
         destack_fs_attrs_fchown_replay(context, world, handle, uid, gid)
     })
@@ -17307,7 +17300,6 @@ pub unsafe extern "C" fn destack_fs_attrs_fchownat(
     native_call(|context| {
         let _ = (&dir, &path, &uid, &gid, &flags);
 
-        context.check_policy(FS_ATTRS_FCHOWNAT)?;
         let world = context.check_and_resolve_world(FS_ATTRS_FCHOWNAT)?;
         destack_fs_attrs_fchownat_replay(context, world, dir, path, uid, gid, flags)
     })
@@ -17322,7 +17314,6 @@ pub unsafe extern "C" fn destack_fs_attrs_futimes(
     native_call(|context| {
         let _ = (&handle, &atimens, &mtimens);
 
-        context.check_policy(FS_ATTRS_FUTIMES)?;
         let world = context.check_and_resolve_world(FS_ATTRS_FUTIMES)?;
         destack_fs_attrs_futimes_replay(context, world, handle, atimens, mtimens)
     })
@@ -17337,7 +17328,6 @@ pub unsafe extern "C" fn destack_fs_attrs_lutimes(
     native_call(|context| {
         let _ = (&path, &atimens, &mtimens);
 
-        context.check_policy(FS_ATTRS_LUTIMES)?;
         let world = context.check_and_resolve_world(FS_ATTRS_LUTIMES)?;
         destack_fs_attrs_lutimes_replay(context, world, path, atimens, mtimens)
     })
@@ -17354,7 +17344,6 @@ pub unsafe extern "C" fn destack_fs_attrs_utimensat(
     native_call(|context| {
         let _ = (&dir, &path, &atimens, &mtimens, &flags);
 
-        context.check_policy(FS_ATTRS_UTIMENSAT)?;
         let world = context.check_and_resolve_world(FS_ATTRS_UTIMENSAT)?;
         destack_fs_attrs_utimensat_replay(context, world, dir, path, atimens, mtimens, flags)
     })
@@ -17369,7 +17358,6 @@ pub unsafe extern "C" fn destack_fs_attrs_utimes(
     native_call(|context| {
         let _ = (&path, &atimens, &mtimens);
 
-        context.check_policy(FS_ATTRS_UTIMES)?;
         let world = context.check_and_resolve_world(FS_ATTRS_UTIMES)?;
         destack_fs_attrs_utimes_replay(context, world, path, atimens, mtimens)
     })
@@ -17382,7 +17370,6 @@ pub unsafe extern "C" fn destack_fs_dir_closedir(
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(FS_DIR_CLOSEDIR)?;
         let world = context.check_and_resolve_world(FS_DIR_CLOSEDIR)?;
         destack_fs_dir_closedir_replay(context, world, handle)
     })
@@ -17399,7 +17386,6 @@ pub unsafe extern "C" fn destack_fs_dir_dirfd(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(FS_DIR_DIRFD)?;
         let world = context.check_and_resolve_world(FS_DIR_DIRFD)?;
         destack_fs_dir_dirfd_replay(context, world, out, handle)
     })
@@ -17410,7 +17396,6 @@ pub unsafe extern "C" fn destack_fs_dir_mkdir(path: OsPath, mode: FileMode) -> R
     native_call(|context| {
         let _ = (&path, &mode);
 
-        context.check_policy(FS_DIR_MKDIR)?;
         let world = context.check_and_resolve_world(FS_DIR_MKDIR)?;
         destack_fs_dir_mkdir_replay(context, world, path, mode)
     })
@@ -17425,7 +17410,6 @@ pub unsafe extern "C" fn destack_fs_dir_mkdirat(
     native_call(|context| {
         let _ = (&dir, &path, &mode);
 
-        context.check_policy(FS_DIR_MKDIRAT)?;
         let world = context.check_and_resolve_world(FS_DIR_MKDIRAT)?;
         destack_fs_dir_mkdirat_replay(context, world, dir, path, mode)
     })
@@ -17442,7 +17426,6 @@ pub unsafe extern "C" fn destack_fs_dir_mkdtemp(
         }
         let _ = (&out, &template);
 
-        context.check_policy(FS_DIR_MKDTEMP)?;
         let world = context.check_and_resolve_world(FS_DIR_MKDTEMP)?;
         destack_fs_dir_mkdtemp_replay(context, world, out, template)
     })
@@ -17459,7 +17442,6 @@ pub unsafe extern "C" fn destack_fs_dir_opendir(
         }
         let _ = (&out, &path);
 
-        context.check_policy(FS_DIR_OPENDIR)?;
         let world = context.check_and_resolve_world(FS_DIR_OPENDIR)?;
         destack_fs_dir_opendir_replay(context, world, out, path)
     })
@@ -17476,7 +17458,6 @@ pub unsafe extern "C" fn destack_fs_dir_readdir(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(FS_DIR_READDIR)?;
         let world = context.check_and_resolve_world(FS_DIR_READDIR)?;
         destack_fs_dir_readdir_replay(context, world, out, handle)
     })
@@ -17493,7 +17474,6 @@ pub unsafe extern "C" fn destack_fs_dir_readdir_next(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(FS_DIR_READDIR_NEXT)?;
         let world = context.check_and_resolve_world(FS_DIR_READDIR_NEXT)?;
         destack_fs_dir_readdir_next_replay(context, world, out, handle)
     })
@@ -17506,7 +17486,6 @@ pub unsafe extern "C" fn destack_fs_dir_rewinddir(
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(FS_DIR_REWINDDIR)?;
         let world = context.check_and_resolve_world(FS_DIR_REWINDDIR)?;
         destack_fs_dir_rewinddir_replay(context, world, handle)
     })
@@ -17517,7 +17496,6 @@ pub unsafe extern "C" fn destack_fs_dir_rmdir(path: OsPath) -> RuntimeStatus {
     native_call(|context| {
         let _ = &path;
 
-        context.check_policy(FS_DIR_RMDIR)?;
         let world = context.check_and_resolve_world(FS_DIR_RMDIR)?;
         destack_fs_dir_rmdir_replay(context, world, path)
     })
@@ -17528,7 +17506,6 @@ pub unsafe extern "C" fn destack_fs_file_close(handle: resource::FileHandle) -> 
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(FS_FILE_CLOSE)?;
         let world = context.check_and_resolve_world(FS_FILE_CLOSE)?;
         destack_fs_file_close_replay(context, world, handle)
     })
@@ -17549,7 +17526,6 @@ pub unsafe extern "C" fn destack_fs_file_copy_file_range(
         }
         let _ = (&out, &src, &srcoffset, &dst, &dstoffset, &length);
 
-        context.check_policy(FS_FILE_COPY_FILE_RANGE)?;
         let world = context.check_and_resolve_world(FS_FILE_COPY_FILE_RANGE)?;
         destack_fs_file_copy_file_range_replay(
             context, world, out, src, srcoffset, dst, dstoffset, length,
@@ -17568,7 +17544,6 @@ pub unsafe extern "C" fn destack_fs_file_dup(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(FS_FILE_DUP)?;
         let world = context.check_and_resolve_world(FS_FILE_DUP)?;
         destack_fs_file_dup_replay(context, world, out, handle)
     })
@@ -17586,7 +17561,6 @@ pub unsafe extern "C" fn destack_fs_file_dup2(
         }
         let _ = (&out, &handle, &target);
 
-        context.check_policy(FS_FILE_DUP2)?;
         let world = context.check_and_resolve_world(FS_FILE_DUP2)?;
         destack_fs_file_dup2_replay(context, world, out, handle, target)
     })
@@ -17605,7 +17579,6 @@ pub unsafe extern "C" fn destack_fs_file_dup3(
         }
         let _ = (&out, &handle, &target, &flags);
 
-        context.check_policy(FS_FILE_DUP3)?;
         let world = context.check_and_resolve_world(FS_FILE_DUP3)?;
         destack_fs_file_dup3_replay(context, world, out, handle, target, flags)
     })
@@ -17621,7 +17594,6 @@ pub unsafe extern "C" fn destack_fs_file_fadvise(
     native_call(|context| {
         let _ = (&handle, &offset, &length, &advice);
 
-        context.check_policy(FS_FILE_FADVISE)?;
         let world = context.check_and_resolve_world(FS_FILE_FADVISE)?;
         destack_fs_file_fadvise_replay(context, world, handle, offset, length, advice)
     })
@@ -17637,7 +17609,6 @@ pub unsafe extern "C" fn destack_fs_file_fallocate(
     native_call(|context| {
         let _ = (&handle, &offset, &length, &flags);
 
-        context.check_policy(FS_FILE_FALLOCATE)?;
         let world = context.check_and_resolve_world(FS_FILE_FALLOCATE)?;
         destack_fs_file_fallocate_replay(context, world, handle, offset, length, flags)
     })
@@ -17648,7 +17619,6 @@ pub unsafe extern "C" fn destack_fs_file_fdatasync(handle: resource::FileHandle)
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(FS_FILE_FDATASYNC)?;
         let world = context.check_and_resolve_world(FS_FILE_FDATASYNC)?;
         destack_fs_file_fdatasync_replay(context, world, handle)
     })
@@ -17659,7 +17629,6 @@ pub unsafe extern "C" fn destack_fs_file_fsync(handle: resource::FileHandle) -> 
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(FS_FILE_FSYNC)?;
         let world = context.check_and_resolve_world(FS_FILE_FSYNC)?;
         destack_fs_file_fsync_replay(context, world, handle)
     })
@@ -17673,7 +17642,6 @@ pub unsafe extern "C" fn destack_fs_file_ftruncate(
     native_call(|context| {
         let _ = (&handle, &size);
 
-        context.check_policy(FS_FILE_FTRUNCATE)?;
         let world = context.check_and_resolve_world(FS_FILE_FTRUNCATE)?;
         destack_fs_file_ftruncate_replay(context, world, handle, size)
     })
@@ -17690,7 +17658,6 @@ pub unsafe extern "C" fn destack_fs_file_get_fd_flags(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(FS_FILE_GET_FD_FLAGS)?;
         let world = context.check_and_resolve_world(FS_FILE_GET_FD_FLAGS)?;
         destack_fs_file_get_fd_flags_replay(context, world, out, handle)
     })
@@ -17707,7 +17674,6 @@ pub unsafe extern "C" fn destack_fs_file_get_status_flags(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(FS_FILE_GET_STATUS_FLAGS)?;
         let world = context.check_and_resolve_world(FS_FILE_GET_STATUS_FLAGS)?;
         destack_fs_file_get_status_flags_replay(context, world, out, handle)
     })
@@ -17721,7 +17687,6 @@ pub unsafe extern "C" fn destack_fs_file_lock(
     native_call(|context| {
         let _ = (&handle, &flags);
 
-        context.check_policy(FS_FILE_LOCK)?;
         let world = context.check_and_resolve_world(FS_FILE_LOCK)?;
         destack_fs_file_lock_replay(context, world, handle, flags)
     })
@@ -17740,7 +17705,6 @@ pub unsafe extern "C" fn destack_fs_file_open(
         }
         let _ = (&out, &path, &flags, &mode);
 
-        context.check_policy(FS_FILE_OPEN)?;
         let world = context.check_and_resolve_world(FS_FILE_OPEN)?;
         destack_fs_file_open_replay(context, world, out, path, flags, mode)
     })
@@ -17760,7 +17724,6 @@ pub unsafe extern "C" fn destack_fs_file_openat(
         }
         let _ = (&out, &dir, &path, &flags, &mode);
 
-        context.check_policy(FS_FILE_OPENAT)?;
         let world = context.check_and_resolve_world(FS_FILE_OPENAT)?;
         destack_fs_file_openat_replay(context, world, out, dir, path, flags, mode)
     })
@@ -17779,7 +17742,6 @@ pub unsafe extern "C" fn destack_fs_file_openat2(
         }
         let _ = (&out, &dir, &path, &how);
 
-        context.check_policy(FS_FILE_OPENAT2)?;
         let world = context.check_and_resolve_world(FS_FILE_OPENAT2)?;
         destack_fs_file_openat2_replay(context, world, out, dir, path, how)
     })
@@ -17798,7 +17760,6 @@ pub unsafe extern "C" fn destack_fs_file_pread(
         }
         let _ = (&out, &handle, &buffer, &offset);
 
-        context.check_policy(FS_FILE_PREAD)?;
         let world = context.check_and_resolve_world(FS_FILE_PREAD)?;
         destack_fs_file_pread_replay(context, world, out, handle, buffer, offset)
     })
@@ -17817,7 +17778,6 @@ pub unsafe extern "C" fn destack_fs_file_preadv(
         }
         let _ = (&out, &handle, &buffers, &offset);
 
-        context.check_policy(FS_FILE_PREADV)?;
         let world = context.check_and_resolve_world(FS_FILE_PREADV)?;
         destack_fs_file_preadv_replay(context, world, out, handle, buffers, offset)
     })
@@ -17837,7 +17797,6 @@ pub unsafe extern "C" fn destack_fs_file_preadv2(
         }
         let _ = (&out, &handle, &buffers, &offset, &flags);
 
-        context.check_policy(FS_FILE_PREADV2)?;
         let world = context.check_and_resolve_world(FS_FILE_PREADV2)?;
         destack_fs_file_preadv2_replay(context, world, out, handle, buffers, offset, flags)
     })
@@ -17856,7 +17815,6 @@ pub unsafe extern "C" fn destack_fs_file_pwrite(
         }
         let _ = (&out, &handle, &buffer, &offset);
 
-        context.check_policy(FS_FILE_PWRITE)?;
         let world = context.check_and_resolve_world(FS_FILE_PWRITE)?;
         destack_fs_file_pwrite_replay(context, world, out, handle, buffer, offset)
     })
@@ -17875,7 +17833,6 @@ pub unsafe extern "C" fn destack_fs_file_pwritev(
         }
         let _ = (&out, &handle, &buffers, &offset);
 
-        context.check_policy(FS_FILE_PWRITEV)?;
         let world = context.check_and_resolve_world(FS_FILE_PWRITEV)?;
         destack_fs_file_pwritev_replay(context, world, out, handle, buffers, offset)
     })
@@ -17895,7 +17852,6 @@ pub unsafe extern "C" fn destack_fs_file_pwritev2(
         }
         let _ = (&out, &handle, &buffers, &offset, &flags);
 
-        context.check_policy(FS_FILE_PWRITEV2)?;
         let world = context.check_and_resolve_world(FS_FILE_PWRITEV2)?;
         destack_fs_file_pwritev2_replay(context, world, out, handle, buffers, offset, flags)
     })
@@ -17913,7 +17869,6 @@ pub unsafe extern "C" fn destack_fs_file_read(
         }
         let _ = (&out, &handle, &buffer);
 
-        context.check_policy(FS_FILE_READ)?;
         let world = context.check_and_resolve_world(FS_FILE_READ)?;
         destack_fs_file_read_replay(context, world, out, handle, buffer)
     })
@@ -17931,7 +17886,6 @@ pub unsafe extern "C" fn destack_fs_file_readv(
         }
         let _ = (&out, &handle, &buffers);
 
-        context.check_policy(FS_FILE_READV)?;
         let world = context.check_and_resolve_world(FS_FILE_READV)?;
         destack_fs_file_readv_replay(context, world, out, handle, buffers)
     })
@@ -17950,7 +17904,6 @@ pub unsafe extern "C" fn destack_fs_file_seek(
         }
         let _ = (&out, &handle, &offset, &whence);
 
-        context.check_policy(FS_FILE_SEEK)?;
         let world = context.check_and_resolve_world(FS_FILE_SEEK)?;
         destack_fs_file_seek_replay(context, world, out, handle, offset, whence)
     })
@@ -17970,7 +17923,6 @@ pub unsafe extern "C" fn destack_fs_file_sendfile(
         }
         let _ = (&out, &socket, &file, &offset, &length);
 
-        context.check_policy(FS_FILE_SENDFILE)?;
         let world = context.check_and_resolve_world(FS_FILE_SENDFILE)?;
         destack_fs_file_sendfile_replay(context, world, out, socket, file, offset, length)
     })
@@ -17984,7 +17936,6 @@ pub unsafe extern "C" fn destack_fs_file_set_fd_flags(
     native_call(|context| {
         let _ = (&handle, &flags);
 
-        context.check_policy(FS_FILE_SET_FD_FLAGS)?;
         let world = context.check_and_resolve_world(FS_FILE_SET_FD_FLAGS)?;
         destack_fs_file_set_fd_flags_replay(context, world, handle, flags)
     })
@@ -17998,7 +17949,6 @@ pub unsafe extern "C" fn destack_fs_file_set_status_flags(
     native_call(|context| {
         let _ = (&handle, &flags);
 
-        context.check_policy(FS_FILE_SET_STATUS_FLAGS)?;
         let world = context.check_and_resolve_world(FS_FILE_SET_STATUS_FLAGS)?;
         destack_fs_file_set_status_flags_replay(context, world, handle, flags)
     })
@@ -18028,7 +17978,6 @@ pub unsafe extern "C" fn destack_fs_file_splice(
             &flags,
         );
 
-        context.check_policy(FS_FILE_SPLICE)?;
         let world = context.check_and_resolve_world(FS_FILE_SPLICE)?;
         destack_fs_file_splice_replay(
             context,
@@ -18054,7 +18003,6 @@ pub unsafe extern "C" fn destack_fs_file_sync_file_range(
     native_call(|context| {
         let _ = (&handle, &offset, &length, &flags);
 
-        context.check_policy(FS_FILE_SYNC_FILE_RANGE)?;
         let world = context.check_and_resolve_world(FS_FILE_SYNC_FILE_RANGE)?;
         destack_fs_file_sync_file_range_replay(context, world, handle, offset, length, flags)
     })
@@ -18065,7 +18013,6 @@ pub unsafe extern "C" fn destack_fs_file_syncfs(handle: resource::FileHandle) ->
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(FS_FILE_SYNCFS)?;
         let world = context.check_and_resolve_world(FS_FILE_SYNCFS)?;
         destack_fs_file_syncfs_replay(context, world, handle)
     })
@@ -18085,7 +18032,6 @@ pub unsafe extern "C" fn destack_fs_file_tee(
         }
         let _ = (&out, &sourcepipe, &targetpipe, &length, &flags);
 
-        context.check_policy(FS_FILE_TEE)?;
         let world = context.check_and_resolve_world(FS_FILE_TEE)?;
         destack_fs_file_tee_replay(context, world, out, sourcepipe, targetpipe, length, flags)
     })
@@ -18096,7 +18042,6 @@ pub unsafe extern "C" fn destack_fs_file_truncate(path: OsPath, size: FileOffset
     native_call(|context| {
         let _ = (&path, &size);
 
-        context.check_policy(FS_FILE_TRUNCATE)?;
         let world = context.check_and_resolve_world(FS_FILE_TRUNCATE)?;
         destack_fs_file_truncate_replay(context, world, path, size)
     })
@@ -18115,7 +18060,6 @@ pub unsafe extern "C" fn destack_fs_file_vmsplice(
         }
         let _ = (&out, &pipe, &buffers, &flags);
 
-        context.check_policy(FS_FILE_VMSPLICE)?;
         let world = context.check_and_resolve_world(FS_FILE_VMSPLICE)?;
         destack_fs_file_vmsplice_replay(context, world, out, pipe, buffers, flags)
     })
@@ -18133,7 +18077,6 @@ pub unsafe extern "C" fn destack_fs_file_write(
         }
         let _ = (&out, &handle, &buffer);
 
-        context.check_policy(FS_FILE_WRITE)?;
         let world = context.check_and_resolve_world(FS_FILE_WRITE)?;
         destack_fs_file_write_replay(context, world, out, handle, buffer)
     })
@@ -18151,7 +18094,6 @@ pub unsafe extern "C" fn destack_fs_file_writev(
         }
         let _ = (&out, &handle, &buffers);
 
-        context.check_policy(FS_FILE_WRITEV)?;
         let world = context.check_and_resolve_world(FS_FILE_WRITEV)?;
         destack_fs_file_writev_replay(context, world, out, handle, buffers)
     })
@@ -18165,7 +18107,6 @@ pub unsafe extern "C" fn destack_fs_mmap_madvise(
     native_call(|context| {
         let _ = (&mapping, &advice);
 
-        context.check_policy(FS_MMAP_MADVISE)?;
         let world = context.check_and_resolve_world(FS_MMAP_MADVISE)?;
         destack_fs_mmap_madvise_replay(context, world, mapping, advice)
     })
@@ -18184,7 +18125,6 @@ pub unsafe extern "C" fn destack_fs_mmap_mmap_anonymous(
         }
         let _ = (&out, &length, &prot, &flags);
 
-        context.check_policy(FS_MMAP_MMAP_ANONYMOUS)?;
         let world = context.check_and_resolve_world(FS_MMAP_MMAP_ANONYMOUS)?;
         destack_fs_mmap_mmap_anonymous_replay(context, world, out, length, prot, flags)
     })
@@ -18205,7 +18145,6 @@ pub unsafe extern "C" fn destack_fs_mmap_mmap_file(
         }
         let _ = (&out, &handle, &offset, &length, &prot, &flags);
 
-        context.check_policy(FS_MMAP_MMAP_FILE)?;
         let world = context.check_and_resolve_world(FS_MMAP_MMAP_FILE)?;
         destack_fs_mmap_mmap_file_replay(context, world, out, handle, offset, length, prot, flags)
     })
@@ -18219,7 +18158,6 @@ pub unsafe extern "C" fn destack_fs_mmap_mprotect(
     native_call(|context| {
         let _ = (&mapping, &prot);
 
-        context.check_policy(FS_MMAP_MPROTECT)?;
         let world = context.check_and_resolve_world(FS_MMAP_MPROTECT)?;
         destack_fs_mmap_mprotect_replay(context, world, mapping, prot)
     })
@@ -18233,7 +18171,6 @@ pub unsafe extern "C" fn destack_fs_mmap_msync(
     native_call(|context| {
         let _ = (&mapping, &flags);
 
-        context.check_policy(FS_MMAP_MSYNC)?;
         let world = context.check_and_resolve_world(FS_MMAP_MSYNC)?;
         destack_fs_mmap_msync_replay(context, world, mapping, flags)
     })
@@ -18244,7 +18181,6 @@ pub unsafe extern "C" fn destack_fs_mmap_munmap(mapping: NativeSlice<u8>) -> Run
     native_call(|context| {
         let _ = &mapping;
 
-        context.check_policy(FS_MMAP_MUNMAP)?;
         let world = context.check_and_resolve_world(FS_MMAP_MUNMAP)?;
         destack_fs_mmap_munmap_replay(context, world, mapping)
     })
@@ -18259,7 +18195,6 @@ pub unsafe extern "C" fn destack_fs_path_copyfile(
     native_call(|context| {
         let _ = (&from, &to, &flags);
 
-        context.check_policy(FS_PATH_COPYFILE)?;
         let world = context.check_and_resolve_world(FS_PATH_COPYFILE)?;
         destack_fs_path_copyfile_replay(context, world, from, to, flags)
     })
@@ -18273,7 +18208,6 @@ pub unsafe extern "C" fn destack_fs_path_link(
     native_call(|context| {
         let _ = (&existingpath, &newpath);
 
-        context.check_policy(FS_PATH_LINK)?;
         let world = context.check_and_resolve_world(FS_PATH_LINK)?;
         destack_fs_path_link_replay(context, world, existingpath, newpath)
     })
@@ -18290,7 +18224,6 @@ pub unsafe extern "C" fn destack_fs_path_linkat(
     native_call(|context| {
         let _ = (&existingdir, &existingpath, &newdir, &newpath, &flags);
 
-        context.check_policy(FS_PATH_LINKAT)?;
         let world = context.check_and_resolve_world(FS_PATH_LINKAT)?;
         destack_fs_path_linkat_replay(
             context,
@@ -18309,7 +18242,6 @@ pub unsafe extern "C" fn destack_fs_path_mkfifo(path: OsPath, mode: FileMode) ->
     native_call(|context| {
         let _ = (&path, &mode);
 
-        context.check_policy(FS_PATH_MKFIFO)?;
         let world = context.check_and_resolve_world(FS_PATH_MKFIFO)?;
         destack_fs_path_mkfifo_replay(context, world, path, mode)
     })
@@ -18324,7 +18256,6 @@ pub unsafe extern "C" fn destack_fs_path_mkfifoat(
     native_call(|context| {
         let _ = (&dir, &path, &mode);
 
-        context.check_policy(FS_PATH_MKFIFOAT)?;
         let world = context.check_and_resolve_world(FS_PATH_MKFIFOAT)?;
         destack_fs_path_mkfifoat_replay(context, world, dir, path, mode)
     })
@@ -18339,7 +18270,6 @@ pub unsafe extern "C" fn destack_fs_path_mknod(
     native_call(|context| {
         let _ = (&path, &mode, &device);
 
-        context.check_policy(FS_PATH_MKNOD)?;
         let world = context.check_and_resolve_world(FS_PATH_MKNOD)?;
         destack_fs_path_mknod_replay(context, world, path, mode, device)
     })
@@ -18355,7 +18285,6 @@ pub unsafe extern "C" fn destack_fs_path_mknodat(
     native_call(|context| {
         let _ = (&dir, &path, &mode, &device);
 
-        context.check_policy(FS_PATH_MKNODAT)?;
         let world = context.check_and_resolve_world(FS_PATH_MKNODAT)?;
         destack_fs_path_mknodat_replay(context, world, dir, path, mode, device)
     })
@@ -18369,7 +18298,6 @@ pub unsafe extern "C" fn destack_fs_path_readlink(out: *mut OsPath, path: OsPath
         }
         let _ = (&out, &path);
 
-        context.check_policy(FS_PATH_READLINK)?;
         let world = context.check_and_resolve_world(FS_PATH_READLINK)?;
         destack_fs_path_readlink_replay(context, world, out, path)
     })
@@ -18387,7 +18315,6 @@ pub unsafe extern "C" fn destack_fs_path_readlinkat(
         }
         let _ = (&out, &dir, &path);
 
-        context.check_policy(FS_PATH_READLINKAT)?;
         let world = context.check_and_resolve_world(FS_PATH_READLINKAT)?;
         destack_fs_path_readlinkat_replay(context, world, out, dir, path)
     })
@@ -18401,7 +18328,6 @@ pub unsafe extern "C" fn destack_fs_path_realpath(out: *mut OsPath, path: OsPath
         }
         let _ = (&out, &path);
 
-        context.check_policy(FS_PATH_REALPATH)?;
         let world = context.check_and_resolve_world(FS_PATH_REALPATH)?;
         destack_fs_path_realpath_replay(context, world, out, path)
     })
@@ -18412,7 +18338,6 @@ pub unsafe extern "C" fn destack_fs_path_rename(from: OsPath, to: OsPath) -> Run
     native_call(|context| {
         let _ = (&from, &to);
 
-        context.check_policy(FS_PATH_RENAME)?;
         let world = context.check_and_resolve_world(FS_PATH_RENAME)?;
         destack_fs_path_rename_replay(context, world, from, to)
     })
@@ -18428,7 +18353,6 @@ pub unsafe extern "C" fn destack_fs_path_renameat(
     native_call(|context| {
         let _ = (&fromdir, &from, &todir, &to);
 
-        context.check_policy(FS_PATH_RENAMEAT)?;
         let world = context.check_and_resolve_world(FS_PATH_RENAMEAT)?;
         destack_fs_path_renameat_replay(context, world, fromdir, from, todir, to)
     })
@@ -18445,7 +18369,6 @@ pub unsafe extern "C" fn destack_fs_path_renameat2(
     native_call(|context| {
         let _ = (&fromdir, &from, &todir, &to, &flags);
 
-        context.check_policy(FS_PATH_RENAMEAT2)?;
         let world = context.check_and_resolve_world(FS_PATH_RENAMEAT2)?;
         destack_fs_path_renameat2_replay(context, world, fromdir, from, todir, to, flags)
     })
@@ -18460,7 +18383,6 @@ pub unsafe extern "C" fn destack_fs_path_symlink(
     native_call(|context| {
         let _ = (&target, &path, &kind);
 
-        context.check_policy(FS_PATH_SYMLINK)?;
         let world = context.check_and_resolve_world(FS_PATH_SYMLINK)?;
         destack_fs_path_symlink_replay(context, world, target, path, kind)
     })
@@ -18476,7 +18398,6 @@ pub unsafe extern "C" fn destack_fs_path_symlinkat(
     native_call(|context| {
         let _ = (&target, &dir, &path, &kind);
 
-        context.check_policy(FS_PATH_SYMLINKAT)?;
         let world = context.check_and_resolve_world(FS_PATH_SYMLINKAT)?;
         destack_fs_path_symlinkat_replay(context, world, target, dir, path, kind)
     })
@@ -18487,7 +18408,6 @@ pub unsafe extern "C" fn destack_fs_path_unlink(path: OsPath) -> RuntimeStatus {
     native_call(|context| {
         let _ = &path;
 
-        context.check_policy(FS_PATH_UNLINK)?;
         let world = context.check_and_resolve_world(FS_PATH_UNLINK)?;
         destack_fs_path_unlink_replay(context, world, path)
     })
@@ -18502,7 +18422,6 @@ pub unsafe extern "C" fn destack_fs_path_unlinkat(
     native_call(|context| {
         let _ = (&dir, &path, &flags);
 
-        context.check_policy(FS_PATH_UNLINKAT)?;
         let world = context.check_and_resolve_world(FS_PATH_UNLINKAT)?;
         destack_fs_path_unlinkat_replay(context, world, dir, path, flags)
     })
@@ -18519,7 +18438,6 @@ pub unsafe extern "C" fn destack_fs_stat_fstat(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(FS_STAT_FSTAT)?;
         let world = context.check_and_resolve_world(FS_STAT_FSTAT)?;
         destack_fs_stat_fstat_replay(context, world, out, handle)
     })
@@ -18536,7 +18454,6 @@ pub unsafe extern "C" fn destack_fs_stat_fstatfs(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(FS_STAT_FSTATFS)?;
         let world = context.check_and_resolve_world(FS_STAT_FSTATFS)?;
         destack_fs_stat_fstatfs_replay(context, world, out, handle)
     })
@@ -18550,7 +18467,6 @@ pub unsafe extern "C" fn destack_fs_stat_lstat(out: *mut Stat, path: OsPath) -> 
         }
         let _ = (&out, &path);
 
-        context.check_policy(FS_STAT_LSTAT)?;
         let world = context.check_and_resolve_world(FS_STAT_LSTAT)?;
         destack_fs_stat_lstat_replay(context, world, out, path)
     })
@@ -18564,7 +18480,6 @@ pub unsafe extern "C" fn destack_fs_stat_path(out: *mut Stat, path: OsPath) -> R
         }
         let _ = (&out, &path);
 
-        context.check_policy(FS_STAT_PATH)?;
         let world = context.check_and_resolve_world(FS_STAT_PATH)?;
         destack_fs_stat_path_replay(context, world, out, path)
     })
@@ -18583,7 +18498,6 @@ pub unsafe extern "C" fn destack_fs_stat_pathat(
         }
         let _ = (&out, &dir, &path, &flags);
 
-        context.check_policy(FS_STAT_PATHAT)?;
         let world = context.check_and_resolve_world(FS_STAT_PATHAT)?;
         destack_fs_stat_pathat_replay(context, world, out, dir, path, flags)
     })
@@ -18597,7 +18511,6 @@ pub unsafe extern "C" fn destack_fs_stat_pathfs(out: *mut StatFs, path: OsPath) 
         }
         let _ = (&out, &path);
 
-        context.check_policy(FS_STAT_PATHFS)?;
         let world = context.check_and_resolve_world(FS_STAT_PATHFS)?;
         destack_fs_stat_pathfs_replay(context, world, out, path)
     })
@@ -18617,7 +18530,6 @@ pub unsafe extern "C" fn destack_fs_stat_pathx(
         }
         let _ = (&out, &dir, &path, &flags, &mask);
 
-        context.check_policy(FS_STAT_PATHX)?;
         let world = context.check_and_resolve_world(FS_STAT_PATHX)?;
         destack_fs_stat_pathx_replay(context, world, out, dir, path, flags, mask)
     })
@@ -18635,7 +18547,6 @@ pub unsafe extern "C" fn destack_fs_watch_open(
         }
         let _ = (&out, &path, &options);
 
-        context.check_policy(FS_WATCH_OPEN)?;
         let world = context.check_and_resolve_world(FS_WATCH_OPEN)?;
         destack_fs_watch_open_replay(context, world, out, path, options)
     })
@@ -18648,7 +18559,6 @@ pub unsafe extern "C" fn destack_fs_watch_open_close(
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(FS_WATCH_OPEN_CLOSE)?;
         let world = context.check_and_resolve_world(FS_WATCH_OPEN_CLOSE)?;
         destack_fs_watch_open_close_replay(context, world, handle)
     })
@@ -18665,7 +18575,6 @@ pub unsafe extern "C" fn destack_fs_watch_open_read(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(FS_WATCH_OPEN_READ)?;
         let world = context.check_and_resolve_world(FS_WATCH_OPEN_READ)?;
         destack_fs_watch_open_read_replay(context, world, out, handle)
     })
@@ -18684,7 +18593,6 @@ pub unsafe extern "C" fn destack_fs_watch_openat(
         }
         let _ = (&out, &directory, &path, &options);
 
-        context.check_policy(FS_WATCH_OPENAT)?;
         let world = context.check_and_resolve_world(FS_WATCH_OPENAT)?;
         destack_fs_watch_openat_replay(context, world, out, directory, path, options)
     })
@@ -18702,7 +18610,6 @@ pub unsafe extern "C" fn destack_fs_xattr_fgetxattr(
         }
         let _ = (&out, &handle, &name);
 
-        context.check_policy(FS_XATTR_FGETXATTR)?;
         let world = context.check_and_resolve_world(FS_XATTR_FGETXATTR)?;
         destack_fs_xattr_fgetxattr_replay(context, world, out, handle, name)
     })
@@ -18720,7 +18627,6 @@ pub unsafe extern "C" fn destack_fs_xattr_fgetxattr_bytes(
         }
         let _ = (&out, &handle, &name);
 
-        context.check_policy(FS_XATTR_FGETXATTR_BYTES)?;
         let world = context.check_and_resolve_world(FS_XATTR_FGETXATTR_BYTES)?;
         destack_fs_xattr_fgetxattr_bytes_replay(context, world, out, handle, name)
     })
@@ -18737,7 +18643,6 @@ pub unsafe extern "C" fn destack_fs_xattr_flistxattr(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(FS_XATTR_FLISTXATTR)?;
         let world = context.check_and_resolve_world(FS_XATTR_FLISTXATTR)?;
         destack_fs_xattr_flistxattr_replay(context, world, out, handle)
     })
@@ -18754,7 +18659,6 @@ pub unsafe extern "C" fn destack_fs_xattr_flistxattr_bytes(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(FS_XATTR_FLISTXATTR_BYTES)?;
         let world = context.check_and_resolve_world(FS_XATTR_FLISTXATTR_BYTES)?;
         destack_fs_xattr_flistxattr_bytes_replay(context, world, out, handle)
     })
@@ -18768,7 +18672,6 @@ pub unsafe extern "C" fn destack_fs_xattr_fremovexattr(
     native_call(|context| {
         let _ = (&handle, &name);
 
-        context.check_policy(FS_XATTR_FREMOVEXATTR)?;
         let world = context.check_and_resolve_world(FS_XATTR_FREMOVEXATTR)?;
         destack_fs_xattr_fremovexattr_replay(context, world, handle, name)
     })
@@ -18782,7 +18685,6 @@ pub unsafe extern "C" fn destack_fs_xattr_fremovexattr_bytes(
     native_call(|context| {
         let _ = (&handle, &name);
 
-        context.check_policy(FS_XATTR_FREMOVEXATTR_BYTES)?;
         let world = context.check_and_resolve_world(FS_XATTR_FREMOVEXATTR_BYTES)?;
         destack_fs_xattr_fremovexattr_bytes_replay(context, world, handle, name)
     })
@@ -18798,7 +18700,6 @@ pub unsafe extern "C" fn destack_fs_xattr_fsetxattr(
     native_call(|context| {
         let _ = (&handle, &name, &argument_value, &flags);
 
-        context.check_policy(FS_XATTR_FSETXATTR)?;
         let world = context.check_and_resolve_world(FS_XATTR_FSETXATTR)?;
         destack_fs_xattr_fsetxattr_replay(context, world, handle, name, argument_value, flags)
     })
@@ -18814,7 +18715,6 @@ pub unsafe extern "C" fn destack_fs_xattr_fsetxattr_bytes(
     native_call(|context| {
         let _ = (&handle, &name, &argument_value, &flags);
 
-        context.check_policy(FS_XATTR_FSETXATTR_BYTES)?;
         let world = context.check_and_resolve_world(FS_XATTR_FSETXATTR_BYTES)?;
         destack_fs_xattr_fsetxattr_bytes_replay(context, world, handle, name, argument_value, flags)
     })
@@ -18832,7 +18732,6 @@ pub unsafe extern "C" fn destack_fs_xattr_getxattr(
         }
         let _ = (&out, &path, &name);
 
-        context.check_policy(FS_XATTR_GETXATTR)?;
         let world = context.check_and_resolve_world(FS_XATTR_GETXATTR)?;
         destack_fs_xattr_getxattr_replay(context, world, out, path, name)
     })
@@ -18850,7 +18749,6 @@ pub unsafe extern "C" fn destack_fs_xattr_getxattr_bytes(
         }
         let _ = (&out, &path, &name);
 
-        context.check_policy(FS_XATTR_GETXATTR_BYTES)?;
         let world = context.check_and_resolve_world(FS_XATTR_GETXATTR_BYTES)?;
         destack_fs_xattr_getxattr_bytes_replay(context, world, out, path, name)
     })
@@ -18868,7 +18766,6 @@ pub unsafe extern "C" fn destack_fs_xattr_lgetxattr(
         }
         let _ = (&out, &path, &name);
 
-        context.check_policy(FS_XATTR_LGETXATTR)?;
         let world = context.check_and_resolve_world(FS_XATTR_LGETXATTR)?;
         destack_fs_xattr_lgetxattr_replay(context, world, out, path, name)
     })
@@ -18886,7 +18783,6 @@ pub unsafe extern "C" fn destack_fs_xattr_lgetxattr_bytes(
         }
         let _ = (&out, &path, &name);
 
-        context.check_policy(FS_XATTR_LGETXATTR_BYTES)?;
         let world = context.check_and_resolve_world(FS_XATTR_LGETXATTR_BYTES)?;
         destack_fs_xattr_lgetxattr_bytes_replay(context, world, out, path, name)
     })
@@ -18903,7 +18799,6 @@ pub unsafe extern "C" fn destack_fs_xattr_listxattr(
         }
         let _ = (&out, &path);
 
-        context.check_policy(FS_XATTR_LISTXATTR)?;
         let world = context.check_and_resolve_world(FS_XATTR_LISTXATTR)?;
         destack_fs_xattr_listxattr_replay(context, world, out, path)
     })
@@ -18920,7 +18815,6 @@ pub unsafe extern "C" fn destack_fs_xattr_listxattr_bytes(
         }
         let _ = (&out, &path);
 
-        context.check_policy(FS_XATTR_LISTXATTR_BYTES)?;
         let world = context.check_and_resolve_world(FS_XATTR_LISTXATTR_BYTES)?;
         destack_fs_xattr_listxattr_bytes_replay(context, world, out, path)
     })
@@ -18937,7 +18831,6 @@ pub unsafe extern "C" fn destack_fs_xattr_llistxattr(
         }
         let _ = (&out, &path);
 
-        context.check_policy(FS_XATTR_LLISTXATTR)?;
         let world = context.check_and_resolve_world(FS_XATTR_LLISTXATTR)?;
         destack_fs_xattr_llistxattr_replay(context, world, out, path)
     })
@@ -18954,7 +18847,6 @@ pub unsafe extern "C" fn destack_fs_xattr_llistxattr_bytes(
         }
         let _ = (&out, &path);
 
-        context.check_policy(FS_XATTR_LLISTXATTR_BYTES)?;
         let world = context.check_and_resolve_world(FS_XATTR_LLISTXATTR_BYTES)?;
         destack_fs_xattr_llistxattr_bytes_replay(context, world, out, path)
     })
@@ -18968,7 +18860,6 @@ pub unsafe extern "C" fn destack_fs_xattr_lremovexattr(
     native_call(|context| {
         let _ = (&path, &name);
 
-        context.check_policy(FS_XATTR_LREMOVEXATTR)?;
         let world = context.check_and_resolve_world(FS_XATTR_LREMOVEXATTR)?;
         destack_fs_xattr_lremovexattr_replay(context, world, path, name)
     })
@@ -18982,7 +18873,6 @@ pub unsafe extern "C" fn destack_fs_xattr_lremovexattr_bytes(
     native_call(|context| {
         let _ = (&path, &name);
 
-        context.check_policy(FS_XATTR_LREMOVEXATTR_BYTES)?;
         let world = context.check_and_resolve_world(FS_XATTR_LREMOVEXATTR_BYTES)?;
         destack_fs_xattr_lremovexattr_bytes_replay(context, world, path, name)
     })
@@ -18998,7 +18888,6 @@ pub unsafe extern "C" fn destack_fs_xattr_lsetxattr(
     native_call(|context| {
         let _ = (&path, &name, &argument_value, &flags);
 
-        context.check_policy(FS_XATTR_LSETXATTR)?;
         let world = context.check_and_resolve_world(FS_XATTR_LSETXATTR)?;
         destack_fs_xattr_lsetxattr_replay(context, world, path, name, argument_value, flags)
     })
@@ -19014,7 +18903,6 @@ pub unsafe extern "C" fn destack_fs_xattr_lsetxattr_bytes(
     native_call(|context| {
         let _ = (&path, &name, &argument_value, &flags);
 
-        context.check_policy(FS_XATTR_LSETXATTR_BYTES)?;
         let world = context.check_and_resolve_world(FS_XATTR_LSETXATTR_BYTES)?;
         destack_fs_xattr_lsetxattr_bytes_replay(context, world, path, name, argument_value, flags)
     })
@@ -19028,7 +18916,6 @@ pub unsafe extern "C" fn destack_fs_xattr_removexattr(
     native_call(|context| {
         let _ = (&path, &name);
 
-        context.check_policy(FS_XATTR_REMOVEXATTR)?;
         let world = context.check_and_resolve_world(FS_XATTR_REMOVEXATTR)?;
         destack_fs_xattr_removexattr_replay(context, world, path, name)
     })
@@ -19042,7 +18929,6 @@ pub unsafe extern "C" fn destack_fs_xattr_removexattr_bytes(
     native_call(|context| {
         let _ = (&path, &name);
 
-        context.check_policy(FS_XATTR_REMOVEXATTR_BYTES)?;
         let world = context.check_and_resolve_world(FS_XATTR_REMOVEXATTR_BYTES)?;
         destack_fs_xattr_removexattr_bytes_replay(context, world, path, name)
     })
@@ -19058,7 +18944,6 @@ pub unsafe extern "C" fn destack_fs_xattr_setxattr(
     native_call(|context| {
         let _ = (&path, &name, &argument_value, &flags);
 
-        context.check_policy(FS_XATTR_SETXATTR)?;
         let world = context.check_and_resolve_world(FS_XATTR_SETXATTR)?;
         destack_fs_xattr_setxattr_replay(context, world, path, name, argument_value, flags)
     })
@@ -19074,7 +18959,6 @@ pub unsafe extern "C" fn destack_fs_xattr_setxattr_bytes(
     native_call(|context| {
         let _ = (&path, &name, &argument_value, &flags);
 
-        context.check_policy(FS_XATTR_SETXATTR_BYTES)?;
         let world = context.check_and_resolve_world(FS_XATTR_SETXATTR_BYTES)?;
         destack_fs_xattr_setxattr_bytes_replay(context, world, path, name, argument_value, flags)
     })
@@ -26616,7 +26500,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path, mode) = decode_destack_fs_attrs_access_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_ATTRS_ACCESS)?;
                 let world = runtime.check_and_resolve_world(FS_ATTRS_ACCESS)?;
                 destack_fs_attrs_access_vm_replay(runtime, context, world, path, mode)
             })
@@ -26635,7 +26518,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_attrs_accessat_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_ATTRS_ACCESSAT)?;
                     let world = runtime.check_and_resolve_world(FS_ATTRS_ACCESSAT)?;
                     destack_fs_attrs_accessat_vm_replay(
                         runtime, context, world, dir, path, mode, flags,
@@ -26652,7 +26534,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path, mode) = decode_destack_fs_attrs_chmod_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_ATTRS_CHMOD)?;
                 let world = runtime.check_and_resolve_world(FS_ATTRS_CHMOD)?;
                 destack_fs_attrs_chmod_vm_replay(runtime, context, world, path, mode)
             })
@@ -26666,7 +26547,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path, uid, gid) = decode_destack_fs_attrs_chown_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_ATTRS_CHOWN)?;
                 let world = runtime.check_and_resolve_world(FS_ATTRS_CHOWN)?;
                 destack_fs_attrs_chown_vm_replay(runtime, context, world, path, uid, gid)
             })
@@ -26680,7 +26560,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, mode) = decode_destack_fs_attrs_fchmod_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_ATTRS_FCHMOD)?;
                 let world = runtime.check_and_resolve_world(FS_ATTRS_FCHMOD)?;
                 destack_fs_attrs_fchmod_vm_replay(runtime, context, world, handle, mode)
             })
@@ -26699,7 +26578,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_attrs_fchmodat_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_ATTRS_FCHMODAT)?;
                     let world = runtime.check_and_resolve_world(FS_ATTRS_FCHMODAT)?;
                     destack_fs_attrs_fchmodat_vm_replay(
                         runtime, context, world, dir, path, mode, flags,
@@ -26716,7 +26594,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, uid, gid) = decode_destack_fs_attrs_fchown_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_ATTRS_FCHOWN)?;
                 let world = runtime.check_and_resolve_world(FS_ATTRS_FCHOWN)?;
                 destack_fs_attrs_fchown_vm_replay(runtime, context, world, handle, uid, gid)
             })
@@ -26735,7 +26612,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_attrs_fchownat_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_ATTRS_FCHOWNAT)?;
                     let world = runtime.check_and_resolve_world(FS_ATTRS_FCHOWNAT)?;
                     destack_fs_attrs_fchownat_vm_replay(
                         runtime, context, world, dir, path, uid, gid, flags,
@@ -26753,7 +26629,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_fs_attrs_futimes_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_ATTRS_FUTIMES)?;
                 let world = runtime.check_and_resolve_world(FS_ATTRS_FUTIMES)?;
                 destack_fs_attrs_futimes_vm_replay(
                     runtime, context, world, handle, atimens, mtimens,
@@ -26769,7 +26644,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path, atimens, mtimens) = decode_destack_fs_attrs_lutimes_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_ATTRS_LUTIMES)?;
                 let world = runtime.check_and_resolve_world(FS_ATTRS_LUTIMES)?;
                 destack_fs_attrs_lutimes_vm_replay(runtime, context, world, path, atimens, mtimens)
             })
@@ -26788,7 +26662,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_attrs_utimensat_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_ATTRS_UTIMENSAT)?;
                     let world = runtime.check_and_resolve_world(FS_ATTRS_UTIMENSAT)?;
                     destack_fs_attrs_utimensat_vm_replay(
                         runtime, context, world, dir, path, atimens, mtimens, flags,
@@ -26805,7 +26678,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path, atimens, mtimens) = decode_destack_fs_attrs_utimes_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_ATTRS_UTIMES)?;
                 let world = runtime.check_and_resolve_world(FS_ATTRS_UTIMES)?;
                 destack_fs_attrs_utimes_vm_replay(runtime, context, world, path, atimens, mtimens)
             })
@@ -26819,7 +26691,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_fs_dir_closedir_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_DIR_CLOSEDIR)?;
                 let world = runtime.check_and_resolve_world(FS_DIR_CLOSEDIR)?;
                 destack_fs_dir_closedir_vm_replay(runtime, context, world, handle)
             })
@@ -26833,7 +26704,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_fs_dir_dirfd_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_DIR_DIRFD)?;
                 let world = runtime.check_and_resolve_world(FS_DIR_DIRFD)?;
                 destack_fs_dir_dirfd_vm_replay(runtime, context, world, handle)
             })
@@ -26847,7 +26717,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path, mode) = decode_destack_fs_dir_mkdir_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_DIR_MKDIR)?;
                 let world = runtime.check_and_resolve_world(FS_DIR_MKDIR)?;
                 destack_fs_dir_mkdir_vm_replay(runtime, context, world, path, mode)
             })
@@ -26861,7 +26730,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (dir, path, mode) = decode_destack_fs_dir_mkdirat_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_DIR_MKDIRAT)?;
                 let world = runtime.check_and_resolve_world(FS_DIR_MKDIRAT)?;
                 destack_fs_dir_mkdirat_vm_replay(runtime, context, world, dir, path, mode)
             })
@@ -26875,7 +26743,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (template,) = decode_destack_fs_dir_mkdtemp_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_DIR_MKDTEMP)?;
                 let world = runtime.check_and_resolve_world(FS_DIR_MKDTEMP)?;
                 destack_fs_dir_mkdtemp_vm_replay(runtime, context, world, template)
             })
@@ -26889,7 +26756,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path,) = decode_destack_fs_dir_opendir_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_DIR_OPENDIR)?;
                 let world = runtime.check_and_resolve_world(FS_DIR_OPENDIR)?;
                 destack_fs_dir_opendir_vm_replay(runtime, context, world, path)
             })
@@ -26903,7 +26769,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_fs_dir_readdir_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_DIR_READDIR)?;
                 let world = runtime.check_and_resolve_world(FS_DIR_READDIR)?;
                 destack_fs_dir_readdir_vm_replay(runtime, context, world, handle)
             })
@@ -26921,7 +26786,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_fs_dir_readdir_next_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_DIR_READDIR_NEXT)?;
                     let world = runtime.check_and_resolve_world(FS_DIR_READDIR_NEXT)?;
                     destack_fs_dir_readdir_next_vm_replay(runtime, context, world, handle)
                 })
@@ -26936,7 +26800,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_fs_dir_rewinddir_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_DIR_REWINDDIR)?;
                 let world = runtime.check_and_resolve_world(FS_DIR_REWINDDIR)?;
                 destack_fs_dir_rewinddir_vm_replay(runtime, context, world, handle)
             })
@@ -26950,7 +26813,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path,) = decode_destack_fs_dir_rmdir_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_DIR_RMDIR)?;
                 let world = runtime.check_and_resolve_world(FS_DIR_RMDIR)?;
                 destack_fs_dir_rmdir_vm_replay(runtime, context, world, path)
             })
@@ -26964,7 +26826,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_fs_file_close_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_CLOSE)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_CLOSE)?;
                 destack_fs_file_close_vm_replay(runtime, context, world, handle)
             })
@@ -26983,7 +26844,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_file_copy_file_range_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_FILE_COPY_FILE_RANGE)?;
                     let world = runtime.check_and_resolve_world(FS_FILE_COPY_FILE_RANGE)?;
                     destack_fs_file_copy_file_range_vm_replay(
                         runtime, context, world, src, srcoffset, dst, dstoffset, length,
@@ -27000,7 +26860,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_fs_file_dup_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_DUP)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_DUP)?;
                 destack_fs_file_dup_vm_replay(runtime, context, world, handle)
             })
@@ -27014,7 +26873,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, target) = decode_destack_fs_file_dup2_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_DUP2)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_DUP2)?;
                 destack_fs_file_dup2_vm_replay(runtime, context, world, handle, target)
             })
@@ -27028,7 +26886,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, target, flags) = decode_destack_fs_file_dup3_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_DUP3)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_DUP3)?;
                 destack_fs_file_dup3_vm_replay(runtime, context, world, handle, target, flags)
             })
@@ -27043,7 +26900,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_fs_file_fadvise_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_FADVISE)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_FADVISE)?;
                 destack_fs_file_fadvise_vm_replay(
                     runtime, context, world, handle, offset, length, advice,
@@ -27064,7 +26920,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_file_fallocate_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_FILE_FALLOCATE)?;
                     let world = runtime.check_and_resolve_world(FS_FILE_FALLOCATE)?;
                     destack_fs_file_fallocate_vm_replay(
                         runtime, context, world, handle, offset, length, flags,
@@ -27085,7 +26940,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_fs_file_fdatasync_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_FILE_FDATASYNC)?;
                     let world = runtime.check_and_resolve_world(FS_FILE_FDATASYNC)?;
                     destack_fs_file_fdatasync_vm_replay(runtime, context, world, handle)
                 })
@@ -27100,7 +26954,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_fs_file_fsync_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_FSYNC)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_FSYNC)?;
                 destack_fs_file_fsync_vm_replay(runtime, context, world, handle)
             })
@@ -27118,7 +26971,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle, size) = decode_destack_fs_file_ftruncate_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_FILE_FTRUNCATE)?;
                     let world = runtime.check_and_resolve_world(FS_FILE_FTRUNCATE)?;
                     destack_fs_file_ftruncate_vm_replay(runtime, context, world, handle, size)
                 })
@@ -27137,7 +26989,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_fs_file_get_fd_flags_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_FILE_GET_FD_FLAGS)?;
                     let world = runtime.check_and_resolve_world(FS_FILE_GET_FD_FLAGS)?;
                     destack_fs_file_get_fd_flags_vm_replay(runtime, context, world, handle)
                 })
@@ -27156,7 +27007,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_fs_file_get_status_flags_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_FILE_GET_STATUS_FLAGS)?;
                     let world = runtime.check_and_resolve_world(FS_FILE_GET_STATUS_FLAGS)?;
                     destack_fs_file_get_status_flags_vm_replay(runtime, context, world, handle)
                 })
@@ -27171,7 +27021,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, flags) = decode_destack_fs_file_lock_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_LOCK)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_LOCK)?;
                 destack_fs_file_lock_vm_replay(runtime, context, world, handle, flags)
             })
@@ -27185,7 +27034,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path, flags, mode) = decode_destack_fs_file_open_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_OPEN)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_OPEN)?;
                 destack_fs_file_open_vm_replay(runtime, context, world, path, flags, mode)
             })
@@ -27199,7 +27047,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (dir, path, flags, mode) = decode_destack_fs_file_openat_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_OPENAT)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_OPENAT)?;
                 destack_fs_file_openat_vm_replay(runtime, context, world, dir, path, flags, mode)
             })
@@ -27213,7 +27060,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (dir, path, how) = decode_destack_fs_file_openat2_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_OPENAT2)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_OPENAT2)?;
                 destack_fs_file_openat2_vm_replay(runtime, context, world, dir, path, how)
             })
@@ -27227,7 +27073,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, buffer, offset) = decode_destack_fs_file_pread_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_PREAD)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_PREAD)?;
                 destack_fs_file_pread_vm_replay(runtime, context, world, handle, buffer, offset)
             })
@@ -27241,7 +27086,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, buffers, offset) = decode_destack_fs_file_preadv_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_PREADV)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_PREADV)?;
                 destack_fs_file_preadv_vm_replay(runtime, context, world, handle, buffers, offset)
             })
@@ -27256,7 +27100,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_fs_file_preadv2_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_PREADV2)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_PREADV2)?;
                 destack_fs_file_preadv2_vm_replay(
                     runtime, context, world, handle, buffers, offset, flags,
@@ -27272,7 +27115,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, buffer, offset) = decode_destack_fs_file_pwrite_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_PWRITE)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_PWRITE)?;
                 destack_fs_file_pwrite_vm_replay(runtime, context, world, handle, buffer, offset)
             })
@@ -27286,7 +27128,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, buffers, offset) = decode_destack_fs_file_pwritev_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_PWRITEV)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_PWRITEV)?;
                 destack_fs_file_pwritev_vm_replay(runtime, context, world, handle, buffers, offset)
             })
@@ -27301,7 +27142,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_fs_file_pwritev2_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_PWRITEV2)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_PWRITEV2)?;
                 destack_fs_file_pwritev2_vm_replay(
                     runtime, context, world, handle, buffers, offset, flags,
@@ -27317,7 +27157,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, buffer) = decode_destack_fs_file_read_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_READ)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_READ)?;
                 destack_fs_file_read_vm_replay(runtime, context, world, handle, buffer)
             })
@@ -27331,7 +27170,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, buffers) = decode_destack_fs_file_readv_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_READV)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_READV)?;
                 destack_fs_file_readv_vm_replay(runtime, context, world, handle, buffers)
             })
@@ -27345,7 +27183,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, offset, whence) = decode_destack_fs_file_seek_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_SEEK)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_SEEK)?;
                 destack_fs_file_seek_vm_replay(runtime, context, world, handle, offset, whence)
             })
@@ -27360,7 +27197,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_fs_file_sendfile_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_SENDFILE)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_SENDFILE)?;
                 destack_fs_file_sendfile_vm_replay(
                     runtime, context, world, socket, file, offset, length,
@@ -27380,7 +27216,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle, flags) = decode_destack_fs_file_set_fd_flags_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_FILE_SET_FD_FLAGS)?;
                     let world = runtime.check_and_resolve_world(FS_FILE_SET_FD_FLAGS)?;
                     destack_fs_file_set_fd_flags_vm_replay(runtime, context, world, handle, flags)
                 })
@@ -27400,7 +27235,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_file_set_status_flags_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_FILE_SET_STATUS_FLAGS)?;
                     let world = runtime.check_and_resolve_world(FS_FILE_SET_STATUS_FLAGS)?;
                     destack_fs_file_set_status_flags_vm_replay(
                         runtime, context, world, handle, flags,
@@ -27418,7 +27252,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_fs_file_splice_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_SPLICE)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_SPLICE)?;
                 destack_fs_file_splice_vm_replay(
                     runtime,
@@ -27447,7 +27280,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_file_sync_file_range_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_FILE_SYNC_FILE_RANGE)?;
                     let world = runtime.check_and_resolve_world(FS_FILE_SYNC_FILE_RANGE)?;
                     destack_fs_file_sync_file_range_vm_replay(
                         runtime, context, world, handle, offset, length, flags,
@@ -27464,7 +27296,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_fs_file_syncfs_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_SYNCFS)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_SYNCFS)?;
                 destack_fs_file_syncfs_vm_replay(runtime, context, world, handle)
             })
@@ -27479,7 +27310,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_fs_file_tee_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_TEE)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_TEE)?;
                 destack_fs_file_tee_vm_replay(
                     runtime, context, world, sourcepipe, targetpipe, length, flags,
@@ -27495,7 +27325,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path, size) = decode_destack_fs_file_truncate_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_TRUNCATE)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_TRUNCATE)?;
                 destack_fs_file_truncate_vm_replay(runtime, context, world, path, size)
             })
@@ -27509,7 +27338,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (pipe, buffers, flags) = decode_destack_fs_file_vmsplice_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_VMSPLICE)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_VMSPLICE)?;
                 destack_fs_file_vmsplice_vm_replay(runtime, context, world, pipe, buffers, flags)
             })
@@ -27523,7 +27351,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, buffer) = decode_destack_fs_file_write_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_WRITE)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_WRITE)?;
                 destack_fs_file_write_vm_replay(runtime, context, world, handle, buffer)
             })
@@ -27537,7 +27364,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, buffers) = decode_destack_fs_file_writev_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_FILE_WRITEV)?;
                 let world = runtime.check_and_resolve_world(FS_FILE_WRITEV)?;
                 destack_fs_file_writev_vm_replay(runtime, context, world, handle, buffers)
             })
@@ -27551,7 +27377,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (mapping, advice) = decode_destack_fs_mmap_madvise_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_MMAP_MADVISE)?;
                 let world = runtime.check_and_resolve_world(FS_MMAP_MADVISE)?;
                 destack_fs_mmap_madvise_vm_replay(runtime, context, world, mapping, advice)
             })
@@ -27570,7 +27395,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_mmap_mmap_anonymous_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_MMAP_MMAP_ANONYMOUS)?;
                     let world = runtime.check_and_resolve_world(FS_MMAP_MMAP_ANONYMOUS)?;
                     destack_fs_mmap_mmap_anonymous_vm_replay(
                         runtime, context, world, length, prot, flags,
@@ -27592,7 +27416,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_mmap_mmap_file_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_MMAP_MMAP_FILE)?;
                     let world = runtime.check_and_resolve_world(FS_MMAP_MMAP_FILE)?;
                     destack_fs_mmap_mmap_file_vm_replay(
                         runtime, context, world, handle, offset, length, prot, flags,
@@ -27609,7 +27432,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (mapping, prot) = decode_destack_fs_mmap_mprotect_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_MMAP_MPROTECT)?;
                 let world = runtime.check_and_resolve_world(FS_MMAP_MPROTECT)?;
                 destack_fs_mmap_mprotect_vm_replay(runtime, context, world, mapping, prot)
             })
@@ -27623,7 +27445,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (mapping, flags) = decode_destack_fs_mmap_msync_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_MMAP_MSYNC)?;
                 let world = runtime.check_and_resolve_world(FS_MMAP_MSYNC)?;
                 destack_fs_mmap_msync_vm_replay(runtime, context, world, mapping, flags)
             })
@@ -27637,7 +27458,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (mapping,) = decode_destack_fs_mmap_munmap_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_MMAP_MUNMAP)?;
                 let world = runtime.check_and_resolve_world(FS_MMAP_MUNMAP)?;
                 destack_fs_mmap_munmap_vm_replay(runtime, context, world, mapping)
             })
@@ -27651,7 +27471,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (from, to, flags) = decode_destack_fs_path_copyfile_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_PATH_COPYFILE)?;
                 let world = runtime.check_and_resolve_world(FS_PATH_COPYFILE)?;
                 destack_fs_path_copyfile_vm_replay(runtime, context, world, from, to, flags)
             })
@@ -27665,7 +27484,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (existingpath, newpath) = decode_destack_fs_path_link_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_PATH_LINK)?;
                 let world = runtime.check_and_resolve_world(FS_PATH_LINK)?;
                 destack_fs_path_link_vm_replay(runtime, context, world, existingpath, newpath)
             })
@@ -27680,7 +27498,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_fs_path_linkat_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_PATH_LINKAT)?;
                 let world = runtime.check_and_resolve_world(FS_PATH_LINKAT)?;
                 destack_fs_path_linkat_vm_replay(
                     runtime,
@@ -27703,7 +27520,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path, mode) = decode_destack_fs_path_mkfifo_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_PATH_MKFIFO)?;
                 let world = runtime.check_and_resolve_world(FS_PATH_MKFIFO)?;
                 destack_fs_path_mkfifo_vm_replay(runtime, context, world, path, mode)
             })
@@ -27717,7 +27533,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (dir, path, mode) = decode_destack_fs_path_mkfifoat_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_PATH_MKFIFOAT)?;
                 let world = runtime.check_and_resolve_world(FS_PATH_MKFIFOAT)?;
                 destack_fs_path_mkfifoat_vm_replay(runtime, context, world, dir, path, mode)
             })
@@ -27731,7 +27546,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path, mode, device) = decode_destack_fs_path_mknod_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_PATH_MKNOD)?;
                 let world = runtime.check_and_resolve_world(FS_PATH_MKNOD)?;
                 destack_fs_path_mknod_vm_replay(runtime, context, world, path, mode, device)
             })
@@ -27745,7 +27559,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (dir, path, mode, device) = decode_destack_fs_path_mknodat_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_PATH_MKNODAT)?;
                 let world = runtime.check_and_resolve_world(FS_PATH_MKNODAT)?;
                 destack_fs_path_mknodat_vm_replay(runtime, context, world, dir, path, mode, device)
             })
@@ -27759,7 +27572,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path,) = decode_destack_fs_path_readlink_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_PATH_READLINK)?;
                 let world = runtime.check_and_resolve_world(FS_PATH_READLINK)?;
                 destack_fs_path_readlink_vm_replay(runtime, context, world, path)
             })
@@ -27777,7 +27589,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (dir, path) = decode_destack_fs_path_readlinkat_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_PATH_READLINKAT)?;
                     let world = runtime.check_and_resolve_world(FS_PATH_READLINKAT)?;
                     destack_fs_path_readlinkat_vm_replay(runtime, context, world, dir, path)
                 })
@@ -27792,7 +27603,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path,) = decode_destack_fs_path_realpath_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_PATH_REALPATH)?;
                 let world = runtime.check_and_resolve_world(FS_PATH_REALPATH)?;
                 destack_fs_path_realpath_vm_replay(runtime, context, world, path)
             })
@@ -27806,7 +27616,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (from, to) = decode_destack_fs_path_rename_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_PATH_RENAME)?;
                 let world = runtime.check_and_resolve_world(FS_PATH_RENAME)?;
                 destack_fs_path_rename_vm_replay(runtime, context, world, from, to)
             })
@@ -27821,7 +27630,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_fs_path_renameat_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_PATH_RENAMEAT)?;
                 let world = runtime.check_and_resolve_world(FS_PATH_RENAMEAT)?;
                 destack_fs_path_renameat_vm_replay(
                     runtime, context, world, fromdir, from, todir, to,
@@ -27842,7 +27650,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_path_renameat2_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_PATH_RENAMEAT2)?;
                     let world = runtime.check_and_resolve_world(FS_PATH_RENAMEAT2)?;
                     destack_fs_path_renameat2_vm_replay(
                         runtime, context, world, fromdir, from, todir, to, flags,
@@ -27859,7 +27666,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (target, path, kind) = decode_destack_fs_path_symlink_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_PATH_SYMLINK)?;
                 let world = runtime.check_and_resolve_world(FS_PATH_SYMLINK)?;
                 destack_fs_path_symlink_vm_replay(runtime, context, world, target, path, kind)
             })
@@ -27878,7 +27684,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_path_symlinkat_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_PATH_SYMLINKAT)?;
                     let world = runtime.check_and_resolve_world(FS_PATH_SYMLINKAT)?;
                     destack_fs_path_symlinkat_vm_replay(
                         runtime, context, world, target, dir, path, kind,
@@ -27895,7 +27700,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path,) = decode_destack_fs_path_unlink_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_PATH_UNLINK)?;
                 let world = runtime.check_and_resolve_world(FS_PATH_UNLINK)?;
                 destack_fs_path_unlink_vm_replay(runtime, context, world, path)
             })
@@ -27909,7 +27713,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (dir, path, flags) = decode_destack_fs_path_unlinkat_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_PATH_UNLINKAT)?;
                 let world = runtime.check_and_resolve_world(FS_PATH_UNLINKAT)?;
                 destack_fs_path_unlinkat_vm_replay(runtime, context, world, dir, path, flags)
             })
@@ -27923,7 +27726,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_fs_stat_fstat_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_STAT_FSTAT)?;
                 let world = runtime.check_and_resolve_world(FS_STAT_FSTAT)?;
                 destack_fs_stat_fstat_vm_replay(runtime, context, world, handle)
             })
@@ -27937,7 +27739,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_fs_stat_fstatfs_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_STAT_FSTATFS)?;
                 let world = runtime.check_and_resolve_world(FS_STAT_FSTATFS)?;
                 destack_fs_stat_fstatfs_vm_replay(runtime, context, world, handle)
             })
@@ -27951,7 +27752,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path,) = decode_destack_fs_stat_lstat_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_STAT_LSTAT)?;
                 let world = runtime.check_and_resolve_world(FS_STAT_LSTAT)?;
                 destack_fs_stat_lstat_vm_replay(runtime, context, world, path)
             })
@@ -27965,7 +27765,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path,) = decode_destack_fs_stat_path_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_STAT_PATH)?;
                 let world = runtime.check_and_resolve_world(FS_STAT_PATH)?;
                 destack_fs_stat_path_vm_replay(runtime, context, world, path)
             })
@@ -27979,7 +27778,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (dir, path, flags) = decode_destack_fs_stat_pathat_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_STAT_PATHAT)?;
                 let world = runtime.check_and_resolve_world(FS_STAT_PATHAT)?;
                 destack_fs_stat_pathat_vm_replay(runtime, context, world, dir, path, flags)
             })
@@ -27993,7 +27791,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path,) = decode_destack_fs_stat_pathfs_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_STAT_PATHFS)?;
                 let world = runtime.check_and_resolve_world(FS_STAT_PATHFS)?;
                 destack_fs_stat_pathfs_vm_replay(runtime, context, world, path)
             })
@@ -28007,7 +27804,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (dir, path, flags, mask) = decode_destack_fs_stat_pathx_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_STAT_PATHX)?;
                 let world = runtime.check_and_resolve_world(FS_STAT_PATHX)?;
                 destack_fs_stat_pathx_vm_replay(runtime, context, world, dir, path, flags, mask)
             })
@@ -28021,7 +27817,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path, options) = decode_destack_fs_watch_open_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_WATCH_OPEN)?;
                 let world = runtime.check_and_resolve_world(FS_WATCH_OPEN)?;
                 destack_fs_watch_open_vm_replay(runtime, context, world, path, options)
             })
@@ -28039,7 +27834,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_fs_watch_open_close_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_WATCH_OPEN_CLOSE)?;
                     let world = runtime.check_and_resolve_world(FS_WATCH_OPEN_CLOSE)?;
                     destack_fs_watch_open_close_vm_replay(runtime, context, world, handle)
                 })
@@ -28058,7 +27852,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_fs_watch_open_read_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_WATCH_OPEN_READ)?;
                     let world = runtime.check_and_resolve_world(FS_WATCH_OPEN_READ)?;
                     destack_fs_watch_open_read_vm_replay(runtime, context, world, handle)
                 })
@@ -28074,7 +27867,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_fs_watch_openat_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(FS_WATCH_OPENAT)?;
                 let world = runtime.check_and_resolve_world(FS_WATCH_OPENAT)?;
                 destack_fs_watch_openat_vm_replay(runtime, context, world, directory, path, options)
             })
@@ -28092,7 +27884,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle, name) = decode_destack_fs_xattr_fgetxattr_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_FGETXATTR)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_FGETXATTR)?;
                     destack_fs_xattr_fgetxattr_vm_replay(runtime, context, world, handle, name)
                 })
@@ -28112,7 +27903,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_xattr_fgetxattr_bytes_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_FGETXATTR_BYTES)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_FGETXATTR_BYTES)?;
                     destack_fs_xattr_fgetxattr_bytes_vm_replay(
                         runtime, context, world, handle, name,
@@ -28133,7 +27923,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_fs_xattr_flistxattr_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_FLISTXATTR)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_FLISTXATTR)?;
                     destack_fs_xattr_flistxattr_vm_replay(runtime, context, world, handle)
                 })
@@ -28152,7 +27941,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_fs_xattr_flistxattr_bytes_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_FLISTXATTR_BYTES)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_FLISTXATTR_BYTES)?;
                     destack_fs_xattr_flistxattr_bytes_vm_replay(runtime, context, world, handle)
                 })
@@ -28171,7 +27959,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle, name) = decode_destack_fs_xattr_fremovexattr_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_FREMOVEXATTR)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_FREMOVEXATTR)?;
                     destack_fs_xattr_fremovexattr_vm_replay(runtime, context, world, handle, name)
                 })
@@ -28191,7 +27978,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_xattr_fremovexattr_bytes_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_FREMOVEXATTR_BYTES)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_FREMOVEXATTR_BYTES)?;
                     destack_fs_xattr_fremovexattr_bytes_vm_replay(
                         runtime, context, world, handle, name,
@@ -28213,7 +27999,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_xattr_fsetxattr_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_FSETXATTR)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_FSETXATTR)?;
                     destack_fs_xattr_fsetxattr_vm_replay(
                         runtime,
@@ -28241,7 +28026,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_xattr_fsetxattr_bytes_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_FSETXATTR_BYTES)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_FSETXATTR_BYTES)?;
                     destack_fs_xattr_fsetxattr_bytes_vm_replay(
                         runtime,
@@ -28268,7 +28052,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (path, name) = decode_destack_fs_xattr_getxattr_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_GETXATTR)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_GETXATTR)?;
                     destack_fs_xattr_getxattr_vm_replay(runtime, context, world, path, name)
                 })
@@ -28287,7 +28070,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (path, name) = decode_destack_fs_xattr_getxattr_bytes_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_GETXATTR_BYTES)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_GETXATTR_BYTES)?;
                     destack_fs_xattr_getxattr_bytes_vm_replay(runtime, context, world, path, name)
                 })
@@ -28306,7 +28088,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (path, name) = decode_destack_fs_xattr_lgetxattr_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_LGETXATTR)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_LGETXATTR)?;
                     destack_fs_xattr_lgetxattr_vm_replay(runtime, context, world, path, name)
                 })
@@ -28325,7 +28106,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (path, name) = decode_destack_fs_xattr_lgetxattr_bytes_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_LGETXATTR_BYTES)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_LGETXATTR_BYTES)?;
                     destack_fs_xattr_lgetxattr_bytes_vm_replay(runtime, context, world, path, name)
                 })
@@ -28344,7 +28124,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (path,) = decode_destack_fs_xattr_listxattr_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_LISTXATTR)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_LISTXATTR)?;
                     destack_fs_xattr_listxattr_vm_replay(runtime, context, world, path)
                 })
@@ -28363,7 +28142,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (path,) = decode_destack_fs_xattr_listxattr_bytes_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_LISTXATTR_BYTES)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_LISTXATTR_BYTES)?;
                     destack_fs_xattr_listxattr_bytes_vm_replay(runtime, context, world, path)
                 })
@@ -28382,7 +28160,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (path,) = decode_destack_fs_xattr_llistxattr_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_LLISTXATTR)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_LLISTXATTR)?;
                     destack_fs_xattr_llistxattr_vm_replay(runtime, context, world, path)
                 })
@@ -28401,7 +28178,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (path,) = decode_destack_fs_xattr_llistxattr_bytes_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_LLISTXATTR_BYTES)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_LLISTXATTR_BYTES)?;
                     destack_fs_xattr_llistxattr_bytes_vm_replay(runtime, context, world, path)
                 })
@@ -28420,7 +28196,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (path, name) = decode_destack_fs_xattr_lremovexattr_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_LREMOVEXATTR)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_LREMOVEXATTR)?;
                     destack_fs_xattr_lremovexattr_vm_replay(runtime, context, world, path, name)
                 })
@@ -28440,7 +28215,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_xattr_lremovexattr_bytes_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_LREMOVEXATTR_BYTES)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_LREMOVEXATTR_BYTES)?;
                     destack_fs_xattr_lremovexattr_bytes_vm_replay(
                         runtime, context, world, path, name,
@@ -28462,7 +28236,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_xattr_lsetxattr_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_LSETXATTR)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_LSETXATTR)?;
                     destack_fs_xattr_lsetxattr_vm_replay(
                         runtime,
@@ -28490,7 +28263,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_xattr_lsetxattr_bytes_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_LSETXATTR_BYTES)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_LSETXATTR_BYTES)?;
                     destack_fs_xattr_lsetxattr_bytes_vm_replay(
                         runtime,
@@ -28517,7 +28289,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (path, name) = decode_destack_fs_xattr_removexattr_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_REMOVEXATTR)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_REMOVEXATTR)?;
                     destack_fs_xattr_removexattr_vm_replay(runtime, context, world, path, name)
                 })
@@ -28537,7 +28308,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_xattr_removexattr_bytes_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_REMOVEXATTR_BYTES)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_REMOVEXATTR_BYTES)?;
                     destack_fs_xattr_removexattr_bytes_vm_replay(
                         runtime, context, world, path, name,
@@ -28559,7 +28329,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_xattr_setxattr_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_SETXATTR)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_SETXATTR)?;
                     destack_fs_xattr_setxattr_vm_replay(
                         runtime,
@@ -28587,7 +28356,6 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_fs_xattr_setxattr_bytes_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(FS_XATTR_SETXATTR_BYTES)?;
                     let world = runtime.check_and_resolve_world(FS_XATTR_SETXATTR_BYTES)?;
                     destack_fs_xattr_setxattr_bytes_vm_replay(
                         runtime,

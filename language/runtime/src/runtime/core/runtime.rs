@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::{PlatformContext, PlatformPoller};
-use crate::runtime::RuntimeHookState;
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
 use crate::runtime::memory::Heap;
 use crate::runtime::scheduler::EventLoop;
@@ -47,7 +46,7 @@ impl Runtime {
         bindings.set_runtime_handles(&state, event_loop.as_ref());
         bindings.install_native_defaults();
         let mut heap = Heap::default();
-        heap.configure_gc(state.gc_options.clone());
+        heap.configure_gc(state.gc.clone());
 
         Self {
             bindings,
@@ -59,25 +58,11 @@ impl Runtime {
     }
 
     /// Create a runtime with explicit runtime options.
-    pub fn from_runtime_options(
+    pub fn from_options(
         platform: PlatformContext,
         options: &RuntimeOptions,
     ) -> RuntimeResult<Self> {
-        let state = Arc::new(RuntimeState::from_runtime_options(platform, options));
-        let mut runtime = Self::new(state);
-        runtime.event_loop.configure(options.scheduler.clone());
-        runtime.bindings.apply_runtime_options(options);
-        if let Some(poller) = poller_for_options(options)? {
-            runtime.set_poller(poller);
-        }
-        Ok(runtime)
-    }
-
-    /// Create a runtime with the configured platform poller.
-    pub fn with_configured_poller(
-        state: Arc<RuntimeState>,
-        options: &RuntimeOptions,
-    ) -> RuntimeResult<Self> {
+        let state = Arc::new(RuntimeState::from_options(platform, options));
         let mut runtime = Self::new(state);
         runtime.event_loop.configure(options.scheduler.clone());
         runtime.bindings.apply_runtime_options(options);
@@ -90,58 +75,6 @@ impl Runtime {
     /// Attach a platform poller for external events.
     pub fn set_poller(&mut self, poller: Box<dyn PlatformPoller>) {
         self.poller = Some(poller);
-    }
-
-    /// Run runtime ticks until no work remains.
-    pub fn tick_until_idle(&mut self) -> RuntimeResult<()> {
-        loop {
-            // drive one runtime tick
-            let progressed = self.tick_once()?;
-
-            // exit once no work remains
-            if !progressed {
-                break;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Execute one runtime tick.
-    pub fn tick_once(&mut self) -> RuntimeResult<bool> {
-        // poll timers for ready callbacks
-        let now = self.state.time.wall_nanos();
-        let ready_timers = self.event_loop.poll_timers(now)?;
-        let mut progressed = !ready_timers.is_empty();
-        if progressed {
-            self.state
-                .rules
-                .on_scheduler_timer_fire(RuntimeHookState::empty());
-        }
-
-        // TODO #Incomplete: wire timer callbacks into tasks
-
-        // poll platform events if a poller is installed
-        if let Some(poller) = self.poller.as_mut() {
-            let event_count = self.event_loop.poll_poller(poller.as_mut(), Some(0))?;
-            if event_count > 0 {
-                progressed = true;
-                self.state.rules.on_scheduler_event_wake(RuntimeHookState {
-                    external_event_count: Some(event_count),
-                    ..RuntimeHookState::empty()
-                });
-            }
-        }
-
-        // run one gc cycle when pacing says a cycle is due
-        if self.heap.should_collect() {
-            let _stats = self.heap.collect();
-            progressed = true;
-        }
-
-        // TODO #Incomplete: wire event loop runnables into tasks
-
-        Ok(progressed)
     }
 
     /// Capture a runtime snapshot and record a checkpoint in the replay log.

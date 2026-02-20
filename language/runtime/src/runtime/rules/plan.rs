@@ -26,12 +26,12 @@ impl RuntimeRulePlan {
         self.rules.len()
     }
 
-    /// Return the index of the first matching effect rule for one site.
+    /// Return the index of the first matching effect rule for one hook.
     pub(crate) fn first_matching_effect_rule(
         &self,
         descriptor: Option<BindingDescriptor>,
         engine: Option<BindingEngine>,
-        site: RuntimeHook,
+        hook: RuntimeHook,
     ) -> Option<usize> {
         // apply first match semantics for effect rules
         for (index, rule) in self.rules.iter().enumerate() {
@@ -39,11 +39,14 @@ impl RuntimeRulePlan {
                 continue;
             }
 
-            if !matches!(rule.action, RuntimeAction::Effect { .. }) {
+            if !matches!(
+                rule.action,
+                RuntimeAction::Fault { .. } | RuntimeAction::Control { .. }
+            ) {
                 continue;
             }
 
-            if !matches_rule_site(rule, site) {
+            if !matches_rule_hook(rule, hook) {
                 continue;
             }
 
@@ -55,7 +58,7 @@ impl RuntimeRulePlan {
 }
 
 /// Return true when one rule is enabled for one hook.
-fn matches_rule_site(rule: &RuntimeRule, expected: RuntimeHook) -> bool {
+fn matches_rule_hook(rule: &RuntimeRule, expected: RuntimeHook) -> bool {
     let Some(trigger) = &rule.trigger else {
         return false;
     };
@@ -68,8 +71,8 @@ mod tests {
     use super::RuntimeRulePlan;
     use crate::runtime::bindings::{BindingDescriptor, BindingEngine};
     use destack_workspace::{
-        RuntimeAction, RuntimeEffectAction, RuntimeFilter, RuntimeHook, RuntimeMockEffect,
-        RuntimeOptions, RuntimeRule, RuntimeTrigger,
+        RuntimeAction, RuntimeControlEffect, RuntimeFilter, RuntimeHook, RuntimeOptions,
+        RuntimeRule, RuntimeTrigger,
     };
 
     /// Ensures effect matching returns the first matching rule index.
@@ -95,10 +98,10 @@ mod tests {
         assert_eq!(index, Some(0));
     }
 
-    /// Ensures site matching skips rules that do not include the current site.
+    /// Ensures hook matching skips rules that do not include the current hook.
     #[test]
-    fn test_first_matching_effect_rule_respects_site() {
-        // prepare one rule for another site and one for binding before
+    fn test_first_matching_effect_rule_respects_hook() {
+        // prepare one rule for another hook and one for binding before
         let options = RuntimeOptions {
             rules: vec![
                 effect_rule(RuntimeHook::SchedulerDequeue),
@@ -123,10 +126,8 @@ mod tests {
         RuntimeRule {
             id: None,
             when: RuntimeFilter::default(),
-            action: RuntimeAction::Effect {
-                effect: RuntimeEffectAction::Mock {
-                    mock: RuntimeMockEffect::Success {},
-                },
+            action: RuntimeAction::Control {
+                control: RuntimeControlEffect::GcCycleCollect {},
             },
             trigger: Some(RuntimeTrigger {
                 on,

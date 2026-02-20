@@ -7,6 +7,8 @@ pub mod replay;
 pub(crate) mod rules;
 pub mod scheduler;
 pub mod snapshot;
+#[cfg(test)]
+mod tests;
 pub(crate) mod time;
 
 pub use core::*;

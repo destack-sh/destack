@@ -2603,7 +2603,6 @@ pub unsafe extern "C" fn destack_ipc_message_queue_close(
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(IPC_MESSAGE_QUEUE_CLOSE)?;
         let world = context.check_and_resolve_world(IPC_MESSAGE_QUEUE_CLOSE)?;
         destack_ipc_message_queue_close_replay(context, world, handle)
     })
@@ -2624,7 +2623,6 @@ pub unsafe extern "C" fn destack_ipc_message_queue_open(
         }
         let _ = (&out, &name, &flags, &mode, &maxmessages, &maxmessagebytes);
 
-        context.check_policy(IPC_MESSAGE_QUEUE_OPEN)?;
         let world = context.check_and_resolve_world(IPC_MESSAGE_QUEUE_OPEN)?;
         destack_ipc_message_queue_open_replay(
             context,
@@ -2652,7 +2650,6 @@ pub unsafe extern "C" fn destack_ipc_message_queue_receive(
         }
         let _ = (&out, &handle, &timeoutns, &buffer);
 
-        context.check_policy(IPC_MESSAGE_QUEUE_RECEIVE)?;
         let world = context.check_and_resolve_world(IPC_MESSAGE_QUEUE_RECEIVE)?;
         destack_ipc_message_queue_receive_replay(context, world, out, handle, timeoutns, buffer)
     })
@@ -2668,7 +2665,6 @@ pub unsafe extern "C" fn destack_ipc_message_queue_send(
     native_call(|context| {
         let _ = (&handle, &priority, &timeoutns, &argument_payload);
 
-        context.check_policy(IPC_MESSAGE_QUEUE_SEND)?;
         let world = context.check_and_resolve_world(IPC_MESSAGE_QUEUE_SEND)?;
         destack_ipc_message_queue_send_replay(
             context,
@@ -2686,7 +2682,6 @@ pub unsafe extern "C" fn destack_ipc_message_queue_unlink(name: NativeStringRef)
     native_call(|context| {
         let _ = &name;
 
-        context.check_policy(IPC_MESSAGE_QUEUE_UNLINK)?;
         let world = context.check_and_resolve_world(IPC_MESSAGE_QUEUE_UNLINK)?;
         destack_ipc_message_queue_unlink_replay(context, world, name)
     })
@@ -2697,7 +2692,6 @@ pub unsafe extern "C" fn destack_ipc_pipe_close(handle: resource::PipeHandle) ->
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(IPC_PIPE_CLOSE)?;
         let world = context.check_and_resolve_world(IPC_PIPE_CLOSE)?;
         destack_ipc_pipe_close_replay(context, world, handle)
     })
@@ -2711,7 +2705,6 @@ pub unsafe extern "C" fn destack_ipc_pipe_open(out: *mut PipePair, flags: u32) -
         }
         let _ = (&out, &flags);
 
-        context.check_policy(IPC_PIPE_OPEN)?;
         let world = context.check_and_resolve_world(IPC_PIPE_OPEN)?;
         destack_ipc_pipe_open_replay(context, world, out, flags)
     })
@@ -2729,7 +2722,6 @@ pub unsafe extern "C" fn destack_ipc_pipe_read(
         }
         let _ = (&out, &handle, &buffer);
 
-        context.check_policy(IPC_PIPE_READ)?;
         let world = context.check_and_resolve_world(IPC_PIPE_READ)?;
         destack_ipc_pipe_read_replay(context, world, out, handle, buffer)
     })
@@ -2747,7 +2739,6 @@ pub unsafe extern "C" fn destack_ipc_pipe_write(
         }
         let _ = (&out, &handle, &buffer);
 
-        context.check_policy(IPC_PIPE_WRITE)?;
         let world = context.check_and_resolve_world(IPC_PIPE_WRITE)?;
         destack_ipc_pipe_write_replay(context, world, out, handle, buffer)
     })
@@ -2760,7 +2751,6 @@ pub unsafe extern "C" fn destack_ipc_shared_memory_close(
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(IPC_SHARED_MEMORY_CLOSE)?;
         let world = context.check_and_resolve_world(IPC_SHARED_MEMORY_CLOSE)?;
         destack_ipc_shared_memory_close_replay(context, world, handle)
     })
@@ -2779,7 +2769,6 @@ pub unsafe extern "C" fn destack_ipc_shared_memory_create(
         }
         let _ = (&out, &name, &size, &flags);
 
-        context.check_policy(IPC_SHARED_MEMORY_CREATE)?;
         let world = context.check_and_resolve_world(IPC_SHARED_MEMORY_CREATE)?;
         destack_ipc_shared_memory_create_replay(context, world, out, name, size, flags)
     })
@@ -2799,7 +2788,6 @@ pub unsafe extern "C" fn destack_ipc_shared_memory_map(
         }
         let _ = (&out, &handle, &offset, &length, &flags);
 
-        context.check_policy(IPC_SHARED_MEMORY_MAP)?;
         let world = context.check_and_resolve_world(IPC_SHARED_MEMORY_MAP)?;
         destack_ipc_shared_memory_map_replay(context, world, out, handle, offset, length, flags)
     })
@@ -2817,7 +2805,6 @@ pub unsafe extern "C" fn destack_ipc_shared_memory_open(
         }
         let _ = (&out, &name, &flags);
 
-        context.check_policy(IPC_SHARED_MEMORY_OPEN)?;
         let world = context.check_and_resolve_world(IPC_SHARED_MEMORY_OPEN)?;
         destack_ipc_shared_memory_open_replay(context, world, out, name, flags)
     })
@@ -2831,7 +2818,6 @@ pub unsafe extern "C" fn destack_ipc_shared_memory_unmap(
     native_call(|context| {
         let _ = (&address, &length);
 
-        context.check_policy(IPC_SHARED_MEMORY_UNMAP)?;
         let world = context.check_and_resolve_world(IPC_SHARED_MEMORY_UNMAP)?;
         destack_ipc_shared_memory_unmap_replay(context, world, address, length)
     })
@@ -2847,7 +2833,6 @@ pub unsafe extern "C" fn destack_ipc_sync_futex_wait(
     native_call(|context| {
         let _ = (&sharedmemory, &offset, &expected, &timeoutns);
 
-        context.check_policy(IPC_SYNC_FUTEX_WAIT)?;
         let world = context.check_and_resolve_world(IPC_SYNC_FUTEX_WAIT)?;
         destack_ipc_sync_futex_wait_replay(
             context,
@@ -2873,7 +2858,6 @@ pub unsafe extern "C" fn destack_ipc_sync_futex_wake(
         }
         let _ = (&out, &sharedmemory, &offset, &count);
 
-        context.check_policy(IPC_SYNC_FUTEX_WAKE)?;
         let world = context.check_and_resolve_world(IPC_SYNC_FUTEX_WAKE)?;
         destack_ipc_sync_futex_wake_replay(context, world, out, sharedmemory, offset, count)
     })
@@ -2892,7 +2876,6 @@ pub unsafe extern "C" fn destack_ipc_sync_semaphore_create(
         }
         let _ = (&out, &name, &initial, &flags);
 
-        context.check_policy(IPC_SYNC_SEMAPHORE_CREATE)?;
         let world = context.check_and_resolve_world(IPC_SYNC_SEMAPHORE_CREATE)?;
         destack_ipc_sync_semaphore_create_replay(context, world, out, name, initial, flags)
     })
@@ -2906,7 +2889,6 @@ pub unsafe extern "C" fn destack_ipc_sync_semaphore_post(
     native_call(|context| {
         let _ = (&handle, &count);
 
-        context.check_policy(IPC_SYNC_SEMAPHORE_POST)?;
         let world = context.check_and_resolve_world(IPC_SYNC_SEMAPHORE_POST)?;
         destack_ipc_sync_semaphore_post_replay(context, world, handle, count)
     })
@@ -2920,7 +2902,6 @@ pub unsafe extern "C" fn destack_ipc_sync_semaphore_wait(
     native_call(|context| {
         let _ = (&handle, &timeoutns);
 
-        context.check_policy(IPC_SYNC_SEMAPHORE_WAIT)?;
         let world = context.check_and_resolve_world(IPC_SYNC_SEMAPHORE_WAIT)?;
         destack_ipc_sync_semaphore_wait_replay(context, world, handle, timeoutns)
     })
@@ -2938,7 +2919,6 @@ pub unsafe extern "C" fn destack_ipc_unix_receive(
         }
         let _ = (&out, &socket, &maxhandles);
 
-        context.check_policy(IPC_UNIX_RECEIVE)?;
         let world = context.check_and_resolve_world(IPC_UNIX_RECEIVE)?;
         destack_ipc_unix_receive_replay(context, world, out, socket, maxhandles)
     })
@@ -2957,7 +2937,6 @@ pub unsafe extern "C" fn destack_ipc_unix_send(
         }
         let _ = (&out, &socket, &argument_payload, &handles);
 
-        context.check_policy(IPC_UNIX_SEND)?;
         let world = context.check_and_resolve_world(IPC_UNIX_SEND)?;
         destack_ipc_unix_send_replay(context, world, out, socket, argument_payload, handles)
     })
@@ -4267,7 +4246,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_ipc_message_queue_close_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IPC_MESSAGE_QUEUE_CLOSE)?;
                     let world = runtime.check_and_resolve_world(IPC_MESSAGE_QUEUE_CLOSE)?;
                     destack_ipc_message_queue_close_vm_replay(runtime, context, world, handle)
                 })
@@ -4287,7 +4265,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_ipc_message_queue_open_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IPC_MESSAGE_QUEUE_OPEN)?;
                     let world = runtime.check_and_resolve_world(IPC_MESSAGE_QUEUE_OPEN)?;
                     destack_ipc_message_queue_open_vm_replay(
                         runtime,
@@ -4316,7 +4293,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_ipc_message_queue_receive_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IPC_MESSAGE_QUEUE_RECEIVE)?;
                     let world = runtime.check_and_resolve_world(IPC_MESSAGE_QUEUE_RECEIVE)?;
                     destack_ipc_message_queue_receive_vm_replay(
                         runtime, context, world, handle, timeoutns, buffer,
@@ -4338,7 +4314,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_ipc_message_queue_send_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IPC_MESSAGE_QUEUE_SEND)?;
                     let world = runtime.check_and_resolve_world(IPC_MESSAGE_QUEUE_SEND)?;
                     destack_ipc_message_queue_send_vm_replay(
                         runtime,
@@ -4365,7 +4340,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (name,) = decode_destack_ipc_message_queue_unlink_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IPC_MESSAGE_QUEUE_UNLINK)?;
                     let world = runtime.check_and_resolve_world(IPC_MESSAGE_QUEUE_UNLINK)?;
                     destack_ipc_message_queue_unlink_vm_replay(runtime, context, world, name)
                 })
@@ -4380,7 +4354,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle,) = decode_destack_ipc_pipe_close_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IPC_PIPE_CLOSE)?;
                 let world = runtime.check_and_resolve_world(IPC_PIPE_CLOSE)?;
                 destack_ipc_pipe_close_vm_replay(runtime, context, world, handle)
             })
@@ -4394,7 +4367,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (flags,) = decode_destack_ipc_pipe_open_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IPC_PIPE_OPEN)?;
                 let world = runtime.check_and_resolve_world(IPC_PIPE_OPEN)?;
                 destack_ipc_pipe_open_vm_replay(runtime, context, world, flags)
             })
@@ -4408,7 +4380,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, buffer) = decode_destack_ipc_pipe_read_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IPC_PIPE_READ)?;
                 let world = runtime.check_and_resolve_world(IPC_PIPE_READ)?;
                 destack_ipc_pipe_read_vm_replay(runtime, context, world, handle, buffer)
             })
@@ -4422,7 +4393,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, buffer) = decode_destack_ipc_pipe_write_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IPC_PIPE_WRITE)?;
                 let world = runtime.check_and_resolve_world(IPC_PIPE_WRITE)?;
                 destack_ipc_pipe_write_vm_replay(runtime, context, world, handle, buffer)
             })
@@ -4440,7 +4410,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_ipc_shared_memory_close_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IPC_SHARED_MEMORY_CLOSE)?;
                     let world = runtime.check_and_resolve_world(IPC_SHARED_MEMORY_CLOSE)?;
                     destack_ipc_shared_memory_close_vm_replay(runtime, context, world, handle)
                 })
@@ -4460,7 +4429,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_ipc_shared_memory_create_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IPC_SHARED_MEMORY_CREATE)?;
                     let world = runtime.check_and_resolve_world(IPC_SHARED_MEMORY_CREATE)?;
                     destack_ipc_shared_memory_create_vm_replay(
                         runtime, context, world, name, size, flags,
@@ -4482,7 +4450,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_ipc_shared_memory_map_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IPC_SHARED_MEMORY_MAP)?;
                     let world = runtime.check_and_resolve_world(IPC_SHARED_MEMORY_MAP)?;
                     destack_ipc_shared_memory_map_vm_replay(
                         runtime, context, world, handle, offset, length, flags,
@@ -4503,7 +4470,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (name, flags) = decode_destack_ipc_shared_memory_open_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IPC_SHARED_MEMORY_OPEN)?;
                     let world = runtime.check_and_resolve_world(IPC_SHARED_MEMORY_OPEN)?;
                     destack_ipc_shared_memory_open_vm_replay(runtime, context, world, name, flags)
                 })
@@ -4523,7 +4489,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_ipc_shared_memory_unmap_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IPC_SHARED_MEMORY_UNMAP)?;
                     let world = runtime.check_and_resolve_world(IPC_SHARED_MEMORY_UNMAP)?;
                     destack_ipc_shared_memory_unmap_vm_replay(
                         runtime, context, world, address, length,
@@ -4545,7 +4510,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_ipc_sync_futex_wait_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IPC_SYNC_FUTEX_WAIT)?;
                     let world = runtime.check_and_resolve_world(IPC_SYNC_FUTEX_WAIT)?;
                     destack_ipc_sync_futex_wait_vm_replay(
                         runtime,
@@ -4573,7 +4537,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_ipc_sync_futex_wake_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IPC_SYNC_FUTEX_WAKE)?;
                     let world = runtime.check_and_resolve_world(IPC_SYNC_FUTEX_WAKE)?;
                     destack_ipc_sync_futex_wake_vm_replay(
                         runtime,
@@ -4600,7 +4563,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_ipc_sync_semaphore_create_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IPC_SYNC_SEMAPHORE_CREATE)?;
                     let world = runtime.check_and_resolve_world(IPC_SYNC_SEMAPHORE_CREATE)?;
                     destack_ipc_sync_semaphore_create_vm_replay(
                         runtime, context, world, name, initial, flags,
@@ -4622,7 +4584,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_ipc_sync_semaphore_post_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IPC_SYNC_SEMAPHORE_POST)?;
                     let world = runtime.check_and_resolve_world(IPC_SYNC_SEMAPHORE_POST)?;
                     destack_ipc_sync_semaphore_post_vm_replay(
                         runtime, context, world, handle, count,
@@ -4644,7 +4605,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_ipc_sync_semaphore_wait_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IPC_SYNC_SEMAPHORE_WAIT)?;
                     let world = runtime.check_and_resolve_world(IPC_SYNC_SEMAPHORE_WAIT)?;
                     destack_ipc_sync_semaphore_wait_vm_replay(
                         runtime, context, world, handle, timeoutns,
@@ -4661,7 +4621,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (socket, maxhandles) = decode_destack_ipc_unix_receive_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IPC_UNIX_RECEIVE)?;
                 let world = runtime.check_and_resolve_world(IPC_UNIX_RECEIVE)?;
                 destack_ipc_unix_receive_vm_replay(runtime, context, world, socket, maxhandles)
             })
@@ -4676,7 +4635,6 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     decode_destack_ipc_unix_send_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IPC_UNIX_SEND)?;
                 let world = runtime.check_and_resolve_world(IPC_UNIX_SEND)?;
                 destack_ipc_unix_send_vm_replay(
                     runtime,

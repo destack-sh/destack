@@ -54,9 +54,9 @@ impl RuntimeHookState {
     }
 }
 
-/// Runtime rules and effect state.
+/// Runtime hook dispatch and effect state.
 #[derive(Debug)]
-pub struct RuntimeRules {
+pub struct RuntimeHooks {
     /// Immutable runtime rule plan.
     plan: RuntimeRulePlan,
     /// Total binding calls observed.
@@ -65,8 +65,8 @@ pub struct RuntimeRules {
     matched_effects_seen: Mutex<Vec<u64>>,
 }
 
-impl RuntimeRules {
-    /// Create runtime rules from runtime options.
+impl RuntimeHooks {
+    /// Create runtime hooks from runtime options.
     pub fn from_runtime_options(options: &RuntimeOptions) -> Self {
         // compile the immutable rule plan
         let plan = RuntimeRulePlan::from_runtime_options(options);
@@ -87,54 +87,54 @@ impl RuntimeRules {
     ) -> RuntimeResult<()> {
         // count this call for diagnostics and future trigger state
         self.calls_seen.fetch_add(1, Ordering::Relaxed);
-        self.on_hook_site(RuntimeHook::BindingBefore, Some(descriptor), state);
+        self.on_hook(RuntimeHook::BindingBefore, Some(descriptor), state);
 
         Ok(())
     }
 
     /// Evaluate post-call runtime effects for one binding invocation.
     pub fn on_after_binding(&self, descriptor: BindingDescriptor, state: RuntimeHookState) {
-        self.on_hook_site(RuntimeHook::BindingAfter, Some(descriptor), state);
+        self.on_hook(RuntimeHook::BindingAfter, Some(descriptor), state);
     }
 
     /// Evaluate runtime effects for one scheduler enqueue event.
     pub fn on_scheduler_enqueue(&self, state: RuntimeHookState) {
-        self.on_hook_site(RuntimeHook::SchedulerEnqueue, None, state);
+        self.on_hook(RuntimeHook::SchedulerEnqueue, None, state);
     }
 
     /// Evaluate runtime effects for one scheduler dequeue event.
     pub fn on_scheduler_dequeue(&self, state: RuntimeHookState) {
-        self.on_hook_site(RuntimeHook::SchedulerDequeue, None, state);
+        self.on_hook(RuntimeHook::SchedulerDequeue, None, state);
     }
 
     /// Evaluate runtime effects for one scheduler timer fire event.
     pub fn on_scheduler_timer_fire(&self, state: RuntimeHookState) {
-        self.on_hook_site(RuntimeHook::SchedulerTimerFire, None, state);
+        self.on_hook(RuntimeHook::SchedulerTimerFire, None, state);
     }
 
     /// Evaluate runtime effects for one scheduler wakeup event.
     pub fn on_scheduler_event_wake(&self, state: RuntimeHookState) {
-        self.on_hook_site(RuntimeHook::SchedulerEventWake, None, state);
+        self.on_hook(RuntimeHook::SchedulerEventWake, None, state);
     }
 
     /// Evaluate runtime effects for one time read.
     pub fn on_time_read(&self, state: RuntimeHookState) {
-        self.on_hook_site(RuntimeHook::TimeRead, None, state);
+        self.on_hook(RuntimeHook::TimeRead, None, state);
     }
 
     /// Evaluate runtime effects for one random read.
     pub fn on_random_read(&self, state: RuntimeHookState) {
-        self.on_hook_site(RuntimeHook::RandomRead, None, state);
+        self.on_hook(RuntimeHook::RandomRead, None, state);
     }
 
     /// Evaluate runtime effects for one resource attach.
     pub fn on_resource_attach(&self, state: RuntimeHookState) {
-        self.on_hook_site(RuntimeHook::ResourceAttach, None, state);
+        self.on_hook(RuntimeHook::ResourceAttach, None, state);
     }
 
     /// Evaluate runtime effects for one resource detach.
     pub fn on_resource_detach(&self, state: RuntimeHookState) {
-        self.on_hook_site(RuntimeHook::ResourceDetach, None, state);
+        self.on_hook(RuntimeHook::ResourceDetach, None, state);
     }
 
     /// Return the number of configured rules.
@@ -143,16 +143,16 @@ impl RuntimeRules {
     }
 
     /// Evaluate one effect hook.
-    fn on_hook_site(
+    fn on_hook(
         &self,
-        site: RuntimeHook,
+        hook: RuntimeHook,
         descriptor: Option<BindingDescriptor>,
         state: RuntimeHookState,
     ) {
         // count the first matching effect action for future execution wiring
         if let Some(index) = self
             .plan
-            .first_matching_effect_rule(descriptor, state.engine, site)
+            .first_matching_effect_rule(descriptor, state.engine, hook)
         {
             // NOTE #Incomplete: activation, lifetime, and trigger semantics are not wired yet
             let mut matched_effects_seen = self.matched_effects_seen.lock();

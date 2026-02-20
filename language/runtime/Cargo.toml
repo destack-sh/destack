@@ -49,6 +49,7 @@ parking_lot = { workspace = true }
 rustls = { version = "0.23.24", features = ["ring", "std"] }
 rustls-pemfile = "2.2.0"
 serde = { workspace = true, features = ["derive"] }
+rustc-hash = { workspace = true }
 tracing = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]

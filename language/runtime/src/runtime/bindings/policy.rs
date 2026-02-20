@@ -1,14 +1,13 @@
-use std::collections::HashMap;
-
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::bindings::{
     BindingDescriptor, BindingEffectMask, BindingId, BindingReplayPayload, BindingScope,
 };
 use crate::runtime::rules::matches_runtime_filter;
 use destack_workspace::{
-    BindingEngine, ExecutionMode, ReplayPayloadMode, RuntimeAccess, RuntimeAction,
-    RuntimeDispatchAction, RuntimeFilter, RuntimeOptions, RuntimeRule, RuntimeWorld,
+    BindingEngine, ExecutionMode, ReplayPayloadMode, RuntimeAccess, RuntimeAction, RuntimeFilter,
+    RuntimeOptions, RuntimeRule, RuntimeWorld,
 };
+use rustc_hash::FxHashMap;
 
 /// Access rule derived from runtime configuration.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,30 +49,31 @@ pub struct BindingPolicy {
     default_world: RuntimeWorld,
     /// Default replay payload for unmatched bindings.
     default_replay_payload: BindingReplayPayload,
-    /// Ordered access rules with first-match-wins semantics.
+    /// Ordered access rules with first match semantics.
     access_rules: Vec<AccessRule>,
-    /// Ordered world rules with first-match-wins semantics.
+    /// Ordered world rules with first match semantics.
     world_rules: Vec<WorldRule>,
-    /// Ordered replay payload rules with first-match-wins semantics.
+    /// Ordered replay payload rules with first match semantics.
     replay_payload_rules: Vec<ReplayPayloadRule>,
-    /// Compiled access decisions for any-engine calls.
-    access_compiled_any: HashMap<BindingId, RuntimeAccess>,
+
+    /// Compiled access decisions for any engine calls.
+    access_compiled_any: FxHashMap<BindingId, RuntimeAccess>,
     /// Compiled access decisions for VM calls.
-    access_compiled_vm: HashMap<BindingId, RuntimeAccess>,
+    access_compiled_vm: FxHashMap<BindingId, RuntimeAccess>,
     /// Compiled access decisions for native calls.
-    access_compiled_native: HashMap<BindingId, RuntimeAccess>,
-    /// Compiled world decisions for any-engine calls.
-    world_compiled_any: HashMap<BindingId, RuntimeWorld>,
+    access_compiled_native: FxHashMap<BindingId, RuntimeAccess>,
+    /// Compiled world decisions for any engine calls.
+    world_compiled_any: FxHashMap<BindingId, RuntimeWorld>,
     /// Compiled world decisions for VM calls.
-    world_compiled_vm: HashMap<BindingId, RuntimeWorld>,
+    world_compiled_vm: FxHashMap<BindingId, RuntimeWorld>,
     /// Compiled world decisions for native calls.
-    world_compiled_native: HashMap<BindingId, RuntimeWorld>,
-    /// Compiled replay payload decisions for any-engine calls.
-    replay_payload_compiled_any: HashMap<BindingId, BindingReplayPayload>,
+    world_compiled_native: FxHashMap<BindingId, RuntimeWorld>,
+    /// Compiled replay payload decisions for any engine calls.
+    replay_payload_compiled_any: FxHashMap<BindingId, BindingReplayPayload>,
     /// Compiled replay payload decisions for VM calls.
-    replay_payload_compiled_vm: HashMap<BindingId, BindingReplayPayload>,
+    replay_payload_compiled_vm: FxHashMap<BindingId, BindingReplayPayload>,
     /// Compiled replay payload decisions for native calls.
-    replay_payload_compiled_native: HashMap<BindingId, BindingReplayPayload>,
+    replay_payload_compiled_native: FxHashMap<BindingId, BindingReplayPayload>,
 }
 
 impl BindingPolicy {
@@ -89,15 +89,15 @@ impl BindingPolicy {
             access_rules: Vec::new(),
             world_rules: Vec::new(),
             replay_payload_rules: Vec::new(),
-            access_compiled_any: HashMap::new(),
-            access_compiled_vm: HashMap::new(),
-            access_compiled_native: HashMap::new(),
-            world_compiled_any: HashMap::new(),
-            world_compiled_vm: HashMap::new(),
-            world_compiled_native: HashMap::new(),
-            replay_payload_compiled_any: HashMap::new(),
-            replay_payload_compiled_vm: HashMap::new(),
-            replay_payload_compiled_native: HashMap::new(),
+            access_compiled_any: FxHashMap::default(),
+            access_compiled_vm: FxHashMap::default(),
+            access_compiled_native: FxHashMap::default(),
+            world_compiled_any: FxHashMap::default(),
+            world_compiled_vm: FxHashMap::default(),
+            world_compiled_native: FxHashMap::default(),
+            replay_payload_compiled_any: FxHashMap::default(),
+            replay_payload_compiled_vm: FxHashMap::default(),
+            replay_payload_compiled_native: FxHashMap::default(),
         }
     }
 
@@ -184,36 +184,13 @@ impl BindingPolicy {
         self.mode
     }
 
-    /// Validate a binding descriptor against policy.
-    #[inline]
-    pub fn check(&self, spec: BindingDescriptor) -> RuntimeResult<()> {
-        self.check_for_engine(spec, None)
-    }
-
-    /// Validate a binding descriptor and resolve world selection.
-    #[inline]
-    pub fn check_and_resolve_world(&self, spec: BindingDescriptor) -> RuntimeResult<RuntimeWorld> {
-        self.check_and_resolve_world_for_engine(spec, None)
-    }
-
-    /// Validate a binding descriptor against policy for one engine.
+    /// Validate one binding descriptor for one engine.
     #[inline]
     pub fn check_for_engine(
         &self,
         spec: BindingDescriptor,
         engine: Option<BindingEngine>,
     ) -> RuntimeResult<()> {
-        self.check_and_resolve_world_for_engine(spec, engine)?;
-        Ok(())
-    }
-
-    /// Validate a binding descriptor and resolve world for one engine.
-    #[inline]
-    pub fn check_and_resolve_world_for_engine(
-        &self,
-        spec: BindingDescriptor,
-        engine: Option<BindingEngine>,
-    ) -> RuntimeResult<RuntimeWorld> {
         // reject disallowed effect classes first
         if !self.allowed.allows(spec.effect_mask) {
             return Err(RuntimeError::PolicyViolation {
@@ -230,6 +207,19 @@ impl BindingPolicy {
             }
             .boxed());
         }
+
+        Ok(())
+    }
+
+    /// Validate a binding descriptor and resolve world for one engine.
+    #[inline]
+    pub fn check_and_resolve_world_for_engine(
+        &self,
+        spec: BindingDescriptor,
+        engine: Option<BindingEngine>,
+    ) -> RuntimeResult<RuntimeWorld> {
+        // run policy checks before world routing
+        self.check_for_engine(spec, engine)?;
 
         Ok(self.resolve_world(spec, engine))
     }
@@ -267,6 +257,7 @@ impl BindingPolicy {
         self.replay_payload_compiled_native.clear();
     }
 
+    /// Resolve the effective access policy for one binding and engine.
     fn resolve_access(
         &self,
         spec: BindingDescriptor,
@@ -277,10 +268,11 @@ impl BindingPolicy {
             return access;
         }
 
-        // fall back to rule-walk resolution when uncached
+        // fall back to rule walk resolution when uncached
         self.resolve_access_uncached(spec, engine)
     }
 
+    /// Resolve the effective world policy for one binding and engine.
     fn resolve_world(
         &self,
         spec: BindingDescriptor,
@@ -291,10 +283,11 @@ impl BindingPolicy {
             return world;
         }
 
-        // fall back to rule-walk resolution when uncached
+        // fall back to rule walk resolution when uncached
         self.resolve_world_uncached(spec, engine)
     }
 
+    /// Resolve the effective replay payload policy for one binding and engine.
     fn resolve_replay_payload(
         &self,
         spec: BindingDescriptor,
@@ -305,10 +298,11 @@ impl BindingPolicy {
             return payload;
         }
 
-        // fall back to rule-walk resolution when uncached
+        // fall back to rule walk resolution when uncached
         self.resolve_replay_payload_uncached(spec, engine)
     }
 
+    /// Resolve access policy by scanning ordered rules.
     fn resolve_access_uncached(
         &self,
         spec: BindingDescriptor,
@@ -325,12 +319,13 @@ impl BindingPolicy {
         self.default_access
     }
 
+    /// Resolve world policy by scanning ordered rules.
     fn resolve_world_uncached(
         &self,
         spec: BindingDescriptor,
         engine: Option<BindingEngine>,
     ) -> RuntimeWorld {
-        // runtime-scope bindings are always runtime-owned and do not world-route
+        // runtime scope bindings are always runtime owned and do not world route
         if spec.scope == BindingScope::Runtime {
             return RuntimeWorld::Host;
         }
@@ -346,6 +341,7 @@ impl BindingPolicy {
         self.default_world
     }
 
+    /// Resolve replay payload policy by scanning ordered rules.
     fn resolve_replay_payload_uncached(
         &self,
         spec: BindingDescriptor,
@@ -362,6 +358,7 @@ impl BindingPolicy {
         self.default_replay_payload
     }
 
+    /// Look up one compiled access decision.
     fn lookup_compiled_access(
         &self,
         id: BindingId,
@@ -378,6 +375,7 @@ impl BindingPolicy {
         cache.get(&id).copied()
     }
 
+    /// Look up one compiled world decision.
     fn lookup_compiled_world(
         &self,
         id: BindingId,
@@ -394,6 +392,7 @@ impl BindingPolicy {
         cache.get(&id).copied()
     }
 
+    /// Look up one compiled replay payload decision.
     fn lookup_compiled_replay_payload(
         &self,
         id: BindingId,
@@ -412,17 +411,16 @@ impl BindingPolicy {
 }
 
 impl Default for BindingPolicy {
+    /// Create the default policy for fast execution mode.
     fn default() -> Self {
         Self::new(ExecutionMode::Fast)
     }
 }
 
+/// Convert one rule into an access rule when the action sets access.
 fn rule_to_access_rule(rule: &RuntimeRule) -> Option<AccessRule> {
     // keep only access action rules for policy checks
-    let RuntimeAction::Dispatch {
-        dispatch: RuntimeDispatchAction::SetAccess { access },
-    } = &rule.action
-    else {
+    let RuntimeAction::SetAccess { access } = &rule.action else {
         return None;
     };
 
@@ -432,12 +430,10 @@ fn rule_to_access_rule(rule: &RuntimeRule) -> Option<AccessRule> {
     })
 }
 
+/// Convert one rule into a world rule when the action sets world.
 fn rule_to_world_rule(rule: &RuntimeRule) -> Option<WorldRule> {
     // keep only world action rules for world routing
-    let RuntimeAction::Dispatch {
-        dispatch: RuntimeDispatchAction::SetWorld { world },
-    } = &rule.action
-    else {
+    let RuntimeAction::SetWorld { world } = &rule.action else {
         return None;
     };
 
@@ -447,12 +443,10 @@ fn rule_to_world_rule(rule: &RuntimeRule) -> Option<WorldRule> {
     })
 }
 
+/// Convert one rule into a replay payload rule when the action sets replay payload.
 fn rule_to_replay_payload_rule(rule: &RuntimeRule) -> Option<ReplayPayloadRule> {
     // keep only replay payload policy rules
-    let RuntimeAction::Dispatch {
-        dispatch: RuntimeDispatchAction::SetReplay { payload },
-    } = &rule.action
-    else {
+    let RuntimeAction::SetReplay { payload } = &rule.action else {
         return None;
     };
 

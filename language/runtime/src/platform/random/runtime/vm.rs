@@ -18,9 +18,9 @@ fn stream_handle(stream_id: RandomStreamId) -> RandomStream {
     RandomStream(stream_id.get())
 }
 
-/// Record one random read hook for runtime rules.
+/// Record one random read hook for runtime hooks.
 fn on_random_read(runtime: &BindingCallContext, stream_id: Option<RandomStreamId>) {
-    runtime.rules().on_random_read(RuntimeHookState {
+    runtime.hooks().on_random_read(RuntimeHookState {
         engine: Some(runtime.engine()),
         random_stream_id: stream_id,
         ..RuntimeHookState::empty()

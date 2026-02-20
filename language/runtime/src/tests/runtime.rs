@@ -38,7 +38,7 @@ impl TestRuntime {
         };
 
         // runtime with deterministic random state
-        let state = Arc::new(RuntimeState::from_runtime_options(
+        let state = Arc::new(RuntimeState::from_options(
             PlatformContext::new(Vec::new()),
             &options,
         ));

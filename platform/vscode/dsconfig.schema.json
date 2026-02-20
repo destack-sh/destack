@@ -1083,46 +1083,13 @@
         },
         "action": {
           "description": "Rule action payload.",
-          "$ref": "#/$defs/RuntimeRuleActionJson"
-        },
-        "on": {
-          "description": "Trigger site for effect rules.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeRuleSiteJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
+          "$ref": "#/$defs/RuntimeActionJson"
         },
         "trigger": {
-          "description": "Rule trigger controls.",
+          "description": "Trigger controls for effect rules.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RuntimeRuleTriggerJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "activation": {
-          "description": "Activation window for this rule.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeRuleActivationJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "lifetime": {
-          "description": "Lifetime window for this rule.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeRuleLifetimeJson"
+              "$ref": "#/$defs/RuntimeTriggerJson"
             },
             {
               "type": "null"
@@ -1308,49 +1275,8 @@
         }
       ]
     },
-    "RuntimeRuleActionJson": {
+    "RuntimeActionJson": {
       "description": "Runtime rule action payload for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Apply one routing or access dispatch action.",
-          "type": "object",
-          "properties": {
-            "dispatch": {
-              "description": "Dispatch action payload.",
-              "$ref": "#/$defs/RuntimeDispatchActionJson"
-            },
-            "kind": {
-              "type": "string",
-              "const": "dispatch"
-            }
-          },
-          "required": [
-            "kind",
-            "dispatch"
-          ]
-        },
-        {
-          "description": "Apply one runtime effect action.",
-          "type": "object",
-          "properties": {
-            "effect": {
-              "description": "Effect action payload.",
-              "$ref": "#/$defs/RuntimeEffectActionJson"
-            },
-            "kind": {
-              "type": "string",
-              "const": "effect"
-            }
-          },
-          "required": [
-            "kind",
-            "effect"
-          ]
-        }
-      ]
-    },
-    "RuntimeDispatchActionJson": {
-      "description": "Runtime dispatch action payload for JSON deserialization.",
       "oneOf": [
         {
           "description": "Set the matching binding world.",
@@ -1360,13 +1286,13 @@
               "description": "The selected world for matching bindings.",
               "$ref": "#/$defs/RuntimeWorldJson"
             },
-            "dispatch": {
+            "kind": {
               "type": "string",
               "const": "setWorld"
             }
           },
           "required": [
-            "dispatch",
+            "kind",
             "world"
           ]
         },
@@ -1378,13 +1304,13 @@
               "description": "The selected access mode for matching bindings.",
               "$ref": "#/$defs/RuntimeAccessJson"
             },
-            "dispatch": {
+            "kind": {
               "type": "string",
               "const": "setAccess"
             }
           },
           "required": [
-            "dispatch",
+            "kind",
             "access"
           ]
         },
@@ -1396,14 +1322,50 @@
               "description": "The selected replay payload mode for matching bindings.",
               "$ref": "#/$defs/ReplayPayloadModeJson"
             },
-            "dispatch": {
+            "kind": {
               "type": "string",
               "const": "setReplay"
             }
           },
           "required": [
-            "dispatch",
+            "kind",
             "payload"
+          ]
+        },
+        {
+          "description": "Apply one runtime fault effect.",
+          "type": "object",
+          "properties": {
+            "fault": {
+              "description": "Fault payload for this rule.",
+              "$ref": "#/$defs/RuntimeFaultEffectJson"
+            },
+            "kind": {
+              "type": "string",
+              "const": "fault"
+            }
+          },
+          "required": [
+            "kind",
+            "fault"
+          ]
+        },
+        {
+          "description": "Apply one runtime control effect.",
+          "type": "object",
+          "properties": {
+            "control": {
+              "description": "Control payload for this rule.",
+              "$ref": "#/$defs/RuntimeControlEffectJson"
+            },
+            "kind": {
+              "type": "string",
+              "const": "control"
+            }
+          },
+          "required": [
+            "kind",
+            "control"
           ]
         }
       ]
@@ -1420,65 +1382,6 @@
           "description": "Record arguments and results for verification.",
           "type": "string",
           "const": "argumentsandresults"
-        }
-      ]
-    },
-    "RuntimeEffectActionJson": {
-      "description": "Runtime effect action payload for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Inject one typed runtime fault.",
-          "type": "object",
-          "properties": {
-            "fault": {
-              "description": "Fault payload to inject for matching bindings.",
-              "$ref": "#/$defs/RuntimeFaultEffectJson"
-            },
-            "effect": {
-              "type": "string",
-              "const": "fault"
-            }
-          },
-          "required": [
-            "effect",
-            "fault"
-          ]
-        },
-        {
-          "description": "Apply one runtime control effect.",
-          "type": "object",
-          "properties": {
-            "control": {
-              "description": "Control effect payload.",
-              "$ref": "#/$defs/RuntimeControlEffectJson"
-            },
-            "effect": {
-              "type": "string",
-              "const": "control"
-            }
-          },
-          "required": [
-            "effect",
-            "control"
-          ]
-        },
-        {
-          "description": "Apply one runtime mock effect.",
-          "type": "object",
-          "properties": {
-            "mock": {
-              "description": "Mock effect payload.",
-              "$ref": "#/$defs/RuntimeMockEffectJson"
-            },
-            "effect": {
-              "type": "string",
-              "const": "mock"
-            }
-          },
-          "required": [
-            "effect",
-            "mock"
-          ]
         }
       ]
     },
@@ -2141,96 +2044,14 @@
         }
       ]
     },
-    "RuntimeMockEffectJson": {
-      "description": "Runtime mock effect payload for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Force one successful no-op response.",
-          "type": "object",
-          "properties": {
-            "mock": {
-              "type": "string",
-              "const": "success"
-            }
-          },
-          "required": [
-            "mock"
-          ]
-        },
-        {
-          "description": "Force one failure response with a code.",
-          "type": "object",
-          "properties": {
-            "code": {
-              "description": "Error code name for this mocked failure.",
-              "type": "string"
-            },
-            "mock": {
-              "type": "string",
-              "const": "error"
-            }
-          },
-          "required": [
-            "mock",
-            "code"
-          ]
-        }
-      ]
-    },
-    "RuntimeRuleSiteJson": {
-      "description": "Runtime rule trigger site for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Trigger before invoking one binding implementation.",
-          "type": "string",
-          "const": "bindingBefore"
-        },
-        {
-          "description": "Trigger after invoking one binding implementation.",
-          "type": "string",
-          "const": "bindingAfter"
-        },
-        {
-          "description": "Trigger when one task is enqueued.",
-          "type": "string",
-          "const": "schedulerEnqueue"
-        },
-        {
-          "description": "Trigger when one task is dequeued.",
-          "type": "string",
-          "const": "schedulerDequeue"
-        },
-        {
-          "description": "Trigger when one timer fires.",
-          "type": "string",
-          "const": "schedulerTimerFire"
-        },
-        {
-          "description": "Trigger when time is read.",
-          "type": "string",
-          "const": "timeRead"
-        },
-        {
-          "description": "Trigger when random data is read.",
-          "type": "string",
-          "const": "randomRead"
-        },
-        {
-          "description": "Trigger when one resource is attached.",
-          "type": "string",
-          "const": "resourceAttach"
-        },
-        {
-          "description": "Trigger when one resource is detached.",
-          "type": "string",
-          "const": "resourceDetach"
-        }
-      ]
-    },
-    "RuntimeRuleTriggerJson": {
-      "description": "Runtime rule trigger controls for JSON deserialization.",
+    "RuntimeTriggerJson": {
+      "description": "Runtime trigger controls for JSON deserialization.",
       "type": "object",
       "properties": {
+        "on": {
+          "description": "Hook for this trigger.",
+          "$ref": "#/$defs/RuntimeHookJson"
+        },
         "probability": {
           "description": "Trigger probability in the range 0.0 to 1.0.",
           "type": [
@@ -2265,8 +2086,88 @@
           ],
           "format": "uint32",
           "minimum": 0
+        },
+        "activation": {
+          "description": "Activation window for this trigger.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeRuleActivationJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lifetime": {
+          "description": "Lifetime window for this trigger.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeRuleLifetimeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
-      }
+      },
+      "required": [
+        "on"
+      ]
+    },
+    "RuntimeHookJson": {
+      "description": "Runtime hook for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Trigger before invoking one binding implementation.",
+          "type": "string",
+          "const": "bindingBefore"
+        },
+        {
+          "description": "Trigger after invoking one binding implementation.",
+          "type": "string",
+          "const": "bindingAfter"
+        },
+        {
+          "description": "Trigger when one task is enqueued.",
+          "type": "string",
+          "const": "schedulerEnqueue"
+        },
+        {
+          "description": "Trigger when one task is dequeued.",
+          "type": "string",
+          "const": "schedulerDequeue"
+        },
+        {
+          "description": "Trigger when one timer fires.",
+          "type": "string",
+          "const": "schedulerTimerFire"
+        },
+        {
+          "description": "Trigger when one external event wakes the scheduler.",
+          "type": "string",
+          "const": "schedulerEventWake"
+        },
+        {
+          "description": "Trigger when time is read.",
+          "type": "string",
+          "const": "timeRead"
+        },
+        {
+          "description": "Trigger when random data is read.",
+          "type": "string",
+          "const": "randomRead"
+        },
+        {
+          "description": "Trigger when one resource is attached.",
+          "type": "string",
+          "const": "resourceAttach"
+        },
+        {
+          "description": "Trigger when one resource is detached.",
+          "type": "string",
+          "const": "resourceDetach"
+        }
+      ]
     },
     "RuntimeRuleActivationJson": {
       "description": "Runtime rule activation behavior for JSON deserialization.",
