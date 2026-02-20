@@ -3,8 +3,9 @@ use std::collections::HashSet;
 use destack_dir::{
     Block, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
     NodeType, PrimitiveType, RuntimeCheckKind, ScalarLiteral, StaticArgument, StaticExpression,
-    StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, TypeUnaryOperator,
-    TypeVisitor, TypeVisitorOptions, walk_static_argument, walk_static_expression, walk_type,
+    StaticKey, StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+    TypeUnaryOperator, TypeVisitor, TypeVisitorOptions, walk_static_argument,
+    walk_static_expression, walk_type,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -13,7 +14,9 @@ use super::{
     AnalyzeDependencyStage, CanonicalSymbolMode, NormalizationMode, RelationMode, TypeCollector,
     TypeWalkContext, TypeWalkKey,
 };
-use crate::{AnalyzeOptions, AnalyzeResult, Compiler, ElaborateError, ElaborateResult};
+use crate::{
+    AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, ElaborateError, ElaborateResult,
+};
 
 /// Maximum number of unwrap steps when chasing type value wrappers.
 const MAX_TYPE_VALUE_UNWRAP_STEPS: usize = 8;
@@ -661,6 +664,205 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Return true when a type already represents a primary semantic failure.
+    pub(crate) fn type_blocks_follow_on_diagnostic(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
+        matches!(types.get_type(ty_id), Type::Error)
+    }
+
+    /// Report one unassignable-type diagnostic unless either side already failed.
+    pub(crate) fn report_unassignable_type_for_types(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        expected_ty_id: LocalTypeId,
+        actual_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
+        let Some(error) = self.unassignable_type_error_for_types(
+            module,
+            profile,
+            node_id,
+            expected_ty_id,
+            actual_ty_id,
+            types,
+        ) else {
+            return false;
+        };
+        debug_assert!(error.is_follow_on_semantic_diagnostic());
+        self.error(error);
+
+        true
+    }
+
+    /// Build one unassignable-type error unless either side already failed.
+    pub(crate) fn unassignable_type_error_for_types(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        expected_ty_id: LocalTypeId,
+        actual_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<AnalyzeError> {
+        if self.type_blocks_follow_on_diagnostic(expected_ty_id, types)
+            || self.type_blocks_follow_on_diagnostic(actual_ty_id, types)
+        {
+            return None;
+        }
+
+        Some(AnalyzeError::UnassignableType {
+            node: node_id.into_global(module.id).into_anchored(Some(profile)),
+            expected_ty: expected_ty_id.into_global(module.id),
+            actual_ty: actual_ty_id.into_global(module.id),
+        })
+    }
+
+    /// Report one unsatisfied-type diagnostic unless either side already failed.
+    pub(crate) fn report_unsatisfied_type_for_types(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        expected_ty_id: LocalTypeId,
+        actual_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
+        let Some(error) = self.unsatisfied_type_error_for_types(
+            module,
+            profile,
+            node_id,
+            expected_ty_id,
+            actual_ty_id,
+            types,
+        ) else {
+            return false;
+        };
+        debug_assert!(error.is_follow_on_semantic_diagnostic());
+        self.error(error);
+
+        true
+    }
+
+    /// Build one unsatisfied-type error unless either side already failed.
+    pub(crate) fn unsatisfied_type_error_for_types(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        expected_ty_id: LocalTypeId,
+        actual_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<AnalyzeError> {
+        if self.type_blocks_follow_on_diagnostic(expected_ty_id, types)
+            || self.type_blocks_follow_on_diagnostic(actual_ty_id, types)
+        {
+            return None;
+        }
+
+        Some(AnalyzeError::UnsatisfiedType {
+            node: node_id.into_global(module.id).into_anchored(Some(profile)),
+            expected_ty: expected_ty_id.into_global(module.id),
+            actual_ty: actual_ty_id.into_global(module.id),
+        })
+    }
+
+    /// Report one excess-property diagnostic unless the expected type already failed.
+    pub(crate) fn report_excess_property_for_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        expected_ty_id: LocalTypeId,
+        member_key: StaticKey,
+        types: &TypeTable,
+    ) -> bool {
+        let Some(error) = self.excess_property_error_for_type(
+            module,
+            profile,
+            node_id,
+            expected_ty_id,
+            member_key,
+            types,
+        ) else {
+            return false;
+        };
+        debug_assert!(error.is_follow_on_semantic_diagnostic());
+        self.error(error);
+
+        true
+    }
+
+    /// Build one excess-property error unless the expected type already failed.
+    pub(crate) fn excess_property_error_for_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        expected_ty_id: LocalTypeId,
+        member_key: StaticKey,
+        types: &TypeTable,
+    ) -> Option<AnalyzeError> {
+        if self.type_blocks_follow_on_diagnostic(expected_ty_id, types) {
+            return None;
+        }
+
+        Some(AnalyzeError::ExcessProperty {
+            node: node_id.into_global(module.id).into_anchored(Some(profile)),
+            expected_ty: expected_ty_id.into_global(module.id),
+            member_key,
+        })
+    }
+
+    /// Report one no-overload diagnostic unless the receiver already failed.
+    pub(crate) fn report_no_overload_for_receiver_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        receiver_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
+        if self.type_blocks_follow_on_diagnostic(receiver_ty_id, types) {
+            return false;
+        }
+
+        let error = AnalyzeError::NoOverload {
+            node: node_id.into_global(module.id).into_anchored(Some(profile)),
+            receiver_ty: receiver_ty_id.into_global(module.id),
+        };
+        debug_assert!(error.is_follow_on_semantic_diagnostic());
+        self.error(error);
+
+        true
+    }
+
+    /// Report one non-callable diagnostic unless the callee already failed.
+    pub(crate) fn report_non_callable_for_callee_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        callee_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
+        if self.type_blocks_follow_on_diagnostic(callee_ty_id, types) {
+            return false;
+        }
+
+        let error = AnalyzeError::NonCallable {
+            node: node_id.into_global(module.id).into_anchored(Some(profile)),
+        };
+        debug_assert!(error.is_follow_on_semantic_diagnostic());
+        self.error(error);
+
+        true
+    }
+
     /// Record an inferred type for a synthesized expression.
     pub(crate) fn set_expression_type(
         &self,
@@ -868,13 +1070,19 @@ impl Compiler {
         }
 
         // rely on the declared parameter metadata
-        let symbol = self.with_module_symbols_or_local(
-            module,
-            profile,
-            symbol.module_id,
-            symbols,
-            |_, owner_symbols| owner_symbols.get_symbol(symbol.local_id).clone(),
-        );
+        let Some(symbol) = self
+            .with_module_symbols_or_local_at_stage(
+                module,
+                profile,
+                symbol.module_id,
+                symbols,
+                AnalyzeDependencyStage::Declare,
+                |_, owner_symbols| owner_symbols.get_symbol(symbol.local_id).clone(),
+            )
+            .ok()
+        else {
+            return false;
+        };
         if symbol.is_static_parameter() {
             return true;
         }
@@ -1113,16 +1321,20 @@ impl Compiler {
                 break;
             }
 
-            let next_symbol = self.with_module_symbols_or_local(
-                module,
-                profile,
-                current_symbol.module_id,
-                symbols,
-                |_owner_module, owner_symbols| {
-                    let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
-                    symbol_entry.target_symbol.or(symbol_entry.canonical_symbol)
-                },
-            );
+            let next_symbol = self
+                .with_module_symbols_or_local_at_stage(
+                    module,
+                    profile,
+                    current_symbol.module_id,
+                    symbols,
+                    AnalyzeDependencyStage::Declare,
+                    |_owner_module, owner_symbols| {
+                        let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
+                        symbol_entry.target_symbol.or(symbol_entry.canonical_symbol)
+                    },
+                )
+                .ok()
+                .flatten();
             let Some(next_symbol) = next_symbol else {
                 break;
             };
@@ -1192,7 +1404,7 @@ impl Compiler {
             }
 
             // import the alias target when the symbol is remote
-            let (resolved, next) = match self.with_module_tree_symbols_for_stage(
+            let (resolved, next) = match self.with_module_tree_symbols_at_stage(
                 module,
                 profile,
                 current.module_id,
@@ -1759,7 +1971,7 @@ impl Compiler {
             let kind = parameter_symbols
                 .get(index)
                 .map(|parameter_symbol| {
-                    self.with_module_tree_symbols_or_local_for_stage(
+                    self.with_module_tree_symbols_or_local_at_stage(
                         module,
                         profile,
                         parameter_symbol.module_id,

@@ -1,11 +1,7 @@
-destack_test::specification::declarations/associated-types/interfaces.md/interfaces/associated-type-projection-on-constrained-type-parameters
-destack_test::specification::expressions/comptime/conditions.md/comptime-conditions/comptime-type-condition-narrows-in-true-branch
 destack_test::specification::expressions/literals/tree-routing.md/attributes-and-spread/open-shape-spread-is-rejected-when-nodynamicshapes-is-enabled
 destack_test::specification::expressions/literals/tree-routing.md/intrinsic-tags/fragment-requires-configured-treetagbuilder
 destack_test::specification::expressions/literals/tree-routing.md/intrinsic-tags/lowercase-intrinsic-requires-configured-treetagbuilder
 destack_test::specification::expressions/literals/tree-routing.md/intrinsic-tags/namespaced-tags-route-as-intrinsic-string-names
-destack_test::specification::options/runtime.md/noexceptions/noexceptions-reports-throw-when-true
-destack_test::specification::options/runtime.md/noexceptions/noexceptions-reports-try-catch-when-true
 destack_test::specification::options/strict.md/strictfunctiontypes/strictfunctiontypes-allows-narrow-method-parameters-when-false
 destack_test::specification::resolution/overloads/operators/operators.md/builtin-overloading/array-concatenation-uses-builtin-overload
 destack_test::specification::resolution/overloads/operators/operators.md/builtin-overloading/map-merge-uses-builtin-overload
@@ -16,3 +12,4 @@ destack_test::specification::types/operators/import.md/import-type-queries/impor
 destack_test::specification::types/ownership/borrows.md/borrow-modes/hint-mode-emits-warnings-for-conflicts
 destack_test::specification::types/ownership/borrows.md/borrow-modes/strict-mode-reports-conflicts-as-errors
 destack_test::specification::types/ownership/managed.md/owned-mutability/readonly-owned-values-forbid-mutation
+destack_test::specification::declarations/associated-comptime/modules.md/modules/extension-associated-comptime-projections-resolve-through-re-export-and-namespace-imports

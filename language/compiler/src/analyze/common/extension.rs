@@ -41,7 +41,7 @@ impl Compiler {
 
         // include inherent extensions from the target module
         let mut include_inherent_extensions = |target_symbol: GlobalSymbolId| -> AnalyzeResult<()> {
-            self.with_module_types_or_local_for_stage(
+            self.with_module_types_or_local_at_stage(
                 module,
                 profile,
                 target_symbol.module_id,
@@ -72,7 +72,7 @@ impl Compiler {
 
         // include inherent extensions for global symbol groups
         let (should_scan_global_group, target_key, target_space) = self
-            .with_module_symbols_or_local_for_stage(
+            .with_module_symbols_or_local_at_stage(
                 module,
                 profile,
                 canonical_target.module_id,
@@ -146,7 +146,7 @@ impl Compiler {
         profile: ProfileId,
         extension_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<Extension>> {
-        self.with_module_types_by_id_for_stage(
+        self.with_module_types_by_id_at_stage(
             profile,
             extension_symbol.module_id,
             AnalyzeDependencyStage::Declare,
@@ -198,7 +198,7 @@ impl Compiler {
             return Ok(Some(types.get_lineage(lineage_id).clone()));
         }
 
-        self.with_module_types_by_id_for_stage(
+        self.with_module_types_by_id_at_stage(
             profile,
             extension_symbol.module_id,
             AnalyzeDependencyStage::Declare,

@@ -2,7 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use super::SignatureResolutionMode;
 use super::member::{MemberLookupMode, MemberReceiverContext, MemberResolution};
-use crate::analyze::common::{CanonicalSymbolMode, StaticSubstitutionEnvironment};
+use crate::analyze::common::{
+    AnalyzeDependencyStage, CanonicalSymbolMode, StaticSubstitutionEnvironment,
+};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
@@ -838,9 +840,6 @@ impl Compiler {
 
             // resolve the static parameter constraint
             let argument_value_id = tree.get(*argument_id).value();
-            let argument_node = argument_value_id
-                .into_global_any(module.id)
-                .into_anchored(Some(ctx.profile));
             let constraint_id = self.static_parameter_constraint_type(
                 module,
                 ctx.profile,
@@ -886,11 +885,14 @@ impl Compiler {
                 options,
             ) == Assignability::NotAssignable
             {
-                self.error(AnalyzeError::UnassignableType {
-                    node: argument_node,
-                    expected_ty: constraint_id.into_global(module.id),
-                    actual_ty: argument_ty_id.into_global(module.id),
-                });
+                let _reported = self.report_unassignable_type_for_types(
+                    module,
+                    ctx.profile,
+                    argument_value_id.into_any(),
+                    constraint_id,
+                    *argument_ty_id,
+                    types,
+                );
             }
         }
     }
@@ -988,13 +990,18 @@ impl Compiler {
 
                 let argument_node = dynamic_arguments
                     .get(index)
-                    .map(|id| id.into_global_any(module.id))
-                    .unwrap_or_else(|| expression_id.into_global_any(module.id));
-                return Err(AnalyzeError::UnassignableType {
-                    node: argument_node.into_anchored(Some(profile)),
-                    expected_ty: param_ty_id.into_global(module.id),
-                    actual_ty: argument_ty_id.into_global(module.id),
-                });
+                    .map(|id| id.into_any())
+                    .unwrap_or_else(|| expression_id.into_any());
+                if let Some(error) = self.unassignable_type_error_for_types(
+                    module,
+                    profile,
+                    argument_node,
+                    *param_ty_id,
+                    *argument_ty_id,
+                    types,
+                ) {
+                    return Err(error);
+                }
             }
         }
 
@@ -1479,7 +1486,7 @@ impl Compiler {
         let member_symbol =
             self.resolve_union_member_symbol_for_element(context, element_id, &element_ty, types)?;
         let Some(member_symbol) = member_symbol else {
-            self.report_union_member_call_missing_member(context);
+            self.report_union_member_call_missing_member(context, types)?;
             return Ok(None);
         };
 
@@ -1502,7 +1509,7 @@ impl Compiler {
             types,
         )?;
         let Some(member_ty_id) = resolved_context.member_ty_id else {
-            self.report_union_member_call_missing_member(context);
+            self.report_union_member_call_missing_member(context, types)?;
             return Ok(None);
         };
 
@@ -1603,7 +1610,7 @@ impl Compiler {
         // query callable signatures for the resolved member type
         let call_signatures = self.call_signatures_for_type(member_ty_id, types);
         if call_signatures.is_empty() {
-            self.report_union_member_call_non_callable(context);
+            self.report_union_member_call_non_callable(context, types);
             return Ok(None);
         }
 
@@ -1630,7 +1637,7 @@ impl Compiler {
                 infer,
             )?;
             let Some((signature_ty_id, resolved)) = selection else {
-                self.report_union_member_call_no_overload(context);
+                self.report_union_member_call_no_overload(context, types);
                 return Ok(None);
             };
 
@@ -1660,7 +1667,7 @@ impl Compiler {
             infer,
         )?;
         let Some(resolved) = resolved else {
-            self.report_union_member_call_non_callable(context);
+            self.report_union_member_call_non_callable(context, types);
             return Ok(None);
         };
 
@@ -1671,39 +1678,61 @@ impl Compiler {
     fn report_union_member_call_missing_member(
         &self,
         context: &UnionMemberCallResolutionContext<'_>,
-    ) {
-        self.error(AnalyzeError::MissingMember {
-            node: context
-                .expression_id
-                .into_global_any(context.module.id)
-                .into_anchored(Some(context.profile)),
-            receiver_ty: context.receiver_union_ty_id.into_global(context.module.id),
-            member_key: *context.member_key,
-        });
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        // allow associated blockers only for projection receivers
+        let allow_associated_contract_blocker = self
+            .query_expression_is_projection_receiver_for_infer(
+                context.module,
+                context.profile,
+                context.receiver_expression_id,
+                context.tree,
+                context.symbols,
+                types,
+            );
+
+        self.report_missing_member_diagnostic_for_receiver_type(
+            context.module,
+            context.profile,
+            context.expression_id,
+            context.receiver_union_ty_id,
+            *context.member_key,
+            context.symbols,
+            types,
+            allow_associated_contract_blocker,
+        )?;
+
+        Ok(())
     }
 
     /// Report a no-overload diagnostic for union member-call resolution.
-    fn report_union_member_call_no_overload(&self, context: &UnionMemberCallResolutionContext<'_>) {
-        self.error(AnalyzeError::NoOverload {
-            node: context
-                .expression_id
-                .into_global_any(context.module.id)
-                .into_anchored(Some(context.profile)),
-            receiver_ty: context.receiver_union_ty_id.into_global(context.module.id),
-        });
+    fn report_union_member_call_no_overload(
+        &self,
+        context: &UnionMemberCallResolutionContext<'_>,
+        types: &TypeTable,
+    ) {
+        let _reported = self.report_no_overload_for_receiver_type(
+            context.module,
+            context.profile,
+            context.expression_id.into_any(),
+            context.receiver_union_ty_id,
+            types,
+        );
     }
 
     /// Report a non-callable diagnostic for union member-call resolution.
     fn report_union_member_call_non_callable(
         &self,
         context: &UnionMemberCallResolutionContext<'_>,
+        types: &TypeTable,
     ) {
-        self.error(AnalyzeError::NonCallable {
-            node: context
-                .expression_id
-                .into_global_any(context.module.id)
-                .into_anchored(Some(context.profile)),
-        });
+        let _reported = self.report_non_callable_for_callee_type(
+            context.module,
+            context.profile,
+            context.expression_id.into_any(),
+            context.receiver_union_ty_id,
+            types,
+        );
     }
 
     /// Infer a call expression.
@@ -2210,23 +2239,26 @@ impl Compiler {
             call.call_member_resolution,
             Some(MemberResolution::None | MemberResolution::Unresolved)
         );
+        let callee_has_primary_error = self.type_blocks_follow_on_diagnostic(callee_ty_id, types);
 
         // report non-callable callee types unless they are dynamic placeholders
         let is_dynamic_callee = has_missing_member
+            || callee_has_primary_error
             || matches!(
                 types.get_type(callee_ty_id),
                 Type::TypeLiteral {
                     value: TypeLiteral::Any
                 } | Type::InferVar { .. }
                     | Type::Infer { .. }
-                    | Type::Error
             );
         if !is_dynamic_callee {
-            self.error(AnalyzeError::NonCallable {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-            });
+            let _reported = self.report_non_callable_for_callee_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                callee_ty_id,
+                types,
+            );
         }
 
         // infer dynamic arguments without expected types
@@ -2688,7 +2720,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
-            );
+            )?;
             return Ok(CallExpressionResolution {
                 callee_symbol: super_symbol,
                 call_receiver_ty_id: None,
@@ -2883,12 +2915,13 @@ impl Compiler {
             types,
             options,
         ) {
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                receiver_ty: context.receiver_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                context.receiver_ty_id,
+                types,
+            );
 
             return Ok(Some(
                 self.default_to_unknown_call_type(expression_id, types),
@@ -3218,9 +3251,11 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
-    ) -> Option<GlobalSymbolId> {
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // resolve the base symbol from the inferred super type
-        let base_symbol = self.super_symbol_for_type(super_ty_id, types)?;
+        let Some(base_symbol) = self.super_symbol_for_type(super_ty_id, types) else {
+            return Ok(None);
+        };
 
         self.explicit_constructor_symbol_for_class(module, profile, base_symbol, tree, symbols)
     }
@@ -3278,13 +3313,14 @@ impl Compiler {
         class_symbol: GlobalSymbolId,
         tree: &NodeTree,
         symbols: &SymbolTable,
-    ) -> Option<GlobalSymbolId> {
-        self.with_module_tree_symbols_or_local(
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        self.with_module_tree_symbols_or_local_at_stage(
             module,
             profile,
             class_symbol.module_id,
             tree,
             symbols,
+            AnalyzeDependencyStage::Declare,
             |owner_module, owner_tree, owner_symbols| {
                 // resolve the nominal declaration for the class symbol
                 let class_entry = owner_symbols.get_symbol(class_symbol.local_id);
@@ -3316,6 +3352,7 @@ impl Compiler {
                 None
             },
         )
+        .map_err(AnalyzeError::from)
     }
 
     /// Infer a constructor call expression.
@@ -3562,12 +3599,13 @@ impl Compiler {
 
         // report overload errors on ambiguous calls
         if signature_ty_ids.len() > 1 {
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                receiver_ty: receiver_ty_id_for_error.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                receiver_ty_id_for_error,
+                types,
+            );
             self.infer_call_arguments_without_context(
                 module,
                 dynamic_arguments,
@@ -3639,12 +3677,13 @@ impl Compiler {
         if target.is_struct_constructor
             && dynamic_arguments.len() != resolved_dynamic_parameters.len()
         {
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                receiver_ty: target.callee_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_no_overload_for_receiver_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                target.callee_ty_id,
+                types,
+            );
             self.infer_call_arguments_without_context(
                 module,
                 dynamic_arguments,

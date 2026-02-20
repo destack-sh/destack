@@ -9,8 +9,8 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
-use crate::analyze::common::CanonicalSymbolMode;
-use crate::{AnalyzeResult, Compiler};
+use crate::analyze::common::{AnalyzeDependencyStage, CanonicalSymbolMode};
+use crate::{AnalyzeError, AnalyzeResult, Compiler};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -59,7 +59,7 @@ impl Compiler {
                     &mut decorators,
                     symbols,
                     captures,
-                );
+                )?;
             }
             symbols.get_symbol_mut(symbol_id).decorators = decorators;
         }
@@ -285,7 +285,7 @@ impl Compiler {
         decorators: &mut SymbolDecorators,
         symbols: &SymbolTable,
         captures: &mut CaptureTable,
-    ) {
+    ) -> AnalyzeResult<()> {
         // scan annotations for decorator markers
         let annotations = tree.get_annotations(node_id.id);
         for annotation_id in annotations {
@@ -324,7 +324,7 @@ impl Compiler {
                     symbols,
                     decorator_map,
                     target_symbol,
-                );
+                )?;
             }
             if marker.is_none() && self.is_builtin_decorator_module(profile, target_symbol) {
                 self.report_invalid_well_known_decorator(
@@ -352,6 +352,8 @@ impl Compiler {
                 captures,
             );
         }
+
+        Ok(())
     }
 
     /// Resolve a decorator marker from a symbol's merge group.
@@ -362,12 +364,13 @@ impl Compiler {
         symbols: &SymbolTable,
         decorator_map: &HashMap<GlobalSymbolId, WellKnownDecorator>,
         target_symbol: GlobalSymbolId,
-    ) -> Option<WellKnownDecorator> {
-        self.with_module_symbols_or_local(
+    ) -> AnalyzeResult<Option<WellKnownDecorator>> {
+        self.with_module_symbols_or_local_at_stage(
             module,
             profile,
             target_symbol.module_id,
             symbols,
+            AnalyzeDependencyStage::Declare,
             |owner_module, owner_symbols| {
                 let symbol_entry = owner_symbols.get_symbol(target_symbol.local_id);
                 let group_id = symbol_entry.merge_group?;
@@ -383,6 +386,7 @@ impl Compiler {
                 None
             },
         )
+        .map_err(AnalyzeError::from)
     }
 
     /// Check whether a symbol lives in the builtin decorator module.

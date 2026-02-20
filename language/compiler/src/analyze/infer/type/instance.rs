@@ -527,7 +527,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        self.with_module_tree_symbols_by_id_for_stage(
+        self.with_module_tree_symbols_by_id_at_stage(
             profile,
             symbol.module_id,
             AnalyzeDependencyStage::Declare,

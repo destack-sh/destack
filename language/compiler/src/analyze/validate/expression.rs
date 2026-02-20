@@ -116,62 +116,21 @@ impl Compiler {
                     );
                 }
             }
-            Expression::Assign { left, .. } => {
-                self.validate_assignment_target(module, profile, tree, *left, is_strict);
-            }
-            Expression::AssignBinary { left, .. } => {
-                self.validate_assignment_target(module, profile, tree, *left, is_strict);
-            }
-            Expression::Super => {
-                self.validate_super_reference_expression(module, profile, tree, expression_id);
-            }
-            Expression::Call { left, .. } => {
-                self.validate_super_call_expression(module, profile, tree, expression_id, *left);
-                self.validate_super_property_expression(module, profile, tree, expression_id);
-            }
-            Expression::New { left, .. } => {
-                self.validate_new_optional_chain_expression(
-                    module,
-                    profile,
-                    tree,
-                    expression_id,
-                    *left,
-                );
-                self.validate_super_property_expression(module, profile, tree, expression_id);
-            }
+            Expression::Assign { .. } | Expression::AssignBinary { .. } => {}
+            Expression::Super => {}
+            Expression::Call { .. } => {}
+            Expression::New { .. } => {}
             Expression::Member { .. }
             | Expression::PrivateMember { .. }
-            | Expression::Index { .. } => {
-                self.validate_instantiation_access(
-                    module,
-                    profile,
-                    tree,
-                    symbols,
-                    types,
-                    expression_id,
-                );
-                self.validate_new_target_expression(module, profile, tree, expression_id);
-                self.validate_super_property_expression(module, profile, tree, expression_id);
-            }
-            Expression::Maybe { left } => {
-                self.validate_super_optional_chain(module, profile, tree, expression_id, *left);
-            }
+            | Expression::Index { .. } => {}
+            Expression::Maybe { .. } => {}
             Expression::PrivateIdentifier { .. } => {
                 self.validate_private_identifier_expression(module, profile, tree, expression_id);
             }
-            Expression::UnresolvedPath { path, .. }
-            | Expression::LocalReference { path, .. }
-            | Expression::ModuleReference { path, .. }
-            | Expression::GlobalReference { path, .. } => {
-                self.validate_new_target_expression(module, profile, tree, expression_id);
-                self.validate_strict_reserved_identifier_reference(
-                    module,
-                    profile,
-                    expression_id,
-                    path,
-                    is_strict,
-                );
-            }
+            Expression::UnresolvedPath { .. }
+            | Expression::LocalReference { .. }
+            | Expression::ModuleReference { .. }
+            | Expression::GlobalReference { .. } => {}
             Expression::Match {
                 kind, value, cases, ..
             } => {
@@ -324,6 +283,7 @@ impl Compiler {
                     self.validate_type_import_expression(
                         module,
                         profile,
+                        symbols,
                         types,
                         expression_id,
                         target_string,
@@ -561,7 +521,7 @@ impl Compiler {
     }
 
     /// Validate strict-mode identifier references for reserved names.
-    fn validate_strict_reserved_identifier_reference(
+    pub(crate) fn validate_strict_reserved_identifier_reference(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -634,7 +594,7 @@ impl Compiler {
     }
 
     /// Validate `new.target` usage context.
-    fn validate_new_target_expression(
+    pub(crate) fn validate_new_target_expression(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -658,7 +618,7 @@ impl Compiler {
     }
 
     /// Validate `new` constructor expressions that use optional chaining.
-    fn validate_new_optional_chain_expression(
+    pub(crate) fn validate_new_optional_chain_expression(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -677,7 +637,7 @@ impl Compiler {
     }
 
     /// Validate member and index access after instantiation expressions.
-    fn validate_instantiation_access(
+    pub(crate) fn validate_instantiation_access(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -686,6 +646,10 @@ impl Compiler {
         types: &TypeTable,
         expression_id: LocalNodeId<Expression>,
     ) {
+        if !self.expression_has_invalid_instantiation_access_receiver(tree, expression_id) {
+            return;
+        }
+
         // type positions reuse member and index syntax for projections
         if self.expression_is_type_position_for_instantiation_access(
             module,
@@ -704,10 +668,6 @@ impl Compiler {
             symbols,
             expression_id,
         ) {
-            return;
-        }
-
-        if !self.expression_has_invalid_instantiation_access_receiver(tree, expression_id) {
             return;
         }
 
@@ -1917,7 +1877,7 @@ impl Compiler {
     }
 
     /// Validate super call expressions.
-    fn validate_super_call_expression(
+    pub(crate) fn validate_super_call_expression(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1952,7 +1912,7 @@ impl Compiler {
     }
 
     /// Validate optional chains rooted at super.
-    fn validate_super_optional_chain(
+    pub(crate) fn validate_super_optional_chain(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1971,7 +1931,7 @@ impl Compiler {
     }
 
     /// Validate non-call super property access.
-    fn validate_super_property_expression(
+    pub(crate) fn validate_super_property_expression(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -2022,7 +1982,7 @@ impl Compiler {
     }
 
     /// Validate bare super references.
-    fn validate_super_reference_expression(
+    pub(crate) fn validate_super_reference_expression(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -2373,7 +2333,7 @@ impl Compiler {
     }
 
     /// Validate assignment targets for assignment expressions.
-    fn validate_assignment_target(
+    pub(crate) fn validate_assignment_target(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -3231,14 +3191,20 @@ impl Compiler {
             return;
         };
 
-        // report missing key access
-        self.error(AnalyzeError::MissingMember {
-            node: expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile)),
-            receiver_ty: left_ty_id.into_global(module.id),
-            member_key: *missing_key,
-        });
+        // report missing key access unless a primary receiver error blocks follow-ons
+        let reported = self.report_missing_member_diagnostic_for_receiver_type(
+            module,
+            profile,
+            expression_id,
+            left_ty_id,
+            *missing_key,
+            symbols,
+            types,
+            false,
+        );
+        if let Err(error) = reported {
+            self.error(error);
+        }
     }
 
     /// Validate infer type expressions are scoped to conditional extends clauses.
@@ -3289,6 +3255,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
         expression_id: LocalNodeId<Expression>,
         target: StringId,
@@ -3331,13 +3298,19 @@ impl Compiler {
         else {
             return;
         };
-        self.error(AnalyzeError::MissingMember {
-            node: expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile)),
-            receiver_ty: receiver_ty_id.into_global(module.id),
+        let reported = self.report_missing_member_diagnostic_for_receiver_type(
+            module,
+            profile,
+            expression_id,
+            receiver_ty_id,
             member_key,
-        });
+            symbols,
+            types,
+            false,
+        );
+        if let Err(error) = reported {
+            self.error(error);
+        }
     }
 
     /// Validate that a type import target is a string literal and return the string id.

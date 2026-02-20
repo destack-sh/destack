@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use super::SignatureResolutionMode;
-use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
+use crate::{AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Argument, Constraint, Expression, InferOrigin, InferScope, InferTable, LocalNodeId,
     LocalNodeIdAny, LocalTypeId, NodeTree, PrimitiveType, ResolvedSignature, ScalarLiteral,
@@ -28,14 +28,16 @@ impl Compiler {
         argument_id: LocalNodeId<Argument>,
         param_ty_id: LocalTypeId,
         argument_ty_id: LocalTypeId,
+        types: &TypeTable,
     ) {
-        self.error(AnalyzeError::UnassignableType {
-            node: argument_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile)),
-            expected_ty: param_ty_id.into_global(module.id),
-            actual_ty: argument_ty_id.into_global(module.id),
-        });
+        let _reported = self.report_unassignable_type_for_types(
+            module,
+            profile,
+            argument_id.into_any(),
+            param_ty_id,
+            argument_ty_id,
+            types,
+        );
     }
 
     /// Infer a tagged template expression.
@@ -65,11 +67,13 @@ impl Compiler {
         // require callable signatures on the tag
         let call_signatures = self.call_signatures_for_type(tag_ty_id, types);
         if call_signatures.is_empty() {
-            self.error(AnalyzeError::NonCallable {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-            });
+            let _reported = self.report_non_callable_for_callee_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                tag_ty_id,
+                types,
+            );
 
             for argument_id in template_arguments {
                 self.infer_argument(module, *argument_id, None, tree, symbols, types, infer, ctx)?;
@@ -169,12 +173,13 @@ impl Compiler {
                 &ctx.options,
             );
             if candidates.is_empty() {
-                self.error(AnalyzeError::NoOverload {
-                    node: expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(ctx.profile)),
-                    receiver_ty: tag_ty_id.into_global(module.id),
-                });
+                let _reported = self.report_no_overload_for_receiver_type(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    tag_ty_id,
+                    types,
+                );
 
                 for argument_id in template_arguments {
                     self.infer_argument(
@@ -299,15 +304,14 @@ impl Compiler {
                 &ctx.options,
             ) == Assignability::NotAssignable
             {
-                let argument_node = argument
-                    .value()
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile));
-                self.error(AnalyzeError::UnassignableType {
-                    node: argument_node,
-                    expected_ty: param_ty_id.into_global(module.id),
-                    actual_ty: argument_ty_id.into_global(module.id),
-                });
+                let _reported = self.report_unassignable_type_for_types(
+                    module,
+                    ctx.profile,
+                    argument.value().into_any(),
+                    *param_ty_id,
+                    *argument_ty_id,
+                    types,
+                );
             }
         }
 
@@ -399,14 +403,14 @@ impl Compiler {
                 return Ok(None);
             }
 
-            self.error(AnalyzeError::UnassignableType {
-                node: types
-                    .get_type_source(strings_param_ty_id)
-                    .into_global(module.id)
-                    .into_anchored(Some(profile)),
-                expected_ty: strings_param_ty_id.into_global(module.id),
-                actual_ty: template_strings_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_unassignable_type_for_types(
+                module,
+                profile,
+                types.get_type_source(strings_param_ty_id),
+                strings_param_ty_id,
+                template_strings_ty_id,
+                types,
+            );
         }
 
         // drop the template strings parameter and normalize the signature
@@ -595,6 +599,7 @@ impl Compiler {
                 argument_id,
                 param_ty_id,
                 argument_ty_id,
+                types,
             );
             return false;
         }
@@ -662,6 +667,7 @@ impl Compiler {
                 argument_id,
                 param_ty_id,
                 argument_ty_id,
+                types,
             );
             return;
         }
@@ -732,6 +738,7 @@ impl Compiler {
                 argument_id,
                 param_ty_id,
                 argument_ty_id,
+                types,
             );
             return true;
         }

@@ -1,7 +1,6 @@
-use destack_dir::{Export, NodeTree, StaticKey, SymbolSpace, SymbolTable, TypeTable};
+use destack_dir::{NodeTree, SymbolTable, TypeTable};
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
-use indexmap::IndexMap;
 
 use crate::{Compiler, TaskDependencyError};
 
@@ -19,8 +18,7 @@ pub(crate) enum AnalyzeDependencyStage {
     Validate,
 }
 
-// allow staging helpers before full adoption
-#[allow(dead_code, clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Ensure a module has completed the stage required for one cross-module read.
     fn require_module_stage_for_read(
@@ -45,7 +43,7 @@ impl Compiler {
     }
 
     /// Provide the symbol table for a module with stage-gated cross-module reads.
-    pub(crate) fn with_module_symbols_for_stage<R>(
+    pub(crate) fn with_module_symbols_at_stage<R>(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -58,11 +56,11 @@ impl Compiler {
             self.require_module_stage_for_read(module_id, profile, stage)?;
         }
 
-        Ok(self.with_module_symbols(module, profile, module_id, handle))
+        Ok(self.with_module_symbols_unchecked(module, profile, module_id, handle))
     }
 
     /// Provide symbol tables with stage-gated cross-module reads and local reuse.
-    pub(crate) fn with_module_symbols_or_local_for_stage<R>(
+    pub(crate) fn with_module_symbols_or_local_at_stage<R>(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -76,11 +74,15 @@ impl Compiler {
             self.require_module_stage_for_read(module_id, profile, stage)?;
         }
 
-        Ok(self.with_module_symbols_or_local(module, profile, module_id, symbols, handle))
+        Ok(
+            self.with_module_symbols_or_local_unchecked(
+                module, profile, module_id, symbols, handle,
+            ),
+        )
     }
 
     /// Provide tree and symbol tables for a module with stage-gated cross-module reads.
-    pub(crate) fn with_module_tree_symbols_for_stage<R>(
+    pub(crate) fn with_module_tree_symbols_at_stage<R>(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -93,11 +95,11 @@ impl Compiler {
             self.require_module_stage_for_read(module_id, profile, stage)?;
         }
 
-        Ok(self.with_module_tree_symbols(module, profile, module_id, handle))
+        Ok(self.with_module_tree_symbols_unchecked(module, profile, module_id, handle))
     }
 
     /// Provide tree and symbol tables with stage-gated cross-module reads and local reuse.
-    pub(crate) fn with_module_tree_symbols_or_local_for_stage<R>(
+    pub(crate) fn with_module_tree_symbols_or_local_at_stage<R>(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -112,12 +114,13 @@ impl Compiler {
             self.require_module_stage_for_read(module_id, profile, stage)?;
         }
 
-        Ok(self
-            .with_module_tree_symbols_or_local(module, profile, module_id, tree, symbols, handle))
+        Ok(self.with_module_tree_symbols_or_local_unchecked(
+            module, profile, module_id, tree, symbols, handle,
+        ))
     }
 
     /// Provide type tables for a module with stage-gated cross-module reads.
-    pub(crate) fn with_module_types_for_stage<R>(
+    pub(crate) fn with_module_types_at_stage<R>(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -130,11 +133,11 @@ impl Compiler {
             self.require_module_stage_for_read(module_id, profile, stage)?;
         }
 
-        Ok(self.with_module_types(module, profile, module_id, handle))
+        Ok(self.with_module_types_unchecked(module, profile, module_id, handle))
     }
 
     /// Provide type tables with stage-gated cross-module reads and local reuse.
-    pub(crate) fn with_module_types_or_local_for_stage<R>(
+    pub(crate) fn with_module_types_or_local_at_stage<R>(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -148,11 +151,11 @@ impl Compiler {
             self.require_module_stage_for_read(module_id, profile, stage)?;
         }
 
-        Ok(self.with_module_types_or_local(module, profile, module_id, types, handle))
+        Ok(self.with_module_types_or_local_unchecked(module, profile, module_id, types, handle))
     }
 
     /// Provide a type table by module id with a stage gate.
-    pub(crate) fn with_module_types_by_id_for_stage<R>(
+    pub(crate) fn with_module_types_by_id_at_stage<R>(
         &self,
         profile: ProfileId,
         module_id: ModuleId,
@@ -168,8 +171,43 @@ impl Compiler {
         Ok(handle(&remote_module, &remote_types))
     }
 
+    /// Provide base symbol tables for a module with stage-gated cross-module reads.
+    pub(crate) fn with_module_symbols_base_at_stage<R>(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        module_id: ModuleId,
+        stage: AnalyzeDependencyStage,
+        handle: impl FnOnce(&Module, &SymbolTable) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        // remote reads must satisfy the stage gate
+        if module_id != module.id {
+            self.require_module_stage_for_read(module_id, profile, stage)?;
+        }
+
+        Ok(self.with_module_symbols_base_unchecked(module, module_id, handle))
+    }
+
+    /// Provide base symbol tables with stage-gated cross-module reads and local reuse.
+    pub(crate) fn with_module_symbols_base_or_local_at_stage<R>(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        module_id: ModuleId,
+        symbols: &SymbolTable,
+        stage: AnalyzeDependencyStage,
+        handle: impl FnOnce(&Module, &SymbolTable) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        // remote reads must satisfy the stage gate
+        if module_id != module.id {
+            self.require_module_stage_for_read(module_id, profile, stage)?;
+        }
+
+        Ok(self.with_module_symbols_base_or_local_unchecked(module, module_id, symbols, handle))
+    }
+
     /// Provide the symbol table for a module in the given profile.
-    pub(crate) fn with_module_symbols<R>(
+    fn with_module_symbols_unchecked<R>(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -190,7 +228,7 @@ impl Compiler {
     }
 
     /// Provide a symbol table, reusing local references when possible.
-    pub(crate) fn with_module_symbols_or_local<R>(
+    fn with_module_symbols_or_local_unchecked<R>(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -203,11 +241,11 @@ impl Compiler {
             return handle(module, symbols);
         }
 
-        self.with_module_symbols(module, profile, module_id, handle)
+        self.with_module_symbols_unchecked(module, profile, module_id, handle)
     }
 
     /// Provide the symbol table from the base directory for a module.
-    pub(crate) fn with_module_symbols_base<R>(
+    fn with_module_symbols_base_unchecked<R>(
         &self,
         module: &Module,
         module_id: ModuleId,
@@ -227,7 +265,7 @@ impl Compiler {
     }
 
     /// Provide a base symbol table, reusing local references when possible.
-    pub(crate) fn with_module_symbols_base_or_local<R>(
+    fn with_module_symbols_base_or_local_unchecked<R>(
         &self,
         module: &Module,
         module_id: ModuleId,
@@ -239,11 +277,11 @@ impl Compiler {
             return handle(module, symbols);
         }
 
-        self.with_module_symbols_base(module, module_id, handle)
+        self.with_module_symbols_base_unchecked(module, module_id, handle)
     }
 
     /// Provide the tree and symbol table for a module in the given profile.
-    pub(crate) fn with_module_tree_symbols<R>(
+    fn with_module_tree_symbols_unchecked<R>(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -267,7 +305,7 @@ impl Compiler {
     }
 
     /// Provide a tree and symbol table by module id.
-    pub(crate) fn with_module_tree_symbols_by_id<R>(
+    fn with_module_tree_symbols_by_id_unchecked<R>(
         &self,
         profile: ProfileId,
         module_id: ModuleId,
@@ -289,11 +327,11 @@ impl Compiler {
         handle: impl FnOnce(&Module, &NodeTree, &SymbolTable) -> R,
     ) -> Result<R, TaskDependencyError> {
         self.require_resolve_module_direct(module_id, profile)?;
-        Ok(self.with_module_tree_symbols_by_id(profile, module_id, handle))
+        Ok(self.with_module_tree_symbols_by_id_unchecked(profile, module_id, handle))
     }
 
     /// Provide tree and symbol tables by module id with a stage gate.
-    pub(crate) fn with_module_tree_symbols_by_id_for_stage<R>(
+    pub(crate) fn with_module_tree_symbols_by_id_at_stage<R>(
         &self,
         profile: ProfileId,
         module_id: ModuleId,
@@ -303,11 +341,11 @@ impl Compiler {
         // by-id reads are always cross-module, so always gate
         self.require_module_stage_for_read(module_id, profile, stage)?;
 
-        Ok(self.with_module_tree_symbols_by_id(profile, module_id, handle))
+        Ok(self.with_module_tree_symbols_by_id_unchecked(profile, module_id, handle))
     }
 
     /// Provide a tree and symbol table, reusing local references when possible.
-    pub(crate) fn with_module_tree_symbols_or_local<R>(
+    fn with_module_tree_symbols_or_local_unchecked<R>(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -321,11 +359,11 @@ impl Compiler {
             return handle(module, tree, symbols);
         }
 
-        self.with_module_tree_symbols(module, profile, module_id, handle)
+        self.with_module_tree_symbols_unchecked(module, profile, module_id, handle)
     }
 
     /// Provide the type table for a module in the given profile.
-    pub(crate) fn with_module_types<R>(
+    fn with_module_types_unchecked<R>(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -346,7 +384,7 @@ impl Compiler {
     }
 
     /// Provide a type table, reusing local references when possible.
-    pub(crate) fn with_module_types_or_local<R>(
+    fn with_module_types_or_local_unchecked<R>(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -359,11 +397,11 @@ impl Compiler {
             return handle(module, types);
         }
 
-        self.with_module_types(module, profile, module_id, handle)
+        self.with_module_types_unchecked(module, profile, module_id, handle)
     }
 
     /// Provide the type table for a module in the given profile, with mutable access.
-    pub(crate) fn with_module_types_mut<R>(
+    fn with_module_types_mut_unchecked<R>(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -384,7 +422,7 @@ impl Compiler {
     }
 
     /// Provide mutable type tables with stage-gated cross-module reads.
-    pub(crate) fn with_module_types_mut_for_stage<R>(
+    pub(crate) fn with_module_types_mut_at_stage<R>(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -397,59 +435,49 @@ impl Compiler {
             self.require_module_stage_for_read(module_id, profile, stage)?;
         }
 
-        Ok(self.with_module_types_mut(module, profile, module_id, handle))
+        Ok(self.with_module_types_mut_unchecked(module, profile, module_id, handle))
     }
 
-    /// Provide a mutable type table, reusing local references when possible.
-    pub(crate) fn with_module_types_mut_or_local<R>(
+    /// Provide symbol tables by module id with stage-gated cross-module reads and local reuse.
+    pub(crate) fn with_module_symbols_by_id_at_stage<R>(
         &self,
-        module: &Module,
         profile: ProfileId,
         module_id: ModuleId,
-        types: &mut TypeTable,
-        handle: impl FnOnce(&Module, &mut TypeTable) -> R,
-    ) -> R {
-        // reuse the provided table when it matches the target module
-        if module_id == module.id {
-            return handle(module, types);
-        }
-
-        self.with_module_types_mut(module, profile, module_id, handle)
-    }
-
-    /// Provide mutable type tables with stage-gated reads and local reuse.
-    pub(crate) fn with_module_types_mut_or_local_for_stage<R>(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        module_id: ModuleId,
-        types: &mut TypeTable,
+        symbols: &SymbolTable,
         stage: AnalyzeDependencyStage,
-        handle: impl FnOnce(&Module, &mut TypeTable) -> R,
+        handle: impl FnOnce(&SymbolTable) -> R,
     ) -> Result<R, TaskDependencyError> {
         // remote reads must satisfy the stage gate
-        if module_id != module.id {
+        if module_id != symbols.module_id {
             self.require_module_stage_for_read(module_id, profile, stage)?;
         }
 
-        Ok(self.with_module_types_mut_or_local(module, profile, module_id, types, handle))
+        Ok(self.with_module_symbols_by_id_unchecked(profile, module_id, symbols, handle))
     }
 
-    /// Provide exported symbols for a module in the given profile.
-    pub(crate) fn with_module_exports<R>(
+    /// Provide tree, symbol, and type tables by module id with stage-gated cross-module reads.
+    pub(crate) fn with_module_tree_symbols_types_by_id_at_stage<R>(
         &self,
         profile: ProfileId,
         module_id: ModuleId,
-        handle: impl FnOnce(&Module, &IndexMap<(SymbolSpace, StaticKey), Export>) -> R,
-    ) -> R {
-        let remote_module = self.program.modules.get(module_id);
-        let remote_module = remote_module.read();
-        let remote_exports = remote_module.dir(profile).exported_symbols.read();
-        handle(&remote_module, &remote_exports)
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        stage: AnalyzeDependencyStage,
+        handle: impl FnOnce(&NodeTree, &SymbolTable, &TypeTable) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        // remote reads must satisfy the stage gate
+        if module_id != symbols.module_id || module_id != types.module_id {
+            self.require_module_stage_for_read(module_id, profile, stage)?;
+        }
+
+        Ok(self.with_module_tree_symbols_types_by_id_unchecked(
+            profile, module_id, tree, symbols, types, handle,
+        ))
     }
 
     /// Provide a symbol table by module id, reusing local symbols when possible.
-    pub(crate) fn with_module_symbols_by_id<R>(
+    fn with_module_symbols_by_id_unchecked<R>(
         &self,
         profile: ProfileId,
         module_id: ModuleId,
@@ -468,7 +496,7 @@ impl Compiler {
     }
 
     /// Provide tree, symbol, and type tables by module id, reusing local tables when possible.
-    pub(crate) fn with_module_tree_symbols_types_by_id<R>(
+    fn with_module_tree_symbols_types_by_id_unchecked<R>(
         &self,
         profile: ProfileId,
         module_id: ModuleId,

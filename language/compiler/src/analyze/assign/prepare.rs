@@ -213,13 +213,16 @@ impl Compiler {
         let parameter_symbols = if let Some(tree) = local_tree.as_ref() {
             self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols, types)
         } else {
-            self.with_module_types_or_local(
+            self.with_module_types_or_local_at_stage(
                 module,
                 profile,
                 symbol.module_id,
                 types,
+                AnalyzeDependencyStage::Declare,
                 |_, owner_types| owner_types.get_static_parameter_symbols(symbol),
             )
+            .ok()
+            .flatten()
         };
 
         let target_source_id = types.get_type_source(target_id);
@@ -250,8 +253,8 @@ impl Compiler {
                 self.convert_static_argument_type(target_argument, target_source_id, types);
             let source_ty_id =
                 self.convert_static_argument_type(source_argument, source_source_id, types);
-            if matches!(types.get_type(target_ty_id), Type::Error)
-                || matches!(types.get_type(source_ty_id), Type::Error)
+            if self.type_blocks_follow_on_diagnostic(target_ty_id, types)
+                || self.type_blocks_follow_on_diagnostic(source_ty_id, types)
             {
                 continue;
             }
@@ -426,10 +429,11 @@ impl Compiler {
 
         // ensure the alias target is evaluated before substitution
         if matches!(types.get_type(alias_target_id), Type::Unevaluated(_)) {
-            self.with_module_tree_symbols(
+            let _ = self.with_module_tree_symbols_at_stage(
                 module,
                 profile,
                 symbol.module_id,
+                AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     let _ = self.resolve_declared_type(
                         owner_module,

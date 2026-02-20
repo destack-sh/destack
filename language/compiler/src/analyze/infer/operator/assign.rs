@@ -2,6 +2,15 @@ use super::*;
 use crate::analyze::common::StaticMemberSymbolKind;
 use destack_dir::Resolution;
 
+/// Shared assignment target metadata used by assignment inference paths.
+#[derive(Clone, Copy, Debug)]
+struct AssignTargetBinding {
+    /// The normalized assignment target expression id.
+    target_id: LocalNodeId<Expression>,
+    /// The optional symbol resolved from the normalized target.
+    target_symbol: Option<GlobalSymbolId>,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     pub(crate) fn infer_assign_expression(
@@ -35,103 +44,11 @@ impl Compiler {
             );
         }
 
-        // reject assignments to immutable bindings
-        let target_id = self.unwrap_parenthesized_expression(left_id, tree);
-        let target_symbol =
-            self.reference_symbol_for_expression(module, target_id, ctx.profile, tree, symbols);
-        if let Some(target_symbol) = target_symbol
-            && matches!(
-                self.binding_mutability_for_symbol(module, target_symbol, symbols),
-                Some(Mutability::Immutable)
-            )
-        {
-            self.error(AnalyzeError::ImmutableBindingAssignment {
-                node: target_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-            });
-        }
-
-        // reject assignments through immutable references
-        if let Expression::Member {
-            left: receiver_id,
-            name,
-            static_arguments,
-        } = tree.get(left_id)
-        {
-            let receiver_ty_id = self.infer_member_assignment_receiver_type(
-                module,
-                *receiver_id,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?;
-            if self.type_is_immutable_reference(receiver_ty_id, types) {
-                self.error(AnalyzeError::ImmutableReferenceAssignment {
-                    node: receiver_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(ctx.profile)),
-                });
-            }
-
-            // reject writes to readonly members when the key is known
-            if static_arguments.is_none() {
-                let member_key = self.static_key_from_dynamic_key(
-                    ctx.profile,
-                    DynamicKey::Name(*name),
-                    tree,
-                    symbols,
-                    types,
-                );
-                if let Some(member_key) = member_key
-                    && (self
-                        .field_modifiers_for_key(
-                            module,
-                            ctx.profile,
-                            receiver_ty_id,
-                            &member_key,
-                            symbols,
-                            types,
-                        )
-                        .is_some_and(|(_, is_readonly)| is_readonly)
-                        || self
-                            .receiver_symbol_for_visibility(receiver_ty_id, types)
-                            .and_then(|receiver_symbol| {
-                                self.parameter_property_member_context_for_key(
-                                    module,
-                                    ctx.profile,
-                                    receiver_symbol,
-                                    &member_key,
-                                    tree,
-                                    symbols,
-                                    types,
-                                )
-                            })
-                            .is_some_and(|context| context.is_readonly))
-                {
-                    self.error(AnalyzeError::ReadonlyProperty {
-                        node: left_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(ctx.profile)),
-                        member_key,
-                    });
-                }
-            }
-        } else if let Expression::Unary { operator, right } = tree.get(left_id)
-            && matches!(operator, UnaryOperator::Dereference)
-        {
-            let right_ty_id =
-                self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
-            if self.type_is_immutable_reference(right_ty_id, types) {
-                self.error(AnalyzeError::ImmutableReferenceAssignment {
-                    node: right
-                        .into_global_any(module.id)
-                        .into_anchored(Some(ctx.profile)),
-                });
-            }
-        }
+        let AssignTargetBinding {
+            target_id,
+            target_symbol,
+        } = self
+            .validate_assignment_left_target(module, left_id, tree, symbols, types, infer, ctx)?;
 
         let left_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
@@ -198,13 +115,16 @@ impl Compiler {
             types,
             &options,
         ) {
-            return Err(AnalyzeError::UnassignableType {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                expected_ty: left_ty_id.into_global(module.id),
-                actual_ty: right_ty_id.into_global(module.id),
-            });
+            if let Some(error) = self.unassignable_type_error_for_types(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                left_ty_id,
+                right_ty_id,
+                types,
+            ) {
+                return Err(error);
+            }
         }
 
         // narrow desugared nullish assignments to non nullish targets
@@ -267,103 +187,11 @@ impl Compiler {
             );
         }
 
-        // reject assignments to immutable bindings
-        let target_id = self.unwrap_parenthesized_expression(left_id, tree);
-        let target_symbol =
-            self.reference_symbol_for_expression(module, target_id, ctx.profile, tree, symbols);
-        if let Some(target_symbol) = target_symbol
-            && matches!(
-                self.binding_mutability_for_symbol(module, target_symbol, symbols),
-                Some(Mutability::Immutable)
-            )
-        {
-            self.error(AnalyzeError::ImmutableBindingAssignment {
-                node: target_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-            });
-        }
-
-        // reject assignments through immutable references
-        if let Expression::Member {
-            left: receiver_id,
-            name,
-            static_arguments,
-        } = tree.get(left_id)
-        {
-            let receiver_ty_id = self.infer_member_assignment_receiver_type(
-                module,
-                *receiver_id,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?;
-            if self.type_is_immutable_reference(receiver_ty_id, types) {
-                self.error(AnalyzeError::ImmutableReferenceAssignment {
-                    node: receiver_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(ctx.profile)),
-                });
-            }
-
-            // reject writes to readonly members when the key is known
-            if static_arguments.is_none() {
-                let member_key = self.static_key_from_dynamic_key(
-                    ctx.profile,
-                    DynamicKey::Name(*name),
-                    tree,
-                    symbols,
-                    types,
-                );
-                if let Some(member_key) = member_key
-                    && (self
-                        .field_modifiers_for_key(
-                            module,
-                            ctx.profile,
-                            receiver_ty_id,
-                            &member_key,
-                            symbols,
-                            types,
-                        )
-                        .is_some_and(|(_, is_readonly)| is_readonly)
-                        || self
-                            .receiver_symbol_for_visibility(receiver_ty_id, types)
-                            .and_then(|receiver_symbol| {
-                                self.parameter_property_member_context_for_key(
-                                    module,
-                                    ctx.profile,
-                                    receiver_symbol,
-                                    &member_key,
-                                    tree,
-                                    symbols,
-                                    types,
-                                )
-                            })
-                            .is_some_and(|context| context.is_readonly))
-                {
-                    self.error(AnalyzeError::ReadonlyProperty {
-                        node: left_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(ctx.profile)),
-                        member_key,
-                    });
-                }
-            }
-        } else if let Expression::Unary { operator, right } = tree.get(left_id)
-            && matches!(operator, UnaryOperator::Dereference)
-        {
-            let right_ty_id =
-                self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
-            if self.type_is_immutable_reference(right_ty_id, types) {
-                self.error(AnalyzeError::ImmutableReferenceAssignment {
-                    node: right
-                        .into_global_any(module.id)
-                        .into_anchored(Some(ctx.profile)),
-                });
-            }
-        }
+        let AssignTargetBinding {
+            target_id: _,
+            target_symbol,
+        } = self
+            .validate_assignment_left_target(module, left_id, tree, symbols, types, infer, ctx)?;
 
         // infer left and right types
         let left_ty_id =
@@ -438,13 +266,16 @@ impl Compiler {
                 types,
                 &options,
             ) {
-                return Err(AnalyzeError::UnassignableType {
-                    node: expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(ctx.profile)),
-                    expected_ty: left_ty_id.into_global(module.id),
-                    actual_ty: right_ty_id.into_global(module.id),
-                });
+                if let Some(error) = self.unassignable_type_error_for_types(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    left_ty_id,
+                    right_ty_id,
+                    types,
+                ) {
+                    return Err(error);
+                }
             }
 
             // narrow nullish assignments to non nullish targets
@@ -483,6 +314,124 @@ impl Compiler {
             return Some(Mutability::Immutable);
         }
         symbols.get_symbol(symbol.local_id).binding_mutability
+    }
+
+    /// Validate assignment target mutability and readonly restrictions.
+    fn validate_assignment_left_target(
+        &self,
+        module: &Module,
+        left_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<AssignTargetBinding> {
+        // reject assignments to immutable bindings
+        let target_id = self.unwrap_parenthesized_expression(left_id, tree);
+        let target_symbol =
+            self.reference_symbol_for_expression(module, target_id, ctx.profile, tree, symbols);
+        if let Some(target_symbol) = target_symbol
+            && matches!(
+                self.binding_mutability_for_symbol(module, target_symbol, symbols),
+                Some(Mutability::Immutable)
+            )
+        {
+            self.error(AnalyzeError::ImmutableBindingAssignment {
+                node: target_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+        }
+
+        // reject writes through immutable references and readonly members
+        if let Expression::Member {
+            left: receiver_id,
+            name,
+            static_arguments,
+        } = tree.get(left_id)
+        {
+            let receiver_ty_id = self.infer_member_assignment_receiver_type(
+                module,
+                *receiver_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?;
+            if self.type_is_immutable_reference(receiver_ty_id, types) {
+                self.error(AnalyzeError::ImmutableReferenceAssignment {
+                    node: receiver_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
+
+            // reject writes to readonly members when the key is known
+            if static_arguments.is_none() {
+                let member_key = self.static_key_from_dynamic_key(
+                    ctx.profile,
+                    DynamicKey::Name(*name),
+                    tree,
+                    symbols,
+                    types,
+                );
+                if let Some(member_key) = member_key {
+                    let is_field_readonly = self
+                        .field_modifiers_for_key(
+                            module,
+                            ctx.profile,
+                            receiver_ty_id,
+                            &member_key,
+                            symbols,
+                            types,
+                        )
+                        .is_some_and(|(_, is_readonly)| is_readonly);
+                    let is_parameter_property_readonly = if let Some(receiver_symbol) =
+                        self.receiver_symbol_for_visibility(receiver_ty_id, types)
+                    {
+                        self.parameter_property_member_context_for_key(
+                            module,
+                            ctx.profile,
+                            receiver_symbol,
+                            &member_key,
+                            tree,
+                            symbols,
+                            types,
+                        )?
+                        .is_some_and(|context| context.is_readonly)
+                    } else {
+                        false
+                    };
+                    if is_field_readonly || is_parameter_property_readonly {
+                        self.error(AnalyzeError::ReadonlyProperty {
+                            node: left_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(ctx.profile)),
+                            member_key,
+                        });
+                    }
+                }
+            }
+        } else if let Expression::Unary { operator, right } = tree.get(left_id)
+            && matches!(operator, UnaryOperator::Dereference)
+        {
+            let right_ty_id =
+                self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
+            if self.type_is_immutable_reference(right_ty_id, types) {
+                self.error(AnalyzeError::ImmutableReferenceAssignment {
+                    node: right
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
+        }
+
+        Ok(AssignTargetBinding {
+            target_id,
+            target_symbol,
+        })
     }
 
     /// Infer a member assignment receiver in value or projection mode.

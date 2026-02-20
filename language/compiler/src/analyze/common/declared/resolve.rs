@@ -114,7 +114,7 @@ impl Compiler {
             tree,
             symbols,
             types,
-        ) {
+        )? {
             kind
         } else {
             let index_ty_id = self.resolve_declared_type_expression(
@@ -1051,7 +1051,7 @@ impl Compiler {
             }
             if let Some(projected_symbol) = tree.get(expression_id).target_symbol() {
                 let is_enum_field = self
-                    .with_module_tree_symbols_or_local_for_stage(
+                    .with_module_tree_symbols_or_local_at_stage(
                         module,
                         profile,
                         projected_symbol.module_id,
@@ -1309,7 +1309,12 @@ impl Compiler {
         }
 
         // fold value-space constant references used in type positions
-        let symbol_space = self.symbol_space_for_reference(module, profile, target_symbol, symbols);
+        let symbol_space = self.query_symbol_space_for_reference_non_blocking(
+            module,
+            profile,
+            target_symbol,
+            symbols,
+        );
         if symbol_space == Some(SymbolSpace::Value) {
             let mut visited = HashSet::new();
             if let Some(static_value) = self.static_expression_from_constant_reference_generic(
@@ -1370,25 +1375,27 @@ impl Compiler {
         Ok(ty)
     }
 
-    /// Resolve the symbol space for a type-reference target.
-
-    pub(crate) fn symbol_space_for_reference(
+    /// Resolve symbol space for one type-reference target without blocking on remote readiness.
+    pub(crate) fn query_symbol_space_for_reference_non_blocking(
         &self,
         module: &Module,
         profile: ProfileId,
         target_symbol: GlobalSymbolId,
         symbols: &SymbolTable,
     ) -> Option<SymbolSpace> {
-        self.with_module_symbols_or_local(
+        self.with_module_symbols_or_local_at_stage(
             module,
             profile,
             target_symbol.module_id,
             symbols,
+            AnalyzeDependencyStage::Declare,
             |_owner_module, owner_symbols| {
                 let symbol_entry = owner_symbols.get_symbol(target_symbol.local_id);
                 Some(symbol_entry.space)
             },
         )
+        .ok()
+        .flatten()
     }
 
     /// Evaluate a typeof type expression into a Type.

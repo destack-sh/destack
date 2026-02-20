@@ -11,7 +11,9 @@ use std::collections::HashMap;
 
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 
-use crate::analyze::common::{CanonicalSymbolMode, ObjectShape, ObjectShapeSet};
+use crate::analyze::common::{
+    AnalyzeDependencyStage, CanonicalSymbolMode, ObjectShape, ObjectShapeSet,
+};
 
 /// Visitor used to declare type-level constructs across a module.
 #[derive(Debug)]
@@ -390,8 +392,28 @@ impl Compiler {
                     symbols,
                     types,
                 )?;
-                self.validate_associated_type_contract_presence(
-                    module, profile, heritage, members, false, tree, symbols,
+                let declaration_symbol = descriptor.symbol.into_global(module.id);
+                self.validate_associated_type_contract_requirements(
+                    module,
+                    profile,
+                    declaration_symbol,
+                    heritage,
+                    members,
+                    false,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                self.validate_associated_comptime_contract_requirements(
+                    module,
+                    profile,
+                    declaration_symbol,
+                    heritage,
+                    members,
+                    false,
+                    tree,
+                    symbols,
+                    types,
                 )?;
 
                 // nominal reference for constructors
@@ -509,14 +531,30 @@ impl Compiler {
                     symbols,
                     types,
                 )?;
-                self.validate_associated_type_contract_presence(
+                let declaration_symbol = descriptor.symbol.into_global(module.id);
+                let allows_deferred_associated =
+                    descriptor.abstraction == destack_dir::DeclarationAbstraction::Abstract;
+                self.validate_associated_type_contract_requirements(
                     module,
                     profile,
+                    declaration_symbol,
                     heritage,
                     members,
-                    descriptor.abstraction == destack_dir::DeclarationAbstraction::Abstract,
+                    allows_deferred_associated,
                     tree,
                     symbols,
+                    types,
+                )?;
+                self.validate_associated_comptime_contract_requirements(
+                    module,
+                    profile,
+                    declaration_symbol,
+                    heritage,
+                    members,
+                    allows_deferred_associated,
+                    tree,
+                    symbols,
+                    types,
                 )?;
 
                 // prepare nominal reference for constructors
@@ -635,8 +673,28 @@ impl Compiler {
                     symbols,
                     types,
                 )?;
-                self.validate_associated_type_contract_presence(
-                    module, profile, heritage, members, false, tree, symbols,
+                let declaration_symbol = descriptor.symbol.into_global(module.id);
+                self.validate_associated_type_contract_requirements(
+                    module,
+                    profile,
+                    declaration_symbol,
+                    heritage,
+                    members,
+                    false,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                self.validate_associated_comptime_contract_requirements(
+                    module,
+                    profile,
+                    declaration_symbol,
+                    heritage,
+                    members,
+                    false,
+                    tree,
+                    symbols,
+                    types,
                 )?;
 
                 // prepare the nominal reference for enum values
@@ -2057,24 +2115,28 @@ impl Compiler {
             return Ok(types.get_value_type_id(symbol));
         }
 
-        // ensure remote module declare is ready
-        self.require_analyze_module_declare(symbol.module_id, profile)?;
+        self.with_module_types_at_stage(
+            module,
+            profile,
+            symbol.module_id,
+            AnalyzeDependencyStage::Declare,
+            |_, remote_types| {
+                let Some(remote_value_id) = remote_types.get_value_type_id(symbol) else {
+                    return Ok(None);
+                };
+                let remote_value_ty = remote_types.get_type(remote_value_id);
+                let local_value_id = self.import_type_from_remote_for_node(
+                    declaration_id.into_any(),
+                    remote_value_ty,
+                    remote_types,
+                    symbol,
+                    types,
+                );
 
-        self.with_module_types(module, profile, symbol.module_id, |_, remote_types| {
-            let Some(remote_value_id) = remote_types.get_value_type_id(symbol) else {
-                return Ok(None);
-            };
-            let remote_value_ty = remote_types.get_type(remote_value_id);
-            let local_value_id = self.import_type_from_remote_for_node(
-                declaration_id.into_any(),
-                remote_value_ty,
-                remote_types,
-                symbol,
-                types,
-            );
-
-            Ok(Some(local_value_id))
-        })
+                Ok(Some(local_value_id))
+            },
+        )
+        .map_err(AnalyzeError::from)?
     }
 
     /// Collect constructor signatures from a symbol value type.

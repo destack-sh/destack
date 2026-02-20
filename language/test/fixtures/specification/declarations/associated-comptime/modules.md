@@ -198,3 +198,136 @@ header satisfies uint8[24];
 declare const payload: TextCodec.Payload;
 payload satisfies string[2];
 ```
+
+### associated comptime projections resolve through export star barrels
+
+> Export-star barrels preserve associated comptime projections.
+> Routes a generic owner through `export *` and projects both type and value members from the barrel consumer.
+> The projected members must retain the owner substitutions after module resolution.
+
+```ds:layout.ds
+export class SegmentLayout<Row> {
+    comptime const Width: number = Row extends string ? 32 : 16;
+    type Segment = uint8[this.Width];
+}
+```
+
+```ds:barrel.ds
+export * from "./layout";
+```
+
+```ds:main.ds
+import { SegmentLayout } from "./barrel";
+
+// type projection should stay specialized through export-star indirection
+declare const segment: SegmentLayout<string>.Segment;
+segment satisfies uint8[32];
+
+// value projection should stay specialized through export-star indirection
+const width = SegmentLayout<string>.Width;
+width satisfies number;
+```
+
+### owner modules can satisfy imported associated comptime contracts with extensions
+
+> Owner modules can satisfy imported interface associated comptime requirements through extensions.
+> Declares the contract in one module and fulfills it in the owner-exporting module.
+> Projections from the imported owner should include the extension-provided associated members.
+
+```ds:contract.ds
+export interface RetryPolicy {
+    comptime const MaxRetries: number;
+    type Budget = uint8[this.MaxRetries];
+}
+```
+
+```ds:owner.ds
+import { RetryPolicy } from "./contract";
+
+export struct HttpRetryPolicy {}
+
+extension for HttpRetryPolicy implements RetryPolicy {
+    comptime const MaxRetries: number = 5;
+}
+```
+
+```ds:main.ds
+import { HttpRetryPolicy } from "./owner";
+
+// extension-provided contract members should project from the owner type
+declare const budget: HttpRetryPolicy.Budget;
+budget satisfies uint8[5];
+
+// extension-provided associated comptime values should project in value space too
+const retries = HttpRetryPolicy.MaxRetries;
+retries satisfies number;
+```
+
+### associated comptime projections remain coherent across type-only and namespace imports
+
+> Type-only and namespace imports should resolve to the same associated comptime owner semantics.
+> Uses `import type` through a barrel and namespace import from the owner module.
+> Both access paths must preserve owner substitution and projection resolution.
+
+```ds:plan.ds
+export class ChunkPlan<Row> {
+    comptime const ChunkBytes: number = Row extends string ? 12 : 6;
+    type Chunk = uint8[this.ChunkBytes];
+}
+```
+
+```ds:index.ds
+export type { ChunkPlan } from "./plan";
+```
+
+```ds:main.ds
+import type { ChunkPlan } from "./index";
+import * as api from "./plan";
+
+// type-only import path should preserve associated type projection
+declare const chunk: ChunkPlan<string>.Chunk;
+chunk satisfies uint8[12];
+
+// namespace import path should preserve associated comptime value projection
+const bytes = api.ChunkPlan<string>.ChunkBytes;
+bytes satisfies number;
+```
+
+### extension associated comptime projections resolve through re-export and namespace imports
+
+> Extension provided associated comptime projections should survive re-export indirection and namespace access.
+> Declares an interface contract in one module and fulfills it in an owner module extension.
+> Consumers using both named re-export imports and owner namespace imports should resolve the same projected value.
+
+```ds:contract.ds
+export interface RetryPolicy {
+    comptime const MaxRetries: number;
+}
+```
+
+```ds:owner.ds
+import { RetryPolicy } from "./contract";
+
+export struct HttpRetryPolicy {}
+
+extension for HttpRetryPolicy implements RetryPolicy {
+    comptime const MaxRetries: number = 5;
+}
+```
+
+```ds:index.ds
+export { HttpRetryPolicy } from "./owner";
+```
+
+```ds:main.ds
+import { HttpRetryPolicy } from "./index";
+import * as owner from "./owner";
+
+// re-export named import path should preserve extension-provided value projection
+const retries = HttpRetryPolicy.MaxRetries;
+retries satisfies number;
+
+// owner namespace import path should preserve extension-provided value projection
+const ownerRetries = owner.HttpRetryPolicy.MaxRetries;
+ownerRetries satisfies number;
+```

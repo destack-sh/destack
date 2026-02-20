@@ -876,3 +876,18 @@ pub enum AnalyzeError {
     #[error(code = "EA903", message = "internal error: {message}")]
     Internal { message: String },
 }
+
+impl AnalyzeError {
+    /// Return true when this diagnostic is a follow-on semantic consequence.
+    pub fn is_follow_on_semantic_diagnostic(&self) -> bool {
+        matches!(
+            self,
+            Self::UnassignableType { .. }
+                | Self::UnsatisfiedType { .. }
+                | Self::ExcessProperty { .. }
+                | Self::NonCallable { .. }
+                | Self::MissingMember { .. }
+                | Self::NoOverload { .. }
+        )
+    }
+}

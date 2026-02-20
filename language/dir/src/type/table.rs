@@ -176,6 +176,9 @@ pub struct TypeTable {
     pub(crate) enum_backing_type_by_symbol_id: IndexMap<GlobalSymbolId, EnumBackingType>,
     /// The resolved enum field values by enum field symbol.
     pub(crate) enum_field_value_by_symbol_id: IndexMap<GlobalSymbolId, EnumFieldValue>,
+    /// Symbols that still violate associated requirement implementation contracts.
+    #[serde(default)]
+    pub(crate) symbols_with_unimplemented_associated_requirements: HashSet<GlobalSymbolId>,
 
     // instances (statically parameterised types)
     /// The next instance id to allocate.
@@ -316,6 +319,7 @@ impl TypeTable {
             alias_target_type_by_symbol_id: IndexMap::new(),
             enum_backing_type_by_symbol_id: IndexMap::new(),
             enum_field_value_by_symbol_id: IndexMap::new(),
+            symbols_with_unimplemented_associated_requirements: HashSet::new(),
             // instances
             next_instance_id: 0,
             instances: Arena::new(),
@@ -1341,6 +1345,25 @@ impl TypeTable {
     /// Get the value type id for a symbol.
     pub fn get_value_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
         self.value_type_by_symbol_id.get(&symbol_id).copied()
+    }
+
+    /// Mark one symbol as having unresolved associated implementation requirements.
+    pub fn mark_symbol_with_unimplemented_associated_requirements(
+        &mut self,
+        symbol_id: GlobalSymbolId,
+    ) {
+        self.symbols_with_unimplemented_associated_requirements
+            .insert(symbol_id);
+        self.bump_symbol_version(symbol_id);
+    }
+
+    /// Return true when one symbol has unresolved associated implementation requirements.
+    pub fn symbol_has_unimplemented_associated_requirements(
+        &self,
+        symbol_id: GlobalSymbolId,
+    ) -> bool {
+        self.symbols_with_unimplemented_associated_requirements
+            .contains(&symbol_id)
     }
 
     /// Get the declared or inferred type id for a symbol in this module.

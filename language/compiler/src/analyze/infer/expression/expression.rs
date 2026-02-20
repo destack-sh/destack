@@ -69,6 +69,76 @@ enum SuperHomeObjectKind {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Report pre-infer expression form diagnostics.
+    pub(crate) fn report_pre_infer_expression_form_diagnostics(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        expression_id: LocalNodeId<Expression>,
+        expression: &Expression,
+        options: AnalyzeOptions,
+    ) {
+        // cache strict mode once per expression
+        let is_strict = module.source_type.is_module() || options.always_strict;
+
+        match expression {
+            Expression::Assign { left, .. } | Expression::AssignBinary { left, .. } => {
+                self.validate_assignment_target(module, profile, tree, *left, is_strict);
+            }
+            Expression::Super => {
+                self.validate_super_reference_expression(module, profile, tree, expression_id);
+            }
+            Expression::Call { left, .. } => {
+                self.validate_super_call_expression(module, profile, tree, expression_id, *left);
+                self.validate_super_property_expression(module, profile, tree, expression_id);
+            }
+            Expression::New { left, .. } => {
+                self.validate_new_optional_chain_expression(
+                    module,
+                    profile,
+                    tree,
+                    expression_id,
+                    *left,
+                );
+                self.validate_super_property_expression(module, profile, tree, expression_id);
+            }
+            Expression::Member { .. }
+            | Expression::PrivateMember { .. }
+            | Expression::Index { .. } => {
+                self.validate_instantiation_access(
+                    module,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
+                    expression_id,
+                );
+                self.validate_new_target_expression(module, profile, tree, expression_id);
+                self.validate_super_property_expression(module, profile, tree, expression_id);
+            }
+            Expression::Maybe { left } => {
+                self.validate_super_optional_chain(module, profile, tree, expression_id, *left);
+            }
+            Expression::UnresolvedPath { path, .. }
+            | Expression::LocalReference { path, .. }
+            | Expression::ModuleReference { path, .. }
+            | Expression::GlobalReference { path, .. } => {
+                self.validate_new_target_expression(module, profile, tree, expression_id);
+                self.validate_strict_reserved_identifier_reference(
+                    module,
+                    profile,
+                    expression_id,
+                    path,
+                    is_strict,
+                );
+            }
+            _ => {}
+        }
+    }
+
     /// Return true when `super.x` is valid in the current lexical context.
     pub(crate) fn super_property_is_valid_context(
         &self,
@@ -2071,13 +2141,14 @@ impl Compiler {
                             &ctx.options,
                         ) == Assignability::NotAssignable
                         {
-                            self.error(AnalyzeError::UnassignableType {
-                                node: expression_id
-                                    .into_global_any(module.id)
-                                    .into_anchored(Some(ctx.profile)),
-                                expected_ty: expected_object_ty_id.into_global(module.id),
-                                actual_ty: shape_ty_id.into_global(module.id),
-                            });
+                            let _reported = self.report_unassignable_type_for_types(
+                                module,
+                                ctx.profile,
+                                expression_id.into_any(),
+                                expected_object_ty_id,
+                                shape_ty_id,
+                                types,
+                            );
                             break;
                         }
                     }
@@ -3446,6 +3517,20 @@ impl Compiler {
                 scope: _,
                 symbol: _,
             } => {
+                // reject try/catch forms when exceptions are disabled
+                if ctx.options.no_exceptions {
+                    self.error(AnalyzeError::ExceptionsDisabled {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Never,
+                    };
+                    return Ok(types.insert_type_from(ty, expression_id));
+                }
+
                 // validate try shape
                 if catch_expression.is_none() && finally_expression.is_none() {
                     self.error(AnalyzeError::IncompleteTry {
@@ -3686,6 +3771,11 @@ impl Compiler {
                             .into_global_any(module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
+
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Never,
+                    };
+                    return Ok(types.insert_type_from(ty, expression_id));
                 }
 
                 self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
@@ -3724,13 +3814,14 @@ impl Compiler {
                     && let Some(promise_ty_id) =
                         self.promise_type(ctx.profile, None, expression_id.into_any(), types)
                 {
-                    self.error(AnalyzeError::UnassignableType {
-                        node: expression_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(ctx.profile)),
-                        expected_ty: promise_ty_id.into_global(module.id),
-                        actual_ty: inner_ty_id.into_global(module.id),
-                    });
+                    let _reported = self.report_unassignable_type_for_types(
+                        module,
+                        ctx.profile,
+                        expression_id.into_any(),
+                        promise_ty_id,
+                        inner_ty_id,
+                        types,
+                    );
                 }
                 awaited_ty_id
             }
@@ -3789,13 +3880,14 @@ impl Compiler {
                                     &ctx.options,
                                 ) == Assignability::NotAssignable
                                 {
-                                    self.error(AnalyzeError::UnassignableType {
-                                        node: value_id
-                                            .into_global_any(module.id)
-                                            .into_anchored(Some(ctx.profile)),
-                                        expected_ty: expected_yield_ty_id.into_global(module.id),
-                                        actual_ty: yield_ty_id.into_global(module.id),
-                                    });
+                                    let _reported = self.report_unassignable_type_for_types(
+                                        module,
+                                        ctx.profile,
+                                        value_id.into_any(),
+                                        expected_yield_ty_id,
+                                        yield_ty_id,
+                                        types,
+                                    );
                                 }
                             }
                         } else if self.is_type_assignable(
@@ -3808,13 +3900,14 @@ impl Compiler {
                             &ctx.options,
                         ) == Assignability::NotAssignable
                         {
-                            self.error(AnalyzeError::UnassignableType {
-                                node: value_id
-                                    .into_global_any(module.id)
-                                    .into_anchored(Some(ctx.profile)),
-                                expected_ty: expected_yield_ty_id.into_global(module.id),
-                                actual_ty: value_ty_id.into_global(module.id),
-                            });
+                            let _reported = self.report_unassignable_type_for_types(
+                                module,
+                                ctx.profile,
+                                value_id.into_any(),
+                                expected_yield_ty_id,
+                                value_ty_id,
+                                types,
+                            );
                         }
                     }
                 }
@@ -4438,13 +4531,14 @@ impl Compiler {
                                 &options,
                             ) == Assignability::NotAssignable
                         {
-                            self.error(AnalyzeError::UnassignableType {
-                                node: body
-                                    .into_global_any(module.id)
-                                    .into_anchored(Some(ctx.profile)),
-                                expected_ty: return_ty_id.into_global(module.id),
-                                actual_ty: body_ty_id.into_global(module.id),
-                            });
+                            let _reported = self.report_unassignable_type_for_types(
+                                module,
+                                ctx.profile,
+                                body.into_any(),
+                                return_ty_id,
+                                body_ty_id,
+                                types,
+                            );
                         }
                     }
                 }
@@ -4540,9 +4634,15 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> Option<StringId> {
-        self.with_module_symbols(module, profile, symbol.module_id, |_, owner_symbols| {
-            owner_symbols.get_symbol(symbol.local_id).name()
-        })
+        if symbol.module_id == module.id {
+            let symbols = module.dir(profile).symbols.read();
+            return symbols.get_symbol(symbol.local_id).name();
+        }
+
+        let owner_module = self.program.modules.get(symbol.module_id);
+        let owner_module = owner_module.read();
+        let owner_symbols = owner_module.dir(profile).symbols.read();
+        owner_symbols.get_symbol(symbol.local_id).name()
     }
 
     /// Resolve the dependency item that introduced a symbol when possible.
@@ -4585,12 +4685,14 @@ impl Compiler {
         profile: ProfileId,
         export_name: StringId,
     ) -> bool {
-        self.with_module_exports(profile, module_id, |_, exports| {
-            let key = StaticKey::Name(export_name);
-            let has_value = exports.contains_key(&(SymbolSpace::Value, key));
-            let has_type = exports.contains_key(&(SymbolSpace::Type, key));
-            has_type && !has_value
-        })
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let exports = module.dir(profile).exported_symbols.read();
+
+        let key = StaticKey::Name(export_name);
+        let has_value = exports.contains_key(&(SymbolSpace::Value, key));
+        let has_type = exports.contains_key(&(SymbolSpace::Type, key));
+        has_type && !has_value
     }
 
     /// Emit a type-only value error and return an error type id.
@@ -5118,13 +5220,14 @@ impl Compiler {
 
         // emit excess property diagnostics
         for (property_id, member_key) in excess_fields {
-            self.error(AnalyzeError::ExcessProperty {
-                node: property_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
-                expected_ty: candidate.into_global(module.id),
+            self.report_excess_property_for_type(
+                module,
+                profile,
+                property_id.into_any(),
+                candidate,
                 member_key,
-            });
+                types,
+            );
         }
 
         Ok(())
@@ -5506,13 +5609,14 @@ impl Compiler {
                 options,
             ) == Assignability::NotAssignable
         {
-            self.error(AnalyzeError::UnassignableType {
-                node: value_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
-                expected_ty: check_return_ty_id.into_global(module.id),
-                actual_ty: check_value_ty_id.into_global(module.id),
-            });
+            let _reported = self.report_unassignable_type_for_types(
+                module,
+                profile,
+                value_id.into_any(),
+                check_return_ty_id,
+                check_value_ty_id,
+                types,
+            );
         }
 
         infer.push_constraint(Constraint::Subtype {

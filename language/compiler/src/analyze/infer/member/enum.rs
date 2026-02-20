@@ -5,35 +5,43 @@ impl Compiler {
     pub(crate) fn enum_symbol_for_enum_field_symbol(
         &self,
         module: &Module,
+        profile: ProfileId,
         symbols: &SymbolTable,
         member_symbol: GlobalSymbolId,
-    ) -> Option<GlobalSymbolId> {
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // resolve the enum field symbol entry
-        let (is_enum_field, scope_owner) = self.with_module_symbols_base_or_local(
-            module,
-            member_symbol.module_id,
-            symbols,
-            |_, owner_symbols| {
-                let member_entry = owner_symbols.get_symbol(member_symbol.local_id);
-                let scope = owner_symbols.get_scope_by_symbol(member_symbol.local_id);
-                let is_enum_field = member_entry
-                    .primary_declaration
-                    .is_some_and(|declaration| declaration.local_id.ty == NodeType::EnumField);
-                scope.owner_id.map(|owner_id| (is_enum_field, owner_id))
-            },
-        )?;
+        let Some((is_enum_field, scope_owner)) = self
+            .with_module_symbols_base_or_local_at_stage(
+                module,
+                profile,
+                member_symbol.module_id,
+                symbols,
+                AnalyzeDependencyStage::Declare,
+                |_, owner_symbols| {
+                    let member_entry = owner_symbols.get_symbol(member_symbol.local_id);
+                    let scope = owner_symbols.get_scope_by_symbol(member_symbol.local_id);
+                    let is_enum_field = member_entry
+                        .primary_declaration
+                        .is_some_and(|declaration| declaration.local_id.ty == NodeType::EnumField);
+                    scope.owner_id.map(|owner_id| (is_enum_field, owner_id))
+                },
+            )
+            .map_err(AnalyzeError::from)?
+        else {
+            return Ok(None);
+        };
 
         // ensure the symbol is an enum field
         if !is_enum_field {
-            return None;
+            return Ok(None);
         }
 
         // ensure the owning symbol is an enum
         if scope_owner.ty != SymbolType::Enum {
-            return None;
+            return Ok(None);
         }
 
-        Some(scope_owner.into_global(member_symbol.module_id))
+        Ok(Some(scope_owner.into_global(member_symbol.module_id)))
     }
 
     /// Resolve enum field member symbols when the receiver is an enum reference.
@@ -139,13 +147,23 @@ impl Compiler {
     pub(crate) fn enum_field_value_type_for_symbol(
         &self,
         module: &Module,
+        profile: ProfileId,
         symbols: &SymbolTable,
         member_symbol: Option<GlobalSymbolId>,
         types: &TypeTable,
-    ) -> Option<LocalTypeId> {
-        let member_symbol = member_symbol?;
-        self.enum_symbol_for_enum_field_symbol(module, symbols, member_symbol)?;
-        types.get_value_type_id(member_symbol)
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        let Some(member_symbol) = member_symbol else {
+            return Ok(None);
+        };
+
+        if self
+            .enum_symbol_for_enum_field_symbol(module, profile, symbols, member_symbol)?
+            .is_none()
+        {
+            return Ok(None);
+        }
+
+        Ok(types.get_value_type_id(member_symbol))
     }
 
     /// Resolve enum symbols from a receiver expression when it is a direct reference.
@@ -186,7 +204,7 @@ impl Compiler {
             ));
         }
 
-        self.with_module_tree_symbols_for_stage(
+        self.with_module_tree_symbols_at_stage(
             module,
             profile,
             enum_symbol.module_id,
