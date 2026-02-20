@@ -1,13 +1,22 @@
+use destack_vm as vm;
+
+use super::EngineContinuation;
 use crate::diagnostic::RuntimeResult;
+
+/// Runtime value passed across engine yields.
+pub type RuntimeValue = vm::Value;
+
+/// Runtime output produced when execution completes.
+pub type RuntimeOutput = vm::ExecutionOutput;
 
 /// Execution outcome produced by a runtime engine.
 #[derive(Debug)]
-pub enum EngineOutcome<Output, Continuation, Value> {
+pub enum EngineOutcome<Output, Value> {
     /// Execution completed with a result.
     Completed { output: Output },
     /// Execution yielded a continuation and resume value.
     Yielded {
-        continuation: Continuation,
+        continuation: EngineContinuation,
         value: Value,
     },
 }
@@ -18,8 +27,6 @@ pub trait Engine {
     type Entry;
     /// Output value produced when execution completes.
     type Output;
-    /// Continuation type used for yielding execution.
-    type Continuation;
     /// Value type passed across yields.
     type Value;
 
@@ -28,12 +35,12 @@ pub trait Engine {
         &mut self,
         entry: &Self::Entry,
         args: &[Self::Value],
-    ) -> RuntimeResult<EngineOutcome<Self::Output, Self::Continuation, Self::Value>>;
+    ) -> RuntimeResult<EngineOutcome<Self::Output, Self::Value>>;
 
     /// Resume execution from a continuation.
     fn resume(
         &mut self,
-        continuation: Self::Continuation,
+        continuation: EngineContinuation,
         value: Self::Value,
-    ) -> RuntimeResult<EngineOutcome<Self::Output, Self::Continuation, Self::Value>>;
+    ) -> RuntimeResult<EngineOutcome<Self::Output, Self::Value>>;
 }

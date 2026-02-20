@@ -344,27 +344,6 @@ pub enum RuntimeRuleLifetime {
     },
 }
 
-/// Dispatch action payload for runtime rules.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "dispatch", rename_all = "camelCase")]
-pub enum RuntimeDispatchAction {
-    /// Set the matching binding world.
-    SetWorld {
-        /// The selected world for matching bindings.
-        world: RuntimeWorld,
-    },
-    /// Set the matching binding access mode.
-    SetAccess {
-        /// The selected access mode for matching bindings.
-        access: RuntimeAccess,
-    },
-    /// Set the matching binding replay payload policy.
-    SetReplay {
-        /// The selected replay payload mode for matching bindings.
-        payload: ReplayPayloadMode,
-    },
-}
-
 /// Hook for runtime effect rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -409,53 +388,34 @@ pub enum RuntimeControlEffect {
     },
 }
 
-/// Mock effect payload for runtime rules.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "mock", rename_all = "camelCase")]
-pub enum RuntimeMockEffect {
-    /// Force one successful no-op response.
-    Success {},
-    /// Force one failure response with a code.
-    Error {
-        /// Error code name for this mocked failure.
-        code: String,
-    },
-}
-
-/// Effect action payload for runtime rules.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "effect", rename_all = "camelCase")]
-pub enum RuntimeEffectAction {
-    /// Inject one typed runtime fault.
-    Fault {
-        /// Fault payload to inject for matching bindings.
-        fault: RuntimeFaultEffect,
-    },
-    /// Apply one runtime control effect.
-    Control {
-        /// Control effect payload.
-        control: RuntimeControlEffect,
-    },
-    /// Apply one runtime mock effect.
-    Mock {
-        /// Mock effect payload.
-        mock: RuntimeMockEffect,
-    },
-}
-
 /// Runtime rule action payload.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum RuntimeAction {
-    /// Apply one routing or access dispatch action.
-    Dispatch {
-        /// Dispatch action payload.
-        dispatch: RuntimeDispatchAction,
+    /// Set the matching binding world.
+    SetWorld {
+        /// The selected world for matching bindings.
+        world: RuntimeWorld,
     },
-    /// Apply one runtime effect action.
-    Effect {
-        /// Effect action payload.
-        effect: RuntimeEffectAction,
+    /// Set the matching binding access mode.
+    SetAccess {
+        /// The selected access mode for matching bindings.
+        access: RuntimeAccess,
+    },
+    /// Set the matching binding replay payload policy.
+    SetReplay {
+        /// The selected replay payload mode for matching bindings.
+        payload: ReplayPayloadMode,
+    },
+    /// Apply one runtime fault effect.
+    Fault {
+        /// Fault payload for this rule.
+        fault: RuntimeFaultEffect,
+    },
+    /// Apply one runtime control effect.
+    Control {
+        /// Control payload for this rule.
+        control: RuntimeControlEffect,
     },
 }
 
@@ -1127,44 +1087,6 @@ impl From<RuntimeNetRouteDirectionJson> for RuntimeNetRouteDirection {
     }
 }
 
-/// Runtime dispatch action payload for JSON deserialization.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(tag = "dispatch", rename_all = "camelCase")]
-pub enum RuntimeDispatchActionJson {
-    /// Set the matching binding world.
-    SetWorld {
-        /// The selected world for matching bindings.
-        world: RuntimeWorldJson,
-    },
-    /// Set the matching binding access mode.
-    SetAccess {
-        /// The selected access mode for matching bindings.
-        access: RuntimeAccessJson,
-    },
-    /// Set the matching binding replay payload policy.
-    SetReplay {
-        /// The selected replay payload mode for matching bindings.
-        payload: ReplayPayloadModeJson,
-    },
-}
-
-impl From<&RuntimeDispatchActionJson> for RuntimeDispatchAction {
-    fn from(value: &RuntimeDispatchActionJson) -> Self {
-        match value {
-            RuntimeDispatchActionJson::SetWorld { world } => RuntimeDispatchAction::SetWorld {
-                world: RuntimeWorld::from(*world),
-            },
-            RuntimeDispatchActionJson::SetAccess { access } => RuntimeDispatchAction::SetAccess {
-                access: RuntimeAccess::from(*access),
-            },
-            RuntimeDispatchActionJson::SetReplay { payload } => RuntimeDispatchAction::SetReplay {
-                payload: ReplayPayloadMode::from(*payload),
-            },
-        }
-    }
-}
-
 /// Runtime hook for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -1246,94 +1168,55 @@ impl From<&RuntimeControlEffectJson> for RuntimeControlEffect {
     }
 }
 
-/// Runtime mock effect payload for JSON deserialization.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(tag = "mock", rename_all = "camelCase")]
-pub enum RuntimeMockEffectJson {
-    /// Force one successful no-op response.
-    Success {},
-    /// Force one failure response with a code.
-    Error {
-        /// Error code name for this mocked failure.
-        code: String,
-    },
-}
-
-impl From<&RuntimeMockEffectJson> for RuntimeMockEffect {
-    fn from(value: &RuntimeMockEffectJson) -> Self {
-        match value {
-            RuntimeMockEffectJson::Success {} => RuntimeMockEffect::Success {},
-            RuntimeMockEffectJson::Error { code } => {
-                RuntimeMockEffect::Error { code: code.clone() }
-            }
-        }
-    }
-}
-
-/// Runtime effect action payload for JSON deserialization.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(tag = "effect", rename_all = "camelCase")]
-pub enum RuntimeEffectActionJson {
-    /// Inject one typed runtime fault.
-    Fault {
-        /// Fault payload to inject for matching bindings.
-        fault: RuntimeFaultEffectJson,
-    },
-    /// Apply one runtime control effect.
-    Control {
-        /// Control effect payload.
-        control: RuntimeControlEffectJson,
-    },
-    /// Apply one runtime mock effect.
-    Mock {
-        /// Mock effect payload.
-        mock: RuntimeMockEffectJson,
-    },
-}
-
-impl From<&RuntimeEffectActionJson> for RuntimeEffectAction {
-    fn from(value: &RuntimeEffectActionJson) -> Self {
-        match value {
-            RuntimeEffectActionJson::Fault { fault } => RuntimeEffectAction::Fault {
-                fault: RuntimeFaultEffect::from(fault),
-            },
-            RuntimeEffectActionJson::Control { control } => RuntimeEffectAction::Control {
-                control: RuntimeControlEffect::from(control),
-            },
-            RuntimeEffectActionJson::Mock { mock } => RuntimeEffectAction::Mock {
-                mock: RuntimeMockEffect::from(mock),
-            },
-        }
-    }
-}
-
 /// Runtime rule action payload for JSON deserialization.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum RuntimeActionJson {
-    /// Apply one routing or access dispatch action.
-    Dispatch {
-        /// Dispatch action payload.
-        dispatch: RuntimeDispatchActionJson,
+    /// Set the matching binding world.
+    SetWorld {
+        /// The selected world for matching bindings.
+        world: RuntimeWorldJson,
     },
-    /// Apply one runtime effect action.
-    Effect {
-        /// Effect action payload.
-        effect: RuntimeEffectActionJson,
+    /// Set the matching binding access mode.
+    SetAccess {
+        /// The selected access mode for matching bindings.
+        access: RuntimeAccessJson,
+    },
+    /// Set the matching binding replay payload policy.
+    SetReplay {
+        /// The selected replay payload mode for matching bindings.
+        payload: ReplayPayloadModeJson,
+    },
+    /// Apply one runtime fault effect.
+    Fault {
+        /// Fault payload for this rule.
+        fault: RuntimeFaultEffectJson,
+    },
+    /// Apply one runtime control effect.
+    Control {
+        /// Control payload for this rule.
+        control: RuntimeControlEffectJson,
     },
 }
 
 impl From<&RuntimeActionJson> for RuntimeAction {
     fn from(value: &RuntimeActionJson) -> Self {
         match value {
-            RuntimeActionJson::Dispatch { dispatch } => RuntimeAction::Dispatch {
-                dispatch: RuntimeDispatchAction::from(dispatch),
+            RuntimeActionJson::SetWorld { world } => RuntimeAction::SetWorld {
+                world: RuntimeWorld::from(*world),
             },
-            RuntimeActionJson::Effect { effect } => RuntimeAction::Effect {
-                effect: RuntimeEffectAction::from(effect),
+            RuntimeActionJson::SetAccess { access } => RuntimeAction::SetAccess {
+                access: RuntimeAccess::from(*access),
+            },
+            RuntimeActionJson::SetReplay { payload } => RuntimeAction::SetReplay {
+                payload: ReplayPayloadMode::from(*payload),
+            },
+            RuntimeActionJson::Fault { fault } => RuntimeAction::Fault {
+                fault: RuntimeFaultEffect::from(fault),
+            },
+            RuntimeActionJson::Control { control } => RuntimeAction::Control {
+                control: RuntimeControlEffect::from(control),
             },
         }
     }

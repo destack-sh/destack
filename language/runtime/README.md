@@ -211,9 +211,9 @@ Other targets use a buffered copy fallback so behavior remains available.
 Runtime options expose one ordered `rules` list.
 Rules are evaluated in declaration order with first-match semantics at each decision site.
 Each rule has one `when` filter and one `action`.
-`Dispatch` actions update binding access, world routing, or replay payload behavior.
-`Effect` actions inject runtime behavior changes such as faults, control operations, or mocks.
-Effect rules may optionally declare `on` to target one hook such as `bindingBefore` or `schedulerDequeue`.
+`SetWorld`, `SetAccess`, and `SetReplay` actions update binding routing and policy behavior.
+`Fault` and `Control` actions inject runtime behavior changes.
+Rules with `Fault` or `Control` actions may optionally declare `on` to target one hook such as `bindingBefore` or `schedulerDequeue`.
 
 Fault effects are split into two categories.
 Operation-level faults apply at binding boundaries, such as runtime delay, runtime error, and runtime timeout.

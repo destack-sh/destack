@@ -112,7 +112,7 @@ pub(crate) unsafe fn host_process_cpu_nanos(
     out: *mut u64,
 ) -> RuntimeResult<()> {
     context
-        .rules()
+        .hooks()
         .on_time_read(RuntimeHookState::from_engine(Some(context.engine())));
 
     // sample process cpu time from the host backend
@@ -128,7 +128,7 @@ pub(crate) unsafe fn host_thread_cpu_nanos(
     out: *mut u64,
 ) -> RuntimeResult<()> {
     context
-        .rules()
+        .hooks()
         .on_time_read(RuntimeHookState::from_engine(Some(context.engine())));
 
     // sample thread cpu time from the host backend

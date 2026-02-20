@@ -1,14 +1,14 @@
 use crate::diagnostic::RuntimeErrorStore;
 use crate::platform::{PlatformContext, ResourceTable};
-use crate::runtime::RuntimeRules;
+use crate::runtime::RuntimeHooks;
 use crate::runtime::bindings::BindingReplayPayload;
 use crate::runtime::random::Random;
 use crate::runtime::replay::{ReplayController, ReplayHeader};
 use crate::runtime::time::Clock;
 use crate::simulation::{SharedSimulationState, SimulationState};
 use destack_workspace::{
-    ExecutionMode, GcOptions, PlatformOptions, PlatformWindowsOptions, RandomMode, RandomOptions,
-    ReplayLogOptions, ReplayPayloadMode, RuntimeOptions, TimeMode, TimeOptions,
+    ExecutionMode, GcOptions, PlatformWindowsOptions, RandomMode, ReplayLogOptions,
+    ReplayPayloadMode, RuntimeOptions, TimeMode,
 };
 
 /// Number of bytes in a megabyte for replay chunk sizing.
@@ -19,20 +19,20 @@ const BYTES_PER_MB: u64 = 1024 * 1024;
 pub struct RuntimeState {
     /// Platform context for host integrations.
     pub platform: PlatformContext,
-    /// Platform runtime configuration options.
-    pub platform_options: PlatformOptions,
+    /// Runtime GC options for heap policy.
+    pub gc: GcOptions,
+    /// Windows runtime configuration options.
+    pub windows: PlatformWindowsOptions,
     /// Virtual time and clock policy.
     pub time: Clock,
     /// Deterministic randomness streams.
     pub random: Random,
-    /// Runtime GC options for heap policy.
-    pub gc_options: GcOptions,
     /// External resource table and finalizers.
     pub resources: ResourceTable,
     /// Replay log and record/replay state.
     pub replay: ReplayController,
-    /// Runtime rules and effect state.
-    pub rules: RuntimeRules,
+    /// Runtime hooks and effect state.
+    pub hooks: RuntimeHooks,
     /// Simulation world state shared across simulation bindings.
     pub simulation: SharedSimulationState,
     /// Runtime error storage for native bindings.
@@ -42,14 +42,12 @@ pub struct RuntimeState {
 impl RuntimeState {
     /// Create runtime state from explicit platform context.
     pub fn new(platform: PlatformContext) -> Self {
-        Self::from_runtime_options(platform, &RuntimeOptions::default())
+        Self::from_options(platform, &RuntimeOptions::default())
     }
 
     /// Create runtime state from runtime options.
-    pub fn from_runtime_options(platform: PlatformContext, options: &RuntimeOptions) -> Self {
-        // build a replay header from options
-        let header = Self::replay_header_from_options(options);
-
+    pub fn from_options(platform: PlatformContext, options: &RuntimeOptions) -> Self {
+        let header = Self::replay_header_from_runtime_options(options);
         Self::from_runtime_options_and_header(platform, options, header)
     }
 
@@ -74,73 +72,52 @@ impl RuntimeState {
         options: &RuntimeOptions,
         header: ReplayHeader,
     ) -> Self {
-        // resolve time and random options for the execution mode
-        let time_options = Self::resolve_time_options(options);
-        let random_options = Self::resolve_random_options(options);
-
         // build runtime subsystems from options
-        let time = Clock::from_options(&time_options);
-        let random = Random::from_options(&random_options);
+        let replay_mode = options.execution == ExecutionMode::Replay;
+        let resolved_time_mode = if replay_mode {
+            TimeMode::Virtual
+        } else {
+            options.time.mode
+        };
+        let resolved_random_mode = if replay_mode {
+            RandomMode::Deterministic
+        } else {
+            options.random.mode
+        };
+
+        let time = Clock::from_mode_and_options(resolved_time_mode, &options.time);
+        let random = Random::new(options.random.seed.unwrap_or(0), resolved_random_mode);
         let execution_mode = options.execution;
-        let replay_payload = if options.execution == ExecutionMode::Replay {
+        let replay_payload = if replay_mode {
             header.replay_payload
         } else {
-            Self::resolve_replay_payload(options)
+            Self::resolved_replay_payload_from_options(options)
         };
 
         Self {
             platform,
-            platform_options: options.platform.clone(),
+            gc: options.gc.clone(),
+            windows: options.platform.windows.clone(),
             time,
             random,
-            gc_options: options.gc.clone(),
             resources: ResourceTable::default(),
             replay: ReplayController::new(execution_mode, replay_payload, header),
-            rules: RuntimeRules::from_runtime_options(options),
+            hooks: RuntimeHooks::from_runtime_options(options),
             simulation: SharedSimulationState::new(SimulationState::default()),
             errors: RuntimeErrorStore::default(),
         }
     }
 
-    /// Return the runtime windows options.
-    pub fn windows(&self) -> &PlatformWindowsOptions {
-        &self.platform_options.windows
-    }
-
-    fn resolve_time_options(options: &RuntimeOptions) -> TimeOptions {
-        // start from the configured time options
-        let mut time_options = options.time.clone();
-
-        // force virtual time during replay
-        if options.execution == ExecutionMode::Replay {
-            time_options.mode = TimeMode::Virtual;
-        }
-
-        time_options
-    }
-
-    fn resolve_random_options(options: &RuntimeOptions) -> RandomOptions {
-        // start from the configured random options
-        let mut random_options = options.random.clone();
-
-        // force deterministic randomness during replay
-        if options.execution == ExecutionMode::Replay {
-            random_options.mode = RandomMode::Deterministic;
-        }
-
-        random_options
-    }
-
-    fn resolve_replay_payload(options: &RuntimeOptions) -> BindingReplayPayload {
+    fn resolved_replay_payload_from_options(options: &RuntimeOptions) -> BindingReplayPayload {
         match options.replay_log.payload {
             ReplayPayloadMode::ResultsOnly => BindingReplayPayload::Results,
             ReplayPayloadMode::ArgumentsAndResults => BindingReplayPayload::ArgumentsAndResults,
         }
     }
 
-    fn replay_header_from_options(options: &RuntimeOptions) -> ReplayHeader {
+    fn replay_header_from_runtime_options(options: &RuntimeOptions) -> ReplayHeader {
         // start from the default header
-        let replay_payload = Self::resolve_replay_payload(options);
+        let replay_payload = Self::resolved_replay_payload_from_options(options);
         let mut header = ReplayHeader {
             execution_mode: options.execution,
             replay_payload,
@@ -148,12 +125,12 @@ impl RuntimeState {
         };
 
         // apply replay log chunk sizing
-        Self::apply_replay_log_options(&options.replay_log, &mut header);
+        Self::apply_replay_log_overrides(&options.replay_log, &mut header);
 
         header
     }
 
-    fn apply_replay_log_options(options: &ReplayLogOptions, header: &mut ReplayHeader) {
+    fn apply_replay_log_overrides(options: &ReplayLogOptions, header: &mut ReplayHeader) {
         // update chunk sizing from runtime options
         if let Some(chunk_size_mb) = options.chunk_size_mb {
             let chunk_bytes = chunk_size_mb.saturating_mul(BYTES_PER_MB);

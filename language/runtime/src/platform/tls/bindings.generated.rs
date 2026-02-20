@@ -1700,7 +1700,6 @@ pub unsafe extern "C" fn destack_tls_context_close(
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(TLS_CONTEXT_CLOSE)?;
         let world = context.check_and_resolve_world(TLS_CONTEXT_CLOSE)?;
         destack_tls_context_close_replay(context, world, handle)
     })
@@ -1717,7 +1716,6 @@ pub unsafe extern "C" fn destack_tls_context_open(
         }
         let _ = (&out, &options);
 
-        context.check_policy(TLS_CONTEXT_OPEN)?;
         let world = context.check_and_resolve_world(TLS_CONTEXT_OPEN)?;
         destack_tls_context_open_replay(context, world, out, options)
     })
@@ -1732,7 +1730,6 @@ pub unsafe extern "C" fn destack_tls_context_set_cipher_suites(
         let _ = (&handle, &suites);
 
         {
-            context.check_policy(TLS_CONTEXT_SET_CIPHER_SUITES)?;
             let world = context.check_and_resolve_world(TLS_CONTEXT_SET_CIPHER_SUITES)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1757,7 +1754,6 @@ pub unsafe extern "C" fn destack_tls_context_set_groups(
         let _ = (&handle, &groups);
 
         {
-            context.check_policy(TLS_CONTEXT_SET_GROUPS)?;
             let world = context.check_and_resolve_world(TLS_CONTEXT_SET_GROUPS)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1782,7 +1778,6 @@ pub unsafe extern "C" fn destack_tls_context_set_hostname_verification_mode(
         let _ = (&handle, &mode);
 
         {
-            context.check_policy(TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE)?;
             let world =
                 context.check_and_resolve_world(TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE)?;
             match world {
@@ -1811,7 +1806,6 @@ pub unsafe extern "C" fn destack_tls_context_set_identity_pem(
         let _ = (&handle, &certificatechainpem, &privatekeypem);
 
         {
-            context.check_policy(TLS_CONTEXT_SET_IDENTITY_PEM)?;
             let world = context.check_and_resolve_world(TLS_CONTEXT_SET_IDENTITY_PEM)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1844,7 +1838,6 @@ pub unsafe extern "C" fn destack_tls_context_set_keylog_enabled(
         let _ = (&handle, &enabled);
 
         {
-            context.check_policy(TLS_CONTEXT_SET_KEYLOG_ENABLED)?;
             let world = context.check_and_resolve_world(TLS_CONTEXT_SET_KEYLOG_ENABLED)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1871,7 +1864,6 @@ pub unsafe extern "C" fn destack_tls_context_set_session_resumption(
         let _ = (&handle, &mode);
 
         {
-            context.check_policy(TLS_CONTEXT_SET_SESSION_RESUMPTION)?;
             let world = context.check_and_resolve_world(TLS_CONTEXT_SET_SESSION_RESUMPTION)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1898,7 +1890,6 @@ pub unsafe extern "C" fn destack_tls_context_set_signature_algorithms(
         let _ = (&handle, &algorithms);
 
         {
-            context.check_policy(TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS)?;
             let world = context.check_and_resolve_world(TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1925,7 +1916,6 @@ pub unsafe extern "C" fn destack_tls_context_set_trust_anchors_pem(
         let _ = (&handle, &trustanchorspem);
 
         {
-            context.check_policy(TLS_CONTEXT_SET_TRUST_ANCHORS_PEM)?;
             let world = context.check_and_resolve_world(TLS_CONTEXT_SET_TRUST_ANCHORS_PEM)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1954,7 +1944,6 @@ pub unsafe extern "C" fn destack_tls_session_close(
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(TLS_SESSION_CLOSE)?;
         let world = context.check_and_resolve_world(TLS_SESSION_CLOSE)?;
         destack_tls_session_close_replay(context, world, handle)
     })
@@ -1975,7 +1964,6 @@ pub unsafe extern "C" fn destack_tls_session_export_keying_material(
         let _ = (&out, &handle, &label, &argument_context, &outputlength);
 
         {
-            context.check_policy(TLS_SESSION_EXPORT_KEYING_MATERIAL)?;
             let world = context.check_and_resolve_world(TLS_SESSION_EXPORT_KEYING_MATERIAL)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2014,7 +2002,6 @@ pub unsafe extern "C" fn destack_tls_session_handshake(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(TLS_SESSION_HANDSHAKE)?;
         let world = context.check_and_resolve_world(TLS_SESSION_HANDSHAKE)?;
         destack_tls_session_handshake_replay(context, world, out, handle)
     })
@@ -2031,7 +2018,6 @@ pub unsafe extern "C" fn destack_tls_session_negotiated_alpn(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(TLS_SESSION_NEGOTIATED_ALPN)?;
         let world = context.check_and_resolve_world(TLS_SESSION_NEGOTIATED_ALPN)?;
         destack_tls_session_negotiated_alpn_replay(context, world, out, handle)
     })
@@ -2050,7 +2036,6 @@ pub unsafe extern "C" fn destack_tls_session_open(
         }
         let _ = (&out, &argument_context, &socket, &servername);
 
-        context.check_policy(TLS_SESSION_OPEN)?;
         let world = context.check_and_resolve_world(TLS_SESSION_OPEN)?;
         destack_tls_session_open_replay(context, world, out, argument_context, socket, servername)
     })
@@ -2068,7 +2053,6 @@ pub unsafe extern "C" fn destack_tls_session_peer_certificates_pem(
         let _ = (&out, &handle);
 
         {
-            context.check_policy(TLS_SESSION_PEER_CERTIFICATES_PEM)?;
             let world = context.check_and_resolve_world(TLS_SESSION_PEER_CERTIFICATES_PEM)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2097,7 +2081,6 @@ pub unsafe extern "C" fn destack_tls_session_read(
         let _ = (&out, &handle, &buffer);
 
         {
-            context.check_policy(TLS_SESSION_READ)?;
             let world = context.check_and_resolve_world(TLS_SESSION_READ)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2124,7 +2107,6 @@ pub unsafe extern "C" fn destack_tls_session_resumption_state(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(TLS_SESSION_RESUMPTION_STATE)?;
         let world = context.check_and_resolve_world(TLS_SESSION_RESUMPTION_STATE)?;
         destack_tls_session_resumption_state_replay(context, world, out, handle)
     })
@@ -2137,7 +2119,6 @@ pub unsafe extern "C" fn destack_tls_session_shutdown(
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(TLS_SESSION_SHUTDOWN)?;
         let world = context.check_and_resolve_world(TLS_SESSION_SHUTDOWN)?;
         destack_tls_session_shutdown_replay(context, world, handle)
     })
@@ -2156,7 +2137,6 @@ pub unsafe extern "C" fn destack_tls_session_write(
         let _ = (&out, &handle, &buffer);
 
         {
-            context.check_policy(TLS_SESSION_WRITE)?;
             let world = context.check_and_resolve_world(TLS_SESSION_WRITE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2630,7 +2610,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_tls_context_close_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TLS_CONTEXT_CLOSE)?;
                     let world = runtime.check_and_resolve_world(TLS_CONTEXT_CLOSE)?;
                     destack_tls_context_close_vm_replay(runtime, context, world, handle)
                 })
@@ -2645,7 +2624,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (options,) = decode_destack_tls_context_open_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(TLS_CONTEXT_OPEN)?;
                 let world = runtime.check_and_resolve_world(TLS_CONTEXT_OPEN)?;
                 destack_tls_context_open_vm_replay(runtime, context, world, options)
             })
@@ -2665,7 +2643,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(TLS_CONTEXT_SET_CIPHER_SUITES)?;
                         let world =
                             runtime.check_and_resolve_world(TLS_CONTEXT_SET_CIPHER_SUITES)?;
                         match world {
@@ -2700,7 +2677,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(TLS_CONTEXT_SET_GROUPS)?;
                         let world = runtime.check_and_resolve_world(TLS_CONTEXT_SET_GROUPS)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_tls_context_set_groups(
@@ -2731,7 +2707,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                 // execute binding
                 let result = {
-                        runtime.check_policy(TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE)?;
                         let world = runtime.check_and_resolve_world(TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_tls_context_set_hostname_verification_mode(runtime, context, handle, mode),
@@ -2757,7 +2732,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(TLS_CONTEXT_SET_IDENTITY_PEM)?;
                         let world =
                             runtime.check_and_resolve_world(TLS_CONTEXT_SET_IDENTITY_PEM)?;
                         match world {
@@ -2800,7 +2774,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(TLS_CONTEXT_SET_KEYLOG_ENABLED)?;
                         let world =
                             runtime.check_and_resolve_world(TLS_CONTEXT_SET_KEYLOG_ENABLED)?;
                         match world {
@@ -2835,7 +2808,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(TLS_CONTEXT_SET_SESSION_RESUMPTION)?;
                         let world =
                             runtime.check_and_resolve_world(TLS_CONTEXT_SET_SESSION_RESUMPTION)?;
                         match world {
@@ -2869,7 +2841,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                 // execute binding
                 let result = {
-                        runtime.check_policy(TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS)?;
                         let world = runtime.check_and_resolve_world(TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_tls_context_set_signature_algorithms(runtime, context, handle, algorithms),
@@ -2895,7 +2866,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(TLS_CONTEXT_SET_TRUST_ANCHORS_PEM)?;
                         let world =
                             runtime.check_and_resolve_world(TLS_CONTEXT_SET_TRUST_ANCHORS_PEM)?;
                         match world {
@@ -2934,7 +2904,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_tls_session_close_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TLS_SESSION_CLOSE)?;
                     let world = runtime.check_and_resolve_world(TLS_SESSION_CLOSE)?;
                     destack_tls_session_close_vm_replay(runtime, context, world, handle)
                 })
@@ -2955,7 +2924,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(TLS_SESSION_EXPORT_KEYING_MATERIAL)?;
                         let world =
                             runtime.check_and_resolve_world(TLS_SESSION_EXPORT_KEYING_MATERIAL)?;
                         match world {
@@ -2998,7 +2966,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_tls_session_handshake_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TLS_SESSION_HANDSHAKE)?;
                     let world = runtime.check_and_resolve_world(TLS_SESSION_HANDSHAKE)?;
                     destack_tls_session_handshake_vm_replay(runtime, context, world, handle)
                 })
@@ -3017,7 +2984,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_tls_session_negotiated_alpn_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TLS_SESSION_NEGOTIATED_ALPN)?;
                     let world = runtime.check_and_resolve_world(TLS_SESSION_NEGOTIATED_ALPN)?;
                     destack_tls_session_negotiated_alpn_vm_replay(runtime, context, world, handle)
                 })
@@ -3033,7 +2999,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     decode_destack_tls_session_open_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(TLS_SESSION_OPEN)?;
                 let world = runtime.check_and_resolve_world(TLS_SESSION_OPEN)?;
                 destack_tls_session_open_vm_replay(
                     runtime,
@@ -3060,7 +3025,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(TLS_SESSION_PEER_CERTIFICATES_PEM)?;
                         let world =
                             runtime.check_and_resolve_world(TLS_SESSION_PEER_CERTIFICATES_PEM)?;
                         match world {
@@ -3090,7 +3054,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                 // execute binding
                 let result = {
-                    runtime.check_policy(TLS_SESSION_READ)?;
                     let world = runtime.check_and_resolve_world(TLS_SESSION_READ)?;
                     match world {
                         RuntimeWorld::Host => {
@@ -3120,7 +3083,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_tls_session_resumption_state_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TLS_SESSION_RESUMPTION_STATE)?;
                     let world = runtime.check_and_resolve_world(TLS_SESSION_RESUMPTION_STATE)?;
                     destack_tls_session_resumption_state_vm_replay(runtime, context, world, handle)
                 })
@@ -3139,7 +3101,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_tls_session_shutdown_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TLS_SESSION_SHUTDOWN)?;
                     let world = runtime.check_and_resolve_world(TLS_SESSION_SHUTDOWN)?;
                     destack_tls_session_shutdown_vm_replay(runtime, context, world, handle)
                 })
@@ -3159,7 +3120,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(TLS_SESSION_WRITE)?;
                         let world = runtime.check_and_resolve_world(TLS_SESSION_WRITE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_tls_session_write(

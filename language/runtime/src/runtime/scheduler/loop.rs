@@ -11,7 +11,6 @@ use crate::platform::{PlatformEvent, PlatformEventSource, PlatformPoller, Resour
 /// Event loop for task queues, microtasks, timers, and platform events.
 #[derive(Debug, Default)]
 pub struct EventLoop {
-    // NOTE #Incomplete: use queue priorities, budgets, and deterministic ordering rules
     /// Pending macrotasks.
     tasks: VecDeque<Task>,
     /// Pending microtasks that drain before macrotasks.
@@ -22,14 +21,15 @@ pub struct EventLoop {
     ready_timers: VecDeque<Timer>,
     /// Timer queue for scheduled callbacks.
     timers: Mutex<TimerQueue>,
+    /// Configured event loop options.
+    pub options: SchedulerOptions,
+
     /// Next task identifier to issue.
     next_task_id: u64,
     /// Next microtask identifier to issue.
     next_microtask_id: u64,
     /// Next task queue sequence identifier to issue.
     next_sequence: u64,
-    /// Configured event loop options.
-    pub options: SchedulerOptions,
 }
 
 impl EventLoop {
@@ -196,6 +196,7 @@ fn source_order(source: PlatformEventSource) -> u8 {
 }
 
 /// Build an ordering key for event payload data.
+/// FUGU #Cleanup: revisit payload_sort_key
 fn payload_sort_key(payload: PlatformEventPayload) -> u64 {
     // pack event payload data into a deterministic ordering key
     match payload {
@@ -222,7 +223,7 @@ mod tests {
 
     use super::{EventLoop, Runnable};
     use crate::runtime::engine::{EngineContinuation, NativeContinuation};
-    use crate::runtime::scheduler::{Microtask, MicrotaskId, Task, TaskId, TaskState};
+    use crate::runtime::scheduler::{Microtask, MicrotaskId, Task, TaskId, TaskStatus};
 
     /// Ensures microtasks run before macrotasks in the event loop.
     #[test]
@@ -234,14 +235,14 @@ mod tests {
             id: TaskId::new(1),
             runnable: EngineContinuation::Native(NativeContinuation::new(11)),
             resume_value: vm::Value::VOID,
-            state: TaskState::Ready,
+            status: TaskStatus::Ready,
             priority: 0,
         };
         let microtask = Microtask {
             id: MicrotaskId::new(1),
             runnable: EngineContinuation::Native(NativeContinuation::new(22)),
             resume_value: vm::Value::VOID,
-            state: TaskState::Ready,
+            status: TaskStatus::Ready,
         };
 
         event_loop.enqueue_task(task);

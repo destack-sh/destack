@@ -1,25 +1,23 @@
-use destack_vm as vm;
-
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::RuntimeHookState;
-use crate::runtime::engine::{Engine, EngineContinuation, EngineOutcome};
+use crate::runtime::engine::{
+    Engine, EngineContinuation, EngineOutcome, RuntimeOutput, RuntimeValue,
+};
 use crate::runtime::replay::{QueueEventKind, ReplayEvent, TaskQueue, TaskQueueEvent, TaskSubject};
 use crate::runtime::scheduler::{
-    EventLoopScope, Microtask, Runnable, Task, TaskId, TaskState, enter_event_loop_scope,
+    EventLoopScope, Microtask, Runnable, Task, TaskId, TaskStatus, enter_event_loop_scope,
 };
 
 use super::Runtime;
 
 impl Runtime {
     /// Run an entrypoint through the event loop.
-    pub fn run_entrypoint<
-        E: Engine<Output = vm::ExecutionOutput, Continuation = vm::Continuation, Value = vm::Value>,
-    >(
+    pub fn run_entrypoint<E: Engine<Output = RuntimeOutput, Value = RuntimeValue>>(
         &mut self,
         engine: &mut E,
         entry: &E::Entry,
-        args: &[vm::Value],
-    ) -> RuntimeResult<vm::ExecutionOutput> {
+        args: &[RuntimeValue],
+    ) -> RuntimeResult<RuntimeOutput> {
         // execute the entrypoint with yielding enabled
         let _guard = enter_event_loop_scope(EventLoopScope::empty());
         let outcome = engine.run(entry, args)?;
@@ -33,30 +31,29 @@ impl Runtime {
             } => {
                 // enqueue the yielded continuation
                 let task_id = self.event_loop.next_task_id();
-                self.enqueue_task(task_id, EngineContinuation::Vm(continuation), value)?;
+                self.enqueue_task(task_id, continuation, value)?;
 
-                self.run_event_loop_until_task_complete(engine, task_id)
+                self.run_loop_until_task_complete(engine, task_id)
             }
         }
     }
 
-    /// Run the event loop until the specified task completes.
-    pub fn run_event_loop_until_task_complete<
-        E: Engine<Output = vm::ExecutionOutput, Continuation = vm::Continuation, Value = vm::Value>,
-    >(
+    /// Run the loop until the specified task completes.
+    pub fn run_loop_until_task_complete<E: Engine<Output = RuntimeOutput, Value = RuntimeValue>>(
         &mut self,
         engine: &mut E,
         target_task: TaskId,
-    ) -> RuntimeResult<vm::ExecutionOutput> {
-        // run the event loop until the target task completes
+    ) -> RuntimeResult<RuntimeOutput> {
+        // run the loop until the target task completes
         loop {
-            // run one event loop tick for the engine
-            if let Some(output) = self.tick_event_loop_once(engine, target_task)? {
+            // run one loop tick for the engine
+            let (progressed, output) = self.tick_loop(engine, Some(target_task))?;
+            if let Some(output) = output {
                 return Ok(output);
             }
 
             // exit if nothing is left to do
-            if !self.event_loop.has_pending_work() {
+            if !progressed && !self.event_loop.has_pending_work() {
                 return Err(RuntimeError::EventLoopIdle {
                     task_id: target_task.get(),
                 }
@@ -65,20 +62,64 @@ impl Runtime {
         }
     }
 
-    /// Tick the event loop once and return output for the target task.
-    pub fn tick_event_loop_once<
-        E: Engine<Output = vm::ExecutionOutput, Continuation = vm::Continuation, Value = vm::Value>,
-    >(
+    /// Run runtime ticks until no work remains.
+    pub fn tick_until_idle<E: Engine<Output = RuntimeOutput, Value = RuntimeValue>>(
+        &mut self,
+        engine: &mut E,
+    ) -> RuntimeResult<()> {
+        loop {
+            let progressed = self.tick_once(engine)?;
+            if !progressed {
+                break;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Execute one runtime tick.
+    pub fn tick_once<E: Engine<Output = RuntimeOutput, Value = RuntimeValue>>(
+        &mut self,
+        engine: &mut E,
+    ) -> RuntimeResult<bool> {
+        // run one event loop tick and capture progress
+        let (mut progressed, _) = self.tick_loop(engine, None)?;
+
+        // run one gc cycle when pacing says a cycle is due
+        if self.heap.should_collect() {
+            let _stats = self.heap.collect();
+            progressed = true;
+        }
+
+        Ok(progressed)
+    }
+
+    /// Tick the loop once and return output for the target task.
+    pub fn tick_loop_once<E: Engine<Output = RuntimeOutput, Value = RuntimeValue>>(
         &mut self,
         engine: &mut E,
         target_task: TaskId,
-    ) -> RuntimeResult<Option<vm::ExecutionOutput>> {
+    ) -> RuntimeResult<Option<RuntimeOutput>> {
+        let (_, output) = self.tick_loop(engine, Some(target_task))?;
+        Ok(output)
+    }
+
+    /// Tick the loop once and return progress and optional target output.
+    fn tick_loop<E: Engine<Output = RuntimeOutput, Value = RuntimeValue>>(
+        &mut self,
+        engine: &mut E,
+        target_task: Option<TaskId>,
+    ) -> RuntimeResult<(bool, Option<RuntimeOutput>)> {
+        // track whether this tick processed any event loop work
+        let mut progressed = false;
+
         // poll platform events if a poller is installed
         let now = self.state.time.wall_nanos();
         if let Some(poller) = self.poller.as_mut() {
             let event_count = self.event_loop.poll_poller(poller.as_mut(), Some(0))?;
             if event_count > 0 {
-                self.state.rules.on_scheduler_event_wake(RuntimeHookState {
+                progressed = true;
+                self.state.hooks.on_scheduler_event_wake(RuntimeHookState {
                     external_event_count: Some(event_count),
                     ..RuntimeHookState::empty()
                 });
@@ -89,10 +130,12 @@ impl Runtime {
         // drain microtasks before selecting other work
         if self.event_loop.has_microtasks() {
             self.drain_microtasks(engine)?;
+            progressed = true;
         }
 
         // run the next scheduled item if available
         if let Some(item) = self.event_loop.next_runnable(now)? {
+            progressed = true;
             match item {
                 Runnable::Task(task) => {
                     // record the dequeue event
@@ -101,17 +144,17 @@ impl Runtime {
                         TaskQueue::Macrotask,
                         QueueEventKind::Dequeue,
                     )?;
-                    self.state.rules.on_scheduler_dequeue(RuntimeHookState {
+                    self.state.hooks.on_scheduler_dequeue(RuntimeHookState {
                         task_id: Some(task.id),
                         ..RuntimeHookState::empty()
                     });
 
                     if let Some(output) = self.execute_task(engine, task, target_task)? {
-                        return Ok(Some(output));
+                        return Ok((true, Some(output)));
                     }
                 }
                 Runnable::Microtask(microtask) => {
-                    self.state.rules.on_scheduler_dequeue(RuntimeHookState {
+                    self.state.hooks.on_scheduler_dequeue(RuntimeHookState {
                         microtask_id: Some(microtask.id),
                         ..RuntimeHookState::empty()
                     });
@@ -120,24 +163,25 @@ impl Runtime {
                 }
                 Runnable::Timer(_timer) => {
                     self.state
-                        .rules
+                        .hooks
                         .on_scheduler_timer_fire(RuntimeHookState::empty());
-                    // NOTE #Incomplete: wire timer callbacks into tasks
+                    // TODO #Incomplete: wire timer callbacks into tasks
                 }
                 Runnable::Event(_event) => {
-                    // NOTE #Incomplete: wire external events into tasks
+                    // TODO  #Incomplete: wire external events into tasks
                 }
             }
         }
 
-        Ok(None)
+        Ok((progressed, None))
     }
 
+    /// Enqueue one yielded continuation as a task.
     fn enqueue_task(
         &mut self,
         task_id: TaskId,
         runnable: EngineContinuation,
-        resume_value: vm::Value,
+        resume_value: RuntimeValue,
     ) -> RuntimeResult<()> {
         // record the enqueue event for replay
         self.record_task_queue_event(
@@ -151,13 +195,13 @@ impl Runtime {
             id: task_id,
             runnable,
             resume_value,
-            state: TaskState::Ready,
+            status: TaskStatus::Ready,
             priority: 0,
         };
 
         // enqueue the task into the event loop
         self.event_loop.enqueue_task(task);
-        self.state.rules.on_scheduler_enqueue(RuntimeHookState {
+        self.state.hooks.on_scheduler_enqueue(RuntimeHookState {
             task_id: Some(task_id),
             ..RuntimeHookState::empty()
         });
@@ -165,14 +209,13 @@ impl Runtime {
         Ok(())
     }
 
-    fn execute_task<
-        E: Engine<Output = vm::ExecutionOutput, Continuation = vm::Continuation, Value = vm::Value>,
-    >(
+    /// Execute one task and return output when it completes the target task.
+    fn execute_task<E: Engine<Output = RuntimeOutput, Value = RuntimeValue>>(
         &mut self,
         engine: &mut E,
         task: Task,
-        target_task: TaskId,
-    ) -> RuntimeResult<Option<vm::ExecutionOutput>> {
+        target_task: Option<TaskId>,
+    ) -> RuntimeResult<Option<RuntimeOutput>> {
         // run the task runnable
         let _guard = enter_event_loop_scope(EventLoopScope::for_task(task.id));
         let outcome = self.execute_runnable(engine, task.runnable, task.resume_value)?;
@@ -185,7 +228,7 @@ impl Runtime {
                     TaskQueue::Macrotask,
                     QueueEventKind::Complete,
                 )?;
-                if task.id == target_task {
+                if target_task == Some(task.id) {
                     return Ok(Some(output));
                 }
             }
@@ -198,7 +241,7 @@ impl Runtime {
                     TaskQueue::Macrotask,
                     QueueEventKind::Yield,
                 )?;
-                self.enqueue_task(task.id, EngineContinuation::Vm(continuation), value)?;
+                self.enqueue_task(task.id, continuation, value)?;
             }
         }
 
@@ -207,9 +250,8 @@ impl Runtime {
         Ok(None)
     }
 
-    fn execute_microtask<
-        E: Engine<Output = vm::ExecutionOutput, Continuation = vm::Continuation, Value = vm::Value>,
-    >(
+    /// Execute one microtask to completion.
+    fn execute_microtask<E: Engine<Output = RuntimeOutput, Value = RuntimeValue>>(
         &mut self,
         engine: &mut E,
         microtask: Microtask,
@@ -235,9 +277,8 @@ impl Runtime {
         }
     }
 
-    fn drain_microtasks<
-        E: Engine<Output = vm::ExecutionOutput, Continuation = vm::Continuation, Value = vm::Value>,
-    >(
+    /// Drain all pending microtasks.
+    fn drain_microtasks<E: Engine<Output = RuntimeOutput, Value = RuntimeValue>>(
         &mut self,
         engine: &mut E,
     ) -> RuntimeResult<()> {
@@ -250,7 +291,7 @@ impl Runtime {
                 TaskQueue::Microtask,
                 QueueEventKind::Dequeue,
             )?;
-            self.state.rules.on_scheduler_dequeue(RuntimeHookState {
+            self.state.hooks.on_scheduler_dequeue(RuntimeHookState {
                 microtask_id: Some(microtask.id),
                 ..RuntimeHookState::empty()
             });
@@ -260,24 +301,17 @@ impl Runtime {
         Ok(())
     }
 
-    fn execute_runnable<
-        E: Engine<Output = vm::ExecutionOutput, Continuation = vm::Continuation, Value = vm::Value>,
-    >(
+    /// Resume one engine continuation with one runtime value.
+    fn execute_runnable<E: Engine<Output = RuntimeOutput, Value = RuntimeValue>>(
         &mut self,
         engine: &mut E,
         runnable: EngineContinuation,
-        resume_value: vm::Value,
-    ) -> RuntimeResult<EngineOutcome<vm::ExecutionOutput, vm::Continuation, vm::Value>> {
-        // select the runnable implementation
-        match runnable {
-            EngineContinuation::Vm(continuation) => engine.resume(continuation, resume_value),
-            EngineContinuation::Native(_) => Err(RuntimeError::Internal {
-                message: "native runnable execution is not wired yet".to_string(),
-            }
-            .boxed()),
-        }
+        resume_value: RuntimeValue,
+    ) -> RuntimeResult<EngineOutcome<RuntimeOutput, RuntimeValue>> {
+        engine.resume(runnable, resume_value)
     }
 
+    /// Record one task queue event in replay state.
     fn record_task_queue_event(
         &mut self,
         subject: TaskSubject,

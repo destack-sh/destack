@@ -4553,7 +4553,6 @@ pub unsafe extern "C" fn destack_io_completion_cancel(
         }
         let _ = (&out, &handle, &target);
 
-        context.check_policy(IO_COMPLETION_CANCEL)?;
         let world = context.check_and_resolve_world(IO_COMPLETION_CANCEL)?;
         destack_io_completion_cancel_replay(context, world, out, handle, target)
     })
@@ -4566,7 +4565,6 @@ pub unsafe extern "C" fn destack_io_completion_close(
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(IO_COMPLETION_CLOSE)?;
         let world = context.check_and_resolve_world(IO_COMPLETION_CLOSE)?;
         destack_io_completion_close_replay(context, world, handle)
     })
@@ -4586,7 +4584,6 @@ pub unsafe extern "C" fn destack_io_completion_enter(
         }
         let _ = (&out, &handle, &mincomplete, &timeoutns, &flags);
 
-        context.check_policy(IO_COMPLETION_ENTER)?;
         let world = context.check_and_resolve_world(IO_COMPLETION_ENTER)?;
         destack_io_completion_enter_replay(
             context,
@@ -4611,7 +4608,6 @@ pub unsafe extern "C" fn destack_io_completion_open(
         }
         let _ = (&out, &entries);
 
-        context.check_policy(IO_COMPLETION_OPEN)?;
         let world = context.check_and_resolve_world(IO_COMPLETION_OPEN)?;
         destack_io_completion_open_replay(context, world, out, entries)
     })
@@ -4625,7 +4621,6 @@ pub unsafe extern "C" fn destack_io_completion_submit(
     native_call(|context| {
         let _ = (&handle, &operation);
 
-        context.check_policy(IO_COMPLETION_SUBMIT)?;
         let world = context.check_and_resolve_world(IO_COMPLETION_SUBMIT)?;
         destack_io_completion_submit_replay(context, world, handle, operation)
     })
@@ -4651,7 +4646,6 @@ pub unsafe extern "C" fn destack_io_completion_submit_batch(
             &operationwordstride,
         );
 
-        context.check_policy(IO_COMPLETION_SUBMIT_BATCH)?;
         let world = context.check_and_resolve_world(IO_COMPLETION_SUBMIT_BATCH)?;
         destack_io_completion_submit_batch_replay(
             context,
@@ -4678,7 +4672,6 @@ pub unsafe extern "C" fn destack_io_completion_wait(
         }
         let _ = (&out, &handle, &timeoutns, &maxevents);
 
-        context.check_policy(IO_COMPLETION_WAIT)?;
         let world = context.check_and_resolve_world(IO_COMPLETION_WAIT)?;
         destack_io_completion_wait_replay(context, world, out, handle, timeoutns, maxevents)
     })
@@ -4698,7 +4691,6 @@ pub unsafe extern "C" fn destack_io_control_fcntl(
         }
         let _ = (&out, &handle, &command, &argument, &flags);
 
-        context.check_policy(IO_CONTROL_FCNTL)?;
         let world = context.check_and_resolve_world(IO_CONTROL_FCNTL)?;
         destack_io_control_fcntl_replay(context, world, out, handle, command, argument, flags)
     })
@@ -4716,7 +4708,6 @@ pub unsafe extern "C" fn destack_io_control_ioctl(
         }
         let _ = (&out, &handle, &request);
 
-        context.check_policy(IO_CONTROL_IOCTL)?;
         let world = context.check_and_resolve_world(IO_CONTROL_IOCTL)?;
         destack_io_control_ioctl_replay(context, world, out, handle, request)
     })
@@ -4727,7 +4718,6 @@ pub unsafe extern "C" fn destack_io_device_close(handle: resource::DeviceHandle)
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(IO_DEVICE_CLOSE)?;
         let world = context.check_and_resolve_world(IO_DEVICE_CLOSE)?;
         destack_io_device_close_replay(context, world, handle)
     })
@@ -4745,7 +4735,6 @@ pub unsafe extern "C" fn destack_io_device_control(
         }
         let _ = (&out, &handle, &request);
 
-        context.check_policy(IO_DEVICE_CONTROL)?;
         let world = context.check_and_resolve_world(IO_DEVICE_CONTROL)?;
         destack_io_device_control_replay(context, world, out, handle, request)
     })
@@ -4764,7 +4753,6 @@ pub unsafe extern "C" fn destack_io_device_open(
         }
         let _ = (&out, &path, &flags, &mode);
 
-        context.check_policy(IO_DEVICE_OPEN)?;
         let world = context.check_and_resolve_world(IO_DEVICE_OPEN)?;
         destack_io_device_open_replay(context, world, out, path, flags, mode)
     })
@@ -4782,7 +4770,6 @@ pub unsafe extern "C" fn destack_io_device_read(
         }
         let _ = (&out, &handle, &buffer);
 
-        context.check_policy(IO_DEVICE_READ)?;
         let world = context.check_and_resolve_world(IO_DEVICE_READ)?;
         destack_io_device_read_replay(context, world, out, handle, buffer)
     })
@@ -4800,7 +4787,6 @@ pub unsafe extern "C" fn destack_io_device_write(
         }
         let _ = (&out, &handle, &buffer);
 
-        context.check_policy(IO_DEVICE_WRITE)?;
         let world = context.check_and_resolve_world(IO_DEVICE_WRITE)?;
         destack_io_device_write_replay(context, world, out, handle, buffer)
     })
@@ -4815,7 +4801,6 @@ pub unsafe extern "C" fn destack_io_event_attach(
     native_call(|context| {
         let _ = (&token, &target, &key);
 
-        context.check_policy(IO_EVENT_ATTACH)?;
         let world = context.check_and_resolve_world(IO_EVENT_ATTACH)?;
         destack_io_event_attach_replay(context, world, token, target, key)
     })
@@ -4826,7 +4811,6 @@ pub unsafe extern "C" fn destack_io_event_close(token: EventToken) -> RuntimeSta
     native_call(|context| {
         let _ = &token;
 
-        context.check_policy(IO_EVENT_CLOSE)?;
         let world = context.check_and_resolve_world(IO_EVENT_CLOSE)?;
         destack_io_event_close_replay(context, world, token)
     })
@@ -4843,7 +4827,6 @@ pub unsafe extern "C" fn destack_io_event_open(
         }
         let _ = (&out, &initial);
 
-        context.check_policy(IO_EVENT_OPEN)?;
         let world = context.check_and_resolve_world(IO_EVENT_OPEN)?;
         destack_io_event_open_replay(context, world, out, initial)
     })
@@ -4857,7 +4840,6 @@ pub unsafe extern "C" fn destack_io_event_signal(
     native_call(|context| {
         let _ = (&token, &argument_value);
 
-        context.check_policy(IO_EVENT_SIGNAL)?;
         let world = context.check_and_resolve_world(IO_EVENT_SIGNAL)?;
         destack_io_event_signal_replay(context, world, token, argument_value)
     })
@@ -4868,7 +4850,6 @@ pub unsafe extern "C" fn destack_io_poll_close(handle: resource::PollHandle) -> 
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(IO_POLL_CLOSE)?;
         let world = context.check_and_resolve_world(IO_POLL_CLOSE)?;
         destack_io_poll_close_replay(context, world, handle)
     })
@@ -4882,7 +4863,6 @@ pub unsafe extern "C" fn destack_io_poll_deregister(
     native_call(|context| {
         let _ = (&handle, &target);
 
-        context.check_policy(IO_POLL_DEREGISTER)?;
         let world = context.check_and_resolve_world(IO_POLL_DEREGISTER)?;
         destack_io_poll_deregister_replay(context, world, handle, target)
     })
@@ -4899,7 +4879,6 @@ pub unsafe extern "C" fn destack_io_poll_open(
         }
         let _ = (&out, &backend);
 
-        context.check_policy(IO_POLL_OPEN)?;
         let world = context.check_and_resolve_world(IO_POLL_OPEN)?;
         destack_io_poll_open_replay(context, world, out, backend)
     })
@@ -4915,7 +4894,6 @@ pub unsafe extern "C" fn destack_io_poll_register(
     native_call(|context| {
         let _ = (&handle, &target, &key, &interest);
 
-        context.check_policy(IO_POLL_REGISTER)?;
         let world = context.check_and_resolve_world(IO_POLL_REGISTER)?;
         destack_io_poll_register_replay(context, world, handle, target, key, interest)
     })
@@ -4931,7 +4909,6 @@ pub unsafe extern "C" fn destack_io_poll_update(
     native_call(|context| {
         let _ = (&handle, &target, &key, &interest);
 
-        context.check_policy(IO_POLL_UPDATE)?;
         let world = context.check_and_resolve_world(IO_POLL_UPDATE)?;
         destack_io_poll_update_replay(context, world, handle, target, key, interest)
     })
@@ -4950,7 +4927,6 @@ pub unsafe extern "C" fn destack_io_poll_wait(
         }
         let _ = (&out, &handle, &timeoutns, &maxevents);
 
-        context.check_policy(IO_POLL_WAIT)?;
         let world = context.check_and_resolve_world(IO_POLL_WAIT)?;
         destack_io_poll_wait_replay(context, world, out, handle, timeoutns, maxevents)
     })
@@ -4963,7 +4939,6 @@ pub unsafe extern "C" fn destack_io_timerfd_close(
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(IO_TIMERFD_CLOSE)?;
         let world = context.check_and_resolve_world(IO_TIMERFD_CLOSE)?;
         destack_io_timerfd_close_replay(context, world, handle)
     })
@@ -4980,7 +4955,6 @@ pub unsafe extern "C" fn destack_io_timerfd_get(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(IO_TIMERFD_GET)?;
         let world = context.check_and_resolve_world(IO_TIMERFD_GET)?;
         destack_io_timerfd_get_replay(context, world, out, handle)
     })
@@ -4998,7 +4972,6 @@ pub unsafe extern "C" fn destack_io_timerfd_open(
         }
         let _ = (&out, &clock, &flags);
 
-        context.check_policy(IO_TIMERFD_OPEN)?;
         let world = context.check_and_resolve_world(IO_TIMERFD_OPEN)?;
         destack_io_timerfd_open_replay(context, world, out, clock, flags)
     })
@@ -5015,7 +4988,6 @@ pub unsafe extern "C" fn destack_io_timerfd_read(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(IO_TIMERFD_READ)?;
         let world = context.check_and_resolve_world(IO_TIMERFD_READ)?;
         destack_io_timerfd_read_replay(context, world, out, handle)
     })
@@ -5030,7 +5002,6 @@ pub unsafe extern "C" fn destack_io_timerfd_set(
     native_call(|context| {
         let _ = (&handle, &spec, &flags);
 
-        context.check_policy(IO_TIMERFD_SET)?;
         let world = context.check_and_resolve_world(IO_TIMERFD_SET)?;
         destack_io_timerfd_set_replay(context, world, handle, spec, flags)
     })
@@ -5041,7 +5012,6 @@ pub unsafe extern "C" fn destack_io_uring_close(handle: resource::UringHandle) -
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(IO_URING_CLOSE)?;
         let world = context.check_and_resolve_world(IO_URING_CLOSE)?;
         destack_io_uring_close_replay(context, world, handle)
     })
@@ -5058,7 +5028,6 @@ pub unsafe extern "C" fn destack_io_uring_features(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(IO_URING_FEATURES)?;
         let world = context.check_and_resolve_world(IO_URING_FEATURES)?;
         destack_io_uring_features_replay(context, world, out, handle)
     })
@@ -5075,7 +5044,6 @@ pub unsafe extern "C" fn destack_io_uring_open(
         }
         let _ = (&out, &parameters);
 
-        context.check_policy(IO_URING_OPEN)?;
         let world = context.check_and_resolve_world(IO_URING_OPEN)?;
         destack_io_uring_open_replay(context, world, out, parameters)
     })
@@ -5090,7 +5058,6 @@ pub unsafe extern "C" fn destack_io_uring_register_buffers(
     native_call(|context| {
         let _ = (&handle, &addresses, &lengths);
 
-        context.check_policy(IO_URING_REGISTER_BUFFERS)?;
         let world = context.check_and_resolve_world(IO_URING_REGISTER_BUFFERS)?;
         destack_io_uring_register_buffers_replay(context, world, handle, addresses, lengths)
     })
@@ -5104,7 +5071,6 @@ pub unsafe extern "C" fn destack_io_uring_register_files(
     native_call(|context| {
         let _ = (&handle, &files);
 
-        context.check_policy(IO_URING_REGISTER_FILES)?;
         let world = context.check_and_resolve_world(IO_URING_REGISTER_FILES)?;
         destack_io_uring_register_files_replay(context, world, handle, files)
     })
@@ -5117,7 +5083,6 @@ pub unsafe extern "C" fn destack_io_uring_unregister_buffers(
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(IO_URING_UNREGISTER_BUFFERS)?;
         let world = context.check_and_resolve_world(IO_URING_UNREGISTER_BUFFERS)?;
         destack_io_uring_unregister_buffers_replay(context, world, handle)
     })
@@ -5130,7 +5095,6 @@ pub unsafe extern "C" fn destack_io_uring_unregister_files(
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(IO_URING_UNREGISTER_FILES)?;
         let world = context.check_and_resolve_world(IO_URING_UNREGISTER_FILES)?;
         destack_io_uring_unregister_files_replay(context, world, handle)
     })
@@ -7326,7 +7290,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle, target) = decode_destack_io_completion_cancel_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IO_COMPLETION_CANCEL)?;
                     let world = runtime.check_and_resolve_world(IO_COMPLETION_CANCEL)?;
                     destack_io_completion_cancel_vm_replay(runtime, context, world, handle, target)
                 })
@@ -7345,7 +7308,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_io_completion_close_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IO_COMPLETION_CLOSE)?;
                     let world = runtime.check_and_resolve_world(IO_COMPLETION_CLOSE)?;
                     destack_io_completion_close_vm_replay(runtime, context, world, handle)
                 })
@@ -7365,7 +7327,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_io_completion_enter_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IO_COMPLETION_ENTER)?;
                     let world = runtime.check_and_resolve_world(IO_COMPLETION_ENTER)?;
                     destack_io_completion_enter_vm_replay(
                         runtime,
@@ -7392,7 +7353,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (entries,) = decode_destack_io_completion_open_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IO_COMPLETION_OPEN)?;
                     let world = runtime.check_and_resolve_world(IO_COMPLETION_OPEN)?;
                     destack_io_completion_open_vm_replay(runtime, context, world, entries)
                 })
@@ -7412,7 +7372,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_io_completion_submit_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IO_COMPLETION_SUBMIT)?;
                     let world = runtime.check_and_resolve_world(IO_COMPLETION_SUBMIT)?;
                     destack_io_completion_submit_vm_replay(
                         runtime, context, world, handle, operation,
@@ -7434,7 +7393,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_io_completion_submit_batch_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IO_COMPLETION_SUBMIT_BATCH)?;
                     let world = runtime.check_and_resolve_world(IO_COMPLETION_SUBMIT_BATCH)?;
                     destack_io_completion_submit_batch_vm_replay(
                         runtime,
@@ -7462,7 +7420,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_io_completion_wait_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IO_COMPLETION_WAIT)?;
                     let world = runtime.check_and_resolve_world(IO_COMPLETION_WAIT)?;
                     destack_io_completion_wait_vm_replay(
                         runtime, context, world, handle, timeoutns, maxevents,
@@ -7480,7 +7437,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_io_control_fcntl_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_CONTROL_FCNTL)?;
                 let world = runtime.check_and_resolve_world(IO_CONTROL_FCNTL)?;
                 destack_io_control_fcntl_vm_replay(
                     runtime, context, world, handle, command, argument, flags,
@@ -7496,7 +7452,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, request) = decode_destack_io_control_ioctl_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_CONTROL_IOCTL)?;
                 let world = runtime.check_and_resolve_world(IO_CONTROL_IOCTL)?;
                 destack_io_control_ioctl_vm_replay(runtime, context, world, handle, request)
             })
@@ -7510,7 +7465,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_io_device_close_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_DEVICE_CLOSE)?;
                 let world = runtime.check_and_resolve_world(IO_DEVICE_CLOSE)?;
                 destack_io_device_close_vm_replay(runtime, context, world, handle)
             })
@@ -7528,7 +7482,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle, request) = decode_destack_io_device_control_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IO_DEVICE_CONTROL)?;
                     let world = runtime.check_and_resolve_world(IO_DEVICE_CONTROL)?;
                     destack_io_device_control_vm_replay(runtime, context, world, handle, request)
                 })
@@ -7543,7 +7496,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (path, flags, mode) = decode_destack_io_device_open_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_DEVICE_OPEN)?;
                 let world = runtime.check_and_resolve_world(IO_DEVICE_OPEN)?;
                 destack_io_device_open_vm_replay(runtime, context, world, path, flags, mode)
             })
@@ -7557,7 +7509,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, buffer) = decode_destack_io_device_read_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_DEVICE_READ)?;
                 let world = runtime.check_and_resolve_world(IO_DEVICE_READ)?;
                 destack_io_device_read_vm_replay(runtime, context, world, handle, buffer)
             })
@@ -7571,7 +7522,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, buffer) = decode_destack_io_device_write_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_DEVICE_WRITE)?;
                 let world = runtime.check_and_resolve_world(IO_DEVICE_WRITE)?;
                 destack_io_device_write_vm_replay(runtime, context, world, handle, buffer)
             })
@@ -7585,7 +7535,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (token, target, key) = decode_destack_io_event_attach_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_EVENT_ATTACH)?;
                 let world = runtime.check_and_resolve_world(IO_EVENT_ATTACH)?;
                 destack_io_event_attach_vm_replay(runtime, context, world, token, target, key)
             })
@@ -7599,7 +7548,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (token,) = decode_destack_io_event_close_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_EVENT_CLOSE)?;
                 let world = runtime.check_and_resolve_world(IO_EVENT_CLOSE)?;
                 destack_io_event_close_vm_replay(runtime, context, world, token)
             })
@@ -7613,7 +7561,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (initial,) = decode_destack_io_event_open_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_EVENT_OPEN)?;
                 let world = runtime.check_and_resolve_world(IO_EVENT_OPEN)?;
                 destack_io_event_open_vm_replay(runtime, context, world, initial)
             })
@@ -7627,7 +7574,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (token, argument_value) = decode_destack_io_event_signal_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_EVENT_SIGNAL)?;
                 let world = runtime.check_and_resolve_world(IO_EVENT_SIGNAL)?;
                 destack_io_event_signal_vm_replay(runtime, context, world, token, argument_value)
             })
@@ -7641,7 +7587,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_io_poll_close_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_POLL_CLOSE)?;
                 let world = runtime.check_and_resolve_world(IO_POLL_CLOSE)?;
                 destack_io_poll_close_vm_replay(runtime, context, world, handle)
             })
@@ -7659,7 +7604,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle, target) = decode_destack_io_poll_deregister_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IO_POLL_DEREGISTER)?;
                     let world = runtime.check_and_resolve_world(IO_POLL_DEREGISTER)?;
                     destack_io_poll_deregister_vm_replay(runtime, context, world, handle, target)
                 })
@@ -7674,7 +7618,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (backend,) = decode_destack_io_poll_open_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_POLL_OPEN)?;
                 let world = runtime.check_and_resolve_world(IO_POLL_OPEN)?;
                 destack_io_poll_open_vm_replay(runtime, context, world, backend)
             })
@@ -7689,7 +7632,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_io_poll_register_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_POLL_REGISTER)?;
                 let world = runtime.check_and_resolve_world(IO_POLL_REGISTER)?;
                 destack_io_poll_register_vm_replay(
                     runtime, context, world, handle, target, key, interest,
@@ -7706,7 +7648,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_io_poll_update_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_POLL_UPDATE)?;
                 let world = runtime.check_and_resolve_world(IO_POLL_UPDATE)?;
                 destack_io_poll_update_vm_replay(
                     runtime, context, world, handle, target, key, interest,
@@ -7723,7 +7664,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_io_poll_wait_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_POLL_WAIT)?;
                 let world = runtime.check_and_resolve_world(IO_POLL_WAIT)?;
                 destack_io_poll_wait_vm_replay(
                     runtime, context, world, handle, timeoutns, maxevents,
@@ -7739,7 +7679,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_io_timerfd_close_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_TIMERFD_CLOSE)?;
                 let world = runtime.check_and_resolve_world(IO_TIMERFD_CLOSE)?;
                 destack_io_timerfd_close_vm_replay(runtime, context, world, handle)
             })
@@ -7753,7 +7692,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_io_timerfd_get_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_TIMERFD_GET)?;
                 let world = runtime.check_and_resolve_world(IO_TIMERFD_GET)?;
                 destack_io_timerfd_get_vm_replay(runtime, context, world, handle)
             })
@@ -7767,7 +7705,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (clock, flags) = decode_destack_io_timerfd_open_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_TIMERFD_OPEN)?;
                 let world = runtime.check_and_resolve_world(IO_TIMERFD_OPEN)?;
                 destack_io_timerfd_open_vm_replay(runtime, context, world, clock, flags)
             })
@@ -7781,7 +7718,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_io_timerfd_read_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_TIMERFD_READ)?;
                 let world = runtime.check_and_resolve_world(IO_TIMERFD_READ)?;
                 destack_io_timerfd_read_vm_replay(runtime, context, world, handle)
             })
@@ -7795,7 +7731,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, spec, flags) = decode_destack_io_timerfd_set_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_TIMERFD_SET)?;
                 let world = runtime.check_and_resolve_world(IO_TIMERFD_SET)?;
                 destack_io_timerfd_set_vm_replay(runtime, context, world, handle, spec, flags)
             })
@@ -7809,7 +7744,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_io_uring_close_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_URING_CLOSE)?;
                 let world = runtime.check_and_resolve_world(IO_URING_CLOSE)?;
                 destack_io_uring_close_vm_replay(runtime, context, world, handle)
             })
@@ -7827,7 +7761,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_io_uring_features_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IO_URING_FEATURES)?;
                     let world = runtime.check_and_resolve_world(IO_URING_FEATURES)?;
                     destack_io_uring_features_vm_replay(runtime, context, world, handle)
                 })
@@ -7842,7 +7775,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (parameters,) = decode_destack_io_uring_open_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(IO_URING_OPEN)?;
                 let world = runtime.check_and_resolve_world(IO_URING_OPEN)?;
                 destack_io_uring_open_vm_replay(runtime, context, world, parameters)
             })
@@ -7861,7 +7793,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_io_uring_register_buffers_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IO_URING_REGISTER_BUFFERS)?;
                     let world = runtime.check_and_resolve_world(IO_URING_REGISTER_BUFFERS)?;
                     destack_io_uring_register_buffers_vm_replay(
                         runtime, context, world, handle, addresses, lengths,
@@ -7883,7 +7814,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_io_uring_register_files_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IO_URING_REGISTER_FILES)?;
                     let world = runtime.check_and_resolve_world(IO_URING_REGISTER_FILES)?;
                     destack_io_uring_register_files_vm_replay(
                         runtime, context, world, handle, files,
@@ -7904,7 +7834,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_io_uring_unregister_buffers_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IO_URING_UNREGISTER_BUFFERS)?;
                     let world = runtime.check_and_resolve_world(IO_URING_UNREGISTER_BUFFERS)?;
                     destack_io_uring_unregister_buffers_vm_replay(runtime, context, world, handle)
                 })
@@ -7923,7 +7852,6 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_io_uring_unregister_files_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(IO_URING_UNREGISTER_FILES)?;
                     let world = runtime.check_and_resolve_world(IO_URING_UNREGISTER_FILES)?;
                     destack_io_uring_unregister_files_vm_replay(runtime, context, world, handle)
                 })

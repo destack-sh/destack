@@ -544,7 +544,6 @@ pub unsafe extern "C" fn destack_ffi_call_invoke(
         let _ = (&out, &symbol, &abi, &flags, &arguments, &resultsize);
 
         {
-            context.check_policy(FFI_CALL_INVOKE)?;
             let world = context.check_and_resolve_world(FFI_CALL_INVOKE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -570,7 +569,6 @@ pub unsafe extern "C" fn destack_ffi_library_close(
         let _ = &handle;
 
         {
-            context.check_policy(FFI_LIBRARY_CLOSE)?;
             let world = context.check_and_resolve_world(FFI_LIBRARY_CLOSE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -597,7 +595,6 @@ pub unsafe extern "C" fn destack_ffi_library_open(
         let _ = (&out, &path, &flags);
 
         {
-            context.check_policy(FFI_LIBRARY_OPEN)?;
             let world = context.check_and_resolve_world(FFI_LIBRARY_OPEN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -623,7 +620,6 @@ pub unsafe extern "C" fn destack_ffi_pointer_address(
         let _ = (&out, &pointer);
 
         {
-            context.check_policy(FFI_POINTER_ADDRESS)?;
             let world = context.check_and_resolve_world(FFI_POINTER_ADDRESS)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -649,7 +645,6 @@ pub unsafe extern "C" fn destack_ffi_pointer_from_address(
         let _ = (&out, &address);
 
         {
-            context.check_policy(FFI_POINTER_FROM_ADDRESS)?;
             let world = context.check_and_resolve_world(FFI_POINTER_FROM_ADDRESS)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -675,7 +670,6 @@ pub unsafe extern "C" fn destack_ffi_symbol_address(
         let _ = (&out, &symbol);
 
         {
-            context.check_policy(FFI_SYMBOL_ADDRESS)?;
             let world = context.check_and_resolve_world(FFI_SYMBOL_ADDRESS)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -702,7 +696,6 @@ pub unsafe extern "C" fn destack_ffi_symbol_lookup(
         let _ = (&out, &library, &name);
 
         {
-            context.check_policy(FFI_SYMBOL_LOOKUP)?;
             let world = context.check_and_resolve_world(FFI_SYMBOL_LOOKUP)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -729,7 +722,6 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                 // execute binding
                 let result = {
-                    runtime.check_policy(FFI_CALL_INVOKE)?;
                     let world = runtime.check_and_resolve_world(FFI_CALL_INVOKE)?;
                     match world {
                         RuntimeWorld::Host => platform_vm::destack_ffi_call(
@@ -757,7 +749,6 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(FFI_LIBRARY_CLOSE)?;
                         let world = runtime.check_and_resolve_world(FFI_LIBRARY_CLOSE)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -782,7 +773,6 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                 // execute binding
                 let result = {
-                    runtime.check_policy(FFI_LIBRARY_OPEN)?;
                     let world = runtime.check_and_resolve_world(FFI_LIBRARY_OPEN)?;
                     match world {
                         RuntimeWorld::Host => {
@@ -810,7 +800,6 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(FFI_POINTER_ADDRESS)?;
                         let world = runtime.check_and_resolve_world(FFI_POINTER_ADDRESS)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -841,7 +830,6 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(FFI_POINTER_FROM_ADDRESS)?;
                         let world = runtime.check_and_resolve_world(FFI_POINTER_FROM_ADDRESS)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -872,7 +860,6 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(FFI_SYMBOL_ADDRESS)?;
                         let world = runtime.check_and_resolve_world(FFI_SYMBOL_ADDRESS)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -903,7 +890,6 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(FFI_SYMBOL_LOOKUP)?;
                         let world = runtime.check_and_resolve_world(FFI_SYMBOL_LOOKUP)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_ffi_symbol_lookup(

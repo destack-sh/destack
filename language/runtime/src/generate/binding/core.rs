@@ -1243,11 +1243,12 @@ impl<'a> DomainWriter<'a> {
             match replay_kind {
                 CatalogBindingReplayKind::Regular => {
                     if uses_binding_replay {
-                        output.push_str(&format!(
-                            "        context.check_policy({})?;\n",
-                            binding.const_name
-                        ));
-                        if entry.scope != CatalogBindingScope::Runtime {
+                        if entry.scope == CatalogBindingScope::Runtime {
+                            output.push_str(&format!(
+                                "        context.check_policy({})?;\n",
+                                binding.const_name
+                            ));
+                        } else {
                             output.push_str(&format!(
                                 "        let world = context.check_and_resolve_world({})?;\n",
                                 binding.const_name
@@ -1437,21 +1438,21 @@ impl<'a> DomainWriter<'a> {
                 CatalogBindingReplayKind::Regular => {
                     if uses_binding_replay {
                         let replay_fn = vm_replay_fn_name(domain, binding.extern_name);
-                        output.push_str(&format!(
-                            "                runtime.check_policy({})?;\n",
-                            binding.const_name
-                        ));
-                        if binding.entry.scope != CatalogBindingScope::Runtime {
+                        if binding.entry.scope == CatalogBindingScope::Runtime {
+                            output.push_str(&format!(
+                                "                runtime.check_policy({})?;\n",
+                                binding.const_name
+                            ));
+                            output.push_str(&format!(
+                                "                {replay_fn}(runtime, context{invoke_args})\n"
+                            ));
+                        } else {
                             output.push_str(&format!(
                                 "                let world = runtime.check_and_resolve_world({})?;\n",
                                 binding.const_name
                             ));
                             output.push_str(&format!(
                                 "                {replay_fn}(runtime, context, world{invoke_args})\n"
-                            ));
-                        } else {
-                            output.push_str(&format!(
-                                "                {replay_fn}(runtime, context{invoke_args})\n"
                             ));
                         }
                     } else {
@@ -1645,7 +1646,7 @@ fn render_native_checked_world_dispatch_expr(
     };
 
     format!(
-        "{{\n            context.check_policy({binding_const})?;\n            let world = context.check_and_resolve_world({binding_const})?;\n            match world {{\n                RuntimeWorld::Host => {call},\n                RuntimeWorld::Simulation => {simulation},\n            }}\n        }}"
+        "{{\n            let world = context.check_and_resolve_world({binding_const})?;\n            match world {{\n                RuntimeWorld::Host => {call},\n                RuntimeWorld::Simulation => {simulation},\n            }}\n        }}"
     )
 }
 
@@ -1668,7 +1669,7 @@ fn render_vm_checked_world_dispatch_expr(
         format!("platform_simulation_vm::{implementation_fn_name}(runtime, context{invoke_args})");
 
     format!(
-        "{{\n                        runtime.check_policy({binding_const})?;\n                        let world = runtime.check_and_resolve_world({binding_const})?;\n                        match world {{\n                            RuntimeWorld::Host => {call},\n                            RuntimeWorld::Simulation => {simulation},\n                        }}\n                    }}"
+        "{{\n                        let world = runtime.check_and_resolve_world({binding_const})?;\n                        match world {{\n                            RuntimeWorld::Host => {call},\n                            RuntimeWorld::Simulation => {simulation},\n                        }}\n                    }}"
     )
 }
 

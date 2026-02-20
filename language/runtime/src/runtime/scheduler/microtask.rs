@@ -1,8 +1,7 @@
-use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
-use super::task::TaskState;
-use crate::runtime::engine::EngineContinuation;
+use super::task::TaskStatus;
+use crate::runtime::engine::{EngineContinuation, RuntimeValue};
 
 /// Opaque microtask identifier used by the event loop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -28,7 +27,7 @@ pub struct Microtask {
     /// Runnable continuation for this microtask.
     pub runnable: EngineContinuation,
     /// Resume payload passed back into the executor.
-    pub resume_value: vm::Value,
-    /// Current scheduling state.
-    pub state: TaskState,
+    pub resume_value: RuntimeValue,
+    /// Current scheduling status.
+    pub status: TaskStatus,
 }

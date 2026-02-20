@@ -1169,7 +1169,6 @@ pub unsafe extern "C" fn destack_tty_io_read(
         }
         let _ = (&out, &handle, &buffer);
 
-        context.check_policy(TTY_IO_READ)?;
         let world = context.check_and_resolve_world(TTY_IO_READ)?;
         destack_tty_io_read_replay(context, world, out, handle, buffer)
     })
@@ -1187,7 +1186,6 @@ pub unsafe extern "C" fn destack_tty_io_write(
         }
         let _ = (&out, &handle, &buffer);
 
-        context.check_policy(TTY_IO_WRITE)?;
         let world = context.check_and_resolve_world(TTY_IO_WRITE)?;
         destack_tty_io_write_replay(context, world, out, handle, buffer)
     })
@@ -1204,7 +1202,6 @@ pub unsafe extern "C" fn destack_tty_mode_get_mode(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(TTY_MODE_GET_MODE)?;
         let world = context.check_and_resolve_world(TTY_MODE_GET_MODE)?;
         destack_tty_mode_get_mode_replay(context, world, out, handle)
     })
@@ -1218,7 +1215,6 @@ pub unsafe extern "C" fn destack_tty_mode_set_mode(
     native_call(|context| {
         let _ = (&handle, &mode);
 
-        context.check_policy(TTY_MODE_SET_MODE)?;
         let world = context.check_and_resolve_world(TTY_MODE_SET_MODE)?;
         destack_tty_mode_set_mode_replay(context, world, handle, mode)
     })
@@ -1229,7 +1225,6 @@ pub unsafe extern "C" fn destack_tty_pty_close(handle: resource::PtyHandle) -> R
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(TTY_PTY_CLOSE)?;
         let world = context.check_and_resolve_world(TTY_PTY_CLOSE)?;
         destack_tty_pty_close_replay(context, world, handle)
     })
@@ -1248,7 +1243,6 @@ pub unsafe extern "C" fn destack_tty_pty_open(
         }
         let _ = (&out, &rows, &columns, &flags);
 
-        context.check_policy(TTY_PTY_OPEN)?;
         let world = context.check_and_resolve_world(TTY_PTY_OPEN)?;
         destack_tty_pty_open_replay(context, world, out, rows, columns, flags)
     })
@@ -1265,7 +1259,6 @@ pub unsafe extern "C" fn destack_tty_size_get_size(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(TTY_SIZE_GET_SIZE)?;
         let world = context.check_and_resolve_world(TTY_SIZE_GET_SIZE)?;
         destack_tty_size_get_size_replay(context, world, out, handle)
     })
@@ -1279,7 +1272,6 @@ pub unsafe extern "C" fn destack_tty_size_set_size(
     native_call(|context| {
         let _ = (&handle, &size);
 
-        context.check_policy(TTY_SIZE_SET_SIZE)?;
         let world = context.check_and_resolve_world(TTY_SIZE_SET_SIZE)?;
         destack_tty_size_set_size_replay(context, world, handle, size)
     })
@@ -1769,7 +1761,6 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, buffer) = decode_destack_tty_io_read_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(TTY_IO_READ)?;
                 let world = runtime.check_and_resolve_world(TTY_IO_READ)?;
                 destack_tty_io_read_vm_replay(runtime, context, world, handle, buffer)
             })
@@ -1783,7 +1774,6 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, buffer) = decode_destack_tty_io_write_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(TTY_IO_WRITE)?;
                 let world = runtime.check_and_resolve_world(TTY_IO_WRITE)?;
                 destack_tty_io_write_vm_replay(runtime, context, world, handle, buffer)
             })
@@ -1801,7 +1791,6 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_tty_mode_get_mode_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TTY_MODE_GET_MODE)?;
                     let world = runtime.check_and_resolve_world(TTY_MODE_GET_MODE)?;
                     destack_tty_mode_get_mode_vm_replay(runtime, context, world, handle)
                 })
@@ -1820,7 +1809,6 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle, mode) = decode_destack_tty_mode_set_mode_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TTY_MODE_SET_MODE)?;
                     let world = runtime.check_and_resolve_world(TTY_MODE_SET_MODE)?;
                     destack_tty_mode_set_mode_vm_replay(runtime, context, world, handle, mode)
                 })
@@ -1835,7 +1823,6 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle,) = decode_destack_tty_pty_close_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(TTY_PTY_CLOSE)?;
                 let world = runtime.check_and_resolve_world(TTY_PTY_CLOSE)?;
                 destack_tty_pty_close_vm_replay(runtime, context, world, handle)
             })
@@ -1849,7 +1836,6 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (rows, columns, flags) = decode_destack_tty_pty_open_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(TTY_PTY_OPEN)?;
                 let world = runtime.check_and_resolve_world(TTY_PTY_OPEN)?;
                 destack_tty_pty_open_vm_replay(runtime, context, world, rows, columns, flags)
             })
@@ -1867,7 +1853,6 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_tty_size_get_size_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TTY_SIZE_GET_SIZE)?;
                     let world = runtime.check_and_resolve_world(TTY_SIZE_GET_SIZE)?;
                     destack_tty_size_get_size_vm_replay(runtime, context, world, handle)
                 })
@@ -1886,7 +1871,6 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle, size) = decode_destack_tty_size_set_size_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TTY_SIZE_SET_SIZE)?;
                     let world = runtime.check_and_resolve_world(TTY_SIZE_SET_SIZE)?;
                     destack_tty_size_set_size_vm_replay(runtime, context, world, handle, size)
                 })

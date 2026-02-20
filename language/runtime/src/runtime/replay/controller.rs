@@ -97,7 +97,7 @@ impl ReplayController {
     fn run_after_binding_hook(spec: BindingDescriptor) {
         let _ = with_current_binding_call_context(|context| {
             context
-                .rules()
+                .hooks()
                 .on_after_binding(spec, RuntimeHookState::from_engine(Some(context.engine())))
         });
     }

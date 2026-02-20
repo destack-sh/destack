@@ -23,7 +23,7 @@ pub(crate) fn is_virtual_clock(context: &BindingCallContext) -> bool {
 /// Return one runtime-backed wall clock sample.
 pub(crate) fn runtime_wall_nanos(context: &BindingCallContext) -> u64 {
     context
-        .rules()
+        .hooks()
         .on_time_read(RuntimeHookState::from_engine(Some(context.engine())));
     context.runtime().time.wall_nanos()
 }
@@ -31,7 +31,7 @@ pub(crate) fn runtime_wall_nanos(context: &BindingCallContext) -> u64 {
 /// Return one runtime-backed monotonic clock sample.
 pub(crate) fn runtime_mono_nanos(context: &BindingCallContext) -> u64 {
     context
-        .rules()
+        .hooks()
         .on_time_read(RuntimeHookState::from_engine(Some(context.engine())));
     context.runtime().time.mono_nanos()
 }
