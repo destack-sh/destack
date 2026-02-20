@@ -17,6 +17,8 @@ pub struct EventLoopScope {
     task_id: Option<TaskId>,
     /// Current microtask identifier, if any.
     microtask_id: Option<MicrotaskId>,
+    /// Current nested microtask execution depth.
+    microtask_depth: usize,
 }
 
 impl EventLoopScope {
@@ -25,6 +27,7 @@ impl EventLoopScope {
         Self {
             task_id: None,
             microtask_id: None,
+            microtask_depth: 0,
         }
     }
 
@@ -33,14 +36,16 @@ impl EventLoopScope {
         Self {
             task_id: Some(task_id),
             microtask_id: None,
+            microtask_depth: 0,
         }
     }
 
     /// Create a microtask event loop scope.
-    pub const fn for_microtask(microtask_id: MicrotaskId) -> Self {
+    pub const fn for_microtask(microtask_id: MicrotaskId, depth: usize) -> Self {
         Self {
             task_id: None,
             microtask_id: Some(microtask_id),
+            microtask_depth: depth,
         }
     }
 
@@ -52,6 +57,11 @@ impl EventLoopScope {
     /// Return the current microtask identifier.
     pub const fn microtask_id(self) -> Option<MicrotaskId> {
         self.microtask_id
+    }
+
+    /// Return the current microtask nesting depth.
+    pub const fn microtask_depth(self) -> usize {
+        self.microtask_depth
     }
 
     /// Return the random stream identifier for this scope.

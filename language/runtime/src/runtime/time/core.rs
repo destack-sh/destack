@@ -1,6 +1,5 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeError;
 use crate::platform::PlatformError;
-use crate::platform::time::ClockMetadata;
 use crate::runtime::{BindingCallContext, RuntimeHookState};
 use destack_workspace::TimeMode;
 
@@ -55,33 +54,4 @@ pub(crate) fn runtime_sleep_until_mono_nanos(context: &BindingCallContext, deadl
 
     let delta = deadline.saturating_sub(now);
     runtime_sleep_nanos(context, delta);
-}
-
-/// Write one u64 output value.
-pub(crate) unsafe fn write_out_u64(out: *mut u64, value: u64) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(null_pointer_error("out"));
-    }
-
-    unsafe {
-        *out = value;
-    }
-
-    Ok(())
-}
-
-/// Write one clock-info output value.
-pub(crate) unsafe fn write_out_clock_info(
-    out: *mut ClockMetadata,
-    value: ClockMetadata,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(null_pointer_error("out"));
-    }
-
-    unsafe {
-        *out = value;
-    }
-
-    Ok(())
 }

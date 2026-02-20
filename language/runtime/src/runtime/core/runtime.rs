@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::{PlatformContext, PlatformPoller};
+use crate::platform::{PlatformContext, PlatformPoller, PollerToken, ResourceId};
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
+use crate::runtime::engine::{EngineContinuation, RuntimeValue};
 use crate::runtime::memory::Heap;
-use crate::runtime::scheduler::EventLoop;
+use crate::runtime::scheduler::{EventLoop, EventLoopWatch};
 use crate::runtime::snapshot::SnapshotStore;
 use destack_workspace::RuntimeOptions;
 
@@ -64,7 +65,7 @@ impl Runtime {
     ) -> RuntimeResult<Self> {
         let state = Arc::new(RuntimeState::from_options(platform, options));
         let mut runtime = Self::new(state);
-        runtime.event_loop.configure(options.scheduler.clone());
+        runtime.event_loop.configure(options.scheduler.clone())?;
         runtime.bindings.apply_runtime_options(options);
         if let Some(poller) = poller_for_options(options)? {
             runtime.set_poller(poller);
@@ -75,6 +76,53 @@ impl Runtime {
     /// Attach a platform poller for external events.
     pub fn set_poller(&mut self, poller: Box<dyn PlatformPoller>) {
         self.poller = Some(poller);
+    }
+
+    /// Register one timer watch.
+    pub fn watch_timer(
+        &mut self,
+        handle: ResourceId,
+        runnable: EngineContinuation,
+        resume_value: RuntimeValue,
+        priority: u8,
+    ) -> RuntimeResult<()> {
+        let watch = EventLoopWatch {
+            runnable,
+            resume_value,
+            priority,
+        };
+        self.event_loop.watch_timer(handle, watch)
+    }
+
+    /// Remove the timer watch registered for one timer handle.
+    pub fn unwatch_timer(&mut self, handle: ResourceId) -> Option<EventLoopWatch> {
+        self.event_loop.unwatch_timer(handle)
+    }
+
+    /// Register one event watch.
+    pub fn watch_event(
+        &mut self,
+        token: PollerToken,
+        runnable: EngineContinuation,
+        resume_value: RuntimeValue,
+        priority: u8,
+    ) -> RuntimeResult<()> {
+        let watch = EventLoopWatch {
+            runnable,
+            resume_value,
+            priority,
+        };
+        self.event_loop.watch_event(token, watch)
+    }
+
+    /// Remove the event watch registered for one poller token.
+    pub fn unwatch_event(&mut self, token: PollerToken) -> Option<EventLoopWatch> {
+        self.event_loop.unwatch_event(token)
+    }
+
+    /// Return the number of dropped external events observed by the event loop.
+    pub fn dropped_external_events(&self) -> u64 {
+        self.event_loop.dropped_external_events()
     }
 
     /// Capture a runtime snapshot and record a checkpoint in the replay log.

@@ -44,7 +44,7 @@ pub(crate) fn destack_time_clock_metadata(
     _context: &mut vm::ExternalCallContext<'_>,
     clock: ClockId,
 ) -> RuntimeResult<ClockMetadataVm> {
-    call_out(|out| unsafe { host_time::host_clock_info(runtime, out, clock) })
+    call_out(|out| unsafe { host_time::host_clock_metadata(runtime, out, clock) })
 }
 
 /// Return monotonic time in nanoseconds.

@@ -176,7 +176,7 @@ fn boot_nanos() -> u64 {
 }
 
 /// Query one host clock metadata snapshot.
-pub(crate) fn host_clock_info(clock: ClockId) -> RuntimeResult<ClockMetadata> {
+pub(crate) fn host_clock_metadata(clock: ClockId) -> RuntimeResult<ClockMetadata> {
     // route the selected clock id
     match clock {
         ClockId::Wall => Ok(ClockMetadata {

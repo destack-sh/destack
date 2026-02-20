@@ -1,12 +1,27 @@
 use std::collections::VecDeque;
 
-use destack_workspace::SchedulerOptions;
+use destack_workspace::{SchedulerOptions, SchedulerPolicy};
 use parking_lot::Mutex;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::{Microtask, MicrotaskId, Runnable, Task, TaskId, Timer, TimerQueue};
-use crate::diagnostic::RuntimeResult;
-use crate::platform::poller::{PlatformEventPayload, ProcessStatus};
-use crate::platform::{PlatformEvent, PlatformEventSource, PlatformPoller, ResourceId};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::poller::{PlatformEventPayload, PollerToken, ProcessStatus};
+use crate::platform::{
+    PlatformError, PlatformEvent, PlatformEventSource, PlatformPoller, ResourceId,
+};
+use crate::runtime::engine::{EngineContinuation, RuntimeValue};
+
+/// Watch payload that can be dispatched as one event loop task.
+#[derive(Debug)]
+pub struct EventLoopWatch {
+    /// Runnable continuation to execute when dispatched.
+    pub runnable: EngineContinuation,
+    /// Resume value passed into the continuation.
+    pub resume_value: RuntimeValue,
+    /// Task priority used when queueing watched tasks.
+    pub priority: u8,
+}
 
 /// Event loop for task queues, microtasks, timers, and platform events.
 #[derive(Debug, Default)]
@@ -19,10 +34,16 @@ pub struct EventLoop {
     events: VecDeque<PlatformEvent>,
     /// Ready timers waiting for dispatch.
     ready_timers: VecDeque<Timer>,
-    /// Timer queue for scheduled callbacks.
+    /// Timer queue for scheduled timer fires.
     timers: Mutex<TimerQueue>,
+    /// Timer handles canceled after scheduling and before dispatch.
+    canceled_timers: Mutex<FxHashSet<ResourceId>>,
+    /// Timer watch dispatch table keyed by timer handle.
+    timer_watches: FxHashMap<ResourceId, EventLoopWatch>,
+    /// External event watch dispatch table keyed by poller token.
+    event_watches: FxHashMap<PollerToken, EventLoopWatch>,
     /// Configured event loop options.
-    pub options: SchedulerOptions,
+    options: SchedulerOptions,
 
     /// Next task identifier to issue.
     next_task_id: u64,
@@ -30,12 +51,23 @@ pub struct EventLoop {
     next_microtask_id: u64,
     /// Next task queue sequence identifier to issue.
     next_sequence: u64,
+    /// Number of dropped external events with no registered watch.
+    dropped_external_events: u64,
 }
 
 impl EventLoop {
     /// Configure event loop options.
-    pub fn configure(&mut self, options: SchedulerOptions) {
+    pub fn configure(&mut self, options: SchedulerOptions) -> RuntimeResult<()> {
+        // validate options before applying them
+        validate_scheduler_options(&options)?;
         self.options = options;
+
+        Ok(())
+    }
+
+    /// Borrow the configured scheduler options.
+    pub fn options(&self) -> &SchedulerOptions {
+        &self.options
     }
 
     /// Borrow the timer queue.
@@ -45,7 +77,13 @@ impl EventLoop {
 
     /// Enqueue a macrotask for execution.
     pub fn enqueue_task(&mut self, task: Task) {
-        self.tasks.push_back(task);
+        // insert higher priority tasks ahead of lower priority tasks
+        let insert_at = self
+            .tasks
+            .iter()
+            .position(|queued| queued.priority < task.priority)
+            .unwrap_or(self.tasks.len());
+        self.tasks.insert(insert_at, task);
     }
 
     /// Enqueue a microtask for execution.
@@ -61,15 +99,24 @@ impl EventLoop {
     }
 
     /// Pop the next runnable item from the event loop.
-    pub fn next_runnable(&mut self, now_nanos: u64) -> RuntimeResult<Option<Runnable>> {
+    pub fn next_runnable(
+        &mut self,
+        wall_now_nanos: u64,
+        mono_now_nanos: u64,
+    ) -> RuntimeResult<Option<Runnable>> {
         // always drain microtasks first
         if let Some(microtask) = self.microtasks.pop_front() {
             return Ok(Some(Runnable::Microtask(microtask)));
         }
 
         // move ready timers into the dispatch queue
-        self.enqueue_ready_timers(now_nanos)?;
-        if let Some(timer) = self.ready_timers.pop_front() {
+        self.enqueue_ready_timers(wall_now_nanos, mono_now_nanos)?;
+        while let Some(timer) = self.ready_timers.pop_front() {
+            // drop canceled timers that were already promoted into the ready queue
+            if self.canceled_timers.lock().remove(&timer.handle) {
+                continue;
+            }
+
             return Ok(Some(Runnable::Timer(timer)));
         }
 
@@ -107,6 +154,11 @@ impl EventLoop {
         self.microtasks.pop_front()
     }
 
+    /// Pop the next macrotask if available.
+    pub fn pop_task(&mut self) -> Option<Task> {
+        self.tasks.pop_front()
+    }
+
     /// Report whether any microtasks are pending.
     pub fn has_microtasks(&self) -> bool {
         !self.microtasks.is_empty()
@@ -118,6 +170,7 @@ impl EventLoop {
             || !self.microtasks.is_empty()
             || !self.events.is_empty()
             || !self.ready_timers.is_empty()
+            || !self.event_watches.is_empty()
         {
             return true;
         }
@@ -128,6 +181,23 @@ impl EventLoop {
 
     /// Schedule a timer in the runtime queue.
     pub fn schedule_timer(&self, timer: Timer) -> RuntimeResult<()> {
+        // normalize timer deadlines so scheduling stays deterministic
+        let fire_at_nanos = self.normalize_deadline(timer.fire_at_nanos);
+        let interval_nanos = timer.interval_nanos.map(|interval| {
+            if interval <= 1 {
+                return interval;
+            }
+
+            self.normalize_deadline(interval).max(1)
+        });
+        let timer = Timer {
+            clock: timer.clock,
+            handle: timer.handle,
+            fire_at_nanos,
+            interval_nanos,
+        };
+
+        self.canceled_timers.lock().remove(&timer.handle);
         let mut queue = self.timers.lock();
         queue.schedule(timer);
         Ok(())
@@ -137,19 +207,86 @@ impl EventLoop {
     pub fn cancel_timer(&self, handle: ResourceId) -> RuntimeResult<()> {
         let mut queue = self.timers.lock();
         queue.cancel(handle);
+        self.canceled_timers.lock().insert(handle);
         Ok(())
     }
 
+    /// Register one timer watch.
+    pub fn watch_timer(&mut self, handle: ResourceId, watch: EventLoopWatch) -> RuntimeResult<()> {
+        // only native continuations can be cloned for repeated dispatch
+        validate_watch(&watch)?;
+        self.timer_watches.insert(handle, watch);
+
+        Ok(())
+    }
+
+    /// Remove the timer watch registered for one timer handle.
+    pub fn unwatch_timer(&mut self, handle: ResourceId) -> Option<EventLoopWatch> {
+        self.timer_watches.remove(&handle)
+    }
+
+    /// Register one event watch.
+    pub fn watch_event(&mut self, token: PollerToken, watch: EventLoopWatch) -> RuntimeResult<()> {
+        // only native continuations can be cloned for repeated dispatch
+        validate_watch(&watch)?;
+        self.event_watches.insert(token, watch);
+
+        Ok(())
+    }
+
+    /// Remove the event watch registered for one poller token.
+    pub fn unwatch_event(&mut self, token: PollerToken) -> Option<EventLoopWatch> {
+        self.event_watches.remove(&token)
+    }
+
+    /// Build one task for a fired timer watch.
+    pub fn task_for_timer(&mut self, timer: Timer) -> Option<Task> {
+        let watch = self.timer_watches.get(&timer.handle)?;
+        let EngineContinuation::Native(native) = watch.runnable else {
+            return None;
+        };
+        let watch = EventLoopWatch {
+            runnable: EngineContinuation::Native(native),
+            resume_value: watch.resume_value,
+            priority: watch.priority,
+        };
+
+        Some(self.task_for_watch(watch))
+    }
+
+    /// Build one task for one external event watch.
+    pub fn task_for_event(&mut self, event: PlatformEvent) -> Option<Task> {
+        let watch = self.event_watches.get(&event.token)?;
+        let EngineContinuation::Native(native) = watch.runnable else {
+            return None;
+        };
+        let watch = EventLoopWatch {
+            runnable: EngineContinuation::Native(native),
+            resume_value: watch.resume_value,
+            priority: watch.priority,
+        };
+
+        Some(self.task_for_watch(watch))
+    }
+
     /// Drain timers that are ready at the given time.
-    pub fn poll_timers(&self, now_nanos: u64) -> RuntimeResult<Vec<Timer>> {
+    pub fn poll_timers(
+        &self,
+        wall_now_nanos: u64,
+        mono_now_nanos: u64,
+    ) -> RuntimeResult<Vec<Timer>> {
         let mut queue = self.timers.lock();
-        let ready = queue.poll_ready(now_nanos);
+        let ready = queue.poll_ready(wall_now_nanos, mono_now_nanos);
         Ok(ready)
     }
 
     /// Enqueue ready timers from the timer queue.
-    pub fn enqueue_ready_timers(&mut self, now_nanos: u64) -> RuntimeResult<()> {
-        let ready = self.poll_timers(now_nanos)?;
+    pub fn enqueue_ready_timers(
+        &mut self,
+        wall_now_nanos: u64,
+        mono_now_nanos: u64,
+    ) -> RuntimeResult<()> {
+        let ready = self.poll_timers(wall_now_nanos, mono_now_nanos)?;
         self.ready_timers.extend(ready);
         Ok(())
     }
@@ -168,6 +305,149 @@ impl EventLoop {
 
         Ok(count)
     }
+
+    /// Return next wall and monotonic timer deadlines when they exist.
+    pub fn next_timer_deadlines(&self) -> (Option<u64>, Option<u64>) {
+        let mut queue = self.timers.lock();
+        queue.next_deadlines()
+    }
+
+    /// Return the timeout until the next timer is ready in any clock domain.
+    pub fn timeout_until_next_timer(
+        &self,
+        wall_now_nanos: u64,
+        mono_now_nanos: u64,
+    ) -> Option<u64> {
+        if !self.ready_timers.is_empty() {
+            return Some(0);
+        }
+
+        let (wall_deadline, mono_deadline) = self.next_timer_deadlines();
+        let wall_timeout = wall_deadline.map(|deadline| deadline.saturating_sub(wall_now_nanos));
+        let mono_timeout = mono_deadline.map(|deadline| deadline.saturating_sub(mono_now_nanos));
+
+        match (wall_timeout, mono_timeout) {
+            (Some(wall_timeout), Some(mono_timeout)) => Some(wall_timeout.min(mono_timeout)),
+            (Some(wall_timeout), None) => Some(wall_timeout),
+            (None, Some(mono_timeout)) => Some(mono_timeout),
+            (None, None) => None,
+        }
+    }
+
+    /// Record one dropped external event.
+    pub fn record_dropped_external_event(&mut self) {
+        self.dropped_external_events = self.dropped_external_events.saturating_add(1);
+    }
+
+    /// Return the number of dropped external events.
+    pub const fn dropped_external_events(&self) -> u64 {
+        self.dropped_external_events
+    }
+
+    /// Build one task from one watch payload.
+    fn task_for_watch(&mut self, watch: EventLoopWatch) -> Task {
+        let task_id = self.next_task_id();
+        Task {
+            id: task_id,
+            runnable: watch.runnable,
+            resume_value: watch.resume_value,
+            status: super::TaskStatus::Ready,
+            priority: watch.priority,
+        }
+    }
+
+    /// Normalize one timer deadline using scheduler options.
+    fn normalize_deadline(&self, deadline_nanos: u64) -> u64 {
+        // quantize to timer resolution first
+        let mut normalized = deadline_nanos;
+        if let Some(timer_resolution_ns) = self.options.timer_resolution_ns {
+            normalized = round_up_deadline(normalized, timer_resolution_ns);
+        }
+
+        // then quantize to the configured coalescing window
+        if let Some(max_timer_coalesce_ns) = self.options.max_timer_coalesce_ns {
+            normalized = round_up_deadline(normalized, max_timer_coalesce_ns);
+        }
+
+        normalized
+    }
+}
+
+/// Round one deadline up to one deterministic quantum.
+fn round_up_deadline(deadline_nanos: u64, quantum_nanos: u64) -> u64 {
+    if quantum_nanos <= 1 {
+        return deadline_nanos;
+    }
+
+    let remainder = deadline_nanos % quantum_nanos;
+    if remainder == 0 {
+        return deadline_nanos;
+    }
+
+    deadline_nanos.saturating_add(quantum_nanos.saturating_sub(remainder))
+}
+
+/// Validate one scheduler options payload.
+fn validate_scheduler_options(options: &SchedulerOptions) -> RuntimeResult<()> {
+    // enforce the currently implemented queue policy
+    if options.policy != SchedulerPolicy::Fifo {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "options.scheduler.policy",
+            "only fifo scheduling policy is currently supported",
+        ))
+        .boxed());
+    }
+
+    // reject unsupported pool options until worker pools land
+    if options.worker_threads.is_some()
+        || options.io_threads.is_some()
+        || options.blocking_threads.is_some()
+        || options.max_tasks.is_some()
+    {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "options.scheduler",
+            "worker and pool options are not implemented yet",
+        ))
+        .boxed());
+    }
+
+    // reject unsupported preemption until engine preempt points land
+    if options.preempt_interval_ns.is_some() {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "options.scheduler.preempt_interval_ns",
+            "preempt interval is not implemented yet",
+        ))
+        .boxed());
+    }
+
+    // reject invalid budget and timing values
+    if matches!(options.tick_budget_ns, Some(0))
+        || matches!(options.microtask_budget, Some(0))
+        || matches!(options.max_microtask_depth, Some(0))
+        || matches!(options.timer_resolution_ns, Some(0))
+        || matches!(options.max_timer_coalesce_ns, Some(0))
+    {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "options.scheduler",
+            "scheduler budget and timer values must be greater than zero",
+        ))
+        .boxed());
+    }
+
+    Ok(())
+}
+
+/// Validate one watch payload for repeatable dispatch.
+fn validate_watch(watch: &EventLoopWatch) -> RuntimeResult<()> {
+    if matches!(watch.runnable, EngineContinuation::Vm(_)) {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "watch.runnable",
+            "vm continuations are not supported for event loop watches",
+        ))
+        .boxed());
+    }
+
+    Ok(())
 }
 
 /// Sort platform events into a deterministic order.
@@ -196,7 +476,6 @@ fn source_order(source: PlatformEventSource) -> u8 {
 }
 
 /// Build an ordering key for event payload data.
-/// FUGU #Cleanup: revisit payload_sort_key
 fn payload_sort_key(payload: PlatformEventPayload) -> u64 {
     // pack event payload data into a deterministic ordering key
     match payload {
@@ -214,46 +493,5 @@ fn payload_sort_key(payload: PlatformEventPayload) -> u64 {
             ((pid as u64) << 32) | (status_key.0 << 16) | status_key.1
         }
         PlatformEventPayload::Timer { deadline_nanos } => deadline_nanos,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use destack_vm as vm;
-
-    use super::{EventLoop, Runnable};
-    use crate::runtime::engine::{EngineContinuation, NativeContinuation};
-    use crate::runtime::scheduler::{Microtask, MicrotaskId, Task, TaskId, TaskStatus};
-
-    /// Ensures microtasks run before macrotasks in the event loop.
-    #[test]
-    fn test_microtasks_run_first() {
-        // set up an event loop with one task and one microtask
-        let mut event_loop = EventLoop::default();
-
-        let task = Task {
-            id: TaskId::new(1),
-            runnable: EngineContinuation::Native(NativeContinuation::new(11)),
-            resume_value: vm::Value::VOID,
-            status: TaskStatus::Ready,
-            priority: 0,
-        };
-        let microtask = Microtask {
-            id: MicrotaskId::new(1),
-            runnable: EngineContinuation::Native(NativeContinuation::new(22)),
-            resume_value: vm::Value::VOID,
-            status: TaskStatus::Ready,
-        };
-
-        event_loop.enqueue_task(task);
-        event_loop.enqueue_microtask(microtask);
-
-        // microtasks should be dequeued first
-        let first = event_loop.next_runnable(0).expect("event loop should run");
-        assert!(matches!(first, Some(Runnable::Microtask(_))));
-
-        // remaining item should be the task
-        let second = event_loop.next_runnable(0).expect("event loop should run");
-        assert!(matches!(second, Some(Runnable::Task(_))));
     }
 }

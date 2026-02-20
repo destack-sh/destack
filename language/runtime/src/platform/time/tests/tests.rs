@@ -53,7 +53,7 @@ pub(crate) fn assert_platform_error_codes<T>(
 }
 
 /// Normalize one harness clock info payload into the native value shape.
-pub(crate) fn clock_info_from_value(
+pub(crate) fn clock_metadata_from_value(
     value: harness::HarnessValue<ClockMetadata, ClockMetadataVm>,
 ) -> ClockMetadata {
     match value {

@@ -21,7 +21,7 @@ use unsupported as host_time;
 use windows as host_time;
 
 /// Return one virtual clock metadata payload when the runtime is virtualized.
-fn virtual_clock_info(clock: ClockId) -> Option<ClockMetadata> {
+fn virtual_clock_metadata(clock: ClockId) -> Option<ClockMetadata> {
     // return the virtualized metadata for virtual-clock domains
     match clock {
         ClockId::Wall => Some(ClockMetadata {
@@ -53,20 +53,29 @@ fn virtual_clock_info(clock: ClockId) -> Option<ClockMetadata> {
 }
 
 /// Query one selected clock metadata.
-pub(crate) unsafe fn host_clock_info(
+pub(crate) unsafe fn host_clock_metadata(
     context: &BindingCallContext,
     out: *mut ClockMetadata,
     clock: ClockId,
 ) -> RuntimeResult<()> {
+    // validate the output pointer
+    if out.is_null() {
+        return Err(time_core::null_pointer_error("out"));
+    }
+
     // route metadata reads through runtime policy and host backend
     let info = if time_core::is_virtual_clock(context) {
-        virtual_clock_info(clock).unwrap_or(host_time::host_clock_info(clock)?)
+        virtual_clock_metadata(clock).unwrap_or(host_time::host_clock_metadata(clock)?)
     } else {
-        host_time::host_clock_info(clock)?
+        host_time::host_clock_metadata(clock)?
     };
 
     // write the metadata result
-    unsafe { time_core::write_out_clock_info(out, info) }
+    unsafe {
+        *out = info;
+    }
+
+    Ok(())
 }
 
 /// Return monotonic time in nanoseconds.
@@ -74,11 +83,20 @@ pub(crate) unsafe fn host_mono_nanos(
     context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
+    // validate the output pointer
+    if out.is_null() {
+        return Err(time_core::null_pointer_error("out"));
+    }
+
     // read monotonic time from the runtime clock service
     let value = time_core::runtime_mono_nanos(context);
 
     // write the monotonic timestamp
-    unsafe { time_core::write_out_u64(out, value) }
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
 }
 
 /// Read one selected clock in nanoseconds.
@@ -87,6 +105,11 @@ pub(crate) unsafe fn host_now_nanos(
     out: *mut u64,
     clock: ClockId,
 ) -> RuntimeResult<()> {
+    // validate the output pointer
+    if out.is_null() {
+        return Err(time_core::null_pointer_error("out"));
+    }
+
     // route the selected clock through runtime policy and host backend
     let value = match clock {
         ClockId::Wall => time_core::runtime_wall_nanos(context),
@@ -103,7 +126,11 @@ pub(crate) unsafe fn host_now_nanos(
     };
 
     // write the sampled clock value
-    unsafe { time_core::write_out_u64(out, value) }
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
 }
 
 /// Return process CPU time in nanoseconds.
@@ -111,6 +138,11 @@ pub(crate) unsafe fn host_process_cpu_nanos(
     context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
+    // validate the output pointer
+    if out.is_null() {
+        return Err(time_core::null_pointer_error("out"));
+    }
+
     context
         .hooks()
         .on_time_read(RuntimeHookState::from_engine(Some(context.engine())));
@@ -119,7 +151,11 @@ pub(crate) unsafe fn host_process_cpu_nanos(
     let value = host_time::host_process_cpu_nanos()?;
 
     // write the sampled cpu time
-    unsafe { time_core::write_out_u64(out, value) }
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
 }
 
 /// Return current thread CPU time in nanoseconds.
@@ -127,6 +163,11 @@ pub(crate) unsafe fn host_thread_cpu_nanos(
     context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
+    // validate the output pointer
+    if out.is_null() {
+        return Err(time_core::null_pointer_error("out"));
+    }
+
     context
         .hooks()
         .on_time_read(RuntimeHookState::from_engine(Some(context.engine())));
@@ -135,7 +176,11 @@ pub(crate) unsafe fn host_thread_cpu_nanos(
     let value = host_time::host_thread_cpu_nanos()?;
 
     // write the sampled cpu time
-    unsafe { time_core::write_out_u64(out, value) }
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
 }
 
 /// Return wall clock time in nanoseconds.
@@ -143,11 +188,20 @@ pub(crate) unsafe fn host_wall_nanos(
     context: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
+    // validate the output pointer
+    if out.is_null() {
+        return Err(time_core::null_pointer_error("out"));
+    }
+
     // read wall time from the runtime clock service
     let value = time_core::runtime_wall_nanos(context);
 
     // write the wall timestamp
-    unsafe { time_core::write_out_u64(out, value) }
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
 }
 
 /// Sleep for one duration in nanoseconds.

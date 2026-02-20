@@ -1293,6 +1293,7 @@ dependencies = [
  "libc",
  "parking_lot",
  "postcard",
+ "rustc-hash 2.1.1",
  "rustls",
  "rustls-pemfile",
  "serde",
