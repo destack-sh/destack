@@ -1,4 +1,4 @@
-use super::PlatformEvent;
+use super::PollerEvent;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ResourceId;
 use std::sync::Arc;
@@ -104,12 +104,12 @@ impl std::ops::BitOrAssign for PlatformInterest {
 /// Poller configuration flags.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PlatformPollerFlags(
+pub struct HostPollerFlags(
     /// Raw poller flag bits.
     pub u32,
 );
 
-impl PlatformPollerFlags {
+impl HostPollerFlags {
     /// No flags.
     pub const NONE: Self = Self(0);
     /// Use edge triggered semantics.
@@ -130,7 +130,7 @@ impl PlatformPollerFlags {
     }
 }
 
-impl std::ops::BitOr for PlatformPollerFlags {
+impl std::ops::BitOr for HostPollerFlags {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self::Output {
@@ -138,20 +138,20 @@ impl std::ops::BitOr for PlatformPollerFlags {
     }
 }
 
-impl std::ops::BitOrAssign for PlatformPollerFlags {
+impl std::ops::BitOrAssign for HostPollerFlags {
     fn bitor_assign(&mut self, rhs: Self) {
         self.0 |= rhs.0;
     }
 }
 
 /// Shared wake handle for out-of-band poller wakeups.
-pub trait PlatformPollerWakeHandle: Send + Sync {
+pub trait HostPollerWakeHandle: Send + Sync {
     /// Wake the poller if it is blocked.
     fn wake(&self) -> RuntimeResult<()>;
 }
 
 /// Platform poller interface for OS-level events.
-pub trait PlatformPoller: Send {
+pub trait HostPoller: Send {
     /// Register a resource handle with the poller.
     fn register(
         &mut self,
@@ -159,7 +159,7 @@ pub trait PlatformPoller: Send {
         handle: PlatformHandle,
         token: PollerToken,
         interests: PlatformInterest,
-        flags: PlatformPollerFlags,
+        flags: HostPollerFlags,
     ) -> RuntimeResult<()>;
 
     /// Update the interest mask for a resource.
@@ -168,14 +168,14 @@ pub trait PlatformPoller: Send {
         resource_id: ResourceId,
         token: PollerToken,
         interests: PlatformInterest,
-        flags: PlatformPollerFlags,
+        flags: HostPollerFlags,
     ) -> RuntimeResult<()>;
 
     /// Remove a resource from the poller.
     fn deregister(&mut self, resource_id: ResourceId) -> RuntimeResult<()>;
 
     /// Return one shared wake handle for out-of-band wakeups.
-    fn wake_handle(&self) -> Option<Arc<dyn PlatformPollerWakeHandle>> {
+    fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
         None
     }
 
@@ -183,5 +183,5 @@ pub trait PlatformPoller: Send {
     fn wake(&mut self) -> RuntimeResult<()>;
 
     /// Poll for platform events, optionally bounded by a timeout in nanoseconds.
-    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PlatformEvent>>;
+    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PollerEvent>>;
 }

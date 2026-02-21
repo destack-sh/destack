@@ -6,13 +6,13 @@ mod unix;
 #[cfg(windows)]
 mod windows;
 
-pub use event::*;
-pub use host::*;
-pub use poller::*;
+pub(crate) use event::*;
+pub(crate) use host::*;
+pub(crate) use poller::*;
 #[cfg(target_os = "linux")]
-pub use unix::EpollPoller;
+pub(crate) use unix::EpollPoller;
 #[cfg(target_os = "linux")]
-pub use unix::IoUringPoller;
+pub(crate) use unix::IoUringPoller;
 #[cfg(any(
     target_os = "macos",
     target_os = "ios",
@@ -21,8 +21,8 @@ pub use unix::IoUringPoller;
     target_os = "openbsd",
     target_os = "dragonfly"
 ))]
-pub use unix::KqueuePoller;
+pub(crate) use unix::KqueuePoller;
 #[cfg(unix)]
-pub use unix::UnixPoller;
+pub(crate) use unix::UnixPoller;
 #[cfg(windows)]
-pub use windows::WindowsPoller;
+pub(crate) use windows::WindowsPoller;

@@ -5,14 +5,14 @@ use destack_vm as vm;
 use destack_workspace::{RuntimeOptions, SchedulerOptions};
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::poller::{PlatformEventPayload, PollerToken};
 use crate::platform::time::TimerClock;
-use crate::platform::{
-    PlatformContext, PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventSource,
-    ResourceId,
-};
+use crate::platform::{PlatformContext, ResourceId};
 use crate::runtime::engine::{
     Engine, EngineContinuation, EngineOutcome, NativeContinuation, RuntimeOutput, RuntimeValue,
+};
+use crate::runtime::poller::{
+    PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
+    PollerToken,
 };
 use crate::runtime::scheduler::{Microtask, MicrotaskId, Task, TaskId, TaskStatus, Timer};
 use crate::runtime::time::HostClockSource;
@@ -252,13 +252,13 @@ impl TestRuntime {
 
     /// Enqueue one synthetic I/O event for dispatch tests.
     pub(super) fn enqueue_io_event(&mut self, resource_id: u64, token: u64, data: u64) {
-        self.runtime.event_loop.enqueue_events(vec![PlatformEvent {
+        self.runtime.event_loop.enqueue_events(vec![PollerEvent {
             resource_id: ResourceId(resource_id),
-            source: PlatformEventSource::Io,
-            mask: PlatformEventMask::READABLE,
-            flags: PlatformEventFlags::NONE,
+            source: PollerEventSource::Io,
+            mask: PollerEventMask::READABLE,
+            flags: PollerEventFlags::NONE,
             token: PollerToken(token),
-            payload: PlatformEventPayload::Io { data },
+            payload: PollerEventPayload::Io { data },
         }]);
     }
 

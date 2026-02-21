@@ -30,14 +30,12 @@ use windows_sys::Win32::System::IO::{
 use windows_sys::Win32::System::Threading::INFINITE;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::poller::{PlatformEventMask, PlatformInterest};
 use crate::platform::proactor::{
     Proactor, ProactorAddress, ProactorAddressStorage, ProactorBufferVec, ProactorCompletion,
     ProactorCompletionData, ProactorOp, ProactorOpKind, ProactorRequest, ProactorShutdown,
 };
-use crate::platform::{
-    PlatformError, PlatformErrorCode, PlatformHandle, ResourceId, core as core_platform,
-};
+use crate::platform::{PlatformError, PlatformErrorCode, ResourceId, core as core_platform};
+use crate::runtime::poller::{PlatformHandle, PlatformInterest, PollerEventMask};
 
 /// Completion key reserved for wake notifications.
 const WAKE_COMPLETION_KEY: usize = usize::MAX;
@@ -1989,7 +1987,7 @@ fn execute_poll(
     let readiness = poll_socket_readiness(handle, interests);
     let mask = match readiness {
         Ok(Some(mask)) => mask,
-        Ok(None) => PlatformEventMask::NONE,
+        Ok(None) => PollerEventMask::NONE,
         Err(error) => return net_error_completion(request, error),
     };
 
@@ -2002,7 +2000,7 @@ fn execute_poll(
 fn poll_socket_readiness(
     handle: PlatformHandle,
     interests: PlatformInterest,
-) -> Result<Option<PlatformEventMask>, i32> {
+) -> Result<Option<PollerEventMask>, i32> {
     // build one wsapoll events mask from requested interests
     let mut events: i16 = 0;
     if interests.contains(PlatformInterest::READABLE) {
@@ -2027,21 +2025,21 @@ fn poll_socket_readiness(
     }
 
     // decode ready event bits from wsapoll
-    let mut mask = PlatformEventMask::NONE;
+    let mut mask = PollerEventMask::NONE;
     if (pollfd.revents & POLLIN) != 0 {
-        mask |= PlatformEventMask::READABLE;
+        mask |= PollerEventMask::READABLE;
     }
     if (pollfd.revents & POLLOUT) != 0 {
-        mask |= PlatformEventMask::WRITABLE;
+        mask |= PollerEventMask::WRITABLE;
     }
     if (pollfd.revents & POLLERR) != 0 {
-        mask |= PlatformEventMask::ERROR;
+        mask |= PollerEventMask::ERROR;
     }
     if (pollfd.revents & POLLHUP) != 0 {
-        mask |= PlatformEventMask::HANGUP;
+        mask |= PollerEventMask::HANGUP;
     }
     if (pollfd.revents & POLLPRI) != 0 {
-        mask |= PlatformEventMask::PRIORITY;
+        mask |= PollerEventMask::PRIORITY;
     }
 
     Ok(Some(mask))
@@ -2569,9 +2567,9 @@ fn post_completion(port: HANDLE, completion: ProactorCompletion) -> RuntimeResul
 mod tests {
     use super::{IocpProactor, execute_request, timeout_millis_from_nanos};
     use crate::platform::{
-        PlatformErrorCode, PlatformHandle, Proactor, ProactorAddress, ProactorOp, ProactorRequest,
-        ResourceId,
+        PlatformErrorCode, Proactor, ProactorAddress, ProactorOp, ProactorRequest, ResourceId,
     };
+    use crate::runtime::poller::PlatformHandle;
 
     /// Cancellation should surface one interrupted timeout completion.
     #[test]

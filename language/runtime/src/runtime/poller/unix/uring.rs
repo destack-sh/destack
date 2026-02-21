@@ -8,12 +8,12 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::{
     PlatformErrorContext, PlatformErrorContextKind, io_error_code_from_errno,
 };
-use crate::platform::poller::{
-    PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventPayload,
-    PlatformEventSource, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
-    PlatformPollerWakeHandle, PollerToken,
-};
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
+use crate::runtime::poller::{
+    HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformHandle, PlatformInterest,
+    PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
+    PollerToken,
+};
 
 /// Default io_uring queue depth.
 const DEFAULT_QUEUE_DEPTH: u32 = 256;
@@ -64,7 +64,7 @@ struct PollRegistration {
     /// Interest mask for readiness.
     interests: PlatformInterest,
     /// Poller configuration flags.
-    flags: PlatformPollerFlags,
+    flags: HostPollerFlags,
     /// Whether a poll request is currently in flight.
     pending: bool,
 }
@@ -76,7 +76,7 @@ struct IoUringWakeHandle {
     wake_fd: RawFd,
 }
 
-impl PlatformPollerWakeHandle for IoUringWakeHandle {
+impl HostPollerWakeHandle for IoUringWakeHandle {
     fn wake(&self) -> RuntimeResult<()> {
         wake_eventfd(self.wake_fd)
     }
@@ -120,7 +120,7 @@ impl IoUringPoller {
             WAKE_TOKEN,
             wake_fd,
             PlatformInterest::READABLE,
-            PlatformPollerFlags::NONE,
+            HostPollerFlags::NONE,
         )?;
         poller.wake_pending = true;
         poller.submit()?;
@@ -149,7 +149,7 @@ impl IoUringPoller {
         token: PollerToken,
         fd: RawFd,
         interests: PlatformInterest,
-        flags: PlatformPollerFlags,
+        flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         let mask = poll_mask_for_interest(interests, flags);
         let entry = opcode::PollAdd::new(types::Fd(fd), mask)
@@ -234,7 +234,7 @@ impl IoUringPoller {
             None => return,
         };
 
-        if flags.contains(PlatformPollerFlags::ONESHOT) || pending {
+        if flags.contains(HostPollerFlags::ONESHOT) || pending {
             return;
         }
 
@@ -254,14 +254,14 @@ impl Drop for IoUringPoller {
     }
 }
 
-impl PlatformPoller for IoUringPoller {
+impl HostPoller for IoUringPoller {
     fn register(
         &mut self,
         resource_id: ResourceId,
         handle: PlatformHandle,
         token: PollerToken,
         interests: PlatformInterest,
-        flags: PlatformPollerFlags,
+        flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
         if token.is_reserved() {
@@ -272,7 +272,7 @@ impl PlatformPoller for IoUringPoller {
             .boxed());
         }
 
-        if flags.contains(PlatformPollerFlags::EDGE) {
+        if flags.contains(HostPollerFlags::EDGE) {
             return Err(RuntimeError::from(PlatformError::not_supported(
                 "io_uring poller does not support edge-triggered registrations yet",
             ))
@@ -310,7 +310,7 @@ impl PlatformPoller for IoUringPoller {
         resource_id: ResourceId,
         token: PollerToken,
         interests: PlatformInterest,
-        flags: PlatformPollerFlags,
+        flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
         if token.is_reserved() {
@@ -321,7 +321,7 @@ impl PlatformPoller for IoUringPoller {
             .boxed());
         }
 
-        if flags.contains(PlatformPollerFlags::EDGE) {
+        if flags.contains(HostPollerFlags::EDGE) {
             return Err(RuntimeError::from(PlatformError::not_supported(
                 "io_uring poller does not support edge-triggered registrations yet",
             ))
@@ -386,7 +386,7 @@ impl PlatformPoller for IoUringPoller {
         Ok(())
     }
 
-    fn wake_handle(&self) -> Option<Arc<dyn PlatformPollerWakeHandle>> {
+    fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
         Some(self.wake_handle.clone())
     }
 
@@ -394,7 +394,7 @@ impl PlatformPoller for IoUringPoller {
         self.wake_handle.wake()
     }
 
-    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PlatformEvent>> {
+    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PollerEvent>> {
         if let Some(timeout) = timeout_nanos {
             if timeout > 0 {
                 self.submit_timeout(timeout)?;
@@ -457,13 +457,13 @@ impl PlatformPoller for IoUringPoller {
             }
 
             let flags = event_flags_from_registration(registration.flags);
-            output.push(PlatformEvent {
+            output.push(PollerEvent {
                 resource_id,
-                source: PlatformEventSource::Io,
+                source: PollerEventSource::Io,
                 mask,
                 flags,
                 token: registration.token,
-                payload: PlatformEventPayload::Io {
+                payload: PollerEventPayload::Io {
                     data: result as u64,
                 },
             });
@@ -485,7 +485,7 @@ impl PlatformPoller for IoUringPoller {
                 WAKE_TOKEN,
                 self.wake_fd,
                 PlatformInterest::READABLE,
-                PlatformPollerFlags::NONE,
+                HostPollerFlags::NONE,
             )?;
             self.wake_pending = true;
         }
@@ -516,7 +516,7 @@ fn wake_eventfd(fd: RawFd) -> RuntimeResult<()> {
     Ok(())
 }
 
-fn poll_mask_for_interest(interests: PlatformInterest, flags: PlatformPollerFlags) -> u32 {
+fn poll_mask_for_interest(interests: PlatformInterest, flags: HostPollerFlags) -> u32 {
     let mut mask = 0;
     if interests.contains(PlatformInterest::READABLE) {
         mask |= libc::POLLIN as u32;
@@ -524,42 +524,42 @@ fn poll_mask_for_interest(interests: PlatformInterest, flags: PlatformPollerFlag
     if interests.contains(PlatformInterest::WRITABLE) {
         mask |= libc::POLLOUT as u32;
     }
-    if flags.contains(PlatformPollerFlags::PRIORITY) {
+    if flags.contains(HostPollerFlags::PRIORITY) {
         mask |= libc::POLLPRI as u32;
     }
 
     mask
 }
 
-fn event_mask_from_revents(revents: u32) -> PlatformEventMask {
-    let mut mask = PlatformEventMask::NONE;
+fn event_mask_from_revents(revents: u32) -> PollerEventMask {
+    let mut mask = PollerEventMask::NONE;
 
     if (revents & (libc::POLLIN as u32)) != 0 {
-        mask |= PlatformEventMask::READABLE;
+        mask |= PollerEventMask::READABLE;
     }
     if (revents & (libc::POLLOUT as u32)) != 0 {
-        mask |= PlatformEventMask::WRITABLE;
+        mask |= PollerEventMask::WRITABLE;
     }
     if (revents & (libc::POLLERR as u32)) != 0 {
-        mask |= PlatformEventMask::ERROR;
+        mask |= PollerEventMask::ERROR;
     }
     if (revents & (libc::POLLHUP as u32)) != 0 {
-        mask |= PlatformEventMask::HANGUP;
+        mask |= PollerEventMask::HANGUP;
     }
     if (revents & (libc::POLLPRI as u32)) != 0 {
-        mask |= PlatformEventMask::PRIORITY;
+        mask |= PollerEventMask::PRIORITY;
     }
 
     mask
 }
 
-fn event_flags_from_registration(flags: PlatformPollerFlags) -> PlatformEventFlags {
-    let mut out = PlatformEventFlags::NONE;
-    if flags.contains(PlatformPollerFlags::EDGE) {
-        out |= PlatformEventFlags::EDGE;
+fn event_flags_from_registration(flags: HostPollerFlags) -> PollerEventFlags {
+    let mut out = PollerEventFlags::NONE;
+    if flags.contains(HostPollerFlags::EDGE) {
+        out |= PollerEventFlags::EDGE;
     }
-    if flags.contains(PlatformPollerFlags::ONESHOT) {
-        out |= PlatformEventFlags::ONESHOT;
+    if flags.contains(HostPollerFlags::ONESHOT) {
+        out |= PollerEventFlags::ONESHOT;
     }
 
     out

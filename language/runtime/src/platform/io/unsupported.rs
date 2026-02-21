@@ -12,9 +12,9 @@ use crate::platform::io::{
     DescriptorRequest, DescriptorResult, EventToken, PollBackend, PollEvent, PollInterest,
     UringFeatures, UringParameters,
 };
-use crate::platform::poller::PlatformPollerBackend;
 use crate::platform::proactor::Proactor;
-use crate::platform::{PlatformHandle, resource};
+use crate::platform::resource;
+use crate::runtime::poller::{HostPollerBackend, PlatformHandle};
 
 /// Return one unsupported error for completion backend creation.
 pub(crate) fn host_completion_create_proactor(entries: u32) -> RuntimeResult<Box<dyn Proactor>> {
@@ -48,12 +48,12 @@ pub(crate) fn host_control_ioctl(
 }
 
 /// Return one fallback poll backend mapping for unsupported hosts.
-pub(crate) const fn host_map_poll_backend(backend: PollBackend) -> PlatformPollerBackend {
+pub(crate) const fn host_map_poll_backend(backend: PollBackend) -> HostPollerBackend {
     match backend {
-        PollBackend::Auto => PlatformPollerBackend::Auto,
-        PollBackend::Epoll => PlatformPollerBackend::Epoll,
-        PollBackend::Kqueue => PlatformPollerBackend::Kqueue,
-        PollBackend::Poll => PlatformPollerBackend::Poll,
+        PollBackend::Auto => HostPollerBackend::Auto,
+        PollBackend::Epoll => HostPollerBackend::Epoll,
+        PollBackend::Kqueue => HostPollerBackend::Kqueue,
+        PollBackend::Poll => HostPollerBackend::Poll,
     }
 }
 

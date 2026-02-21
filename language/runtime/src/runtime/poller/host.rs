@@ -14,6 +14,7 @@ use crate::platform::PlatformErrorCode;
 
 #[cfg(target_os = "linux")]
 use super::EpollPoller;
+use super::HostPoller;
 #[cfg(target_os = "linux")]
 use super::IoUringPoller;
 #[cfg(any(
@@ -25,7 +26,6 @@ use super::IoUringPoller;
     target_os = "dragonfly"
 ))]
 use super::KqueuePoller;
-use super::PlatformPoller;
 #[cfg(unix)]
 use super::UnixPoller;
 #[cfg(windows)]
@@ -33,7 +33,7 @@ use super::WindowsPoller;
 
 /// Canonical platform poller backend selector.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PlatformPollerBackend {
+pub(crate) enum HostPollerBackend {
     /// Select one policy-specific automatic backend.
     Auto,
     /// Select io_uring where supported.
@@ -50,7 +50,7 @@ pub enum PlatformPollerBackend {
 
 /// Profile selector for automatic backend choice.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PlatformPollerProfile {
+pub(crate) enum HostPollerProfile {
     /// Runtime scheduler poller policy.
     RuntimeScheduler,
     /// io.poll binding poller policy.
@@ -58,35 +58,35 @@ pub enum PlatformPollerProfile {
 }
 
 /// Create one platform poller from a canonical backend selector.
-pub fn create_platform_poller(
-    backend: PlatformPollerBackend,
-    profile: PlatformPollerProfile,
-) -> RuntimeResult<Box<dyn PlatformPoller>> {
+pub(crate) fn create_host_poller(
+    backend: HostPollerBackend,
+    profile: HostPollerProfile,
+) -> RuntimeResult<Box<dyn HostPoller>> {
     match backend {
-        PlatformPollerBackend::Auto => match profile {
-            PlatformPollerProfile::RuntimeScheduler => create_auto_runtime_poller(),
-            PlatformPollerProfile::IoBinding => create_auto_io_poller(),
+        HostPollerBackend::Auto => match profile {
+            HostPollerProfile::RuntimeScheduler => create_auto_runtime_poller(),
+            HostPollerProfile::IoBinding => create_auto_io_poller(),
         },
         _ => create_explicit_poller(backend),
     }
 }
 
 /// Create one poller for runtime scheduler use.
-pub fn create_platform_poller_for_runtime(
-    backend: PlatformPollerBackend,
-) -> RuntimeResult<Box<dyn PlatformPoller>> {
-    create_platform_poller(backend, PlatformPollerProfile::RuntimeScheduler)
+pub(crate) fn create_host_poller_for_runtime(
+    backend: HostPollerBackend,
+) -> RuntimeResult<Box<dyn HostPoller>> {
+    create_host_poller(backend, HostPollerProfile::RuntimeScheduler)
 }
 
 /// Create one poller for io.poll binding use.
-pub fn create_platform_poller_for_io(
-    backend: PlatformPollerBackend,
-) -> RuntimeResult<Box<dyn PlatformPoller>> {
-    create_platform_poller(backend, PlatformPollerProfile::IoBinding)
+pub(crate) fn create_host_poller_for_io(
+    backend: HostPollerBackend,
+) -> RuntimeResult<Box<dyn HostPoller>> {
+    create_host_poller(backend, HostPollerProfile::IoBinding)
 }
 
 /// Return one standardized backend-not-supported error.
-fn poller_not_supported(backend: PlatformPollerBackend) -> RuntimeResult<Box<dyn PlatformPoller>> {
+fn poller_not_supported(backend: HostPollerBackend) -> RuntimeResult<Box<dyn HostPoller>> {
     let backend = backend_label(backend);
 
     Err(RuntimeError::from(PlatformError::not_supported(format!(
@@ -96,14 +96,14 @@ fn poller_not_supported(backend: PlatformPollerBackend) -> RuntimeResult<Box<dyn
 }
 
 /// Return one stable backend label for diagnostics.
-const fn backend_label(backend: PlatformPollerBackend) -> &'static str {
+const fn backend_label(backend: HostPollerBackend) -> &'static str {
     match backend {
-        PlatformPollerBackend::Auto => "auto",
-        PlatformPollerBackend::IoUring => "io_uring",
-        PlatformPollerBackend::Epoll => "epoll",
-        PlatformPollerBackend::Kqueue => "kqueue",
-        PlatformPollerBackend::Poll => "poll",
-        PlatformPollerBackend::Windows => "windows",
+        HostPollerBackend::Auto => "auto",
+        HostPollerBackend::IoUring => "io_uring",
+        HostPollerBackend::Epoll => "epoll",
+        HostPollerBackend::Kqueue => "kqueue",
+        HostPollerBackend::Poll => "poll",
+        HostPollerBackend::Windows => "windows",
     }
 }
 
@@ -136,8 +136,8 @@ fn is_not_supported_error(error: &RuntimeError) -> bool {
     target_os = "dragonfly"
 ))]
 fn try_create_explicit_poller(
-    backend: PlatformPollerBackend,
-) -> RuntimeResult<Option<Box<dyn PlatformPoller>>> {
+    backend: HostPollerBackend,
+) -> RuntimeResult<Option<Box<dyn HostPoller>>> {
     match create_explicit_poller(backend) {
         Ok(poller) => Ok(Some(poller)),
         Err(error) => {
@@ -151,12 +151,10 @@ fn try_create_explicit_poller(
 }
 
 /// Create one explicit backend without fallback policy.
-fn create_explicit_poller(
-    backend: PlatformPollerBackend,
-) -> RuntimeResult<Box<dyn PlatformPoller>> {
+fn create_explicit_poller(backend: HostPollerBackend) -> RuntimeResult<Box<dyn HostPoller>> {
     match backend {
-        PlatformPollerBackend::Auto => poller_not_supported(PlatformPollerBackend::Auto),
-        PlatformPollerBackend::IoUring => {
+        HostPollerBackend::Auto => poller_not_supported(HostPollerBackend::Auto),
+        HostPollerBackend::IoUring => {
             #[cfg(target_os = "linux")]
             {
                 Ok(Box::new(IoUringPoller::new()?))
@@ -164,10 +162,10 @@ fn create_explicit_poller(
 
             #[cfg(not(target_os = "linux"))]
             {
-                poller_not_supported(PlatformPollerBackend::IoUring)
+                poller_not_supported(HostPollerBackend::IoUring)
             }
         }
-        PlatformPollerBackend::Epoll => {
+        HostPollerBackend::Epoll => {
             #[cfg(target_os = "linux")]
             {
                 Ok(Box::new(EpollPoller::new()?))
@@ -175,10 +173,10 @@ fn create_explicit_poller(
 
             #[cfg(not(target_os = "linux"))]
             {
-                poller_not_supported(PlatformPollerBackend::Epoll)
+                poller_not_supported(HostPollerBackend::Epoll)
             }
         }
-        PlatformPollerBackend::Kqueue => {
+        HostPollerBackend::Kqueue => {
             #[cfg(any(
                 target_os = "macos",
                 target_os = "ios",
@@ -200,10 +198,10 @@ fn create_explicit_poller(
                 target_os = "dragonfly"
             )))]
             {
-                poller_not_supported(PlatformPollerBackend::Kqueue)
+                poller_not_supported(HostPollerBackend::Kqueue)
             }
         }
-        PlatformPollerBackend::Poll => {
+        HostPollerBackend::Poll => {
             #[cfg(unix)]
             {
                 Ok(Box::new(UnixPoller::new()?))
@@ -211,10 +209,10 @@ fn create_explicit_poller(
 
             #[cfg(not(unix))]
             {
-                poller_not_supported(PlatformPollerBackend::Poll)
+                poller_not_supported(HostPollerBackend::Poll)
             }
         }
-        PlatformPollerBackend::Windows => {
+        HostPollerBackend::Windows => {
             #[cfg(windows)]
             {
                 Ok(Box::new(WindowsPoller::new()?))
@@ -222,24 +220,24 @@ fn create_explicit_poller(
 
             #[cfg(not(windows))]
             {
-                poller_not_supported(PlatformPollerBackend::Windows)
+                poller_not_supported(HostPollerBackend::Windows)
             }
         }
     }
 }
 
 /// Create one automatic backend for runtime scheduler usage.
-fn create_auto_runtime_poller() -> RuntimeResult<Box<dyn PlatformPoller>> {
+fn create_auto_runtime_poller() -> RuntimeResult<Box<dyn HostPoller>> {
     #[cfg(target_os = "linux")]
     {
         // prefer io_uring, then epoll, then poll on Linux
-        if let Some(poller) = try_create_explicit_poller(PlatformPollerBackend::IoUring)? {
+        if let Some(poller) = try_create_explicit_poller(HostPollerBackend::IoUring)? {
             return Ok(poller);
         }
-        if let Some(poller) = try_create_explicit_poller(PlatformPollerBackend::Epoll)? {
+        if let Some(poller) = try_create_explicit_poller(HostPollerBackend::Epoll)? {
             return Ok(poller);
         }
-        create_explicit_poller(PlatformPollerBackend::Poll)
+        create_explicit_poller(HostPollerBackend::Poll)
     }
 
     #[cfg(any(
@@ -252,16 +250,16 @@ fn create_auto_runtime_poller() -> RuntimeResult<Box<dyn PlatformPoller>> {
     ))]
     {
         // prefer kqueue, then poll on BSD-family targets
-        if let Some(poller) = try_create_explicit_poller(PlatformPollerBackend::Kqueue)? {
+        if let Some(poller) = try_create_explicit_poller(HostPollerBackend::Kqueue)? {
             return Ok(poller);
         }
-        create_explicit_poller(PlatformPollerBackend::Poll)
+        create_explicit_poller(HostPollerBackend::Poll)
     }
 
     #[cfg(windows)]
     {
         // use the Windows backend on Windows hosts
-        create_explicit_poller(PlatformPollerBackend::Windows)
+        create_explicit_poller(HostPollerBackend::Windows)
     }
 
     #[cfg(not(any(
@@ -275,19 +273,19 @@ fn create_auto_runtime_poller() -> RuntimeResult<Box<dyn PlatformPoller>> {
         windows
     )))]
     {
-        poller_not_supported(PlatformPollerBackend::Auto)
+        poller_not_supported(HostPollerBackend::Auto)
     }
 }
 
 /// Create one automatic backend for io.poll binding usage.
-fn create_auto_io_poller() -> RuntimeResult<Box<dyn PlatformPoller>> {
+fn create_auto_io_poller() -> RuntimeResult<Box<dyn HostPoller>> {
     #[cfg(target_os = "linux")]
     {
         // prefer epoll, then poll for io.poll on Linux
-        if let Some(poller) = try_create_explicit_poller(PlatformPollerBackend::Epoll)? {
+        if let Some(poller) = try_create_explicit_poller(HostPollerBackend::Epoll)? {
             return Ok(poller);
         }
-        create_explicit_poller(PlatformPollerBackend::Poll)
+        create_explicit_poller(HostPollerBackend::Poll)
     }
 
     #[cfg(any(
@@ -300,16 +298,16 @@ fn create_auto_io_poller() -> RuntimeResult<Box<dyn PlatformPoller>> {
     ))]
     {
         // prefer kqueue, then poll for io.poll on BSD-family targets
-        if let Some(poller) = try_create_explicit_poller(PlatformPollerBackend::Kqueue)? {
+        if let Some(poller) = try_create_explicit_poller(HostPollerBackend::Kqueue)? {
             return Ok(poller);
         }
-        create_explicit_poller(PlatformPollerBackend::Poll)
+        create_explicit_poller(HostPollerBackend::Poll)
     }
 
     #[cfg(windows)]
     {
         // use the poll-style backend on Windows hosts
-        create_explicit_poller(PlatformPollerBackend::Windows)
+        create_explicit_poller(HostPollerBackend::Windows)
     }
 
     #[cfg(not(any(
@@ -323,7 +321,7 @@ fn create_auto_io_poller() -> RuntimeResult<Box<dyn PlatformPoller>> {
         windows
     )))]
     {
-        poller_not_supported(PlatformPollerBackend::Auto)
+        poller_not_supported(HostPollerBackend::Auto)
     }
 }
 
@@ -354,7 +352,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_runtime_poll_backend_poll_is_not_supported_on_windows() {
-        let result = create_platform_poller_for_runtime(PlatformPollerBackend::Poll);
+        let result = create_host_poller_for_runtime(HostPollerBackend::Poll);
         assert!(result.is_err());
         let error = result.err().expect("poll backend should fail");
         let platform = error
@@ -366,7 +364,7 @@ mod tests {
     /// Wake one blocking io poller wait through one shared wake handle.
     #[test]
     fn test_io_poller_wake_handle_interrupts_blocking_poll() {
-        let poller = create_platform_poller_for_io(PlatformPollerBackend::Auto)
+        let poller = create_host_poller_for_io(HostPollerBackend::Auto)
             .expect("auto io poller should initialize");
         let wake_handle = poller
             .wake_handle()

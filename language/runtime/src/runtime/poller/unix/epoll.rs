@@ -8,12 +8,12 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::{
     PlatformErrorContext, PlatformErrorContextKind, io_error_code_from_errno,
 };
-use crate::platform::poller::{
-    PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventPayload,
-    PlatformEventSource, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
-    PlatformPollerWakeHandle, PollerToken,
-};
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
+use crate::runtime::poller::{
+    HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformHandle, PlatformInterest,
+    PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
+    PollerToken,
+};
 
 /// Epoll backed poller for Linux targets.
 #[derive(Debug)]
@@ -39,7 +39,7 @@ struct EpollWakeHandle {
     wake_fd: RawFd,
 }
 
-impl PlatformPollerWakeHandle for EpollWakeHandle {
+impl HostPollerWakeHandle for EpollWakeHandle {
     fn wake(&self) -> RuntimeResult<()> {
         wake_eventfd(self.wake_fd)
     }
@@ -55,7 +55,7 @@ struct PollRegistration {
     /// Interest mask for readiness.
     interests: PlatformInterest,
     /// Poller configuration flags.
-    flags: PlatformPollerFlags,
+    flags: HostPollerFlags,
 }
 
 impl EpollPoller {
@@ -104,14 +104,14 @@ impl Drop for EpollPoller {
     }
 }
 
-impl PlatformPoller for EpollPoller {
+impl HostPoller for EpollPoller {
     fn register(
         &mut self,
         resource_id: ResourceId,
         handle: PlatformHandle,
         token: PollerToken,
         interests: PlatformInterest,
-        flags: PlatformPollerFlags,
+        flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
         if token.is_reserved() {
@@ -167,7 +167,7 @@ impl PlatformPoller for EpollPoller {
         resource_id: ResourceId,
         token: PollerToken,
         interests: PlatformInterest,
-        flags: PlatformPollerFlags,
+        flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
         if token.is_reserved() {
@@ -239,7 +239,7 @@ impl PlatformPoller for EpollPoller {
         Ok(())
     }
 
-    fn wake_handle(&self) -> Option<Arc<dyn PlatformPollerWakeHandle>> {
+    fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
         Some(self.wake_handle.clone())
     }
 
@@ -247,7 +247,7 @@ impl PlatformPoller for EpollPoller {
         self.wake_handle.wake()
     }
 
-    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PlatformEvent>> {
+    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PollerEvent>> {
         // ensure the event buffer can hold all registrations
         let max_events = self.registrations.len() + 1;
         if self.events.len() < max_events {
@@ -301,18 +301,18 @@ impl PlatformPoller for EpollPoller {
             }
 
             let flags = event_flags_from_registration(registration.flags);
-            output.push(PlatformEvent {
+            output.push(PollerEvent {
                 resource_id,
-                source: PlatformEventSource::Io,
+                source: PollerEventSource::Io,
                 mask,
                 flags,
                 token: registration.token,
-                payload: PlatformEventPayload::Io {
+                payload: PollerEventPayload::Io {
                     data: event.events as u64,
                 },
             });
 
-            if registration.flags.contains(PlatformPollerFlags::ONESHOT) {
+            if registration.flags.contains(HostPollerFlags::ONESHOT) {
                 oneshot.push(resource_id);
             }
         }
@@ -362,7 +362,7 @@ fn wake_eventfd(fd: RawFd) -> RuntimeResult<()> {
 }
 
 /// Convert interests and flags into epoll events.
-fn epoll_events_for_interest(interests: PlatformInterest, flags: PlatformPollerFlags) -> u32 {
+fn epoll_events_for_interest(interests: PlatformInterest, flags: HostPollerFlags) -> u32 {
     // build the epoll event mask
     let mut events: u32 = 0;
     if interests.contains(PlatformInterest::READABLE) {
@@ -371,13 +371,13 @@ fn epoll_events_for_interest(interests: PlatformInterest, flags: PlatformPollerF
     if interests.contains(PlatformInterest::WRITABLE) {
         events |= libc::EPOLLOUT as u32;
     }
-    if flags.contains(PlatformPollerFlags::PRIORITY) {
+    if flags.contains(HostPollerFlags::PRIORITY) {
         events |= libc::EPOLLPRI as u32;
     }
-    if flags.contains(PlatformPollerFlags::EDGE) {
+    if flags.contains(HostPollerFlags::EDGE) {
         events |= libc::EPOLLET as u32;
     }
-    if flags.contains(PlatformPollerFlags::ONESHOT) {
+    if flags.contains(HostPollerFlags::ONESHOT) {
         events |= libc::EPOLLONESHOT as u32;
     }
 
@@ -385,38 +385,38 @@ fn epoll_events_for_interest(interests: PlatformInterest, flags: PlatformPollerF
 }
 
 /// Build event flags from registration flags.
-fn event_flags_from_registration(flags: PlatformPollerFlags) -> PlatformEventFlags {
+fn event_flags_from_registration(flags: HostPollerFlags) -> PollerEventFlags {
     // expose edge and oneshot flags to consumers
-    let mut out = PlatformEventFlags::NONE;
-    if flags.contains(PlatformPollerFlags::EDGE) {
-        out |= PlatformEventFlags::EDGE;
+    let mut out = PollerEventFlags::NONE;
+    if flags.contains(HostPollerFlags::EDGE) {
+        out |= PollerEventFlags::EDGE;
     }
-    if flags.contains(PlatformPollerFlags::ONESHOT) {
-        out |= PlatformEventFlags::ONESHOT;
+    if flags.contains(HostPollerFlags::ONESHOT) {
+        out |= PollerEventFlags::ONESHOT;
     }
 
     out
 }
 
 /// Build event mask from epoll events.
-fn event_mask_from_epoll(events: u32) -> PlatformEventMask {
+fn event_mask_from_epoll(events: u32) -> PollerEventMask {
     // translate epoll event bits into the runtime mask
-    let mut mask = PlatformEventMask::NONE;
+    let mut mask = PollerEventMask::NONE;
 
     if (events & libc::EPOLLIN as u32) != 0 {
-        mask |= PlatformEventMask::READABLE;
+        mask |= PollerEventMask::READABLE;
     }
     if (events & libc::EPOLLOUT as u32) != 0 {
-        mask |= PlatformEventMask::WRITABLE;
+        mask |= PollerEventMask::WRITABLE;
     }
     if (events & libc::EPOLLERR as u32) != 0 {
-        mask |= PlatformEventMask::ERROR;
+        mask |= PollerEventMask::ERROR;
     }
     if (events & libc::EPOLLHUP as u32) != 0 || (events & libc::EPOLLRDHUP as u32) != 0 {
-        mask |= PlatformEventMask::HANGUP;
+        mask |= PollerEventMask::HANGUP;
     }
     if (events & libc::EPOLLPRI as u32) != 0 {
-        mask |= PlatformEventMask::PRIORITY;
+        mask |= PollerEventMask::PRIORITY;
     }
 
     mask
@@ -507,8 +507,8 @@ fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
 #[cfg(test)]
 mod tests {
     use super::{
-        EpollPoller, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
-        PollerToken, ResourceId,
+        EpollPoller, HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerToken,
+        ResourceId,
     };
 
     /// Ensures epoll emits a readable event when data is available.
@@ -530,7 +530,7 @@ mod tests {
                 handle,
                 PollerToken(1),
                 PlatformInterest::READABLE,
-                PlatformPollerFlags::NONE,
+                HostPollerFlags::NONE,
             )
             .expect("register should succeed");
 

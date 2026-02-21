@@ -8,16 +8,16 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::{
     PlatformErrorContext, PlatformErrorContextKind, io_error_code_from_errno,
 };
-use crate::platform::poller::{
-    PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventPayload,
-    PlatformEventSource, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
-    PlatformPollerWakeHandle, PollerToken,
-};
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
+use crate::runtime::poller::{
+    HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformHandle, PlatformInterest,
+    PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
+    PollerToken,
+};
 
 /// Poll based platform poller for Unix systems.
 #[derive(Debug)]
-pub struct UnixPoller {
+pub(crate) struct UnixPoller {
     /// Registered resource entries.
     registrations: HashMap<ResourceId, PollRegistration>,
     /// Read end of the wake pipe.
@@ -42,7 +42,7 @@ struct PollRegistration {
     /// Interest mask for readiness.
     interests: PlatformInterest,
     /// Poller configuration flags.
-    flags: PlatformPollerFlags,
+    flags: HostPollerFlags,
 }
 
 /// Shared wake handle for one unix poll poller.
@@ -52,7 +52,7 @@ struct UnixPollWakeHandle {
     wake_write: RawFd,
 }
 
-impl PlatformPollerWakeHandle for UnixPollWakeHandle {
+impl HostPollerWakeHandle for UnixPollWakeHandle {
     fn wake(&self) -> RuntimeResult<()> {
         wake_pipe(self.wake_write)
     }
@@ -60,7 +60,7 @@ impl PlatformPollerWakeHandle for UnixPollWakeHandle {
 
 impl UnixPoller {
     /// Create a new Unix poller instance.
-    pub fn new() -> RuntimeResult<Self> {
+    pub(crate) fn new() -> RuntimeResult<Self> {
         // wake pipe used to interrupt blocking polls
         let (wake_read, wake_write) = create_wake_pipe()?;
 
@@ -86,14 +86,14 @@ impl Drop for UnixPoller {
     }
 }
 
-impl PlatformPoller for UnixPoller {
+impl HostPoller for UnixPoller {
     fn register(
         &mut self,
         resource_id: ResourceId,
         handle: PlatformHandle,
         token: PollerToken,
         interests: PlatformInterest,
-        flags: PlatformPollerFlags,
+        flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
         if token.is_reserved() {
@@ -105,7 +105,7 @@ impl PlatformPoller for UnixPoller {
         }
 
         // reject unsupported edge-triggered registrations
-        if flags.contains(PlatformPollerFlags::EDGE) {
+        if flags.contains(HostPollerFlags::EDGE) {
             return Err(RuntimeError::from(PlatformError::not_supported(
                 "poller.edge is not supported by poll",
             ))
@@ -129,7 +129,7 @@ impl PlatformPoller for UnixPoller {
         resource_id: ResourceId,
         token: PollerToken,
         interests: PlatformInterest,
-        flags: PlatformPollerFlags,
+        flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
         if token.is_reserved() {
@@ -141,7 +141,7 @@ impl PlatformPoller for UnixPoller {
         }
 
         // reject unsupported edge-triggered registrations
-        if flags.contains(PlatformPollerFlags::EDGE) {
+        if flags.contains(HostPollerFlags::EDGE) {
             return Err(RuntimeError::from(PlatformError::not_supported(
                 "poller.edge is not supported by poll",
             ))
@@ -172,7 +172,7 @@ impl PlatformPoller for UnixPoller {
         Ok(())
     }
 
-    fn wake_handle(&self) -> Option<Arc<dyn PlatformPollerWakeHandle>> {
+    fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
         Some(self.wake_handle.clone())
     }
 
@@ -180,7 +180,7 @@ impl PlatformPoller for UnixPoller {
         self.wake_handle.wake()
     }
 
-    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PlatformEvent>> {
+    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PollerEvent>> {
         // build pollfd array including wake pipe
         self.pollfds.clear();
         self.entries.clear();
@@ -249,18 +249,18 @@ impl PlatformPoller for UnixPoller {
             }
 
             let flags = event_flags_from_registration(registration.flags);
-            events.push(PlatformEvent {
+            events.push(PollerEvent {
                 resource_id,
-                source: PlatformEventSource::Io,
+                source: PollerEventSource::Io,
                 mask,
                 flags,
                 token: registration.token,
-                payload: PlatformEventPayload::Io {
+                payload: PollerEventPayload::Io {
                     data: pollfd.revents as u64,
                 },
             });
 
-            if registration.flags.contains(PlatformPollerFlags::ONESHOT) {
+            if registration.flags.contains(HostPollerFlags::ONESHOT) {
                 oneshot.push(resource_id);
             }
         }
@@ -291,7 +291,7 @@ fn wake_pipe(wake_write: RawFd) -> RuntimeResult<()> {
 }
 
 /// Convert interests and flags into poll events.
-fn poll_events_for_interest(interests: PlatformInterest, flags: PlatformPollerFlags) -> c_short {
+fn poll_events_for_interest(interests: PlatformInterest, flags: HostPollerFlags) -> c_short {
     // build the poll event mask
     let mut events: c_short = 0;
     if interests.contains(PlatformInterest::READABLE) {
@@ -300,7 +300,7 @@ fn poll_events_for_interest(interests: PlatformInterest, flags: PlatformPollerFl
     if interests.contains(PlatformInterest::WRITABLE) {
         events |= libc::POLLOUT;
     }
-    if flags.contains(PlatformPollerFlags::PRIORITY) {
+    if flags.contains(HostPollerFlags::PRIORITY) {
         events |= libc::POLLPRI;
     }
 
@@ -308,38 +308,38 @@ fn poll_events_for_interest(interests: PlatformInterest, flags: PlatformPollerFl
 }
 
 /// Build event flags from registration flags.
-fn event_flags_from_registration(flags: PlatformPollerFlags) -> PlatformEventFlags {
+fn event_flags_from_registration(flags: HostPollerFlags) -> PollerEventFlags {
     // expose edge and oneshot flags to consumers
-    let mut out = PlatformEventFlags::NONE;
-    if flags.contains(PlatformPollerFlags::EDGE) {
-        out |= PlatformEventFlags::EDGE;
+    let mut out = PollerEventFlags::NONE;
+    if flags.contains(HostPollerFlags::EDGE) {
+        out |= PollerEventFlags::EDGE;
     }
-    if flags.contains(PlatformPollerFlags::ONESHOT) {
-        out |= PlatformEventFlags::ONESHOT;
+    if flags.contains(HostPollerFlags::ONESHOT) {
+        out |= PollerEventFlags::ONESHOT;
     }
 
     out
 }
 
 /// Build event mask from poll revents.
-fn event_mask_from_revents(revents: c_short) -> PlatformEventMask {
+fn event_mask_from_revents(revents: c_short) -> PollerEventMask {
     // translate poll events into the runtime mask
-    let mut mask = PlatformEventMask::NONE;
+    let mut mask = PollerEventMask::NONE;
 
     if (revents & libc::POLLIN) != 0 {
-        mask |= PlatformEventMask::READABLE;
+        mask |= PollerEventMask::READABLE;
     }
     if (revents & libc::POLLOUT) != 0 {
-        mask |= PlatformEventMask::WRITABLE;
+        mask |= PollerEventMask::WRITABLE;
     }
     if (revents & (libc::POLLERR | libc::POLLNVAL)) != 0 {
-        mask |= PlatformEventMask::ERROR;
+        mask |= PollerEventMask::ERROR;
     }
     if (revents & libc::POLLHUP) != 0 {
-        mask |= PlatformEventMask::HANGUP;
+        mask |= PollerEventMask::HANGUP;
     }
     if (revents & libc::POLLPRI) != 0 {
-        mask |= PlatformEventMask::PRIORITY;
+        mask |= PollerEventMask::PRIORITY;
     }
 
     mask
@@ -467,9 +467,9 @@ fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
 #[cfg(test)]
 mod tests {
     use super::UnixPoller;
-    use crate::platform::{
-        PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags, PollerToken,
-        ResourceId,
+    use crate::platform::ResourceId;
+    use crate::runtime::poller::{
+        HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerToken,
     };
 
     /// Ensures poll emits a readable event when data is available.
@@ -491,7 +491,7 @@ mod tests {
                 handle,
                 PollerToken(1),
                 PlatformInterest::READABLE,
-                PlatformPollerFlags::NONE,
+                HostPollerFlags::NONE,
             )
             .expect("register should succeed");
 

@@ -4,12 +4,12 @@ use crate::platform::ResourceId;
 /// Flags attached to poller events.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PlatformEventFlags(
+pub struct PollerEventFlags(
     /// Raw flag bits.
     pub u32,
 );
 
-impl PlatformEventFlags {
+impl PollerEventFlags {
     /// No flags.
     pub const NONE: Self = Self(0);
     /// Event was edge triggered.
@@ -28,7 +28,7 @@ impl PlatformEventFlags {
     }
 }
 
-impl std::ops::BitOr for PlatformEventFlags {
+impl std::ops::BitOr for PollerEventFlags {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self::Output {
@@ -36,7 +36,7 @@ impl std::ops::BitOr for PlatformEventFlags {
     }
 }
 
-impl std::ops::BitOrAssign for PlatformEventFlags {
+impl std::ops::BitOrAssign for PollerEventFlags {
     fn bitor_assign(&mut self, rhs: Self) {
         self.0 |= rhs.0;
     }
@@ -45,12 +45,12 @@ impl std::ops::BitOrAssign for PlatformEventFlags {
 /// Bitmask describing the event state.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PlatformEventMask(
+pub struct PollerEventMask(
     /// Raw mask bits.
     pub u32,
 );
 
-impl PlatformEventMask {
+impl PollerEventMask {
     /// No event bits.
     pub const NONE: Self = Self(0);
     /// Resource is readable.
@@ -75,7 +75,7 @@ impl PlatformEventMask {
     }
 }
 
-impl std::ops::BitOr for PlatformEventMask {
+impl std::ops::BitOr for PollerEventMask {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self::Output {
@@ -83,7 +83,7 @@ impl std::ops::BitOr for PlatformEventMask {
     }
 }
 
-impl std::ops::BitOrAssign for PlatformEventMask {
+impl std::ops::BitOrAssign for PollerEventMask {
     fn bitor_assign(&mut self, rhs: Self) {
         self.0 |= rhs.0;
     }
@@ -91,7 +91,7 @@ impl std::ops::BitOrAssign for PlatformEventMask {
 
 /// Source category for the event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PlatformEventSource {
+pub enum PollerEventSource {
     /// Event originated from I/O readiness.
     Io,
     /// Event originated from a signal watch.
@@ -104,7 +104,7 @@ pub enum PlatformEventSource {
 
 /// Payload data attached to an event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PlatformEventPayload {
+pub enum PollerEventPayload {
     /// I/O readiness payload from the underlying poller.
     Io {
         /// Raw event bits from the platform poller.
@@ -120,7 +120,7 @@ pub enum PlatformEventPayload {
         /// Process id.
         pid: u32,
         /// Process status information.
-        status: ProcessStatus,
+        status: PollerProcessStatus,
     },
     /// Timer expiration payload.
     Timer {
@@ -131,7 +131,7 @@ pub enum PlatformEventPayload {
 
 /// Process termination or state change status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ProcessStatus {
+pub enum PollerProcessStatus {
     /// Process exited normally with a code.
     Exited {
         /// Exit status code.
@@ -155,17 +155,17 @@ pub enum ProcessStatus {
 
 /// Platform event emitted by the poller.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PlatformEvent {
+pub struct PollerEvent {
     /// Resource associated with the event.
     pub resource_id: ResourceId,
     /// Event source category.
-    pub source: PlatformEventSource,
+    pub source: PollerEventSource,
     /// Event state mask.
-    pub mask: PlatformEventMask,
+    pub mask: PollerEventMask,
     /// Event flags associated with this event.
-    pub flags: PlatformEventFlags,
+    pub flags: PollerEventFlags,
     /// Opaque user token from registration.
     pub token: PollerToken,
     /// Payload information associated with the event.
-    pub payload: PlatformEventPayload,
+    pub payload: PollerEventPayload,
 }

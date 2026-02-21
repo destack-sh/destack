@@ -23,7 +23,7 @@ pub use epoll::EpollPoller;
     target_os = "openbsd",
     target_os = "dragonfly"
 ))]
-pub use kqueue::KqueuePoller;
-pub use unix::UnixPoller;
+pub(crate) use kqueue::KqueuePoller;
+pub(crate) use unix::UnixPoller;
 #[cfg(target_os = "linux")]
 pub use uring::IoUringPoller;

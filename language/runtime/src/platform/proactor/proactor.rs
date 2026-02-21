@@ -1,7 +1,7 @@
+use super::super::ResourceId;
 use super::super::diagnostic::PlatformErrorCode;
-use super::super::poller::PlatformEventMask;
-use super::super::{PlatformHandle, PlatformInterest, ResourceId};
 use crate::diagnostic::RuntimeResult;
+use crate::runtime::poller::{PlatformHandle, PlatformInterest, PollerEventMask};
 
 /// Operation kind for asynchronous I/O.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -362,7 +362,7 @@ pub enum ProactorCompletionData {
     /// Poll payload.
     Poll {
         /// Readiness mask.
-        mask: PlatformEventMask,
+        mask: PollerEventMask,
     },
     /// Timeout payload.
     Timeout,
