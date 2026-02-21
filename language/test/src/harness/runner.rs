@@ -1,13 +1,14 @@
 use std::process::ExitCode;
-use std::time::Instant;
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
 
-use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
+use rayon::ThreadPoolBuilder;
 
 use super::print::color;
 use super::{
-    RunContext, Suite, TestCase, TestOptions, TestResult, TestSummary, filter_tests,
-    print_failures, print_result, print_summary, print_test_list,
+    filter_tests, print_failures, print_result, print_summary, print_test_list, RunContext, Suite,
+    TestCase, TestOptions, TestResult, TestSummary,
 };
 use std::collections::HashSet;
 
@@ -24,6 +25,76 @@ type RunCasesResult = (
 );
 
 impl Runner {
+    fn run_single_case<F>(
+        index: usize,
+        case: &TestCase,
+        context: &RunContext<'_>,
+        expected_failures: Option<&HashSet<String>>,
+        skip_known_failures: bool,
+        skip_ignored: bool,
+        run: &F,
+    ) -> (usize, TestCase, TestResult, Duration)
+    where
+        F: Fn(&TestCase, &RunContext<'_>) -> TestResult + Send + Sync,
+    {
+        let case_start = Instant::now();
+
+        let result = match skip_reason(case, expected_failures, skip_known_failures, skip_ignored) {
+            Some(reason) => TestResult::Skipped { reason },
+            None => run(case, context),
+        };
+
+        let duration = case_start.elapsed();
+
+        let result = if let Some(timeout) = context.timeout {
+            if duration > timeout {
+                TestResult::Failed {
+                    message: format!(
+                        "timeout: took {:.2}s, limit {:.2}s",
+                        duration.as_secs_f64(),
+                        timeout.as_secs_f64()
+                    ),
+                }
+            } else {
+                result
+            }
+        } else {
+            result
+        };
+
+        (index, case.clone(), result, duration)
+    }
+
+    fn record_case_result(
+        index: usize,
+        case: TestCase,
+        result: TestResult,
+        duration: Duration,
+        summary: &mut TestSummary,
+        expected_summary: &mut Option<ExpectedFailureSummary>,
+        raw_results: &mut Vec<(usize, TestCase, TestResult)>,
+        final_results: &mut Vec<(usize, TestCase, TestResult)>,
+        verbose: bool,
+    ) {
+        raw_results.push((index, case.clone(), result.clone()));
+
+        let result = match expected_summary.as_mut() {
+            Some(summary) => {
+                if is_known_failure_skip(&result) {
+                    summary.record_known_failure(&case);
+                    result
+                } else {
+                    summary.update(&case, result)
+                }
+            }
+            None => result,
+        };
+
+        summary.record(&result);
+        print_result(&case, &result, duration, verbose);
+        final_results.push((index, case, result));
+    }
+
     pub fn run_suite<S: Suite>(suite: &S, options: &TestOptions) -> ExitCode {
         let context = RunContext {
             options,
@@ -83,122 +154,108 @@ impl Runner {
         println!();
         println!("running {} tests", filtered.len());
 
-        let summary = TestSummary::new();
+        let mut summary = TestSummary::new();
         let start = Instant::now();
         let skip_known_failures = !context.options.include_known_failures_effective();
         let skip_ignored = !context.options.include_ignored_effective();
         let track_expected_failures = !context.options.include_known_failures_effective();
+        let mut expected_summary =
+            track_expected_failures.then(|| ExpectedFailureSummary::new(expected_failures));
 
-        let results: Vec<(TestCase, TestResult, std::time::Duration)> =
-            if context.options.parallel() && context.options.jobs > 1 {
-                let jobs = context.options.jobs.max(1);
-                let thread_pool = ThreadPoolBuilder::new()
-                    .num_threads(jobs)
-                    .build()
-                    .expect("failed to build rayon thread pool");
+        let mut final_results_indexed: Vec<(usize, TestCase, TestResult)> = Vec::new();
+        let mut raw_results_indexed: Vec<(usize, TestCase, TestResult)> = Vec::new();
+        if context.options.parallel() && context.options.jobs > 1 {
+            let jobs = context.options.jobs.max(1);
+            let thread_pool = ThreadPoolBuilder::new()
+                .num_threads(jobs)
+                .build()
+                .expect("failed to build rayon thread pool");
+            let total_cases = filtered.len();
 
-                thread_pool.install(|| {
-                    filtered
-                        .par_iter()
-                        .map(|case| {
-                            let case_start = Instant::now();
+            let (sender, receiver) = mpsc::channel();
+            std::thread::scope(|scope| {
+                let worker_sender = sender.clone();
+                let worker = scope.spawn(move || {
+                    thread_pool.install(|| {
+                        filtered.par_iter().enumerate().for_each_with(
+                            worker_sender,
+                            |sender, (index, case)| {
+                                let entry = Self::run_single_case(
+                                    index,
+                                    case,
+                                    context,
+                                    expected_failures,
+                                    skip_known_failures,
+                                    skip_ignored,
+                                    &run,
+                                );
 
-                            let result = match skip_reason(
-                                case,
-                                expected_failures,
-                                skip_known_failures,
-                                skip_ignored,
-                            ) {
-                                Some(reason) => TestResult::Skipped { reason },
-                                None => run(case, context),
-                            };
+                                sender
+                                    .send(entry)
+                                    .expect("failed to send test result from worker");
+                            },
+                        );
+                    });
+                });
+                drop(sender);
 
-                            let duration = case_start.elapsed();
+                for _ in 0..total_cases {
+                    let (index, case, result, duration) = receiver
+                        .recv()
+                        .expect("failed to receive test result from worker");
+                    Self::record_case_result(
+                        index,
+                        case,
+                        result,
+                        duration,
+                        &mut summary,
+                        &mut expected_summary,
+                        &mut raw_results_indexed,
+                        &mut final_results_indexed,
+                        context.options.verbose,
+                    );
+                }
 
-                            // check timeout after test completes
-                            let result = if let Some(timeout) = context.timeout {
-                                if duration > timeout {
-                                    TestResult::Failed {
-                                        message: format!(
-                                            "timeout: took {:.2}s, limit {:.2}s",
-                                            duration.as_secs_f64(),
-                                            timeout.as_secs_f64()
-                                        ),
-                                    }
-                                } else {
-                                    result
-                                }
-                            } else {
-                                result
-                            };
-
-                            (case.clone(), result, duration)
-                        })
-                        .collect()
-                })
-            } else {
-                filtered
-                    .iter()
-                    .map(|case| {
-                        let case_start = Instant::now();
-
-                        let result = match skip_reason(
-                            case,
-                            expected_failures,
-                            skip_known_failures,
-                            skip_ignored,
-                        ) {
-                            Some(reason) => TestResult::Skipped { reason },
-                            None => run(case, context),
-                        };
-
-                        let duration = case_start.elapsed();
-
-                        // check timeout after test completes
-                        let result = if let Some(timeout) = context.timeout {
-                            if duration > timeout {
-                                TestResult::Failed {
-                                    message: format!(
-                                        "timeout: took {:.2}s, limit {:.2}s",
-                                        duration.as_secs_f64(),
-                                        timeout.as_secs_f64()
-                                    ),
-                                }
-                            } else {
-                                result
-                            }
-                        } else {
-                            result
-                        };
-
-                        (case.clone(), result, duration)
-                    })
-                    .collect()
-            };
+                worker.join().expect("worker thread panicked");
+            });
+        } else {
+            for (index, case) in filtered.iter().enumerate() {
+                let (index, case, result, duration) = Self::run_single_case(
+                    index,
+                    case,
+                    context,
+                    expected_failures,
+                    skip_known_failures,
+                    skip_ignored,
+                    &run,
+                );
+                Self::record_case_result(
+                    index,
+                    case,
+                    result,
+                    duration,
+                    &mut summary,
+                    &mut expected_summary,
+                    &mut raw_results_indexed,
+                    &mut final_results_indexed,
+                    context.options.verbose,
+                );
+            }
+        }
 
         let total_duration = start.elapsed();
 
-        let mut final_results: Vec<(TestCase, TestResult)> = Vec::new();
-        let mut raw_results: Vec<(TestCase, TestResult)> = Vec::new();
-        let mut expected_summary =
-            track_expected_failures.then(|| ExpectedFailureSummary::new(expected_failures));
-        for (case, result, duration) in results {
-            raw_results.push((case.clone(), result.clone()));
-            let result = match expected_summary.as_mut() {
-                Some(summary) => {
-                    if is_known_failure_skip(&result) {
-                        summary.record_known_failure(&case);
-                        result
-                    } else {
-                        summary.update(&case, result)
-                    }
-                }
-                None => result,
-            };
-            summary.record(&result);
-            print_result(&case, &result, duration, context.options.verbose);
-            final_results.push((case, result));
-        }
+        final_results_indexed.sort_by_key(|(index, _, _)| *index);
+        raw_results_indexed.sort_by_key(|(index, _, _)| *index);
+
+        let final_results: Vec<(TestCase, TestResult)> = final_results_indexed
+            .into_iter()
+            .map(|(_, case, result)| (case, result))
+            .collect();
+        let raw_results: Vec<(TestCase, TestResult)> = raw_results_indexed
+            .into_iter()
+            .map(|(_, case, result)| (case, result))
+            .collect();
 
         print_failures(&final_results);
         print_summary(&summary, total_duration);
