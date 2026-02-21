@@ -6,7 +6,7 @@ use super::decide::decide_post_hugged_call_argument_layout;
 use super::render::{render_call_argument_plan, write_single_call_argument_inline_wrapped};
 use super::separator::{
     format_single_plain_argument_with_separator_line_comment,
-    single_argument_separator_line_comment_source,
+    single_argument_separator_line_comment_fact,
 };
 use crate::analysis::timing::tags;
 use crate::analysis::{
@@ -21,9 +21,7 @@ use crate::analysis::{
     call_force_expand_single_collection_for_type_binary_callee,
     call_force_expand_single_multiline_with_static_arguments, call_has_non_blank_infix_annotation,
     call_has_static_arguments, call_should_force_hugged_expand, resolve_call_argument_layout_facts,
-    resolve_chain_call_argument_force_expand,
-    resolve_inline_call_width_hint_without_static_arguments,
-    single_argument_requires_expanded_list,
+    resolve_chain_call_argument_force_expand, single_argument_requires_expanded_list,
 };
 use crate::directive::any_ignore_range_for_nodes;
 use crate::expression::{
@@ -98,7 +96,7 @@ fn format_single_call_argument_with_group<'ast>(
         call_arguments_have_boundary_comments(f.context(), call_node_id, &single_argument);
     let separator_line_comment_source = if argument_is_plain_call_argument(f.context(), argument_id)
     {
-        single_argument_separator_line_comment_source(f.context(), call_node_id, argument_id)
+        single_argument_separator_line_comment_fact(f.context(), call_node_id, argument_id)
     } else {
         None
     };
@@ -117,23 +115,12 @@ fn format_single_call_argument_with_group<'ast>(
         all_single_line_and_unannotated: !has_any_argument_annotation && !is_multiline_in_source,
     };
     let planner_base_state = CallArgumentPlannerBaseState {
-        line_width: usize::from(f.context().options.line_width),
         call_has_static_arguments: call_has_static_arguments(f.context(), call_node_id),
         has_call_infix_annotations,
         argument_shape,
     };
     let single_argument_force_expand =
         single_argument_requires_expanded_list(f.context(), &single_argument);
-    let inline_call_width_hint_without_static_arguments =
-        if planner_base_state.call_has_static_arguments {
-            None
-        } else {
-            resolve_inline_call_width_hint_without_static_arguments(
-                f.context(),
-                call_node_id,
-                planner_base_state.call_has_static_arguments,
-            )
-        };
 
     // separator line comments after a single plain argument need comma before comment
     if let Some(comment_source) = separator_line_comment_source.as_ref() {
@@ -147,13 +134,11 @@ fn format_single_call_argument_with_group<'ast>(
             f.context(),
             &single_argument,
             SingleSimpleArgumentShortCircuitOptions {
-                line_width: planner_base_state.line_width,
                 call_has_static_arguments: planner_base_state.call_has_static_arguments,
                 has_call_infix_annotations: planner_base_state.has_call_infix_annotations,
                 single_argument_force_expand,
             },
             planner_base_state.argument_shape,
-            inline_call_width_hint_without_static_arguments,
         ) && !has_boundary_comments;
     if use_single_simple_argument_short_circuit {
         f.context()
@@ -251,7 +236,6 @@ fn format_single_call_argument_with_group<'ast>(
         planner_base_state,
         single_argument_force_expand,
         force_expand_single_multiline_with_static_arguments,
-        inline_call_width_hint_without_static_arguments,
     );
     let _timing = f
         .context()
@@ -352,7 +336,6 @@ fn format_call_arguments_with_group<'ast>(
     let has_boundary_comments =
         call_arguments_have_boundary_comments(f.context(), call_node_id, dynamic_arguments);
 
-    let inline_call_width_hint_without_static_arguments = None;
     let planner_state = build_call_argument_planner_state(
         f.context(),
         call_node_id,
@@ -360,7 +343,6 @@ fn format_call_arguments_with_group<'ast>(
         planner_base_state,
         false,
         false,
-        inline_call_width_hint_without_static_arguments,
     );
     let _timing = f
         .context()

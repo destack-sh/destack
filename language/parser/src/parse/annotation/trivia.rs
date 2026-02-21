@@ -289,8 +289,16 @@ impl Parser {
 
                 let raw_text = self.file.span_str(token.span);
                 let directive = Self::classify_comment_directive(raw_text);
+                let token_before_type = Self::decode_token_index(token_before_index)
+                    .and_then(|index| semantic_tokens.get(index))
+                    .map(|token| token.token.ty);
                 let is_semantic_doc_token = Self::is_documentation_token(token.token.ty)
-                    && Self::documentation_token_should_stay_semantic(token.token.ty, raw_text);
+                    && Self::documentation_token_should_stay_semantic(
+                        token.token.ty,
+                        raw_text,
+                        has_leading_newline,
+                        token_before_type,
+                    );
 
                 // documentation tokens stay semantic and preserve doc marker style
                 if is_semantic_doc_token {
@@ -470,11 +478,6 @@ impl Parser {
                 continue;
             }
 
-            let raw_text = self.file.span_str(token.span);
-            if !Self::documentation_token_should_stay_semantic(token.token.ty, raw_text) {
-                continue;
-            }
-
             let side_owner = comment_owner_token_indexes
                 .get(comment_offset)
                 .copied()
@@ -494,6 +497,30 @@ impl Parser {
             } else {
                 NO_TOKEN_INDEX
             };
+            let token_before_index = if boundary_index < semantic_tokens.len() {
+                neighbor_index.previous_attachable[boundary_index]
+            } else {
+                neighbor_index.last_attachable
+            };
+            let seam_before = if token_before_index == NO_TOKEN_INDEX {
+                0
+            } else {
+                semantic_tokens[token_before_index as usize].span.end
+            };
+            let has_leading_newline =
+                self.has_line_terminator_between(seam_before, token.span.start);
+            let token_before_type = Self::decode_token_index(token_before_index)
+                .and_then(|index| semantic_tokens.get(index))
+                .map(|token| token.token.ty);
+            let raw_text = self.file.span_str(token.span);
+            if !Self::documentation_token_should_stay_semantic(
+                token.token.ty,
+                raw_text,
+                has_leading_newline,
+                token_before_type,
+            ) {
+                continue;
+            }
 
             let token_after = Self::decode_token_index(token_after_index);
             let Some(token_after) =
@@ -1053,7 +1080,12 @@ impl Parser {
     }
 
     /// Return whether one documentation token should remain a semantic doc node.
-    fn documentation_token_should_stay_semantic(token_type: TokenType, raw: &str) -> bool {
+    fn documentation_token_should_stay_semantic(
+        token_type: TokenType,
+        raw: &str,
+        has_leading_newline: bool,
+        token_before_type: Option<TokenType>,
+    ) -> bool {
         if token_type != TokenType::DocBlockComment {
             return true;
         }
@@ -1067,6 +1099,25 @@ impl Parser {
         }
 
         let inner = trimmed[3..trimmed.len() - 2].trim();
+        if !has_leading_newline && token_before_type.is_some() {
+            let is_doc_context_after_opening_token = matches!(
+                token_before_type,
+                Some(
+                    TokenType::OpenParenthesis
+                        | TokenType::OpenBracket
+                        | TokenType::OpenBrace
+                        | TokenType::Comma
+                        | TokenType::Colon
+                        | TokenType::Assign
+                        | TokenType::Arrow
+                        | TokenType::ArrowWide
+                        | TokenType::LessThan
+                )
+            );
+            if !is_doc_context_after_opening_token {
+                return false;
+            }
+        }
 
         !(inner.is_empty() || inner.chars().all(|character| character == '*'))
     }

@@ -9,7 +9,7 @@ use super::classify::{
 };
 use crate::expression::{
     argument_is_function_expression, argument_is_lambda_expression, argument_value_id,
-    expression_inline_width_hint, is_expression_chain, token, transparent_inner_expression,
+    is_expression_chain, token, transparent_inner_expression,
 };
 use crate::tree::{
     argument_is_block_callback, argument_is_template_literal, has_multiline_jsx_argument,
@@ -26,7 +26,6 @@ use destack_fir::write;
 // call argument layout thresholds
 const NON_LAST_BLOCK_CALLBACK_COUNT_TARGET: usize = 1;
 const NON_LAST_BLOCK_CALLBACK_MIN_INDEX: usize = 1;
-const FIRST_BLOCK_CALLBACK_COLLECTION_TAIL_ARGUMENT_COUNT: usize = 2;
 const MULTIPLE_FUNCTION_ARGUMENT_MIN_COUNT: usize = 2;
 const FUNCTION_COMPOSITION_MIN_ARGUMENTS: usize = 3;
 
@@ -310,7 +309,7 @@ pub(crate) fn build_call_argument_expansion_profiles(
             regular: CallArgumentExpansionProfile {
                 force_expand: false,
                 has_call_infix_annotations: layout_class.has_call_infix_annotations,
-                trailing_collection_argument: false,
+                trailing_collection_argument: layout_class.trailing_collection_argument,
             },
             chain_force_expand: false,
         };
@@ -321,7 +320,6 @@ pub(crate) fn build_call_argument_expansion_profiles(
     let trailing_collection_argument = layout_class.trailing_collection_argument;
     let has_block_callback_argument = layout_class.has_block_callback_argument;
     let last_argument_is_block_callback = layout_class.last_argument_is_block_callback;
-    let first_argument_is_block_callback = layout_class.first_argument_is_block_callback;
     let has_non_trivial_non_callback_argument = layout_class.has_non_trivial_non_callback_argument;
     let non_last_block_callback_count = layout_class.non_last_block_callback_count;
     let non_last_block_callback_index = layout_class.non_last_block_callback_index;
@@ -332,15 +330,10 @@ pub(crate) fn build_call_argument_expansion_profiles(
             .is_some_and(|index| index >= NON_LAST_BLOCK_CALLBACK_MIN_INDEX)
         && argument_is_reference_like(context, dynamic_arguments[0])
         && !has_non_trivial_non_callback_argument;
-    let force_expand_first_block_callback_with_collection_tail = dynamic_arguments.len()
-        == FIRST_BLOCK_CALLBACK_COLLECTION_TAIL_ARGUMENT_COUNT
-        && first_argument_is_block_callback
-        && trailing_collection_argument;
     let has_leading_block_callback_with_simple_tail =
         call_has_leading_block_callback_with_simple_tail(context, call_node_id, dynamic_arguments);
     let should_expand_for_block_callback = has_block_callback_argument
-        && (force_expand_first_block_callback_with_collection_tail
-            || has_non_trivial_non_callback_argument
+        && (has_non_trivial_non_callback_argument
             || (!last_argument_is_block_callback
                 && !allow_non_last_block_callback_with_collection_tail
                 && !has_leading_block_callback_with_simple_tail));
@@ -484,23 +477,6 @@ pub(crate) fn call_should_force_hugged_expand(
     force_expand_single_collection_for_type_binary_callee: bool,
 ) -> bool {
     force_expand_single_collection_for_type_binary_callee
-}
-
-/// Return one-line `callee(arg1, arg2)` inline width hint for plain call expressions.
-pub(crate) fn call_inline_width_hint_without_static_arguments(
-    context: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    call_has_static_arguments: bool,
-) -> Option<usize> {
-    let Expression::Call { .. } = context.tree.get(call_node_id) else {
-        return None;
-    };
-
-    if call_has_static_arguments {
-        return None;
-    }
-
-    Some(expression_inline_width_hint(context, call_node_id))
 }
 
 /// Write an inline comma-separated call argument list.

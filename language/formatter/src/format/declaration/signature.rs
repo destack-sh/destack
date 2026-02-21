@@ -5,7 +5,7 @@ use crate::collection::property::{
 };
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, Asynchrony, Comment, CommentStyle, Declaration, Doc, DocStyle, Expression,
+    AnnotationPosition, Asynchrony, Comment, CommentStyle, Declaration, Expression,
     FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
     Keyword, LocalNodeId, Member, NodeType, Parameter, Pattern, PatternField, Property, TokenType,
 };
@@ -311,74 +311,6 @@ fn parameter_has_line_comment_annotation(
         .unwrap_or(false)
 }
 
-/// Return whether this parameter has any prefix annotation that should force multiline layout.
-fn parameter_has_prefix_annotation(
-    context: &DestackFormatContext<'_>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> bool {
-    if !context.has_annotation(parameter_id) {
-        return false;
-    }
-
-    let is_variadic_parameter = parameter_is_variadic(context, parameter_id);
-    context
-        .visit_annotations(parameter_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                let annotation = context.annotation(*annotation_id);
-                let is_prefix = matches!(
-                    annotation,
-                    Annotation::Decorator { .. }
-                        | Annotation::Comment {
-                            position: AnnotationPosition::BlockPrefix
-                                | AnnotationPosition::LinePrefix,
-                            ..
-                        }
-                        | Annotation::Doc {
-                            position: AnnotationPosition::BlockPrefix
-                                | AnnotationPosition::LinePrefix,
-                            ..
-                        }
-                );
-                if !is_prefix {
-                    return false;
-                }
-
-                // keep single-line decorators inline with parameters when they fit
-                if matches!(annotation, Annotation::Decorator { .. }) {
-                    let annotation_span = context.annotation_span(*annotation_id);
-                    if !context.has_newline(annotation_span) {
-                        return false;
-                    }
-                }
-
-                // keep single variadic parameters compact for inline star-style rest seam comments
-                if is_variadic_parameter {
-                    let annotation_span = context.annotation_span(*annotation_id);
-                    let is_single_line = !context.has_newline(annotation_span);
-                    if is_single_line {
-                        let is_star_style = match annotation {
-                            Annotation::Comment { node, .. } => {
-                                let comment = context.tree.get::<Comment>(node);
-                                comment.style == CommentStyle::Star
-                            }
-                            Annotation::Doc { node, .. } => {
-                                let doc = context.tree.get::<Doc>(node);
-                                doc.style == DocStyle::Star
-                            }
-                            Annotation::Decorator { .. } | Annotation::Blank { .. } => false,
-                        };
-                        if is_star_style {
-                            return false;
-                        }
-                    }
-                }
-
-                true
-            })
-        })
-        .unwrap_or(false)
-}
-
 /// Return whether a single parameter should keep compact outer parentheses.
 pub(crate) fn single_parameter_should_hug(
     context: &DestackFormatContext<'_>,
@@ -646,10 +578,6 @@ pub(crate) fn signature_parameters_should_expand(
         .iter()
         .copied()
         .any(|parameter_id| parameter_has_line_comment_annotation(context, parameter_id));
-    let should_expand_for_parameter_prefix_annotations = parameters
-        .iter()
-        .copied()
-        .any(|parameter_id| parameter_has_prefix_annotation(context, parameter_id));
     let should_expand_single_for_multiline_return_type = parameters.len() == 1
         && !parameter_is_variadic(context, parameters[0])
         && signature_return_type_is_multiline(context, return_type);
@@ -657,7 +585,6 @@ pub(crate) fn signature_parameters_should_expand(
     should_expand_parameter_shapes
         || should_break_constructor_parameters
         || should_expand_for_parameter_line_comments
-        || should_expand_for_parameter_prefix_annotations
         || should_expand_single_for_multiline_return_type
 }
 

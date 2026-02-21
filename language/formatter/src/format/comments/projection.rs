@@ -9,6 +9,7 @@ use crate::format::context::{Annotation, FormatterAnnotationEntry};
 use super::blank::resolve_formatter_blank_trivia_attachment;
 use super::index::{build_formatter_trivia_owner_index, build_formatter_trivia_seam_index};
 use super::resolve::resolve_comment_trivia_attachment;
+
 pub(crate) fn build_formatter_annotation_projection(
     file: &File,
     tree: &NodeTree,
@@ -24,6 +25,7 @@ pub(crate) fn build_formatter_annotation_projection(
     let node_count = tree.next_id() as usize;
     let mut entries = Vec::new();
     let mut by_node_id = vec![SmallVec::new(); node_count];
+    let mut comment_targets = Vec::<(Span, u32)>::new();
 
     // add parser semantic annotations first
     for (&target_id, annotation_ids) in tree.get_all_annotations() {
@@ -75,6 +77,7 @@ pub(crate) fn build_formatter_annotation_projection(
         if target_id as usize >= by_node_id.len() {
             continue;
         }
+        comment_targets.push((trivia.span, target_id));
 
         let local_id = LocalNodeId::new(entries.len() as u32);
         entries.push(FormatterAnnotationEntry {
@@ -89,7 +92,7 @@ pub(crate) fn build_formatter_annotation_projection(
 
     // add blank trivia with formatter-side placement resolution
     for trivia in tree.blank_trivia().iter().copied() {
-        let (target_id, position) = resolve_formatter_blank_trivia_attachment(
+        let (mut target_id, mut position) = resolve_formatter_blank_trivia_attachment(
             tree,
             tokens,
             token_keyword_by_span,
@@ -98,6 +101,26 @@ pub(crate) fn build_formatter_annotation_projection(
             &seam_index,
             parents,
         );
+
+        if target_id.is_none() {
+            let next_comment = comment_targets
+                .iter()
+                .find(|(span, _)| span.start >= trivia.span.end)
+                .copied();
+            let previous_comment = comment_targets
+                .iter()
+                .rev()
+                .find(|(span, _)| span.end <= trivia.span.start)
+                .copied();
+            if let (Some((_, previous_comment_target)), Some((_, next_comment_target))) =
+                (previous_comment, next_comment)
+                && previous_comment_target == next_comment_target
+            {
+                let comment_target = next_comment_target;
+                target_id = Some(comment_target);
+                position = ast::AnnotationPosition::BlockPrefix;
+            }
+        }
 
         let Some(target_id) = target_id else {
             continue;

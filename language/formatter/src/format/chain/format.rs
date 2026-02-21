@@ -1,19 +1,16 @@
 use super::normalize::{ChainLayoutPlan, plan_chain_layout};
-use super::policy::{
-    ChainRenderDecision, ChainRenderInputOptions, build_chain_render_inputs, decide_chain_render,
-};
 use super::{
     ChainExpression, ChainExpressionBase, ChainExpressionBaseHead,
-    chain_line_starts_with_block_prefix_annotation, format_call_arguments, member_is_private_hash,
-    transparent_inner_expression,
+    chain_line_starts_with_block_prefix_annotation, expression_is_in_conditional_branch,
+    format_call_arguments, member_is_private_hash, transparent_inner_expression,
 };
 use crate::expression::{
-    AnnotationPosition, Argument, DestackFormatContext, DestackFormatter, Expression, FormatResult,
-    LocalNodeId, PostfixPosition, SmallVec, expand_parent, format_static_argument_list,
-    format_static_argument_list_with_relational_spacing, format_with, group, hard_line_break,
-    indent, token, write_postfix_base_expression,
+    AnnotationPosition, Argument, Declaration, DestackFormatContext, DestackFormatter, Expression,
+    FormatResult, FunctionKind, LocalNodeId, NodeType, PostfixPosition, SmallVec, expand_parent,
+    format_static_argument_list, format_static_argument_list_with_relational_spacing, format_with,
+    group, indent, is_call_like_argument, soft_line_break, token, write_postfix_base_expression,
 };
-use destack_fir::format::{Buffer, Format};
+use destack_fir::format::Buffer;
 use destack_fir::write;
 
 /// Return whether one call operation should emit its prefix annotations.
@@ -66,6 +63,112 @@ fn first_grouped_line_operation(
     lines.first().and_then(|line| line.first())
 }
 
+/// Return whether the first grouped chain line can attach directly to the base.
+fn first_grouped_line_attaches_to_base(
+    _context: &DestackFormatContext<'_>,
+    _node_id: LocalNodeId<Expression>,
+    _base: &ChainExpressionBase,
+    lines: &[SmallVec<[ChainExpression; 2]>],
+) -> bool {
+    if lines.len() != 1 {
+        return false;
+    }
+
+    matches!(
+        lines[0].as_slice(),
+        [
+            ChainExpression::Maybe { .. },
+            ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
+        ]
+    )
+}
+
+/// Return whether formatting should skip the first soft break for conditional chain heads.
+fn should_skip_first_soft_break_for_conditional_head(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    base: &ChainExpressionBase,
+    lines: &[SmallVec<[ChainExpression; 2]>],
+) -> bool {
+    expression_is_in_conditional_branch(context, node_id)
+        && base.body.last().is_some_and(|operation| {
+            matches!(
+                operation,
+                ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
+            )
+        })
+        && lines.first().is_some_and(|line| {
+            matches!(
+                line.as_slice(),
+                [
+                    ChainExpression::Member { .. },
+                    ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
+                ]
+            )
+        })
+}
+
+/// Return whether this chain is the expression body of a lambda call argument.
+fn chain_is_lambda_call_argument_body(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Declaration {
+        return false;
+    }
+
+    let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
+    let Declaration::Function {
+        signature, body, ..
+    } = context.tree.get(declaration_id)
+    else {
+        return false;
+    };
+    if signature.kind != FunctionKind::Lambda || *body != Some(node_id) {
+        return false;
+    }
+
+    let Some((declaration_parent_id, declaration_parent_type)) = context.parent(declaration_id)
+    else {
+        return false;
+    };
+    if declaration_parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let lambda_expression_id = LocalNodeId::<Expression>::new(declaration_parent_id);
+    is_call_like_argument(context, lambda_expression_id)
+}
+
+/// Return whether statement formatting owns postfix emission for one expression.
+fn statement_context_owns_expression_postfix(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(expression_id) else {
+        return true;
+    };
+
+    if parent_type == NodeType::Block {
+        return true;
+    }
+
+    if parent_type == NodeType::Expression {
+        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+        if matches!(
+            context.tree.get(parent_expression_id),
+            Expression::Statement(inner_id) if inner_id.id == expression_id.id
+        ) {
+            return true;
+        }
+    }
+
+    false
+}
+
 /// Format static arguments for chain operations that may need relational spacing.
 fn format_chain_static_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -89,16 +192,23 @@ pub(crate) fn format_expression_chain<'ast>(
         base,
         lines,
         should_break: chain_should_break,
-        has_calls: chain_has_calls,
-        in_template_literal_interpolation,
         instantiation_prefix_wrap_body_ops,
+        ..
     } = plan;
 
     // indent chain lines consistently, even in assignment rhs positions
     let should_indent_chain = true;
+    let should_force_inline_lambda_argument_chain =
+        !chain_should_break && chain_is_lambda_call_argument_body(f.context(), node_id);
 
-    // inline variant keeps everything on one line when it fits
-    let format_inline = format_with(|f| {
+    // chain content uses soft line breaks so the enclosing group decides fit vs break
+    let format_chain = format_with(|f| {
+        // encourage the parent to break when the chain is complex
+        if chain_should_break {
+            write!(f, [expand_parent()])?;
+        }
+
+        // always print the base first so indentation aligns subsequent lines
         format_chain_base(
             f,
             node_id,
@@ -106,20 +216,50 @@ pub(crate) fn format_expression_chain<'ast>(
             &lines,
             instantiation_prefix_wrap_body_ops,
         )?;
-        for line in &lines {
-            format_chain_expression_line(f, node_id, line)?;
-        }
-        Ok(())
-    });
-    // chain variant breaks each operation onto its own line
-    let format_chain = format_with(|f| {
-        // encourage the parent to break when the chain is complex
-        if chain_should_break {
-            write!(f, [expand_parent()])?;
+
+        // indent chained entries so each operation sits on its own line when expanded
+        // use soft line breaks so the enclosing group decides inline vs multiline
+        if !lines.is_empty() {
+            let first_line_attaches_to_base =
+                first_grouped_line_attaches_to_base(f.context(), node_id, &base, &lines);
+            let skip_first_soft_break_for_conditional_head =
+                should_skip_first_soft_break_for_conditional_head(
+                    f.context(),
+                    node_id,
+                    &base,
+                    &lines,
+                );
+            let format_lines = format_with(|f| {
+                // each chain line renders in isolation to mirror prettier style
+                for (line_index, line) in lines.iter().enumerate() {
+                    let is_first_attached_line = line_index == 0 && first_line_attaches_to_base;
+                    let should_skip_first_soft_break =
+                        line_index == 0 && skip_first_soft_break_for_conditional_head;
+                    let should_insert_soft_break = !is_first_attached_line
+                        && !should_skip_first_soft_break
+                        && (line_index == 0
+                            || !chain_line_starts_with_block_prefix_annotation(f.context(), line));
+                    if should_insert_soft_break {
+                        write!(f, [soft_line_break()])?;
+                    }
+                    format_chain_expression_line(f, node_id, line)?;
+                }
+                Ok(())
+            });
+            let should_wrap_lines_in_indent = should_indent_chain && !first_line_attaches_to_base;
+            if should_wrap_lines_in_indent {
+                write!(f, [indent(&format_lines)])?;
+            } else {
+                // avoid extra indentation when the parent already indents after `=`
+                write!(f, [format_lines])?;
+            }
         }
 
-        group(&format_with(|f| {
-            // always print the base first so indentation aligns subsequent lines
+        Ok(())
+    });
+
+    if should_force_inline_lambda_argument_chain {
+        let inline_chain = format_with(|f| {
             format_chain_base(
                 f,
                 node_id,
@@ -127,73 +267,20 @@ pub(crate) fn format_expression_chain<'ast>(
                 &lines,
                 instantiation_prefix_wrap_body_ops,
             )?;
-            // indent chained entries so each operation sits on its own line
-            // use indent with manual line breaks instead of block_indent to avoid trailing newline
-            // this keeps semicolons on the same line as the last chain element
-            if !lines.is_empty() {
-                let format_lines = format_with(|f| {
-                    // each chain line renders in isolation to mirror prettier style
-                    for (line_index, line) in lines.iter().enumerate() {
-                        if line_index == 0
-                            || !chain_line_starts_with_block_prefix_annotation(f.context(), line)
-                        {
-                            write!(f, [hard_line_break()])?;
-                        }
-                        format_chain_expression_line(f, node_id, line)?;
-                    }
-                    Ok(())
-                });
-                if should_indent_chain {
-                    write!(f, [indent(&format_lines)])?;
-                } else {
-                    // avoid extra indentation when the parent already indents after `=`
-                    write!(f, [format_lines])?;
-                }
+            for line in &lines {
+                format_chain_expression_line(f, node_id, line)?;
             }
             Ok(())
-        }))
-        .format(f)
-    });
+        });
 
-    let render_options = ChainRenderInputOptions {
-        node_id,
-        chain_should_break,
-        chain_has_calls,
-        in_template_literal_interpolation,
-    };
-    let render_inputs = build_chain_render_inputs(f.context(), &base, &lines, render_options);
-
-    let decision = decide_chain_render(&render_inputs, lines.len());
-
-    match decision {
-        ChainRenderDecision::InlineNoCounter => format_inline.format(f),
-        ChainRenderDecision::InlineShortCircuit => {
-            f.context()
-                .increment_counter("profile.chain.inline.short_circuit", 1);
-            format_inline.format(f)
-        }
-        ChainRenderDecision::ForcedBreak => write!(f, [group(&format_chain).should_expand(true)]),
-        ChainRenderDecision::InlineConditional => {
-            f.context()
-                .increment_counter("profile.chain.conditional.inline", 1);
-            format_inline.format(f)
-        }
-        ChainRenderDecision::InlineMultilineCallArgument => {
-            f.context()
-                .increment_counter("profile.chain.inline.multiline_call_argument", 1);
-            format_inline.format(f)
-        }
-        ChainRenderDecision::BreakByBudget => {
-            f.context()
-                .increment_counter("profile.chain.break.by_budget", 1);
-            format_chain.format(f)
-        }
-        ChainRenderDecision::InlineByBudget => {
-            f.context()
-                .increment_counter("profile.chain.inline.by_budget", 1);
-            format_inline.format(f)
-        }
+        return write!(f, [inline_chain]);
     }
+
+    if chain_should_break {
+        return write!(f, [group(&format_chain).should_expand(true)]);
+    }
+
+    write!(f, [group(&format_chain)])
 }
 /// Format the base segment of a chain.
 fn format_chain_base<'ast>(
@@ -330,6 +417,10 @@ fn format_chain_expression<'ast>(
         } if dynamic_arguments.is_empty() && f.context().has_infix_annotation(*node_id)
     );
     let emit_prefix_annotations = emit_prefix_annotations && node_id != formatted_root_id;
+    let root_postfix_owned_by_statement_context = node_id == formatted_root_id
+        && statement_context_owns_expression_postfix(f.context(), formatted_root_id);
+    let emit_postfix_annotations =
+        emit_postfix_annotations && !root_postfix_owned_by_statement_context;
     if emit_prefix_annotations {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
     }

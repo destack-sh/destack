@@ -16,7 +16,6 @@ use destack_workspace::QuoteStyle;
 
 // template interpolation complexity thresholds
 const TEMPLATE_COMPLEX_ARGUMENT_COUNT_THRESHOLD: usize = 2;
-const TEMPLATE_INTERPOLATION_DELIMITER_WIDTH: usize = 4;
 const TEMPLATE_COMPLEX_OBJECT_PROPERTY_THRESHOLD: usize = 2;
 
 /// One token-level source facts snapshot for scalar literal formatting.
@@ -406,10 +405,7 @@ fn template_argument_should_expand(
         return false;
     }
 
-    let expression_len = context.node_span_char_len(expression_id);
-    let line_width = usize::from(context.options.line_width);
-
-    expression_len.saturating_add(TEMPLATE_INTERPOLATION_DELIMITER_WIDTH) > line_width
+    true
 }
 
 /// Check whether a template literal interpolation is complex enough to force expansion.

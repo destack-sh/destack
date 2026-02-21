@@ -1,26 +1,21 @@
 use super::super::{
     ChainExpression, DestackFormatContext, PostfixPosition, chain_call_can_expand_in_head,
-    chain_head_operation_len, chain_operation_len, is_numeric_index, is_simple_chain_operation,
+    is_numeric_index, is_simple_chain_operation,
 };
 use super::annotation::chain_node_has_non_inline_annotation;
 
 /// Split off simple head operations that should stay with the base.
 pub(crate) fn split_chain_head_operations(
     context: &DestackFormatContext<'_>,
-    base_len: usize,
     base_has_leading_call_like: bool,
     operations: &[ChainExpression],
-    remaining_width: Option<usize>,
     allow_wide_head: bool,
+    is_conditional_branch: bool,
 ) -> usize {
     // nothing to split when there are no operations
     if operations.is_empty() {
         return 0;
     }
-
-    // keep promoted head operations within the current inline budget
-    let line_width = usize::from(context.options.line_width);
-    let max_head_len = remaining_width.unwrap_or(line_width);
 
     // detect whether the chain starts with calls or numeric indexes
     let first_is_call_or_numeric_index = match operations.first() {
@@ -36,11 +31,19 @@ pub(crate) fn split_chain_head_operations(
             ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
         )
     });
-    let cap_member_promotion_before_call_tail =
-        starts_with_member && has_call_like_tail && remaining_width.is_none();
+    let has_index_tail = operations
+        .iter()
+        .any(|operation| matches!(operation, ChainExpression::Index { .. }));
 
-    // accumulate simple operations while within the promotion limits
-    let mut head_len = base_len;
+    // keep index-heavy member chains stable: they should break before member hops
+    if starts_with_member && has_index_tail && !allow_wide_head {
+        return 0;
+    }
+
+    let cap_member_promotion_before_call_tail =
+        starts_with_member && has_call_like_tail && !allow_wide_head;
+
+    // accumulate promotable simple operations
     let mut head_ops_count = 0usize;
     let mut index = 0usize;
 
@@ -67,10 +70,45 @@ pub(crate) fn split_chain_head_operations(
         );
 
         if matches!(operation, ChainExpression::Member { .. }) && next_is_call_or_index {
-            // only promote the pair when both operations are simple
+            // only member-call pairs have promotion candidates
             let Some(next_operation) = next_operation else {
                 break;
             };
+
+            let allow_single_member_call_pair_after_call_like_base = base_has_leading_call_like
+                && index == 0
+                && operations.len() == 2
+                && matches!(
+                    next_operation,
+                    ChainExpression::Call {
+                        node_id,
+                        dynamic_arguments,
+                        ..
+                    } if dynamic_arguments.len() == 1
+                        && !context.node_has_newline(*node_id)
+                        && !chain_node_has_non_inline_annotation(context, *node_id)
+                );
+
+            // keep call-root chains one hop per line:
+            // once a chain starts with a call-like base or operation, do not absorb following
+            // member-call pairs into the head because that forces inner-call breaks instead of
+            // dot breaks
+            if first_is_call_or_numeric_index
+                || (base_has_leading_call_like
+                    && !allow_single_member_call_pair_after_call_like_base)
+            {
+                break;
+            }
+
+            // only promote the pair when both operations are simple
+            let is_single_member_call_pair = index == 0
+                && operations.len() == 2
+                && matches!(
+                    next_operation,
+                    ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
+                );
+            let allow_single_member_call_pair_promotion =
+                allow_wide_head && is_single_member_call_pair;
 
             // when a chain has more member hops after a member + call pair:
             // keep fluent chains one hop per line
@@ -78,7 +116,7 @@ pub(crate) fn split_chain_head_operations(
                 tail.iter()
                     .any(|op| matches!(op, ChainExpression::Member { .. }))
             });
-            if has_later_member_hop {
+            if has_later_member_hop && !is_conditional_branch {
                 break;
             }
 
@@ -106,11 +144,17 @@ pub(crate) fn split_chain_head_operations(
                     && (allow_wide_head || operations.len() == 2)
                     && !chain_node_has_non_inline_annotation(context, *node_id)
             );
+            let should_keep_member_call_pair_split = !allow_wide_head && next_call_can_expand;
+            if should_keep_member_call_pair_split {
+                break;
+            }
 
-            if !is_simple_chain_operation(context, operation)
+            if (!is_simple_chain_operation(context, operation)
+                && !allow_single_member_call_pair_promotion)
                 || (!is_simple_chain_operation(context, next_operation)
                     && !next_call_can_expand
-                    && !next_is_promotable_single_argument_call)
+                    && !next_is_promotable_single_argument_call
+                    && !allow_single_member_call_pair_promotion)
             {
                 break;
             }
@@ -132,31 +176,6 @@ pub(crate) fn split_chain_head_operations(
                 break;
             }
 
-            // keep call-start chains restricted to call-like operations
-            let next_is_call_like = matches!(
-                next_operation,
-                ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
-            );
-            let next_is_numeric_index = matches!(
-                next_operation,
-                ChainExpression::Index { index, .. } if is_numeric_index(context, index)
-            );
-            if first_is_call_or_numeric_index && !(next_is_call_like || next_is_numeric_index) {
-                break;
-            }
-
-            // stop if promoting the pair would make the head too long
-            let member_len = chain_operation_len(context, operation);
-            let next_len = chain_head_operation_len(context, next_operation);
-            let combined_len = head_len.saturating_add(member_len).saturating_add(next_len);
-            if combined_len > max_head_len
-                && !(next_call_can_expand && combined_len <= line_width)
-                && !(next_is_promotable_single_argument_call && combined_len <= line_width)
-            {
-                break;
-            }
-
-            head_len = combined_len;
             head_ops_count += 2;
             index += 2;
             continue;
@@ -200,24 +219,6 @@ pub(crate) fn split_chain_head_operations(
             break;
         }
 
-        // stop if promoting this operation would make the head too long
-        let operation_len = chain_head_operation_len(context, operation);
-        let next_len = head_len.saturating_add(operation_len);
-        if next_len > max_head_len {
-            let allow_direct_curried_tail = matches!(
-                operation,
-                ChainExpression::Call {
-                    position: PostfixPosition::Direct,
-                    ..
-                }
-            ) && previous_op_is_direct_call
-                && next_len <= line_width;
-            if !allow_direct_curried_tail {
-                break;
-            }
-        }
-
-        head_len = next_len;
         head_ops_count += 1;
         index += 1;
     }

@@ -17,34 +17,29 @@ pub(super) struct DeclaratorLayoutInputs {
     pub(super) value_is_inline_closure_cast_type_binary: bool,
     pub(super) is_string_literal: bool,
     pub(super) value_is_long_binary: bool,
-    pub(super) value_has_internal_comment: bool,
     pub(super) value_has_between_comment: bool,
-    pub(super) value_has_existing_operator_break: bool,
     pub(super) value_handles_its_own_breaking: bool,
     pub(super) value_has_prefix_annotation_that_forces_break: bool,
-    pub(super) value_is_chain: bool,
-    pub(super) has_single_chain_call: bool,
-    pub(super) value_chain_has_member_access: bool,
-    pub(super) value_is_complex_chain: bool,
-    pub(super) value_has_static_type_arguments: bool,
-    pub(super) value_has_multiline_static_type_argument: bool,
-    pub(super) value_has_instantiation_prefix: bool,
     pub(super) has_significant_between_comment: bool,
     pub(super) value_has_generic_class_heritage: bool,
-    pub(super) value_is_lambda: bool,
     pub(super) value_is_declaration: bool,
     pub(super) is_template_expression: bool,
     pub(super) value_is_await_expression: bool,
     pub(super) value_is_comptime_expression: bool,
-    pub(super) value_has_multiline_chain_body: bool,
     pub(super) value_is_sequence: bool,
     pub(super) value_has_line_comment_between_operands: bool,
     pub(super) value_is_call_like: bool,
+    pub(super) value_is_poor_chain: bool,
+    pub(super) value_has_static_arguments: bool,
+    pub(super) value_has_nested_call_chain: bool,
+    pub(super) value_has_instantiation_prefix: bool,
     pub(super) value_has_newline: bool,
     pub(super) pattern_has_newline: bool,
     pub(super) pattern_has_default_assignment: bool,
     pub(super) pattern_has_comments_or_annotations: bool,
     pub(super) value_is_parenthesized: bool,
+    pub(super) value_has_block_static_arguments: bool,
+    pub(super) value_has_class_heritage: bool,
 }
 
 /// Choose the declarator layout from normalized inputs.
@@ -93,49 +88,16 @@ pub(super) fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> Declar
 
     // binary rhs operator break policy
     if inputs.value_is_long_binary {
-        let prefer_inline_for_internal_binary_comment = inputs.value_has_internal_comment
-            && !inputs.value_has_between_comment
-            && !inputs.value_has_existing_operator_break;
-        if prefer_inline_for_internal_binary_comment {
-            return DeclaratorLayout::Inline;
-        }
         return DeclaratorLayout::BreakAfterOperator;
     }
 
     // chain and binary values that already own their line breaking
     if inputs.value_handles_its_own_breaking {
-        let call_like_needs_operator_break = !inputs.value_is_chain
-            && inputs.value_is_call_like
-            && inputs.value_has_static_type_arguments
-            && !inputs.value_has_multiline_static_type_argument;
-
-        // self breaking rhs policy: avoid source preserving break guesses, they cause idempotence flips
-        let value_prefers_operator_break = !inputs.value_is_lambda
-            && !inputs.value_is_declaration
-            && (inputs.value_has_prefix_annotation_that_forces_break
-                || call_like_needs_operator_break
-                || (inputs.value_is_chain
-                    && inputs.value_has_newline
-                    && inputs.has_single_chain_call
-                    && inputs.value_chain_has_member_access
-                    && !inputs.value_is_complex_chain)
-                || (inputs.value_is_chain
-                    && inputs.value_has_instantiation_prefix
-                    && !inputs.value_is_complex_chain)
-                || inputs.has_significant_between_comment
-                || (inputs.value_has_generic_class_heritage && inputs.value_has_newline));
-        let value_should_lead_with_break = (inputs.value_has_newline
-            && !inputs.value_is_await_expression
-            && !inputs.value_has_multiline_chain_body)
-            || inputs.value_has_prefix_annotation_that_forces_break
-            || inputs.has_significant_between_comment
-            || call_like_needs_operator_break
-            || (inputs.value_is_chain && inputs.value_has_instantiation_prefix);
+        let has_forced_operator_break = inputs.value_has_prefix_annotation_that_forces_break
+            || inputs.has_significant_between_comment;
 
         if inputs.pattern_breakable {
-            if inputs.value_has_prefix_annotation_that_forces_break
-                || inputs.has_significant_between_comment
-            {
+            if has_forced_operator_break {
                 return DeclaratorLayout::BreakAfterOperator;
             }
 
@@ -150,18 +112,34 @@ pub(super) fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> Declar
             return DeclaratorLayout::Inline;
         }
 
-        if value_prefers_operator_break {
-            if value_should_lead_with_break {
-                return DeclaratorLayout::BreakAfterOperator;
-            }
+        if has_forced_operator_break {
+            return DeclaratorLayout::BreakAfterOperator;
+        }
 
+        // complex static generic argument blocks already break inside the rhs
+        if inputs.value_has_block_static_arguments {
             return DeclaratorLayout::Inline;
         }
 
-        let should_break_after_operator_for_rhs = (inputs.value_is_sequence
-            || inputs.value_has_line_comment_between_operands)
-            && inputs.value_has_newline;
-        if should_break_after_operator_for_rhs {
+        // class heritage wrappers own their internal multiline breaking
+        if inputs.value_has_class_heritage && !inputs.value_has_generic_class_heritage {
+            return DeclaratorLayout::Inline;
+        }
+
+        // poor chains, generic argument calls, and sequence-like rhs shapes prefer operator seams
+        let value_is_simple_static_argument_call =
+            inputs.value_has_static_arguments && !inputs.value_has_nested_call_chain;
+        let value_is_simple_poor_chain = inputs.value_is_poor_chain
+            && !inputs.value_has_static_arguments
+            && !inputs.value_is_await_expression
+            && !inputs.value_is_parenthesized;
+        let prefers_operator_seam = inputs.value_has_line_comment_between_operands
+            || inputs.value_is_sequence
+            || inputs.value_has_generic_class_heritage
+            || inputs.value_has_instantiation_prefix
+            || value_is_simple_poor_chain
+            || value_is_simple_static_argument_call;
+        if prefers_operator_seam {
             return DeclaratorLayout::BreakAfterOperator;
         }
 
@@ -180,7 +158,7 @@ pub(super) fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> Declar
         (true, false) => {
             if inputs.pattern_has_newline {
                 DeclaratorLayout::HeaderExpanded
-            } else if inputs.value_has_newline && inputs.pattern_has_comments_or_annotations {
+            } else if inputs.pattern_has_comments_or_annotations {
                 DeclaratorLayout::BreakAfterOperator
             } else {
                 DeclaratorLayout::Inline

@@ -2,12 +2,12 @@ use super::{
     Annotation, AnnotationPosition, ChainBreakAnalysis, ChainExpression, ChainExpressionBase,
     ChainExpressionBaseHead, DestackFormatContext, Expression, FormatError, FormatResult,
     LocalNodeId, NodeTree, NodeType, ParenthesizedUnwrapPolicy, PostfixPosition, SmallVec,
-    analyze_chain_break, assignment_like_remaining_width, chain_base_len,
-    chain_expression_from_node, chain_has_nonhead_nonlambda_function_call_argument,
-    chain_node_has_breaking_annotation, chain_node_has_non_inline_annotation, collect_chain_nodes,
-    expression_is_in_conditional_branch, expression_is_in_template_literal_interpolation,
+    analyze_chain_break, assignment_like_parent, chain_expression_from_node,
+    chain_has_nonhead_nonlambda_function_call_argument, chain_node_has_breaking_annotation,
+    chain_node_has_non_inline_annotation, collect_chain_nodes, expression_is_in_conditional_branch,
     is_call_like_argument, parenthesized_should_unwrap, path_postfix_annotations_emit_on_tail,
     should_split_chain_root_path_segments, split_chain_head_operations,
+    transparent_inner_expression,
 };
 use destack_ast::{Comment, CommentStyle, Doc, DocStyle};
 
@@ -112,8 +112,6 @@ pub(super) struct ChainLayoutPlan {
     pub(super) base: ChainExpressionBase,
     pub(super) lines: Vec<SmallVec<[ChainExpression; 2]>>,
     pub(super) should_break: bool,
-    pub(super) has_calls: bool,
-    pub(super) in_template_literal_interpolation: bool,
     pub(super) instantiation_prefix_wrap_body_ops: Option<usize>,
 }
 
@@ -236,10 +234,30 @@ fn chain_base_has_leading_call_like(
     base: &ChainExpressionBase,
 ) -> bool {
     match &base.head {
-        ChainExpressionBaseHead::Expression(expression_id) => matches!(
-            context.tree.get(*expression_id),
-            Expression::Call { .. } | Expression::Instantiation { .. }
-        ),
+        ChainExpressionBaseHead::Expression(expression_id) => {
+            let expression_id = transparent_inner_expression(context, *expression_id);
+            let expression = context.tree.get(expression_id);
+            if matches!(
+                expression,
+                Expression::Call { .. } | Expression::Instantiation { .. }
+            ) {
+                return true;
+            }
+
+            matches!(
+                expression,
+                Expression::Parenthesized { expression }
+                    if matches!(
+                        context.tree.get(*expression),
+                        Expression::Call { .. } | Expression::Instantiation { .. }
+                    )
+            ) || base.body.first().is_some_and(|operation| {
+                matches!(
+                    operation,
+                    ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
+                )
+            })
+        }
         ChainExpressionBaseHead::Path { .. } => base.body.first().is_some_and(|operation| {
             matches!(
                 operation,
@@ -247,20 +265,6 @@ fn chain_base_has_leading_call_like(
             )
         }),
     }
-}
-
-/// Return assignment-like remaining width when head promotion may use it.
-fn chain_head_promotion_remaining_width(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> Option<usize> {
-    if is_call_like_argument(context, node_id)
-        || expression_is_in_conditional_branch(context, node_id)
-    {
-        return None;
-    }
-
-    assignment_like_remaining_width(context, node_id)
 }
 
 /// Return whether non-head callback signals should block head promotion.
@@ -289,19 +293,19 @@ fn promote_chain_head_operations(
     }
 
     // compute promotion inputs from current normalized base and call context
-    let base_len = chain_base_len(context, &normalized.base);
     let base_has_leading_call_like = chain_base_has_leading_call_like(context, &normalized.base);
-    let remaining_width = chain_head_promotion_remaining_width(context, node_id);
-    let allow_wide_head = is_call_like_argument(context, node_id);
+    let is_conditional_branch = expression_is_in_conditional_branch(context, node_id);
+    let allow_wide_head = is_call_like_argument(context, node_id)
+        || is_conditional_branch
+        || assignment_like_parent(context, node_id).is_some();
 
     // move selected leading operations from body into base
     let head_ops_count = split_chain_head_operations(
         context,
-        base_len,
         base_has_leading_call_like,
         &normalized.body,
-        remaining_width,
         allow_wide_head,
+        is_conditional_branch,
     );
     if head_ops_count == 0 {
         return;
@@ -513,8 +517,8 @@ fn promote_leading_direct_index_line(
     base.body.extend(first_line);
 }
 
-/// Apply line-level argument chain promotions after grouping.
-fn apply_argument_chain_line_promotions(
+/// Apply chain line promotions after grouping.
+fn apply_chain_line_promotions(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     base: &mut ChainExpressionBase,
@@ -793,7 +797,7 @@ pub(super) fn plan_chain_layout(
 
     // group chain operations and then apply argument-chain compaction rules
     let mut lines = group_chain_expression_lines(context, normalized.body);
-    apply_argument_chain_line_promotions(context, node_id, &mut normalized.base, &mut lines);
+    apply_chain_line_promotions(context, node_id, &mut normalized.base, &mut lines);
     promote_leading_grouped_instantiation_prefix(context, &mut normalized.base, &mut lines);
     let instantiation_prefix_wrap_body_ops =
         chain_instantiation_prefix_wrap_body_ops(context, &normalized.base, &lines);
@@ -802,10 +806,6 @@ pub(super) fn plan_chain_layout(
         base: normalized.base,
         lines,
         should_break,
-        has_calls: !chain_call_summaries.is_empty(),
-        in_template_literal_interpolation: expression_is_in_template_literal_interpolation(
-            context, node_id,
-        ),
         instantiation_prefix_wrap_body_ops,
     })
 }

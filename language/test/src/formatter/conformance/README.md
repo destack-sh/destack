@@ -34,12 +34,12 @@ Ignored tests track intentional differences and unsupported / out of scope behav
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |
 |:---------|-------:|-------:|--------:|------:|--------:|-----------:|
-| oxfmt    |    98  |    31  |     6  |   129 |  75.97% |  72.59% |
+| oxfmt    |   121  |     8  |     6  |   129 |  93.80% |  89.63% |
 | prettier |  1248  |   262  |  1720  |  1510 |  82.65% |  38.64% |
 |----------|--------|--------|---------|-------|---------|------------|
-| total    |  1346  |   293  |   1726  |  1639 |  82.12% |     40.00% |
+| total    |  1369  |   270  |   1726  |  1639 |  83.53% |     40.68% |
 
-Total Blended Pass Rate: **82.12%** (40.00% incl. ignored)
+Total Blended Pass Rate: **83.53%** (40.68% incl. ignored)
 <!-- end:summary-results -->
 
 ### prettier
@@ -60,10 +60,10 @@ Total Blended Pass Rate: **82.12%** (40.00% incl. ignored)
 <!-- begin:oxfmt-results -->
 | Category             | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |
 |:---------------------|-------:|-------:|--------:|------:|--------:|-----------:|
-| js                   |    51  |    22  |       2  |    73 |  69.86% |     68.00% |
-| ts                   |    47  |     9  |       4  |    56 |  83.93% |     78.33% |
+| js                   |    66  |     7  |       2  |    73 |  90.41% |     88.00% |
+| ts                   |    55  |     1  |       4  |    56 |  98.21% |     91.67% |
 |----------------------|--------|--------|---------|-------|---------|------------|
-| total                |    98  |    31  |       6  |   129 |  75.97% |     72.59% |
+| total                |   121  |     8  |       6  |   129 |  93.80% |     89.63% |
 <!-- end:oxfmt-results -->
 
 ## Running

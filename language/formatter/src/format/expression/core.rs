@@ -5,8 +5,10 @@ use crate::directive::{
 };
 use crate::expression::{format_primary_expression, format_statement_expression};
 use crate::operator::format_operator_expression;
-use crate::{DestackFormatter, FormatNode};
-use destack_ast::{Expression, IfKind, LocalNodeId, TypeUnaryOperator};
+use crate::{Annotation, DestackFormatter, FormatNode};
+use destack_ast::{
+    AnnotationPosition, Declarator, Expression, IfKind, LocalNodeId, NodeType, TypeUnaryOperator,
+};
 use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::write;
 
@@ -88,6 +90,58 @@ fn expression_format_route(expression: &Expression) -> ExpressionFormatRoute {
     }
 }
 
+/// Return whether one expression node is the value slot of a declarator.
+fn expression_is_declarator_value(
+    f: &DestackFormatter<'_, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = f.context().parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Declarator {
+        return false;
+    }
+
+    let declarator_id = LocalNodeId::<Declarator>::new(parent_id);
+    f.context()
+        .tree
+        .get(declarator_id)
+        .value
+        .is_some_and(|value_id| value_id.id == node_id.id)
+}
+
+/// Return whether one expression carries only postfix blank annotations.
+fn expression_has_only_postfix_blank_annotations(
+    f: &DestackFormatter<'_, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotation_ids) = f.context().annotations(node_id) else {
+        return false;
+    };
+
+    let mut has_postfix_blank = false;
+    for annotation_id in annotation_ids {
+        let annotation = f.context().annotation(annotation_id);
+        let is_postfix_position = matches!(
+            annotation.position(),
+            AnnotationPosition::LinePostfix
+                | AnnotationPosition::LinePostfixBoundary
+                | AnnotationPosition::BlockPostfix
+        );
+        if !is_postfix_position {
+            return false;
+        }
+
+        if !matches!(annotation, Annotation::Blank { .. }) {
+            return false;
+        }
+
+        has_postfix_blank = true;
+    }
+
+    has_postfix_blank
+}
+
 /// Format an expression without prefix and postfix annotations.
 pub(crate) fn format_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -161,6 +215,13 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 })
             )
         {
+            let declarator_value_postfix_blanks_are_statement_owned =
+                expression_is_declarator_value(f, node_id)
+                    && expression_has_only_postfix_blank_annotations(f, node_id);
+            if declarator_value_postfix_blanks_are_statement_owned {
+                return Ok(());
+            }
+
             let call_or_new_handles_empty_infix = matches!(
                 self,
                 Expression::Call {

@@ -2,8 +2,8 @@ use std::borrow::Cow;
 
 use destack_fir::format::FormatResult;
 
-use crate::collection::{CollectionBreakScore, collection_nodes_have_annotations, list_like};
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
+use crate::collection::{CollectionBreakScore, list_like};
+use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{Expression, LocalNodeId, Mutability, NodeTree, NodeType, Pattern, PatternField};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -84,7 +84,7 @@ fn pattern_field_prefers_multiline(tree: &NodeTree, field_id: LocalNodeId<Patter
 }
 
 /// Return whether a pattern source is multiline inside its delimiters.
-fn pattern_has_multiline_source(
+fn pattern_is_multiline_span(
     context: &DestackFormatContext<'_>,
     pattern_id: LocalNodeId<Pattern>,
 ) -> bool {
@@ -232,6 +232,20 @@ fn format_pattern_field_list<'ast>(
     fields: &[LocalNodeId<PatternField>],
     should_expand: bool,
 ) -> FormatResult<()> {
+    let has_inline_comment_seams =
+        pattern_fields_have_inline_spread_comment_seams(f.context(), fields);
+    if !should_expand && has_inline_comment_seams {
+        write!(f, [token(open)])?;
+        for (index, field_id) in fields.iter().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
+            write!(f, [*field_id])?;
+        }
+        write!(f, [token(close)])?;
+        return Ok(());
+    }
+
     let mut list = list_like(open, close, ",", fields);
     list.as_collection().should_expand(should_expand);
 
@@ -244,18 +258,62 @@ fn format_pattern_field_list<'ast>(
     Ok(())
 }
 
+/// Return whether one pattern field list carries inline comment seams.
+fn pattern_fields_have_inline_spread_comment_seams(
+    context: &DestackFormatContext<'_>,
+    fields: &[LocalNodeId<PatternField>],
+) -> bool {
+    let mut has_inline_spread_comment = false;
+
+    for field_id in fields {
+        let Some(annotation_ids) = context.annotations(*field_id) else {
+            continue;
+        };
+        let field_is_spread = matches!(context.tree.get(*field_id), PatternField::Spread { .. });
+
+        for annotation_id in annotation_ids {
+            let is_inline_comment = match context.annotation(annotation_id) {
+                Annotation::Comment { .. } | Annotation::Doc { .. } => {
+                    let annotation_span = context.annotation_span(annotation_id);
+                    !context.span_starts_on_own_line(annotation_span)
+                }
+                _ => false,
+            };
+            if !is_inline_comment {
+                continue;
+            }
+
+            if !field_is_spread {
+                return false;
+            }
+            has_inline_spread_comment = true;
+        }
+    }
+
+    has_inline_spread_comment
+}
+
 /// Return whether an array pattern should expand over multiple lines.
 fn array_pattern_should_expand(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Pattern>,
     fields: &[LocalNodeId<PatternField>],
 ) -> bool {
-    let has_newline = pattern_has_multiline_source(context, node_id);
+    if pattern_fields_have_inline_spread_comment_seams(context, fields) {
+        return false;
+    }
+
+    let has_newline = pattern_is_multiline_span(context, node_id);
+    let has_field_comments = pattern_fields_have_comment_annotations(context, fields);
+    if has_newline && has_field_comments {
+        return true;
+    }
+
     let has_nested_fields = fields
         .iter()
         .copied()
         .any(|field_id| pattern_field_prefers_multiline(context.tree, field_id));
-    let has_field_annotations = collection_nodes_have_annotations(context, fields);
+    let has_field_annotations = pattern_fields_have_layout_forcing_annotations(context, fields);
 
     CollectionBreakScore {
         has_newline_in_source: has_newline,
@@ -271,12 +329,21 @@ fn object_pattern_should_expand(
     node_id: LocalNodeId<Pattern>,
     fields: &[LocalNodeId<PatternField>],
 ) -> bool {
-    let has_newline = pattern_has_multiline_source(context, node_id);
+    if pattern_fields_have_inline_spread_comment_seams(context, fields) {
+        return false;
+    }
+
+    let has_newline = pattern_is_multiline_span(context, node_id);
+    let has_field_comments = pattern_fields_have_comment_annotations(context, fields);
+    if has_newline && has_field_comments {
+        return true;
+    }
+
     let has_nested_fields = fields
         .iter()
         .copied()
         .any(|field_id| pattern_field_prefers_multiline(context.tree, field_id));
-    let has_field_annotations = collection_nodes_have_annotations(context, fields);
+    let has_field_annotations = pattern_fields_have_layout_forcing_annotations(context, fields);
     let should_expand_for_parameter =
         should_expand_parameter_object_pattern(context, node_id, fields);
     let should_expand_for_comments = CollectionBreakScore {
@@ -287,6 +354,49 @@ fn object_pattern_should_expand(
     .should_expand_multiline();
 
     (has_newline && has_nested_fields) || should_expand_for_comments || should_expand_for_parameter
+}
+
+/// Return whether pattern fields carry annotations that should force multiline layout.
+fn pattern_fields_have_layout_forcing_annotations(
+    context: &DestackFormatContext<'_>,
+    fields: &[LocalNodeId<PatternField>],
+) -> bool {
+    fields.iter().any(|field_id| {
+        let Some(annotation_ids) = context.annotations(*field_id) else {
+            return false;
+        };
+
+        annotation_ids
+            .into_iter()
+            .any(|annotation_id| match context.annotation(annotation_id) {
+                Annotation::Blank { .. }
+                | Annotation::Doc { .. }
+                | Annotation::Decorator { .. } => true,
+                Annotation::Comment { .. } => {
+                    let annotation_span = context.annotation_span(annotation_id);
+                    context.span_starts_on_own_line(annotation_span)
+                }
+            })
+    })
+}
+
+/// Return whether pattern fields carry comment-like annotations.
+fn pattern_fields_have_comment_annotations(
+    context: &DestackFormatContext<'_>,
+    fields: &[LocalNodeId<PatternField>],
+) -> bool {
+    fields.iter().any(|field_id| {
+        context
+            .annotations(*field_id)
+            .is_some_and(|annotation_ids| {
+                annotation_ids.into_iter().any(|annotation_id| {
+                    match context.annotation(annotation_id) {
+                        Annotation::Comment { .. } | Annotation::Doc { .. } => true,
+                        Annotation::Blank { .. } | Annotation::Decorator { .. } => false,
+                    }
+                })
+            })
+    })
 }
 
 /// Format one object-like pattern, optionally prefixed with a type expression.
@@ -302,6 +412,28 @@ fn format_object_pattern_like<'ast>(
 
     let render_fields = object_pattern_render_fields(f.context().tree, fields);
     let should_expand = object_pattern_should_expand(f.context(), node_id, render_fields.as_ref());
+    if !should_expand
+        && pattern_fields_have_inline_spread_comment_seams(f.context(), render_fields.as_ref())
+    {
+        let include_bracket_space =
+            f.context().options.bracket_spacing && !render_fields.is_empty();
+        write!(f, [token("{")])?;
+        if include_bracket_space {
+            write!(f, [space()])?;
+        }
+        for (index, field_id) in render_fields.iter().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
+            write!(f, [*field_id])?;
+        }
+        if include_bracket_space {
+            write!(f, [space()])?;
+        }
+        write!(f, [token("}")])?;
+        return Ok(());
+    }
+
     let mut list = list_like("{", "}", ",", render_fields.as_ref());
     list.as_collection()
         .include_space()

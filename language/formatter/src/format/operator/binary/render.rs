@@ -2,7 +2,7 @@ use super::logical;
 use super::shared::{
     expression_has_line_postfix_slash_comment, expression_has_line_prefix_slash_comment,
     is_logical_binary_operator, logical_left_has_line_postfix_slash_comment,
-    operand_prefers_trailing_logical_operator, preserve_source_operator_break,
+    operand_prefers_trailing_logical_operator, preserve_existing_operator_break,
 };
 use super::type_layout::type_binary_operands_are_structurally_complex;
 use crate::analysis::timing::tags;
@@ -17,7 +17,7 @@ use crate::expression::{
 use crate::operator::{
     format_binary_operand_with_grouping_parentheses, is_object_like_type_expression,
     is_type_context, should_hug_nullable_union_type, should_hug_static_argument_union_type,
-    type_binary_operand_needs_grouping_parentheses, union_source_has_leading_pipe,
+    type_binary_operand_needs_grouping_parentheses, union_has_leading_pipe_token,
 };
 use destack_fir::format::Buffer;
 use destack_fir::{format_args, write};
@@ -236,7 +236,7 @@ pub(in crate::format::operator) fn format_binary_expression<'ast>(
 
     // clean type binary short-circuit
     let can_use_clean_type_binary_short_circuit = (is_type_union || is_type_intersection)
-        && !(is_type_union && union_source_has_leading_pipe(f.context(), node_id))
+        && !(is_type_union && union_has_leading_pipe_token(f.context(), node_id))
         && !f.context().has_annotation(node_id)
         && operands
             .iter()
@@ -296,7 +296,7 @@ pub(in crate::format::operator) fn format_binary_expression<'ast>(
                 if let Some(op) = operand.operator {
                     let has_postfix =
                         prev_expression.is_some_and(|e| f.context().has_postfix_annotation(e));
-                    let has_source_operator_break =
+                    let has_existing_operator_break =
                         prev_expression.is_some_and(|previous_expression| {
                             has_newline_between_expressions(
                                 f.context(),
@@ -304,10 +304,11 @@ pub(in crate::format::operator) fn format_binary_expression<'ast>(
                                 operand.expression,
                             )
                         });
-                    let preserve_source_operator_break = if is_type_union || is_type_intersection {
+                    let preserve_existing_operator_break = if is_type_union || is_type_intersection
+                    {
                         false
                     } else {
-                        preserve_source_operator_break(op, has_source_operator_break)
+                        preserve_existing_operator_break(op, has_existing_operator_break)
                     };
                     let previous_has_prefix_annotation =
                         prev_expression.is_some_and(|expression_id| {
@@ -493,7 +494,7 @@ pub(in crate::format::operator) fn format_binary_expression<'ast>(
                                             )
                                         });
                                     if !has_postfix {
-                                        if preserve_source_operator_break {
+                                        if preserve_existing_operator_break {
                                             write!(f, [hard_line_break()])?;
                                         } else if previous_is_parenthesized_multiline
                                             && is_logical_binary_operator(op)

@@ -224,9 +224,7 @@ type Value =
 ```
 
 ```ts expected
-type Value =
-    | First
-    | Second; // second-tail
+type Value = First | Second; // second-tail
 ```
 
 ### parenthesized union comment attachment
@@ -881,9 +879,7 @@ type Value =
 ```
 
 ```ts expected
-type Value =
-    | A
-    | B; // last-union
+type Value = A | B; // last-union
 ```
 
 ## Mapped Type Conformance Permutations

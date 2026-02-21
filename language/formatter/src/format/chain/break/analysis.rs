@@ -1,7 +1,8 @@
 use super::super::{
-    AnnotationPosition, DestackFormatContext, Expression, LocalNodeId, PostfixPosition,
+    AnnotationPosition, DestackFormatContext, Expression, LocalNodeId, NodeType, PostfixPosition,
     argument_forces_multiline, argument_is_function_expression,
-    argument_is_inline_closure_cast_object, chain_head_id,
+    argument_is_inline_closure_cast_object, chain_head_id, is_simple_chain_argument,
+    is_simple_chain_static_arguments,
 };
 use super::annotation::{
     chain_annotation_is_inline_non_breaking, chain_annotation_is_internal_call_argument_infix,
@@ -9,11 +10,11 @@ use super::annotation::{
 };
 use super::intervening::{chain_has_intervening_break_or_comment, chain_has_intervening_comment};
 use super::overflow::chain_overflows_in_type_binary_left;
-use super::path::expression_is_in_conditional_branch;
 
 /// Summarize the complexity of a call within a chain.
 pub(crate) struct ChainCallSummary {
     pub(crate) has_multiline_argument: bool,
+    pub(crate) has_non_simple_argument: bool,
 }
 
 /// Collect break-relevant signals for one chain.
@@ -21,6 +22,38 @@ pub(crate) struct ChainBreakAnalysis {
     pub(crate) should_break: bool,
     pub(crate) call_summaries: Vec<ChainCallSummary>,
     pub(crate) has_chain_intervening_trivia: bool,
+}
+
+/// Return whether a parent call on the chain tail should force dot-level breaking.
+fn chain_tail_parent_call_requires_chain_break(
+    context: &DestackFormatContext<'_>,
+    chain_tail: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(chain_tail) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+    let Expression::Call {
+        left,
+        static_arguments,
+        dynamic_arguments,
+        ..
+    } = context.tree.get(parent_expression_id)
+    else {
+        return false;
+    };
+    if *left != chain_tail {
+        return false;
+    }
+
+    let static_arguments_are_complex = !is_simple_chain_static_arguments(context, static_arguments)
+        && !dynamic_arguments.is_empty();
+
+    static_arguments_are_complex
 }
 
 /// Build call summaries for a chain in source order.
@@ -51,8 +84,15 @@ pub(crate) fn summarize_chain_calls(
                     .copied()
                     .any(|argument_id| argument_forces_multiline(context, argument_id))
             });
+        let has_non_simple_argument = static_arguments.as_ref().is_some_and(|arguments| {
+            arguments
+                .iter()
+                .copied()
+                .any(|argument_id| !is_simple_chain_argument(context, argument_id))
+        });
         summaries.push(ChainCallSummary {
             has_multiline_argument,
+            has_non_simple_argument,
         });
     }
 
@@ -213,13 +253,31 @@ pub(crate) fn analyze_chain_break(
     }
 
     let calls_count = call_summaries.len();
-    let has_multiline_call = call_summaries
+    let has_nonhead_multiline_call_argument = call_summaries
         .iter()
+        .skip(1)
         .any(|summary| summary.has_multiline_argument);
-    let chain_is_in_conditional_branch = expression_is_in_conditional_branch(context, chain_tail)
-        || expression_is_in_conditional_branch(context, chain_root);
+    if has_nonhead_multiline_call_argument {
+        return ChainBreakAnalysis {
+            should_break: true,
+            call_summaries,
+            has_chain_intervening_trivia,
+        };
+    }
 
-    if calls_count > 1 && has_multiline_call && !chain_is_in_conditional_branch {
+    let has_nonhead_non_simple_call_argument = call_summaries
+        .iter()
+        .skip(1)
+        .any(|summary| summary.has_non_simple_argument);
+    if has_nonhead_non_simple_call_argument {
+        return ChainBreakAnalysis {
+            should_break: true,
+            call_summaries,
+            has_chain_intervening_trivia,
+        };
+    }
+
+    if chain_tail_parent_call_requires_chain_break(context, chain_tail) {
         return ChainBreakAnalysis {
             should_break: true,
             call_summaries,

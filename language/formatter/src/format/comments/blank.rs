@@ -11,9 +11,10 @@ use super::index::{
 };
 use super::owner::{
     find_next_declaration_owner_from_token, find_next_member_owner_from_token,
-    find_smallest_owner_enclosing_token, lowest_common_owner_ancestor,
-    normalize_formatter_trivia_target_owner, promote_owner_by_shared_start,
-    promote_owner_to_declaration_ancestor, promote_owner_to_node_type_ancestor,
+    find_smallest_owner_enclosing_range, find_smallest_owner_enclosing_token,
+    lowest_common_owner_ancestor, normalize_formatter_trivia_target_owner,
+    promote_owner_by_shared_start, promote_owner_to_declaration_ancestor,
+    promote_owner_to_node_type_ancestor,
 };
 use super::seam::{CommentSeamKeyword, classify_comment_seam_keyword};
 
@@ -178,15 +179,14 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
         }
     }
 
-    // blank seams that already contain line comments should not add extra spacing
-    if seam_has_line_comment
-        && !token_before_span.is_some_and(|token| token.token.ty == TokenType::CloseBrace)
-        && !token_after_span.is_some_and(|token| token.token.ty == TokenType::Identifier)
-        && !token_after_span
-            .is_some_and(|token| matches!(token.token.ty, TokenType::Dot | TokenType::OpenBracket))
-        && !token_before_span.is_some_and(|token| token.token.ty == TokenType::Assign)
+    // blank seams before the first comment in one seam stay on the left owner
+    if seam_has_comment
+        && blank_before_first_comment
+        && let Some(target_node) = left_owner
+        && tree.get_node_type(target_node) != NodeType::Block
     {
-        return (None, AnnotationPosition::BlockInfix);
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return (Some(target_node), AnnotationPosition::BlockPostfix);
     }
 
     // blank seams before semicolons or closing braces are formatting noise
@@ -383,6 +383,14 @@ pub(super) fn resolve_formatter_blank_trivia_attachment(
     if let Some(target_node) = left_owner {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return (Some(target_node), AnnotationPosition::BlockPostfix);
+    }
+
+    // comment-only files still need one structural owner for blank trivia
+    if let Some(target_node) =
+        find_smallest_owner_enclosing_range(tree, trivia.span.start, trivia.span.end)
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return (Some(target_node), AnnotationPosition::BlockPrefix);
     }
 
     (None, AnnotationPosition::BlockInfix)

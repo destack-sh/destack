@@ -269,8 +269,6 @@ pub(super) struct FormatterNodeCaches {
     /// Cached call argument expansion profiles for regular and chain modes keyed by call node id.
     pub(super) call_argument_expansion_profiles:
         Vec<Cell<Option<CallArgumentExpansionProfilesFacts>>>,
-    /// Cached inline call width hints without static arguments keyed by call expression id.
-    pub(super) call_inline_width_hint_without_static_arguments: Vec<Cell<Option<Option<usize>>>>,
     /// Cached call argument annotation profiles keyed by argument node id.
     pub(super) argument_annotation_facts: Vec<Cell<Option<ArgumentAnnotationFacts>>>,
     /// Cached compact simple unannotated argument predicate keyed by argument node id.
@@ -300,7 +298,6 @@ impl FormatterNodeCaches {
             node_span_char_len: vec![Cell::new(NODE_SPAN_CHAR_LEN_UNKNOWN); node_count],
             node_has_newline: vec![Cell::new(NODE_BOOL_STATE_UNKNOWN); node_count],
             call_argument_expansion_profiles: vec![Cell::new(None); node_count],
-            call_inline_width_hint_without_static_arguments: vec![Cell::new(None); node_count],
             argument_annotation_facts: vec![Cell::new(None); node_count],
             argument_compact_simple_unannotated: vec![Cell::new(None); node_count],
             argument_plain_call_argument: vec![Cell::new(None); node_count],

@@ -1,6 +1,6 @@
 use super::super::{DestackFormatContext, Expression, LocalNodeId, NodeType, TypeBinaryOperator};
 
-/// Return whether a chain should break because its cast or satisfies parent overflows.
+/// Return whether a chain should break because its cast or satisfies parent has structural trivia.
 pub(super) fn chain_overflows_in_type_binary_left(
     context: &DestackFormatContext<'_>,
     chain_tail: LocalNodeId<Expression>,
@@ -26,7 +26,7 @@ pub(super) fn chain_overflows_in_type_binary_left(
         return false;
     }
 
-    if context.node_has_newline(parent_id) {
+    if context.has_non_blank_annotation(parent_id) {
         return true;
     }
 
@@ -61,5 +61,5 @@ pub(super) fn chain_overflows_in_type_binary_left(
         return false;
     }
 
-    context.node_has_newline(great_grandparent_id)
+    context.has_non_blank_annotation(great_grandparent_id)
 }

@@ -271,8 +271,68 @@ pub(crate) fn call_should_force_hug_test_like_callback(
     call_callee_has_test_like_member_name(context, call_node_id)
 }
 
+/// Return whether an argument is a single-segment identifier path.
+fn argument_is_identifier_reference(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let value_id = argument_value_id(context.tree, argument_id);
+    let value_id = transparent_inner_expression(context, value_id);
+
+    matches!(
+        context.tree.get(value_id),
+        Expression::Path {
+            path,
+            static_arguments: None
+        } if path.segments.len() == 1
+    )
+}
+
+/// Return whether an argument is a zero-parameter block lambda.
+fn argument_is_zero_parameter_block_lambda(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    if !argument_is_block_callback(context, argument_id) {
+        return false;
+    }
+
+    let value_id = argument_value_id(context.tree, argument_id);
+    let value_id = transparent_inner_expression(context, value_id);
+    let Expression::Declaration(declaration_id) = context.tree.get(value_id) else {
+        return false;
+    };
+    let Declaration::Function { signature, .. } = context.tree.get(*declaration_id) else {
+        return false;
+    };
+
+    signature.kind == FunctionKind::Lambda && signature.dynamic_parameters.is_empty()
+}
+
+/// Return whether a call matches the react hook callback-plus-deps pattern.
+pub(crate) fn call_has_react_hook_like_callback_deps_array(
+    context: &DestackFormatContext<'_>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    if dynamic_arguments.len() < 2 || dynamic_arguments.len() > 3 {
+        return false;
+    }
+
+    let callback_index = if dynamic_arguments.len() == 2 { 0 } else { 1 };
+    let deps_index = callback_index + 1;
+
+    if dynamic_arguments.len() == 3
+        && !argument_is_identifier_reference(context, dynamic_arguments[0])
+    {
+        return false;
+    }
+
+    argument_is_zero_parameter_block_lambda(context, dynamic_arguments[callback_index])
+        && argument_is_array_literal(context, dynamic_arguments[deps_index])
+}
+
 /// Return whether call arguments span multiple lines in source.
-pub(crate) fn call_arguments_are_multiline_in_source(
+pub(crate) fn call_arguments_are_multiline_span(
     context: &DestackFormatContext<'_>,
     dynamic_arguments: &[LocalNodeId<Argument>],
 ) -> bool {
@@ -351,24 +411,6 @@ pub(crate) fn call_arguments_have_boundary_comments(
     if dynamic_arguments.is_empty() {
         context.store_call_argument_boundary_comments(call_node_id, false);
         return false;
-    }
-
-    #[cfg(debug_assertions)]
-    {
-        let call_dynamic_argument_len = match context.tree.get(call_node_id) {
-            Expression::Call {
-                dynamic_arguments, ..
-            }
-            | Expression::New {
-                dynamic_arguments, ..
-            } => dynamic_arguments.len(),
-            _ => dynamic_arguments.len(),
-        };
-        debug_assert_eq!(
-            call_dynamic_argument_len,
-            dynamic_arguments.len(),
-            "call boundary comment detection requires the full dynamic argument list",
-        );
     }
 
     // line comments between adjacent arguments are boundary comments
@@ -598,7 +640,7 @@ pub(crate) fn argument_is_inline_closure_cast_object(
 }
 
 /// Return whether an argument has a slash comment annotation preceded by a source comma.
-pub(crate) fn argument_has_source_separator_line_comment_annotation(
+pub(crate) fn argument_has_separator_line_comment_annotation(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {

@@ -1,10 +1,9 @@
-use crate::analysis::scan::first_non_trivia_token_in_span;
 use crate::collection::{collection_nodes_have_annotations, collection_nodes_have_newline};
 use crate::directive::any_ignore_range_for_nodes;
 use crate::expression::{
     Argument, DestackFormatContext, DestackFormatter, Expression, FormatResult, LocalNodeId,
-    NodeType, Pattern, PatternField, Property, SmallVec, Span, TokenType, TrailingComma,
-    block_indent, format_block_of_properties, format_with, group, hard_line_break, if_group_breaks,
+    NodeType, Pattern, PatternField, Property, SmallVec, Span, TrailingComma, block_indent,
+    format_block_of_properties, format_with, group, hard_line_break, if_group_breaks,
     is_tree_attribute_expression, list_like, property_has_complex_type_value,
     property_has_complex_value, soft_block_indent, space, span_has_comment, token,
 };
@@ -156,30 +155,10 @@ fn object_has_leading_newline_before_first_property(
 
 /// Resolve the source separator style for type-literal object members.
 fn type_member_separator(
-    context: &DestackFormatContext<'_>,
-    properties_ids: &[LocalNodeId<Property>],
+    _context: &DestackFormatContext<'_>,
+    _properties_ids: &[LocalNodeId<Property>],
 ) -> &'static str {
-    let mut saw_semicolon = false;
-    for pair in properties_ids.windows(2) {
-        let previous_span = context.span(pair[0]);
-        let next_span = context.span(pair[1]);
-        if previous_span.file != next_span.file || previous_span.end >= next_span.start {
-            continue;
-        }
-
-        let between_span = Span::new(previous_span.file, previous_span.end, next_span.start);
-        let Some(token) = first_non_trivia_token_in_span(context, between_span) else {
-            continue;
-        };
-
-        match token.token.ty {
-            TokenType::Comma => return ",",
-            TokenType::Semicolon => saw_semicolon = true,
-            _ => {}
-        }
-    }
-
-    if saw_semicolon { ";" } else { "," }
+    ";"
 }
 
 /// Format a struct literal.

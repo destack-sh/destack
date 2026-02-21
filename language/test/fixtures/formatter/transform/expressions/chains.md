@@ -128,7 +128,7 @@ const factory = providers["main"]<Factory>;
 
 ### chain with instantiation breaks cleanly
 
-Instantiation expressions remain attached when chains break.
+Instantiation expression chains keep `=` inline and break at member hops.
 
 ```ts:main.ts line-width=25
 const value = api.getFactory<number>.create().build()

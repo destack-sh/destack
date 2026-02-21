@@ -12,7 +12,7 @@ pub(crate) use self::context::{
     is_object_like_type_expression, is_parameter_type_annotation,
     is_simple_type_binary_left_expression, is_static_type_argument_context, is_type_context,
     should_hug_nullable_union_type, should_hug_static_argument_union_type,
-    type_binary_operand_needs_grouping_parentheses, union_source_has_leading_pipe,
+    type_binary_operand_needs_grouping_parentheses, union_has_leading_pipe_token,
 };
 pub(crate) use self::dispatch::format_operator_expression;
 pub(crate) use crate::expression::{

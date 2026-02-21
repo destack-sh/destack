@@ -373,17 +373,42 @@ pub fn write_ignored_span<'ast>(
 ) -> FormatResult<()> {
     let raw = ignored_span_source(f.context(), span);
     let raw = dedent_common_leading_whitespace(raw.as_str());
+    let raw = if raw.trim().is_empty() {
+        raw.chars()
+            .filter(|character| *character == '\n')
+            .collect::<String>()
+    } else {
+        raw
+    };
 
-    let mut lines: Vec<&str> = raw.split('\n').collect();
-    if raw.ends_with('\n') {
-        lines.pop();
-    }
-    let mut lines = lines.into_iter();
-    if let Some(first) = lines.next() {
-        write!(f, [text(first)])?;
-    }
-    for line in lines {
-        write!(f, [hard_line_break(), text(line)])?;
+    let mut segment_start = 0usize;
+    while segment_start < raw.len() {
+        let Some(relative_newline_index) = raw[segment_start..].find('\n') else {
+            write!(f, [text(&raw[segment_start..])])?;
+            break;
+        };
+
+        let newline_index = segment_start + relative_newline_index;
+        if segment_start < newline_index {
+            write!(f, [text(&raw[segment_start..newline_index])])?;
+        }
+
+        let mut newline_run_end = newline_index;
+        let raw_bytes = raw.as_bytes();
+        while newline_run_end < raw_bytes.len() && raw_bytes[newline_run_end] == b'\n' {
+            newline_run_end += 1;
+        }
+
+        let mut newline_count = newline_run_end - newline_index;
+        while newline_count >= 2 {
+            write!(f, [empty_line()])?;
+            newline_count -= 2;
+        }
+        if newline_count == 1 {
+            write!(f, [hard_line_break()])?;
+        }
+
+        segment_start = newline_run_end;
     }
 
     Ok(())

@@ -6,22 +6,19 @@ use super::value::{
 };
 use crate::FormatNode;
 use crate::expression::{
-    Declarator, DestackFormatContext, DestackFormatter, Expression, FormatResult, LocalNodeId,
-    NodeTree, Pattern, ScalarLiteral, Span, block_indent, dedent,
-    expression_has_multiline_static_type_argument, expression_has_static_type_arguments,
-    fits_expanded, flattened_binary_operand_count, format_call_expression,
-    format_instantiation_expression, format_with, group, hard_line_break,
-    has_line_comment_between_expressions, indent, is_chain_root, is_expression_breakable,
-    is_expression_chain, is_lambda_expression, is_pattern_breakable, is_poorly_breakable_chain,
-    soft_line_break_or_space, space, span_has_comment, summarize_chain_calls, token,
+    Argument, Declaration, Declarator, DestackFormatContext, DestackFormatter, Expression,
+    FormatResult, LocalNodeId, NodeTree, Pattern, ScalarLiteral, Span, argument_value_id,
+    block_indent, dedent, fits_expanded, flattened_binary_operand_count, format_call_expression,
+    format_instantiation_expression, format_with, group, has_line_comment_between_expressions,
+    indent, is_chain_root, is_expression_breakable, is_expression_chain, is_pattern_breakable,
+    is_poorly_breakable_chain, soft_line_break_or_space, space, span_has_comment, token,
     transparent_inner_expression,
 };
-use crate::operator::{is_type_context, union_source_has_leading_pipe};
+use crate::operator::{is_type_context, union_has_leading_pipe_token};
 use destack_fir::format::{Buffer, Format};
 use destack_fir::{format_args, write};
 
-// declarator chain and binary thresholds
-const COMPLEX_CHAIN_CALL_COUNT_THRESHOLD: usize = 1;
+// declarator binary thresholds
 const LONG_BINARY_OPERAND_COUNT_THRESHOLD: usize = 2;
 
 /// Store base expression-shape facts for one declarator value.
@@ -33,19 +30,11 @@ struct DeclaratorShapeFacts {
     value_is_binary: bool,
     value_is_sequence: bool,
     value_is_chain: bool,
+    value_is_poor_chain: bool,
     value_is_call_like: bool,
-    value_is_lambda: bool,
     value_is_declaration: bool,
     value_handles_its_own_breaking: bool,
     should_force_expand_value: bool,
-}
-
-/// Store chain-specific profile facts for one declarator value.
-#[derive(Clone, Copy, Default)]
-struct DeclaratorChainProfile {
-    value_is_complex_chain: bool,
-    value_chain_call_count: usize,
-    value_chain_has_member_access: bool,
 }
 
 /// Store source and inline-layout facts for one declarator.
@@ -57,22 +46,20 @@ struct DeclaratorSourceProfile {
     pattern_has_comments_or_annotations: bool,
     value_is_parenthesized: bool,
     value_has_prefix_annotation_that_forces_break: bool,
-    value_has_existing_operator_break: bool,
     value_has_between_comment: bool,
-    value_has_internal_comment: bool,
     value_has_line_comment_between_operands: bool,
     value_is_long_binary: bool,
-    has_single_chain_call: bool,
     is_string_literal: bool,
     is_template_expression: bool,
     value_is_leading_pipe_type_union: bool,
-    value_has_static_type_arguments: bool,
-    value_has_multiline_static_type_argument: bool,
     value_has_instantiation_prefix: bool,
     has_significant_between_comment: bool,
     value_is_await_expression: bool,
     value_is_comptime_expression: bool,
-    value_has_multiline_chain_body: bool,
+    value_has_static_arguments: bool,
+    value_has_nested_call_chain: bool,
+    value_has_block_static_arguments: bool,
+    value_has_class_heritage: bool,
 }
 
 /// Return whether one chain value has an instantiation in its left prefix.
@@ -104,6 +91,193 @@ fn value_chain_has_instantiation_prefix(
     }
 }
 
+/// Return whether one static argument list contains block-like type expressions.
+fn static_argument_list_has_block_expressions(
+    context: &DestackFormatContext<'_>,
+    static_arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    static_arguments.iter().copied().any(|argument_id| {
+        let value_id = argument_value_id(context.tree, argument_id);
+        let value_id = transparent_inner_expression(context, value_id);
+
+        matches!(
+            context.tree.get(value_id),
+            Expression::ObjectExpression { .. } | Expression::TypeMapped { .. }
+        )
+    })
+}
+
+/// Return whether one expression carries any static generic arguments.
+fn expression_has_static_arguments(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
+
+    match context.tree.get(expression_id) {
+        Expression::Path {
+            static_arguments, ..
+        } => static_arguments
+            .as_deref()
+            .is_some_and(|arguments| !arguments.is_empty()),
+        Expression::Call {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::New {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::Member {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::PrivateMember {
+            left,
+            static_arguments,
+            ..
+        } => {
+            expression_has_static_arguments(context, *left)
+                || static_arguments
+                    .as_deref()
+                    .is_some_and(|arguments| !arguments.is_empty())
+        }
+        Expression::Index { left, .. } => expression_has_static_arguments(context, *left),
+        Expression::Instantiation {
+            left,
+            static_arguments,
+        } => expression_has_static_arguments(context, *left) || !static_arguments.is_empty(),
+        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            expression_has_static_arguments(context, *expression)
+        }
+        _ => false,
+    }
+}
+
+/// Return whether one expression contains multiple chained call-like operations.
+fn expression_has_nested_call_chain(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_id = transparent_inner_expression(context, expression_id);
+    let mut call_like_count = 0usize;
+
+    loop {
+        current_id = transparent_inner_expression(context, current_id);
+
+        match context.tree.get(current_id) {
+            Expression::Call { left, .. }
+            | Expression::New { left, .. }
+            | Expression::Instantiation { left, .. } => {
+                call_like_count += 1;
+                if call_like_count >= 2 {
+                    return true;
+                }
+
+                current_id = *left;
+            }
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. } => {
+                current_id = *left;
+            }
+            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+                current_id = *expression;
+            }
+            _ => return false,
+        }
+    }
+}
+
+/// Return whether one expression carries block-like static generic arguments.
+fn expression_has_block_static_arguments(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
+
+    match context.tree.get(expression_id) {
+        Expression::Path {
+            static_arguments, ..
+        } => static_arguments.as_deref().is_some_and(|arguments| {
+            static_argument_list_has_block_expressions(context, arguments)
+        }),
+        Expression::Call {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::New {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::Member {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::PrivateMember {
+            left,
+            static_arguments,
+            ..
+        } => {
+            expression_has_block_static_arguments(context, *left)
+                || static_arguments.as_deref().is_some_and(|arguments| {
+                    static_argument_list_has_block_expressions(context, arguments)
+                })
+        }
+        Expression::Index { left, .. } => expression_has_block_static_arguments(context, *left),
+        Expression::Instantiation {
+            left,
+            static_arguments,
+        } => {
+            expression_has_block_static_arguments(context, *left)
+                || static_argument_list_has_block_expressions(context, static_arguments)
+        }
+        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            expression_has_block_static_arguments(context, *expression)
+        }
+        _ => false,
+    }
+}
+
+/// Return whether one expression wraps a class declaration with heritage clauses.
+fn expression_has_class_heritage(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
+
+    match context.tree.get(expression_id) {
+        Expression::Declaration(declaration_id) => match context.tree.get(*declaration_id) {
+            Declaration::Class { heritage, .. } => {
+                heritage
+                    .extends_types
+                    .as_ref()
+                    .is_some_and(|types| !types.is_empty())
+                    || heritage
+                        .implements_types
+                        .as_ref()
+                        .is_some_and(|types| !types.is_empty())
+            }
+            _ => false,
+        },
+        Expression::Call { left, .. }
+        | Expression::New { left, .. }
+        | Expression::Instantiation { left, .. } => expression_has_class_heritage(context, *left),
+        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            expression_has_class_heritage(context, *expression)
+        }
+        _ => false,
+    }
+}
+
 /// Collect base shape facts for one declarator value.
 fn collect_declarator_shape_facts(
     context: &DestackFormatContext<'_>,
@@ -123,13 +297,11 @@ fn collect_declarator_shape_facts(
         value_inner_expr,
         Expression::Call { .. } | Expression::New { .. } | Expression::Instantiation { .. }
     );
-    let value_is_lambda = is_lambda_expression(context, value_inner_id);
     let value_is_declaration = matches!(value_inner_expr, Expression::Declaration(_));
     let value_handles_its_own_breaking = value_is_binary
         || value_is_sequence
         || value_is_chain
         || value_is_call_like
-        || value_is_lambda
         || value_is_declaration;
 
     DeclaratorShapeFacts {
@@ -139,8 +311,8 @@ fn collect_declarator_shape_facts(
         value_is_binary,
         value_is_sequence,
         value_is_chain,
+        value_is_poor_chain,
         value_is_call_like,
-        value_is_lambda,
         value_is_declaration,
         value_handles_its_own_breaking,
         should_force_expand_value: is_expression_breakable(tree, value_expr)
@@ -148,64 +320,9 @@ fn collect_declarator_shape_facts(
     }
 }
 
-/// Collect chain profile facts for one declarator value.
-fn collect_declarator_chain_profile(
-    context: &DestackFormatContext<'_>,
-    tree: &NodeTree,
-    value_inner_id: LocalNodeId<Expression>,
-    value_is_chain: bool,
-) -> DeclaratorChainProfile {
-    if !value_is_chain {
-        return DeclaratorChainProfile::default();
-    }
-
-    let mut chain = Vec::new();
-    let mut current = value_inner_id;
-    loop {
-        chain.push(current);
-        let next = match tree.get(current) {
-            Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Call { left, .. }
-            | Expression::Index { left, .. }
-            | Expression::Instantiation { left, .. }
-            | Expression::Maybe { left, .. }
-            | Expression::Must { left, .. } => Some(*left),
-            _ => None,
-        };
-
-        if let Some(next_id) = next {
-            current = next_id;
-        } else {
-            break;
-        }
-    }
-    chain.reverse();
-
-    let value_chain_has_member_access = chain.iter().copied().any(|expression_id| {
-        matches!(
-            tree.get(expression_id),
-            Expression::Member { .. } | Expression::PrivateMember { .. }
-        )
-    });
-    let call_summaries = summarize_chain_calls(context, &chain);
-    let value_chain_call_count = call_summaries.len();
-    let has_multiline_call = call_summaries
-        .iter()
-        .any(|summary| summary.has_multiline_argument);
-    let value_is_complex_chain =
-        value_chain_call_count > COMPLEX_CHAIN_CALL_COUNT_THRESHOLD && has_multiline_call;
-
-    DeclaratorChainProfile {
-        value_is_complex_chain,
-        value_chain_call_count,
-        value_chain_has_member_access,
-    }
-}
-
 /// Collect source and inline-layout profile facts for one declarator.
 #[allow(clippy::too_many_arguments)]
-fn collect_declarator_source_profile(
+fn collect_declarator_layout_profile(
     context: &DestackFormatContext<'_>,
     tree: &NodeTree,
     pattern_id: LocalNodeId<Pattern>,
@@ -215,7 +332,6 @@ fn collect_declarator_source_profile(
     value_expr: &Expression,
     value_inner_expr: &Expression,
     shape: DeclaratorShapeFacts,
-    chain: DeclaratorChainProfile,
     value_is_inline_closure_cast_type_binary: bool,
 ) -> DeclaratorSourceProfile {
     let pattern_span = context.span(pattern_id);
@@ -242,11 +358,8 @@ fn collect_declarator_source_profile(
     let pattern_has_comments_or_annotations =
         context.has_annotation(pattern_id) || span_has_comment(context, pattern_span);
     let value_is_parenthesized = matches!(value_expr, Expression::Parenthesized { .. });
-    let value_has_existing_operator_break =
-        between_span.is_some_and(|span| context.has_newline(span));
     let value_has_between_comment =
         between_span.is_some_and(|span| span_has_comment(context, span));
-    let value_has_internal_comment = span_has_comment(context, value_span);
     let value_has_line_comment_between_operands = match value_inner_expr {
         Expression::Binary { left, right, .. } => {
             has_line_comment_between_expressions(context, *left, *right)
@@ -261,18 +374,13 @@ fn collect_declarator_source_profile(
     };
     let value_is_long_binary =
         shape.value_is_binary && value_binary_operand_count > LONG_BINARY_OPERAND_COUNT_THRESHOLD;
-    let has_single_chain_call = chain.value_chain_call_count <= COMPLEX_CHAIN_CALL_COUNT_THRESHOLD;
     let is_string_literal = matches!(
         value_inner_expr,
         Expression::ScalarLiteral(ScalarLiteral::String(_))
     );
     let is_template_expression = matches!(value_inner_expr, Expression::TemplateExpression { .. });
     let value_is_leading_pipe_type_union = is_type_context(context, value_inner_id)
-        && union_source_has_leading_pipe(context, value_inner_id);
-    let value_has_static_type_arguments =
-        expression_has_static_type_arguments(context, value_inner_id);
-    let value_has_multiline_static_type_argument =
-        expression_has_multiline_static_type_argument(context, value_inner_id);
+        && union_has_leading_pipe_token(context, value_inner_id);
     let value_has_instantiation_prefix =
         shape.value_is_chain && value_chain_has_instantiation_prefix(context, value_inner_id);
     let has_significant_between_comment = value_has_between_comment;
@@ -281,7 +389,11 @@ fn collect_declarator_source_profile(
         Expression::Await { .. } | Expression::AwaitMaybe { .. }
     );
     let value_is_comptime_expression = matches!(value_expr, Expression::Comptime { .. });
-    let value_has_multiline_chain_body = value_has_newline && shape.value_is_chain;
+    let value_has_static_arguments = expression_has_static_arguments(context, value_inner_id);
+    let value_has_nested_call_chain = expression_has_nested_call_chain(context, value_inner_id);
+    let value_has_block_static_arguments =
+        expression_has_block_static_arguments(context, value_inner_id);
+    let value_has_class_heritage = expression_has_class_heritage(context, value_inner_id);
 
     DeclaratorSourceProfile {
         value_has_newline,
@@ -290,29 +402,26 @@ fn collect_declarator_source_profile(
         pattern_has_comments_or_annotations,
         value_is_parenthesized,
         value_has_prefix_annotation_that_forces_break,
-        value_has_existing_operator_break,
         value_has_between_comment,
-        value_has_internal_comment,
         value_has_line_comment_between_operands,
         value_is_long_binary,
-        has_single_chain_call,
         is_string_literal,
         is_template_expression,
         value_is_leading_pipe_type_union,
-        value_has_static_type_arguments,
-        value_has_multiline_static_type_argument,
         value_has_instantiation_prefix,
         has_significant_between_comment,
         value_is_await_expression,
         value_is_comptime_expression,
-        value_has_multiline_chain_body,
+        value_has_static_arguments,
+        value_has_nested_call_chain,
+        value_has_block_static_arguments,
+        value_has_class_heritage,
     }
 }
 
 /// Build normalized layout inputs from declarator profiles.
 fn build_declarator_layout_inputs(
     shape: DeclaratorShapeFacts,
-    chain: DeclaratorChainProfile,
     source: DeclaratorSourceProfile,
     value_has_generic_class_heritage: bool,
     value_is_inline_closure_cast_type_binary: bool,
@@ -324,35 +433,30 @@ fn build_declarator_layout_inputs(
         value_is_inline_closure_cast_type_binary,
         is_string_literal: source.is_string_literal,
         value_is_long_binary: source.value_is_long_binary,
-        value_has_internal_comment: source.value_has_internal_comment,
         value_has_between_comment: source.value_has_between_comment,
-        value_has_existing_operator_break: source.value_has_existing_operator_break,
         value_handles_its_own_breaking: shape.value_handles_its_own_breaking,
         value_has_prefix_annotation_that_forces_break: source
             .value_has_prefix_annotation_that_forces_break,
-        value_is_chain: shape.value_is_chain,
-        has_single_chain_call: source.has_single_chain_call,
-        value_chain_has_member_access: chain.value_chain_has_member_access,
-        value_is_complex_chain: chain.value_is_complex_chain,
-        value_has_static_type_arguments: source.value_has_static_type_arguments,
-        value_has_multiline_static_type_argument: source.value_has_multiline_static_type_argument,
-        value_has_instantiation_prefix: source.value_has_instantiation_prefix,
         has_significant_between_comment: source.has_significant_between_comment,
         value_has_generic_class_heritage,
-        value_is_lambda: shape.value_is_lambda,
         value_is_declaration: shape.value_is_declaration,
         is_template_expression: source.is_template_expression,
         value_is_await_expression: source.value_is_await_expression,
         value_is_comptime_expression: source.value_is_comptime_expression,
-        value_has_multiline_chain_body: source.value_has_multiline_chain_body,
         value_is_sequence: shape.value_is_sequence,
         value_has_line_comment_between_operands: source.value_has_line_comment_between_operands,
         value_is_call_like: shape.value_is_call_like,
+        value_is_poor_chain: shape.value_is_poor_chain,
+        value_has_static_arguments: source.value_has_static_arguments,
+        value_has_nested_call_chain: source.value_has_nested_call_chain,
+        value_has_instantiation_prefix: source.value_has_instantiation_prefix,
         value_has_newline: source.value_has_newline,
         pattern_has_newline: source.pattern_has_newline,
         pattern_has_default_assignment: source.pattern_has_default_assignment,
         pattern_has_comments_or_annotations: source.pattern_has_comments_or_annotations,
         value_is_parenthesized: source.value_is_parenthesized,
+        value_has_block_static_arguments: source.value_has_block_static_arguments,
+        value_has_class_heritage: source.value_has_class_heritage,
     }
 }
 
@@ -386,13 +490,11 @@ pub(in crate::format::expression) fn format_declarator<'ast>(
     let shape = collect_declarator_shape_facts(f.context(), tree, *pattern, *value_id);
     let value_inner_id = shape.value_inner_id;
     let value_inner_expr = tree.get(value_inner_id);
-    let chain =
-        collect_declarator_chain_profile(f.context(), tree, value_inner_id, shape.value_is_chain);
     let value_is_inline_closure_cast_type_binary =
         value_is_inline_closure_cast_type_binary(f.context(), *value_id);
     let value_has_generic_class_heritage =
         value_has_generic_class_heritage(f.context(), shape.value_inner_id);
-    let source = collect_declarator_source_profile(
+    let source = collect_declarator_layout_profile(
         f.context(),
         tree,
         *pattern,
@@ -402,12 +504,10 @@ pub(in crate::format::expression) fn format_declarator<'ast>(
         value_expr,
         value_inner_expr,
         shape,
-        chain,
         value_is_inline_closure_cast_type_binary,
     );
     let layout_inputs = build_declarator_layout_inputs(
         shape,
-        chain,
         source,
         value_has_generic_class_heritage,
         value_is_inline_closure_cast_type_binary,
@@ -484,14 +584,10 @@ pub(in crate::format::expression) fn format_declarator<'ast>(
                 Ok(())
             });
 
-            let should_force_break_after_operator = shape.value_is_sequence;
-            let break_after_operator = if should_force_break_after_operator {
-                hard_line_break()
-            } else {
-                soft_line_break_or_space()
-            };
+            let break_after_operator = soft_line_break_or_space();
 
             if value_has_prefix_annotation
+                || source.value_has_between_comment
                 || shape.value_is_sequence
                 || value_has_instantiation_prefix
             {

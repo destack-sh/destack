@@ -9,7 +9,7 @@ pub(crate) use destack_ast::{
     YieldCardinality,
 };
 pub(crate) use destack_base::StringId;
-pub(crate) use destack_fir::format::{FormatError, GroupId, text};
+pub(crate) use destack_fir::format::{FormatError, GroupId};
 pub(crate) use destack_fir::prelude::*;
 pub(crate) use destack_source::Span;
 pub(crate) use destack_workspace::TrailingComma;
@@ -31,20 +31,18 @@ pub(crate) use self::ternary::*;
 pub(crate) use crate::analysis::{
     ArgumentSimplicityOptions, CallArgumentCommentProfile, argument_has_non_blank_annotation,
     argument_is_inline_closure_cast_object, argument_is_simple_with_options,
-    call_arguments_are_multiline_in_source, is_call_like_argument, is_simple_static_argument,
+    call_arguments_are_multiline_span, is_call_like_argument, is_simple_static_argument,
     is_tree_attribute_expression,
 };
 pub(crate) use crate::call::{format_call_expression, format_instantiation_expression};
 pub(crate) use crate::chain::{
-    argument_value_id, collect_chain_nodes, expression_inline_width_hint,
-    expression_is_in_template_literal_interpolation, flatten_binary_expression,
-    flatten_type_binary_expression, flattened_binary_operand_count,
+    argument_value_id, collect_chain_nodes, expression_is_in_template_literal_interpolation,
+    flatten_binary_expression, flatten_type_binary_expression, flattened_binary_operand_count,
     has_comment_between_expressions, has_line_comment_between_expressions,
     is_block_lambda_argument, is_chain_root, is_expression_chain, is_lambda_expression,
     is_poorly_breakable_chain, lambda_expression_should_break, member_has_intervening_comment,
-    pattern_inline_width_hint, should_expand_static_argument_list,
-    should_force_multiline_mapped_type, should_hug_static_argument_list,
-    should_parenthesize_index_expression, span_inline_char_bounds, summarize_chain_calls,
+    should_expand_static_argument_list, should_force_multiline_mapped_type,
+    should_hug_static_argument_list, should_parenthesize_index_expression,
     transparent_inner_expression,
 };
 pub(crate) use crate::collection::list_like;

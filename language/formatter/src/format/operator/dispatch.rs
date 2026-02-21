@@ -9,15 +9,120 @@ use crate::chain::{
     has_chain_parent, is_expression_chain, needs_parens_in_postfix_position,
 };
 use crate::expression::{
-    Annotation, AnnotationPosition, DestackFormatContext, DestackFormatter, Expression,
-    FormatResult, LocalNodeId, TypeUnaryOperator, UnaryOperator, hard_line_break, space, token,
+    Annotation, AnnotationPosition, Argument, DestackFormatContext, DestackFormatter, Expression,
+    FormatResult, LocalNodeId, TypeUnaryOperator, UnaryOperator,
+    expression_has_leading_prefix_comment, hard_line_break, space, token,
 };
 use destack_ast::{Comment, CommentStyle, Mutability, PostfixPosition, TokenType};
 use destack_fir::format::{Buffer, Format};
 use destack_fir::write;
 
+/// Return whether one expression has a line postfix boundary comment annotation.
+fn expression_has_line_postfix_boundary_comment(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .visit_annotations(node_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                matches!(
+                    context.annotation(*annotation_id),
+                    Annotation::Comment {
+                        position: AnnotationPosition::LinePostfixBoundary,
+                        ..
+                    }
+                )
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// Return whether a call with a multi-segment path callee should be handled as a chain.
+fn call_should_route_to_chain_for_boundary_comment(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Call { left, .. } = context.tree.get(node_id) else {
+        return false;
+    };
+    let Expression::Path { path, .. } = context.tree.get(*left) else {
+        return false;
+    };
+    if path.segments.len() <= 1 {
+        return false;
+    }
+
+    expression_has_line_postfix_boundary_comment(context, node_id)
+        || expression_has_line_postfix_boundary_comment(context, *left)
+}
+
+/// Return whether one call should bypass chain routing for multiline template arguments.
+fn call_prefers_non_chain_for_multiline_template_argument(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Call {
+        left,
+        dynamic_arguments,
+        ..
+    } = context.tree.get(node_id)
+    else {
+        return false;
+    };
+    if dynamic_arguments.len() != 1 {
+        return false;
+    }
+
+    let argument_id = dynamic_arguments[0];
+    let argument_value_id = match context.tree.get(argument_id) {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => *value,
+    };
+    let is_template_literal = matches!(
+        context.tree.get(argument_value_id),
+        Expression::TemplateExpression { .. }
+    );
+    if !is_template_literal || !context.node_has_newline(argument_value_id) {
+        return false;
+    }
+
+    matches!(
+        context.tree.get(*left),
+        Expression::Member { .. }
+            | Expression::PrivateMember { .. }
+            | Expression::Index { .. }
+            | Expression::Call { .. }
+    )
+}
+
+/// Return whether one call should bypass chain routing for parenthesized await member receivers.
+fn call_prefers_non_chain_for_parenthesized_await_member_receiver(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Call { left, .. } = context.tree.get(node_id) else {
+        return false;
+    };
+
+    let member_receiver_id = match context.tree.get(*left) {
+        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => *left,
+        _ => return false,
+    };
+
+    let Expression::Parenthesized { expression } = context.tree.get(member_receiver_id) else {
+        return false;
+    };
+
+    matches!(
+        context.tree.get(*expression),
+        Expression::Await { .. } | Expression::AwaitMaybe { .. }
+    )
+}
+
 /// Collect block infix comment nodes for one type unary expression node.
-fn collect_type_unary_infix_comment_sources(
+fn collect_type_unary_infix_comment_facts(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> Vec<(CommentStyle, bool, LocalNodeId<Comment>)> {
@@ -48,7 +153,7 @@ fn write_type_unary_as_keyword_with_infix_comments<'ast>(
     node_id: LocalNodeId<Expression>,
     keyword: &'static str,
 ) -> FormatResult<()> {
-    let infix_comments = collect_type_unary_infix_comment_sources(f.context(), node_id);
+    let infix_comments = collect_type_unary_infix_comment_facts(f.context(), node_id);
     if infix_comments.is_empty() {
         write!(f, [space(), token(keyword)])?;
         return Ok(());
@@ -123,14 +228,20 @@ pub(crate) fn format_operator_expression<'ast>(
                         | Expression::AwaitMaybe { .. }
                         | Expression::Yield { .. }
                 );
+                let right_has_leading_prefix_comment =
+                    expression_has_leading_prefix_comment(f.context(), *right);
+                let right_is_parenthesized =
+                    matches!(tree.get(*right), Expression::Parenthesized { .. });
+                let right_needs_grouping = right_needs_await_or_yield_grouping
+                    || (right_has_leading_prefix_comment && !right_is_parenthesized);
                 let needs_space = matches!(operator, UnaryOperator::Typeof | UnaryOperator::Void);
                 if needs_space {
-                    if right_needs_await_or_yield_grouping {
+                    if right_needs_grouping {
                         write!(f, [operator, space(), token("("), right, token(")")])?;
                     } else {
                         write!(f, [operator, space(), right])?;
                     }
-                } else if right_needs_await_or_yield_grouping {
+                } else if right_needs_grouping {
                     write!(f, [operator, token("("), right, token(")")])?;
                 } else {
                     write!(f, [operator, right])?;
@@ -366,7 +477,11 @@ fn format_call_or_chain_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    if is_expression_chain(f.context().tree, node_id) {
+    let should_route_to_chain = (is_expression_chain(f.context().tree, node_id)
+        || call_should_route_to_chain_for_boundary_comment(f.context(), node_id))
+        && !call_prefers_non_chain_for_multiline_template_argument(f.context(), node_id)
+        && !call_prefers_non_chain_for_parenthesized_await_member_receiver(f.context(), node_id);
+    if should_route_to_chain {
         let _timing = f
             .context()
             .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CHAIN);

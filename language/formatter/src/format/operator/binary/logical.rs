@@ -18,7 +18,7 @@ use crate::expression::{
 use crate::operator::{
     format_binary_operand_without_prefix_annotations_with_grouping_parentheses,
     is_object_like_type_expression, is_static_type_argument_context,
-    should_hug_nullable_union_type, union_source_has_leading_pipe,
+    should_hug_nullable_union_type, union_has_leading_pipe_token,
 };
 use destack_ast::TokenType;
 use destack_fir::format::Buffer;
@@ -251,8 +251,8 @@ pub(super) fn should_use_leading_pipe_union_style(
         context.expression_is_in_template_literal_interpolation(node_id);
     let has_structural_complexity =
         type_binary_operands_are_structurally_complex(context, operands);
-    let has_source_leading_pipe = union_source_has_leading_pipe(context, node_id);
-    if is_template_literal_interpolation && !has_source_leading_pipe {
+    let has_leading_pipe_token = union_has_leading_pipe_token(context, node_id);
+    if is_template_literal_interpolation && !has_leading_pipe_token {
         return false;
     }
 
@@ -265,21 +265,17 @@ pub(super) fn should_use_leading_pipe_union_style(
             && operands
                 .iter()
                 .any(|operand| is_object_like_type_expression(context, operand.expression));
-    let last_operand_has_line_postfix_comment = operands.last().is_some_and(|operand| {
-        expression_has_line_postfix_slash_comment(context, operand.expression)
-    });
 
     if has_layout_forcing_comments {
         return true;
     }
 
-    if is_static_type_argument && !has_source_leading_pipe {
+    if is_static_type_argument && !has_leading_pipe_token {
         return false;
     }
 
-    if has_source_leading_pipe {
-        return union_has_newline && !last_operand_has_line_postfix_comment
-            || has_many_union_operands
+    if has_leading_pipe_token {
+        return has_many_union_operands
             || has_structural_complexity
             || nullable_object_union_prefers_leading_pipe;
     }

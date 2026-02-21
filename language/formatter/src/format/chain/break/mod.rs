@@ -7,7 +7,7 @@ mod path;
 
 pub(crate) use self::analysis::{
     ChainBreakAnalysis, analyze_chain_break, chain_has_nonhead_nonlambda_function_call_argument,
-    should_break_chain, summarize_chain_calls,
+    should_break_chain,
 };
 pub(crate) use self::annotation::{
     chain_line_starts_with_block_prefix_annotation, chain_node_has_breaking_annotation,

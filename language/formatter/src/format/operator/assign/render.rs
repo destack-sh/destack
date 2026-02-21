@@ -4,13 +4,13 @@ use super::analyze::{
     left_assignment_chain_root, right_assignment_chain_root, right_assignment_parent,
 };
 use crate::chain::{
-    flattened_binary_operand_count, has_comment_between_expressions,
+    expression_chain_should_break, flattened_binary_operand_count, has_comment_between_expressions,
     is_assignment_chain_tail_lambda, is_chain_root, is_expression_chain,
 };
 use crate::expression::{
-    AssignOperator, DestackFormatter, Expression, FormatResult, LocalNodeId, NodeTree, NodeType,
-    format_with, group, hard_line_break, indent, is_assignment_left_target, is_lambda_expression,
-    soft_line_break_or_space, space, transparent_inner_expression,
+    AssignOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult, LocalNodeId,
+    NodeTree, NodeType, format_with, group, hard_line_break, indent, is_assignment_left_target,
+    is_lambda_expression, soft_line_break_or_space, space, transparent_inner_expression,
 };
 use destack_ast::{Declaration, ScalarLiteral};
 use destack_fir::format::{Buffer, Format};
@@ -22,19 +22,33 @@ const LONG_BINARY_OPERAND_COUNT_THRESHOLD: usize = 2;
 const EXPANDED_OBJECT_TARGET_PROPERTY_THRESHOLD: usize = 2;
 const SHORT_OBJECT_PROPERTY_MAX: usize = 3;
 
-/// Return whether one chain expression contains any call operation.
-fn expression_chain_contains_call(tree: &NodeTree, expression_id: LocalNodeId<Expression>) -> bool {
-    match tree.get(expression_id) {
-        Expression::Call { .. } => true,
-        Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
-        | Expression::Index { left, .. }
-        | Expression::Maybe { left, .. }
-        | Expression::Must { left, .. } => expression_chain_contains_call(tree, *left),
-        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
-            expression_chain_contains_call(tree, *expression)
+/// Return whether one assignment expression is used as an index operand.
+fn assignment_is_index_operand(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_id = node_id.id;
+
+    loop {
+        let Some((parent_id, parent_type)) = context.parent_by_id(current_id) else {
+            return false;
+        };
+        if parent_type != NodeType::Expression {
+            return false;
         }
-        _ => false,
+
+        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+        match context.tree.get(parent_expression_id) {
+            Expression::Parenthesized { expression } | Expression::Statement(expression)
+                if expression.id == current_id =>
+            {
+                current_id = parent_id;
+            }
+            Expression::Index { index, .. } => {
+                return index.is_some_and(|index_id| index_id.id == current_id);
+            }
+            _ => return false,
+        }
     }
 }
 
@@ -73,19 +87,8 @@ pub(in crate::format::operator) fn format_assign_expression<'ast>(
     right: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     // short circuit: trivia free simple assignments stay inline
-    let inner_left_id = transparent_inner_expression(f.context(), left);
-    let inner_left_expr = f.context().tree.get(inner_left_id);
     let inner_right_id = transparent_inner_expression(f.context(), right);
     let inner_right_expr = f.context().tree.get(inner_right_id);
-    let right_is_simple_expression = matches!(
-        inner_right_expr,
-        Expression::ScalarLiteral(_)
-            | Expression::Path { .. }
-            | Expression::Member { .. }
-            | Expression::PrivateMember { .. }
-            | Expression::Index { .. }
-    );
-    let left_is_assign_expression = matches!(inner_left_expr, Expression::Assign { .. });
     let has_assignment_parent =
         f.context()
             .parent(node_id)
@@ -117,32 +120,10 @@ pub(in crate::format::operator) fn format_assign_expression<'ast>(
     let left_has_annotation = f.context().has_annotation(left);
     let right_has_annotation = f.context().has_annotation(right);
     let node_has_annotation = f.context().has_annotation(node_id);
+    let is_index_operand_assignment = assignment_is_index_operand(f.context(), node_id);
     let assignment_has_newline = f.context().node_has_newline(node_id);
     let left_has_newline = f.context().node_has_newline(left);
     let right_has_newline = f.context().node_has_newline(right);
-    let assignment_is_compact = !assignment_has_newline && !left_has_newline && !right_has_newline;
-    if right_is_simple_expression
-        && !left_is_assign_expression
-        && !has_assignment_parent
-        && !left_has_annotation
-        && !right_has_annotation
-        && !node_has_annotation
-        && assignment_is_compact
-    {
-        f.context()
-            .increment_counter("profile.assign.simple_inline.short_circuit", 1);
-        write!(
-            f,
-            [group(&format_args![
-                left,
-                space(),
-                operator,
-                space(),
-                right
-            ])]
-        )?;
-        return Ok(());
-    }
 
     let has_postfix = f.context().has_postfix_annotation(left);
 
@@ -153,13 +134,6 @@ pub(in crate::format::operator) fn format_assign_expression<'ast>(
     let right_is_chain_root = is_chain_root(f.context().tree, inner_right_id);
     let right_is_chain =
         is_expression_chain(f.context().tree, inner_right_id) || right_is_chain_root;
-    let right_chain_has_call_operation = if right_is_chain {
-        expression_chain_contains_call(f.context().tree, inner_right_id)
-    } else {
-        false
-    };
-    let right_chain_is_multiline =
-        right_is_chain && (right_has_newline || f.context().node_has_newline(inner_right_id));
     let right_is_chain_tail_lambda =
         is_assignment_chain_tail_lambda(f.context(), node_id, inner_right_id);
     let right_is_lambda = is_lambda_expression(f.context(), inner_right_id);
@@ -176,6 +150,40 @@ pub(in crate::format::operator) fn format_assign_expression<'ast>(
     let right_has_prefix_annotation_that_forces_operator_break =
         right_has_prefix_annotation && !right_has_assignment_seam_inline_prefix_comment;
     let right_has_between_comment = has_comment_between_expressions(f.context(), left, right);
+
+    // index operands should keep compact assignment seams inside brackets
+    let right_is_inline_index_operand_value = matches!(
+        inner_right_expr,
+        Expression::Call { .. }
+            | Expression::Path { .. }
+            | Expression::Member { .. }
+            | Expression::PrivateMember { .. }
+            | Expression::Index { .. }
+            | Expression::ScalarLiteral(_)
+    );
+    if is_index_operand_assignment
+        && right_is_inline_index_operand_value
+        && !assignment_has_newline
+        && !left_has_newline
+        && !right_has_newline
+        && !left_has_annotation
+        && !right_has_annotation
+        && !node_has_annotation
+        && !right_has_prefix_annotation_that_forces_operator_break
+        && !right_has_between_comment
+    {
+        write!(
+            f,
+            [group(&format_args![
+                left,
+                space(),
+                operator,
+                space(),
+                right
+            ])]
+        )?;
+        return Ok(());
+    }
 
     // string literals are atomic: never break at `=`
     let is_string_literal = matches!(
@@ -386,10 +394,8 @@ pub(in crate::format::operator) fn format_assign_expression<'ast>(
         } else if right_is_chain {
             !right_is_lambda
                 && (right_is_chain_tail_lambda
+                    || expression_chain_should_break(f.context(), inner_right_id)
                     || right_has_prefix_annotation_that_forces_operator_break
-                    || right_chain_is_multiline
-                    || (assignment_is_multiline && !right_chain_has_call_operation)
-                    || (right_is_multiline && left_has_newline)
                     || right_has_between_comment)
         }
         // binary rhs values should not depend on source-only break signals, to keep idempotence stable
@@ -447,9 +453,20 @@ pub(in crate::format::operator) fn format_assign_expression<'ast>(
             ])
             .format(f)
         });
-
+        let format_inline_chain_seam = format_with(|f| {
+            group(&format_args![
+                left,
+                space_before_operator,
+                operator,
+                space(),
+                right
+            ])
+            .format(f)
+        });
         if right_prefers_operator_break {
             format_break_after_operator.format(f)?;
+        } else if right_is_chain {
+            format_inline_chain_seam.format(f)?;
         } else {
             format_inline.format(f)?;
         }

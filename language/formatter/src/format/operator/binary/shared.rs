@@ -220,11 +220,12 @@ pub(super) fn should_preserve_mixed_logical_grouping_for_comments(
 
 /// Return whether a source operator break should be preserved.
 #[inline]
-pub(super) fn preserve_source_operator_break(
+pub(super) fn preserve_existing_operator_break(
     operator: BinaryOperator,
-    has_source_operator_break: bool,
+    has_existing_operator_break: bool,
 ) -> bool {
-    !is_logical_binary_operator(operator) && has_source_operator_break
+    (!is_logical_binary_operator(operator) || operator == BinaryOperator::Coalesce)
+        && has_existing_operator_break
 }
 
 /// Return whether a logical operand prefers trailing-operator layout.

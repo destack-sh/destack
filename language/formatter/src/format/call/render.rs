@@ -2,13 +2,13 @@ use super::decide::trailing_collection_argument_has_comment_signal;
 use super::separator::{
     format_multiline_call_argument_list_with_last_separator_line_comment,
     format_single_plain_argument_with_separator_line_comment,
-    single_argument_separator_line_comment_source, write_argument_without_separator_line_comment,
+    single_argument_separator_line_comment_fact, write_argument_without_separator_line_comment,
     write_separator_line_comment_after_comma,
 };
 use crate::analysis::timing::tags;
 use crate::analysis::{
     CallArgumentLayoutDecision, CallArgumentLayoutRenderState,
-    argument_has_source_separator_line_comment_annotation, argument_is_collection_literal,
+    argument_has_separator_line_comment_annotation, argument_is_collection_literal,
     argument_is_interpolated_template_literal, argument_is_plain_call_argument,
     call_arguments_preserve_blank_line_between, write_inline_call_argument_list,
     write_plain_call_argument, write_plain_call_argument_or_node,
@@ -191,18 +191,18 @@ fn format_default_call_argument_list<'ast>(
     };
     let trailing_collection_has_comment_signal =
         trailing_collection_argument_has_comment_signal(f.context(), dynamic_arguments);
-    let single_argument_has_source_separator_line_comment_annotation = if is_single_argument {
+    let single_argument_has_separator_line_comment_annotation = if is_single_argument {
         single_argument_id.is_some_and(|argument_id| {
-            argument_has_source_separator_line_comment_annotation(f.context(), argument_id)
+            argument_has_separator_line_comment_annotation(f.context(), argument_id)
         })
     } else {
         false
     };
-    let last_argument_has_source_separator_line_comment_annotation = dynamic_arguments
+    let last_argument_has_separator_line_comment_annotation = dynamic_arguments
         .last()
         .copied()
         .is_some_and(|argument_id| {
-            argument_has_source_separator_line_comment_annotation(f.context(), argument_id)
+            argument_has_separator_line_comment_annotation(f.context(), argument_id)
         });
     let can_use_plain_default_short_circuit = !f.context().has_ignore_directive_markers()
         && dynamic_arguments.len() > 1
@@ -214,7 +214,7 @@ fn format_default_call_argument_list<'ast>(
     let _timing = f
         .context()
         .timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_LIST_DEFAULT);
-    if last_argument_has_source_separator_line_comment_annotation
+    if last_argument_has_separator_line_comment_annotation
         && format_multiline_call_argument_list_with_last_separator_line_comment(
             f,
             call_node_id,
@@ -257,10 +257,10 @@ fn format_default_call_argument_list<'ast>(
     if trailing_collection_has_comment_signal {
         list.disallow_trailing_separator();
     }
-    if last_argument_has_source_separator_line_comment_annotation {
+    if last_argument_has_separator_line_comment_annotation {
         list.force_trailing_separator();
     }
-    if single_argument_has_source_separator_line_comment_annotation {
+    if single_argument_has_separator_line_comment_annotation {
         list.force_trailing_separator();
     }
 
@@ -289,11 +289,7 @@ fn format_comment_expanded_call_argument_list<'ast>(
         let argument_id = dynamic_arguments[0];
         let separator_line_comment_source =
             if argument_is_plain_call_argument(f.context(), argument_id) {
-                single_argument_separator_line_comment_source(
-                    f.context(),
-                    call_node_id,
-                    argument_id,
-                )
+                single_argument_separator_line_comment_fact(f.context(), call_node_id, argument_id)
             } else {
                 None
             };
@@ -306,25 +302,26 @@ fn format_comment_expanded_call_argument_list<'ast>(
         }
     }
 
-    let has_trailing_collection_with_source_comment =
+    let has_trailing_collection_comment =
         trailing_collection_argument_has_comment_signal(f.context(), dynamic_arguments);
-    let has_single_argument_source_separator_line_comment_annotation = dynamic_arguments.len() == 1
-        && argument_has_source_separator_line_comment_annotation(f.context(), dynamic_arguments[0]);
-    let has_last_argument_source_separator_line_comment_annotation = dynamic_arguments
+    let has_single_argument_separator_line_comment_annotation = dynamic_arguments.len() == 1
+        && argument_has_separator_line_comment_annotation(f.context(), dynamic_arguments[0]);
+    let has_last_argument_separator_line_comment_annotation = dynamic_arguments
         .last()
         .copied()
         .is_some_and(|argument_id| {
-            argument_has_source_separator_line_comment_annotation(f.context(), argument_id)
+            argument_has_separator_line_comment_annotation(f.context(), argument_id)
         });
     let last_argument_separator_line_comment_source =
         dynamic_arguments.last().copied().and_then(|argument_id| {
-            single_argument_separator_line_comment_source(f.context(), call_node_id, argument_id)
+            single_argument_separator_line_comment_fact(f.context(), call_node_id, argument_id)
         });
     let use_trailing_comma = f.context().options.trailing_comma == TrailingComma::All
-        && !has_trailing_collection_with_source_comment
-        && !has_single_argument_source_separator_line_comment_annotation;
-    let force_source_trailing_comma = has_last_argument_source_separator_line_comment_annotation
-        && last_argument_separator_line_comment_source.is_none();
+        && !has_trailing_collection_comment
+        && !has_single_argument_separator_line_comment_annotation;
+    let force_trailing_comma_for_separator_comment =
+        has_last_argument_separator_line_comment_annotation
+            && last_argument_separator_line_comment_source.is_none();
 
     write!(f, [token("("), hard_line_break()])?;
     let format_result = write!(
@@ -358,7 +355,7 @@ fn format_comment_expanded_call_argument_list<'ast>(
                     write!(f, [group(argument_id)])?;
                     if index + 1 < dynamic_arguments.len()
                         || use_trailing_comma
-                        || force_source_trailing_comma
+                        || force_trailing_comma_for_separator_comment
                     {
                         write!(f, [token(",")])?;
                     }

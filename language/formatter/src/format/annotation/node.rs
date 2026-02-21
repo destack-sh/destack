@@ -109,17 +109,22 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let string = f.context().comment_text(node_id);
+        let raw_comment = f.context().comment_raw_text(node_id);
+        let block_open_token = if raw_comment.trim_start().starts_with("/**") {
+            "/**"
+        } else {
+            "/*"
+        };
         let is_multi_line = string.contains('\n');
         match self.style {
             CommentStyle::Star => {
                 if is_multi_line {
-                    let raw_comment = f.context().comment_raw_text(node_id);
                     let prefers_star_lines = block_comment_prefers_star_lines(raw_comment);
                     let lines: Vec<&str> = string.lines().collect();
                     if prefers_star_lines {
                         for (i, line) in lines.iter().enumerate() {
                             if i == 0 {
-                                write!(f, [token("/*")])?;
+                                write!(f, [token(block_open_token)])?;
                             } else {
                                 write!(f, [token(" *")])?;
                             }
@@ -137,7 +142,7 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
                     } else {
                         for (i, line) in lines.iter().enumerate() {
                             if i == 0 {
-                                write!(f, [token("/*")])?;
+                                write!(f, [token(block_open_token)])?;
                             } else {
                                 write!(f, [hard_line_break()])?;
                             }
@@ -156,21 +161,18 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
                         }
                     }
                 } else {
-                    let content = normalize_inline_block_comment_content(&string);
-                    if content.is_empty() {
-                        write!(f, [token("/**/")])?;
-                    } else if inline_block_comment_prefers_spaced_form(content) {
-                        write!(
-                            f,
-                            [token("/*"), space(), text(content), space(), token("*/")]
-                        )?;
-                    } else {
-                        write!(f, [token("/*"), text(content), token("*/")])?;
-                    }
+                    // preserve single-line block comments as parsed to avoid rewriting inline spacing
+                    write!(f, [text(raw_comment)])?;
                 }
             }
             CommentStyle::Slash => {
-                format_line_comment_lines(f, "//", string.as_ref())?;
+                if raw_comment.contains('\n') {
+                    format_line_comment_lines(f, "//", string.as_ref())?;
+                } else if let Some(payload) = raw_comment.strip_prefix("//") {
+                    write!(f, [token("//"), text(payload)])?;
+                } else {
+                    format_line_comment_lines(f, "//", string.as_ref())?;
+                }
             }
         }
         Ok(())
@@ -965,5 +967,141 @@ mod tests {
         let second = second_formatter.format(&second_block_id, DestackFormatOptions::default());
 
         assert_eq!(first, second);
+    }
+
+    /// Member-chain inline block comments should stay attached at the original chain seam.
+    #[test]
+    fn test_format_member_chain_inline_block_comments_stay_on_chain_seams() {
+        assert_format!(
+            "{
+    wow /** marker-one */
+      .omg! /** marker-two */
+      .map((x) => x.name) /** marker-three */
+      .filter((x) => x.length > 3)
+      .sort((a, b) => a.length - b.length);
+}",
+            "{
+    wow /** marker-one */
+        .omg! /** marker-two */
+        .map((x) => x.name) /** marker-three */
+        .filter((x) => x.length > 3)
+        .sort((a, b) => a.length - b.length);
+}",
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Inline class-head block comments before `{` should stay in the class header.
+    #[test]
+    fn test_format_class_head_block_comment_stays_before_open_brace() {
+        assert_format!(
+            "{
+    export class Cls /* marker-class */ {
+        // body
+    }
+}",
+            "{
+    export class Cls /* marker-class */ {
+        // body
+    }
+}",
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Decorators should remain grouped when separated by a line comment.
+    #[test]
+    fn test_format_decorator_with_leading_line_comment_stays_grouped() {
+        assert_format!(
+            "{
+    class A {
+        // marker-decorator
+        @memoize onContextMenu() {}
+    }
+}",
+            "{
+    class A {
+        // marker-decorator
+        @memoize onContextMenu() {}
+    }
+}",
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Inline member decorators should keep spans ending before the member head.
+    #[test]
+    fn test_decorator_annotation_span_stops_before_inline_member_head() {
+        let source = "{
+    class A {
+        // marker-decorator
+        @memoize onContextMenu() {}
+    }
+}";
+        let (formatter, _) = TestFormatter::parse(source, |p| {
+            p.eat_block(destack_ast::BlockContext::Expression)
+        })
+        .expect("parse inline member decorator source");
+        let context = context_from_formatter(&formatter);
+
+        let (annotation_id, owner_node) = context
+            .formatter_annotation_entries
+            .iter()
+            .enumerate()
+            .find_map(|(index, _)| {
+                let annotation_id = LocalNodeId::<Annotation>::new(index as u32);
+                let is_decorator = matches!(
+                    context.annotation(annotation_id),
+                    Annotation::Decorator { .. }
+                );
+                if !is_decorator {
+                    return None;
+                }
+                let owner_node = find_annotation_target_owner_node(&context, annotation_id)?;
+                Some((annotation_id, owner_node))
+            })
+            .expect("expected decorator annotation");
+
+        let owner_node_id = owner_node as u32;
+        assert_eq!(context.tree.get_node_type(owner_node_id), NodeType::Member);
+        assert_eq!(
+            context.annotation(annotation_id).position(),
+            AnnotationPosition::BlockPrefix
+        );
+
+        let annotation_span = context.annotation_span(annotation_id);
+        let owner_span = context.tree.get_span_by_id(owner_node_id);
+        assert!(
+            annotation_span.end <= owner_span.start,
+            "decorator span should end before member head: annotation_span={annotation_span:?} owner_span={owner_span:?} annotation={:?} owner={:?}",
+            context.span_str(annotation_span),
+            context.span_str(owner_span),
+        );
+    }
+
+    /// Own-line chain boundary comments after yield should keep member-call shape.
+    #[test]
+    fn test_format_yield_chain_boundary_comment_keeps_call_chain_shape() {
+        assert_format!(
+            "{
+    function* a() {
+        yield task
+            // marker-yield
+            .run();
+    }
+}",
+            "{
+    function* a() {
+        yield task
+            // marker-yield
+            .run();
+    }
+}",
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
     }
 }

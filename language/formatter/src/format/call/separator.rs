@@ -2,8 +2,8 @@ use crate::analysis::scan::{
     next_non_whitespace_token_after_annotation, previous_non_whitespace_token_before_span,
 };
 use crate::analysis::{
-    argument_has_source_separator_line_comment_annotation,
-    call_arguments_preserve_blank_line_between, write_plain_call_argument,
+    argument_has_separator_line_comment_annotation, call_arguments_preserve_blank_line_between,
+    write_plain_call_argument,
 };
 use crate::expression::{
     Annotation, AnnotationPosition, Argument, DestackFormatContext, DestackFormatter, Expression,
@@ -49,7 +49,7 @@ fn separator_line_comment_preceding_comma(
 }
 
 /// Return one separator slash comment annotation source payload.
-fn separator_line_comment_annotation_source(
+fn separator_line_comment_annotation_fact(
     context: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> Option<(LocalNodeId<Comment>, bool)> {
@@ -109,7 +109,7 @@ fn separator_line_comment_annotation_source(
 }
 
 /// Return one separator comment source from one annotation list and filter.
-fn separator_line_comment_source_from_annotations<F>(
+fn separator_line_comment_fact_from_annotations<F>(
     context: &DestackFormatContext<'_>,
     annotations: &[LocalNodeId<Annotation>],
     mut annotation_allowed: F,
@@ -123,7 +123,7 @@ where
         }
 
         let Some((comment_id, is_own_line)) =
-            separator_line_comment_annotation_source(context, annotation_id)
+            separator_line_comment_annotation_fact(context, annotation_id)
         else {
             continue;
         };
@@ -142,7 +142,7 @@ where
             }
 
             let Some((next_comment_id, _)) =
-                separator_line_comment_annotation_source(context, next_annotation_id)
+                separator_line_comment_annotation_fact(context, next_annotation_id)
             else {
                 break;
             };
@@ -160,13 +160,13 @@ where
 }
 
 /// Return one separator line comment source attached to one argument.
-pub(super) fn single_argument_separator_line_comment_source(
+pub(super) fn single_argument_separator_line_comment_fact(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<SeparatorLineCommentSource> {
     let resolve_from_annotations = |annotations: &[LocalNodeId<Annotation>]| {
-        separator_line_comment_source_from_annotations(context, annotations, |_| true)
+        separator_line_comment_fact_from_annotations(context, annotations, |_| true)
     };
 
     if let Some(annotations) = context.annotations(argument_id)
@@ -192,7 +192,7 @@ pub(super) fn single_argument_separator_line_comment_source(
     }
 
     let call_annotation_source = context.annotations(call_node_id).and_then(|annotations| {
-        separator_line_comment_source_from_annotations(context, &annotations, |annotation_id| {
+        separator_line_comment_fact_from_annotations(context, &annotations, |annotation_id| {
             let annotation_span = context.annotation_span(annotation_id);
             annotation_span.file == argument_span.file
                 && annotation_span.start >= seam_start
@@ -257,7 +257,7 @@ fn annotation_is_separator_line_comment(
     context: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    separator_line_comment_annotation_source(context, annotation_id).is_some()
+    separator_line_comment_annotation_fact(context, annotation_id).is_some()
 }
 
 /// Return whether an argument has non-separator postfix or infix annotations.
@@ -289,7 +289,7 @@ pub(super) fn write_argument_without_separator_line_comment<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     argument_id: LocalNodeId<Argument>,
 ) -> FormatResult<bool> {
-    if !argument_has_source_separator_line_comment_annotation(f.context(), argument_id) {
+    if !argument_has_separator_line_comment_annotation(f.context(), argument_id) {
         return Ok(false);
     }
     if argument_has_non_separator_postfix_or_infix_annotation(f.context(), argument_id) {
@@ -319,7 +319,7 @@ fn last_argument_can_render_without_separator_line_comment(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    if !argument_has_source_separator_line_comment_annotation(context, argument_id) {
+    if !argument_has_separator_line_comment_annotation(context, argument_id) {
         return false;
     }
     if argument_has_non_separator_postfix_or_infix_annotation(context, argument_id) {
@@ -345,7 +345,7 @@ pub(super) fn format_multiline_call_argument_list_with_last_separator_line_comme
         return Ok(false);
     };
     let Some(comment_source) =
-        single_argument_separator_line_comment_source(f.context(), call_node_id, last_argument_id)
+        single_argument_separator_line_comment_fact(f.context(), call_node_id, last_argument_id)
     else {
         return Ok(false);
     };

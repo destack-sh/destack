@@ -3,9 +3,9 @@ use super::{
     Declaration, DestackFormatContext, Expression, FunctionKind, LocalNodeId, NodeTree, NodeType,
     ScalarLiteral, Span, TokenType, argument_is_simple_with_options,
     call_arguments_force_expand_for_chain, call_has_non_blank_infix_annotation,
-    chain_node_has_non_inline_annotation, chain_node_left_id, expression_inline_width_hint,
-    is_chain_expression, is_chain_root, is_expression_chain, is_trivial_expression,
-    should_break_chain, span_has_comment, transparent_inner_expression, tree_literal_should_break,
+    chain_node_has_non_inline_annotation, chain_node_left_id, is_chain_expression, is_chain_root,
+    is_expression_chain, is_trivial_expression, should_break_chain, span_has_comment,
+    transparent_inner_expression, tree_literal_should_break,
 };
 use destack_ast::{Comment, CommentStyle};
 
@@ -46,6 +46,7 @@ pub(crate) fn is_simple_chain_head(
                 && !context.has_annotation(head_id)
                 && path.segments.len() <= 2
         }
+        Expression::This => !context.has_annotation(head_id),
         _ => false,
     }
 }
@@ -55,7 +56,7 @@ pub(crate) fn is_short_chain_argument(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    argument_is_simple_with_options(
+    let is_simple = argument_is_simple_with_options(
         context,
         argument_id,
         ArgumentSimplicityOptions {
@@ -64,6 +65,59 @@ pub(crate) fn is_short_chain_argument(
             reject_value_annotation: true,
             reject_lambda_values: false,
         },
+    );
+    if is_simple {
+        return true;
+    }
+
+    let value_id = argument_value_id(context.tree, argument_id);
+    let value_id = transparent_inner_expression(context, value_id);
+    if context.has_annotation(value_id) {
+        return false;
+    }
+
+    match context.tree.get(value_id) {
+        Expression::Call {
+            static_arguments,
+            dynamic_arguments,
+            ..
+        }
+        | Expression::New {
+            static_arguments,
+            dynamic_arguments,
+            ..
+        } => {
+            !call_has_non_blank_infix_annotation(context, value_id)
+                && static_arguments
+                    .as_ref()
+                    .is_none_or(|arguments| arguments.is_empty())
+                && dynamic_arguments.is_empty()
+        }
+        Expression::Instantiation {
+            static_arguments, ..
+        } => static_arguments.is_empty(),
+        _ => false,
+    }
+}
+
+/// Check whether one static chain argument is short enough for poor-break checks.
+fn is_short_chain_static_argument(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    if is_short_chain_argument(context, argument_id) {
+        return true;
+    }
+
+    let value_id = argument_value_id(context.tree, argument_id);
+    let value_id = transparent_inner_expression(context, value_id);
+    if context.has_annotation(value_id) {
+        return false;
+    }
+
+    !matches!(
+        context.tree.get(value_id),
+        Expression::ObjectExpression { .. } | Expression::TypeMapped { .. }
     )
 }
 
@@ -124,7 +178,7 @@ pub(crate) fn is_poorly_breakable_chain(
                     None => false,
                     Some(arguments) => match arguments.len() {
                         0 => false,
-                        1 => !is_short_chain_argument(context, arguments[0]),
+                        1 => !is_short_chain_static_argument(context, arguments[0]),
                         _ => true,
                     },
                 };
@@ -162,8 +216,8 @@ pub(crate) fn is_poorly_breakable_chain(
         }
     }
 
-    // plain member chains are also poorly breakable
-    has_call || is_chain_root(tree, node_id)
+    // plain member-only chains are also poorly breakable
+    has_call || is_expression_chain(tree, node_id) || is_chain_root(tree, node_id)
 }
 
 /// Get the value expression of any argument variant.
@@ -496,31 +550,6 @@ pub(crate) fn is_simple_chain_argument(
             reject_lambda_values: true,
         },
     )
-}
-
-/// Sum structural argument value lengths.
-pub(crate) fn arguments_total_len(
-    context: &DestackFormatContext<'_>,
-    arguments: &[LocalNodeId<Argument>],
-) -> usize {
-    arguments.iter().fold(0usize, |total_len, argument_id| {
-        let value_id = argument_value_id(context.tree, *argument_id);
-        total_len.saturating_add(expression_inline_width_hint(context, value_id))
-    })
-}
-
-/// Estimate the rendered length of arguments when printed inline.
-pub(crate) fn arguments_rendered_len(
-    context: &DestackFormatContext<'_>,
-    arguments: &[LocalNodeId<Argument>],
-) -> usize {
-    // sum the value widths
-    let values_len = arguments_total_len(context, arguments);
-
-    // account for `, ` separators
-    let separators_len = arguments.len().saturating_sub(1) * 2;
-
-    values_len.saturating_add(separators_len)
 }
 
 /// Check whether an expression is a numeric scalar literal.

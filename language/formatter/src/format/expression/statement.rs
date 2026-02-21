@@ -9,11 +9,10 @@ use crate::expression::{
     Declarator, DestackFormatContext, DestackFormatter, Expression, ForEachBinding,
     ForEachDeclarationKind, ForEachKind, FormatResult, IfKind, Keyword, LetKind, LocalNodeId,
     Mutability, NodeType, Pattern, TypeUnaryOperator, WhileKind, YieldCardinality, block_indent,
-    detect_for_each_binding_keyword, format_declarator, format_expression,
-    format_for_each_binding_pattern, format_if_else_chain, format_match,
+    detect_for_each_binding_keyword, expression_has_leading_prefix_comment, format_declarator,
+    format_expression, format_for_each_binding_pattern, format_if_else_chain, format_match,
     format_statement_body_block, format_ternary, format_with, group, hard_line_break,
     is_empty_statement_block, space, token, tree_literal_should_break,
-    yield_value_has_leading_prefix_comment,
 };
 use destack_ast::{Comment, CommentStyle};
 use destack_fir::format::{Buffer, Format};
@@ -833,7 +832,9 @@ pub(super) fn format_statement_expression<'ast>(
                 write!(f, [token("*")])?;
             }
             if let Some(value) = value {
-                let should_wrap_value = yield_value_has_leading_prefix_comment(f.context(), *value)
+                let value_has_leading_prefix_comment =
+                    expression_has_leading_prefix_comment(f.context(), *value);
+                let should_wrap_value = value_has_leading_prefix_comment
                     && !matches!(
                         f.context().tree.get(*value),
                         Expression::Parenthesized { .. }
