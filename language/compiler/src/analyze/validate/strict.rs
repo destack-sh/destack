@@ -293,12 +293,17 @@ impl Compiler {
         if let Some(body_ty_id) =
             types.get_declared_or_inferred_type_id(body_id.into_global_any(module.id))
         {
-            if self.type_blocks_follow_on_diagnostic(body_ty_id, types) {
+            if self.type_blocks_cascading_diagnostic(body_ty_id, types) {
+                return;
+            }
+            if self
+                .body_trailing_expression_blocks_cascading_diagnostic(module, body_id, tree, types)
+            {
                 return;
             }
 
             // report fallthrough type mismatch
-            let _reported = self.report_unassignable_type_for_types(
+            self.emit_unassignable_type_for_types(
                 module,
                 profile,
                 body_id.into_any(),
@@ -314,6 +319,46 @@ impl Compiler {
                 .into_global_any(module.id)
                 .into_anchored(Some(profile)),
         });
+    }
+
+    /// Return true when the trailing body expression already blocks cascading diagnostics.
+    fn body_trailing_expression_blocks_cascading_diagnostic(
+        &self,
+        module: &Module,
+        body_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        types: &TypeTable,
+    ) -> bool {
+        let Expression::Block { block } = tree.get(body_id) else {
+            return false;
+        };
+        let block = tree.get(*block);
+        let Some(last_expression_id) = block.expressions.last().copied() else {
+            return false;
+        };
+
+        self.expression_blocks_cascading_diagnostic(module, last_expression_id, tree, types)
+    }
+
+    /// Return true when one expression or statement wrapper already blocks cascading diagnostics.
+    fn expression_blocks_cascading_diagnostic(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        types: &TypeTable,
+    ) -> bool {
+        if let Some(type_id) =
+            types.get_declared_or_inferred_type_id(expression_id.into_global_any(module.id))
+            && self.type_blocks_cascading_diagnostic(type_id, types)
+        {
+            return true;
+        }
+        let Expression::Statement { statement } = tree.get(expression_id) else {
+            return false;
+        };
+
+        self.expression_blocks_cascading_diagnostic(module, *statement, tree, types)
     }
 
     /// Check whether a return type allows a fallthrough without a value.

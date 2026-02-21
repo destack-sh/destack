@@ -12,7 +12,7 @@ impl Compiler {
         match ty {
             // read backing types directly from enum references
             Type::Reference { symbol, .. } => {
-                self.enum_backing_type_for_symbol_best_effort(module, profile, *symbol, types)
+                self.query_enum_backing_type_for_symbol(module, profile, *symbol, types)
             }
             // unwrap value containers to reach enum references
             Type::Value { value } => {

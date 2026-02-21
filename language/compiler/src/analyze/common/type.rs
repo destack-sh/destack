@@ -336,10 +336,8 @@ impl<'a> TypeContainmentVisitor<'a> {
     }
 
     /// Take the free static parameter bound set.
-    fn take_free_static_bound(&mut self) -> HashSet<GlobalSymbolId> {
-        self.free_static_bound
-            .take()
-            .expect("free static parameter bound missing")
+    fn take_free_static_bound(&mut self) -> Option<HashSet<GlobalSymbolId>> {
+        self.free_static_bound.take()
     }
 
     /// Restore the free static parameter bound set.
@@ -445,10 +443,10 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                     symbol,
                     static_arguments,
                 } => {
-                    let bound = self
-                        .free_static_bound
-                        .as_ref()
-                        .expect("free static parameter bound missing");
+                    let Some(bound) = self.free_static_bound.as_ref() else {
+                        self.found = true;
+                        return;
+                    };
                     if static_arguments.is_none()
                         && compiler.symbol_is_static_parameter(
                             module, *profile, *symbol, symbols, type_table,
@@ -462,7 +460,10 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                 Type::Mapped {
                     parameter, value, ..
                 } => {
-                    let mut bound = self.take_free_static_bound();
+                    let Some(mut bound) = self.take_free_static_bound() else {
+                        self.found = true;
+                        return;
+                    };
                     let inserted = bound.insert(parameter.symbol);
                     self.restore_free_static_bound(bound);
                     self.visit_type_id(types, parameter.constraint);
@@ -471,7 +472,10 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                     }
                     self.visit_type_id(types, *value);
                     if inserted {
-                        let mut bound = self.take_free_static_bound();
+                        let Some(mut bound) = self.take_free_static_bound() else {
+                            self.found = true;
+                            return;
+                        };
                         bound.remove(&parameter.symbol);
                         self.restore_free_static_bound(bound);
                     }
@@ -487,7 +491,10 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                     // treat distributive symbols as binders for this conditional
                     let mut inserted = false;
                     if let Some(distributive_symbol) = distributive_symbol {
-                        let mut bound = self.take_free_static_bound();
+                        let Some(mut bound) = self.take_free_static_bound() else {
+                            self.found = true;
+                            return;
+                        };
                         inserted = bound.insert(*distributive_symbol);
                         self.restore_free_static_bound(bound);
                     }
@@ -498,7 +505,10 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                     self.visit_type_id(types, *else_type);
 
                     if inserted {
-                        let mut bound = self.take_free_static_bound();
+                        let Some(mut bound) = self.take_free_static_bound() else {
+                            self.found = true;
+                            return;
+                        };
                         if let Some(distributive_symbol) = distributive_symbol {
                             bound.remove(distributive_symbol);
                         }
@@ -541,10 +551,10 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                 }
                 Type::Reference { symbol, .. } => {
                     let skip_imported_types = self.skip_imported_types();
-                    let visited_symbols = self
-                        .visited_symbols
-                        .as_deref_mut()
-                        .expect("visited symbols missing");
+                    let Some(visited_symbols) = self.visited_symbols.as_deref_mut() else {
+                        self.found = true;
+                        return;
+                    };
                     if compiler.type_reference_contains_forbidden_literal(
                         module,
                         *symbol,
@@ -570,10 +580,10 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                     return;
                 }
                 Type::Reference { symbol, .. } => {
-                    let visited_symbols = self
-                        .visited_symbols
-                        .as_deref_mut()
-                        .expect("visited symbols missing");
+                    let Some(visited_symbols) = self.visited_symbols.as_deref_mut() else {
+                        self.found = true;
+                        return;
+                    };
                     if compiler.symbol_is_managed_inner(
                         module,
                         *profile,
@@ -665,7 +675,7 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Return true when a type already represents a primary semantic failure.
-    pub(crate) fn type_blocks_follow_on_diagnostic(
+    pub(crate) fn type_blocks_cascading_diagnostic(
         &self,
         ty_id: LocalTypeId,
         types: &TypeTable,
@@ -673,8 +683,8 @@ impl Compiler {
         matches!(types.get_type(ty_id), Type::Error)
     }
 
-    /// Report one unassignable-type diagnostic unless either side already failed.
-    pub(crate) fn report_unassignable_type_for_types(
+    /// Emit one unassignable-type diagnostic unless either side already failed.
+    pub(crate) fn emit_unassignable_type_for_types(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -682,7 +692,7 @@ impl Compiler {
         expected_ty_id: LocalTypeId,
         actual_ty_id: LocalTypeId,
         types: &TypeTable,
-    ) -> bool {
+    ) {
         let Some(error) = self.unassignable_type_error_for_types(
             module,
             profile,
@@ -691,12 +701,10 @@ impl Compiler {
             actual_ty_id,
             types,
         ) else {
-            return false;
+            return;
         };
-        debug_assert!(error.is_follow_on_semantic_diagnostic());
+        debug_assert!(error.is_cascading_semantic_diagnostic());
         self.error(error);
-
-        true
     }
 
     /// Build one unassignable-type error unless either side already failed.
@@ -709,8 +717,8 @@ impl Compiler {
         actual_ty_id: LocalTypeId,
         types: &TypeTable,
     ) -> Option<AnalyzeError> {
-        if self.type_blocks_follow_on_diagnostic(expected_ty_id, types)
-            || self.type_blocks_follow_on_diagnostic(actual_ty_id, types)
+        if self.type_blocks_cascading_diagnostic(expected_ty_id, types)
+            || self.type_blocks_cascading_diagnostic(actual_ty_id, types)
         {
             return None;
         }
@@ -742,7 +750,7 @@ impl Compiler {
         ) else {
             return false;
         };
-        debug_assert!(error.is_follow_on_semantic_diagnostic());
+        debug_assert!(error.is_cascading_semantic_diagnostic());
         self.error(error);
 
         true
@@ -758,8 +766,8 @@ impl Compiler {
         actual_ty_id: LocalTypeId,
         types: &TypeTable,
     ) -> Option<AnalyzeError> {
-        if self.type_blocks_follow_on_diagnostic(expected_ty_id, types)
-            || self.type_blocks_follow_on_diagnostic(actual_ty_id, types)
+        if self.type_blocks_cascading_diagnostic(expected_ty_id, types)
+            || self.type_blocks_cascading_diagnostic(actual_ty_id, types)
         {
             return None;
         }
@@ -791,7 +799,7 @@ impl Compiler {
         ) else {
             return false;
         };
-        debug_assert!(error.is_follow_on_semantic_diagnostic());
+        debug_assert!(error.is_cascading_semantic_diagnostic());
         self.error(error);
 
         true
@@ -807,7 +815,7 @@ impl Compiler {
         member_key: StaticKey,
         types: &TypeTable,
     ) -> Option<AnalyzeError> {
-        if self.type_blocks_follow_on_diagnostic(expected_ty_id, types) {
+        if self.type_blocks_cascading_diagnostic(expected_ty_id, types) {
             return None;
         }
 
@@ -818,49 +826,45 @@ impl Compiler {
         })
     }
 
-    /// Report one no-overload diagnostic unless the receiver already failed.
-    pub(crate) fn report_no_overload_for_receiver_type(
+    /// Emit one no-overload diagnostic unless the receiver already failed.
+    pub(crate) fn emit_no_overload_for_receiver_type(
         &self,
         module: &Module,
         profile: ProfileId,
         node_id: LocalNodeIdAny,
         receiver_ty_id: LocalTypeId,
         types: &TypeTable,
-    ) -> bool {
-        if self.type_blocks_follow_on_diagnostic(receiver_ty_id, types) {
-            return false;
+    ) {
+        if self.type_blocks_cascading_diagnostic(receiver_ty_id, types) {
+            return;
         }
 
         let error = AnalyzeError::NoOverload {
             node: node_id.into_global(module.id).into_anchored(Some(profile)),
             receiver_ty: receiver_ty_id.into_global(module.id),
         };
-        debug_assert!(error.is_follow_on_semantic_diagnostic());
+        debug_assert!(error.is_cascading_semantic_diagnostic());
         self.error(error);
-
-        true
     }
 
-    /// Report one non-callable diagnostic unless the callee already failed.
-    pub(crate) fn report_non_callable_for_callee_type(
+    /// Emit one non-callable diagnostic unless the callee already failed.
+    pub(crate) fn emit_non_callable_for_callee_type(
         &self,
         module: &Module,
         profile: ProfileId,
         node_id: LocalNodeIdAny,
         callee_ty_id: LocalTypeId,
         types: &TypeTable,
-    ) -> bool {
-        if self.type_blocks_follow_on_diagnostic(callee_ty_id, types) {
-            return false;
+    ) {
+        if self.type_blocks_cascading_diagnostic(callee_ty_id, types) {
+            return;
         }
 
         let error = AnalyzeError::NonCallable {
             node: node_id.into_global(module.id).into_anchored(Some(profile)),
         };
-        debug_assert!(error.is_follow_on_semantic_diagnostic());
+        debug_assert!(error.is_cascading_semantic_diagnostic());
         self.error(error);
-
-        true
     }
 
     /// Record an inferred type for a synthesized expression.
@@ -1428,7 +1432,11 @@ impl Compiler {
                         let owner_types = owner_module.dir(profile).types.read();
                         match owner_types.get_alias_target_type_id(typed_symbol) {
                             Some(id) => id,
-                            None => return (None, None),
+                            None => {
+                                let target_symbol =
+                                    symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
+                                return (None, target_symbol);
+                            }
                         }
                     };
 
@@ -1986,10 +1994,9 @@ impl Compiler {
                             )
                         },
                     )
-                    .unwrap_or_else(|error| {
-                        let _ = error;
-                        StaticParameterKind::Type
-                    })
+                    .ok()
+                    .flatten()
+                    .unwrap_or(StaticParameterKind::Type)
                 })
                 .unwrap_or(StaticParameterKind::Type);
 

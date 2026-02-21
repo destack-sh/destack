@@ -11,6 +11,121 @@ use std::collections::HashSet;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Emit one internal error for missing declared static-parameter metadata.
+    fn report_missing_declared_static_parameter_metadata(
+        &self,
+        module: &Module,
+        symbol: GlobalSymbolId,
+        metadata: &str,
+    ) {
+        self.error(AnalyzeError::Internal {
+            message: format!(
+                "missing declared static parameter {metadata}: module={}, symbol={symbol:?}",
+                module.id
+            ),
+        });
+    }
+
+    /// Query one declare-published static-parameter constraint fact.
+    pub(crate) fn query_declared_static_parameter_constraint(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        source_id: LocalNodeIdAny,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        if symbol.module_id == module.id && types.module_id == module.id {
+            return types.get_static_parameter_constraint_type(symbol);
+        }
+
+        self.with_module_types_at_stage(
+            module,
+            profile,
+            symbol.module_id,
+            AnalyzeDependencyStage::Declare,
+            |_owner_module, owner_types| {
+                let owner_constraint_type_id =
+                    owner_types.get_static_parameter_constraint_type(symbol)?;
+                let owner_constraint_type = owner_types.get_type(owner_constraint_type_id);
+                Some(self.import_type_from_remote_for_node(
+                    source_id,
+                    owner_constraint_type,
+                    owner_types,
+                    symbol,
+                    types,
+                ))
+            },
+        )
+        .ok()
+        .flatten()
+    }
+
+    /// Query one declare-published static-parameter kind fact.
+    fn query_declared_static_parameter_kind(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        types: &TypeTable,
+    ) -> Option<StaticParameterKind> {
+        self.with_module_types_or_local_at_stage(
+            module,
+            profile,
+            symbol.module_id,
+            types,
+            AnalyzeDependencyStage::Declare,
+            |_owner_module, owner_types| owner_types.get_static_parameter_kind(symbol),
+        )
+        .ok()
+        .flatten()
+    }
+
+    /// Query one declare-published static-parameter variance fact.
+    fn query_declared_static_parameter_variance(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        types: &TypeTable,
+    ) -> Option<VarianceModifier> {
+        self.with_module_types_or_local_at_stage(
+            module,
+            profile,
+            symbol.module_id,
+            types,
+            AnalyzeDependencyStage::Declare,
+            |_owner_module, owner_types| {
+                owner_types.get_static_parameter_variance(symbol).flatten()
+            },
+        )
+        .ok()
+        .flatten()
+    }
+
+    /// Build and cache one static-parameter-constraint cycle error type.
+    fn static_parameter_constraint_cycle_error_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        source_id: LocalNodeIdAny,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        if let Some(cached_type_id) = types.get_static_parameter_constraint_type(symbol) {
+            return cached_type_id;
+        }
+
+        self.error(AnalyzeError::CircularStaticArgument {
+            node: source_id.into_anchored(module.id, Some(profile)),
+        });
+
+        let error_type_id = types.insert_type_from_any(Type::Error, source_id);
+        types.set_static_parameter_constraint_type(symbol, error_type_id);
+
+        error_type_id
+    }
+
     /// Resolve the static parameter kind for a symbol.
     pub(crate) fn static_parameter_kind_for_symbol(
         &self,
@@ -26,20 +141,25 @@ impl Compiler {
             return kind;
         }
 
-        // resolve from the owning module when needed
-        let kind = self
-            .with_module_tree_symbols_or_local_at_stage(
-                module,
-                profile,
-                symbol.module_id,
-                tree,
-                symbols,
-                AnalyzeDependencyStage::Declare,
-                |_, tree, symbols| {
-                    self.static_parameter_kind_for_symbol_in_module(symbol, tree, symbols)
-                },
-            )
-            .unwrap_or(StaticParameterKind::Type);
+        // resolve from published declare facts first
+        if let Some(kind) =
+            self.query_declared_static_parameter_kind(module, profile, symbol, types)
+        {
+            types.set_static_parameter_kind(symbol, kind);
+            return kind;
+        }
+
+        // remote symbols consume only published declare facts
+        if symbol.module_id != module.id || types.module_id != module.id {
+            return StaticParameterKind::Type;
+        }
+
+        // derive from local declaration metadata
+        let Some(kind) = self.static_parameter_kind_for_symbol_in_module(symbol, tree, symbols)
+        else {
+            self.report_missing_declared_static_parameter_metadata(module, symbol, "kind");
+            return StaticParameterKind::Type;
+        };
 
         // cache resolved kinds
         types.set_static_parameter_kind(symbol, kind);
@@ -52,16 +172,20 @@ impl Compiler {
         symbol: GlobalSymbolId,
         tree: &NodeTree,
         symbols: &SymbolTable,
-    ) -> StaticParameterKind {
+    ) -> Option<StaticParameterKind> {
         let symbol_entry = symbols.get_symbol(symbol.local_id);
+        if !symbol_entry.is_static_parameter() {
+            return Some(StaticParameterKind::Type);
+        }
+
         let Some(primary) = symbol_entry.primary_declaration else {
-            return StaticParameterKind::Type;
+            return Some(StaticParameterKind::Type);
         };
         let Ok(parameter_id) = primary.local_id.try_into_typed::<Parameter>() else {
-            return StaticParameterKind::Type;
+            return Some(StaticParameterKind::Type);
         };
         let parameter = tree.get(parameter_id);
-        self.static_parameter_kind_for_parameter(parameter)
+        Some(self.static_parameter_kind_for_parameter(parameter))
     }
 
     /// Resolve the static parameter variance inside a module tree.
@@ -97,21 +221,21 @@ impl Compiler {
             return variance;
         }
 
-        // resolve from the owning module when needed
-        let variance = self
-            .with_module_tree_symbols_or_local_at_stage(
-                module,
-                profile,
-                symbol.module_id,
-                tree,
-                symbols,
-                AnalyzeDependencyStage::Declare,
-                |_, tree, symbols| {
-                    self.static_parameter_variance_for_symbol_in_module(symbol, tree, symbols)
-                },
-            )
-            .ok()
-            .flatten();
+        // resolve from published declare facts first
+        if let Some(variance) =
+            self.query_declared_static_parameter_variance(module, profile, symbol, types)
+        {
+            types.set_static_parameter_variance(symbol, Some(variance));
+            return Some(variance);
+        }
+
+        // remote symbols consume only published declare facts
+        if symbol.module_id != module.id || types.module_id != module.id {
+            return None;
+        }
+
+        // derive from local declaration metadata
+        let variance = self.static_parameter_variance_for_symbol_in_module(symbol, tree, symbols);
 
         // cache resolved variance
         types.set_static_parameter_variance(symbol, variance);
@@ -139,22 +263,26 @@ impl Compiler {
             return (Some(kind), variance);
         }
 
-        // fall back to owner type metadata when tree is unavailable
-        let (kind, variance) = self
-            .with_module_types_or_local_at_stage(
-                module,
-                profile,
-                symbol.module_id,
-                types,
-                AnalyzeDependencyStage::Declare,
-                |_, owner_types| {
-                    (
-                        owner_types.get_static_parameter_kind(symbol),
-                        owner_types.get_static_parameter_variance(symbol).flatten(),
-                    )
-                },
-            )
-            .unwrap_or((None, None));
+        // query owner type metadata when tree is unavailable
+        let (kind, variance) = match self.with_module_types_or_local_at_stage(
+            module,
+            profile,
+            symbol.module_id,
+            types,
+            AnalyzeDependencyStage::Declare,
+            |_, owner_types| {
+                (
+                    owner_types.get_static_parameter_kind(symbol),
+                    owner_types.get_static_parameter_variance(symbol).flatten(),
+                )
+            },
+        ) {
+            Ok(metadata) => metadata,
+            Err(error) => {
+                self.error(AnalyzeError::from(error));
+                (None, None)
+            }
+        };
 
         (kind, variance)
     }
@@ -177,11 +305,16 @@ impl Compiler {
 
             types.set_static_parameter_symbols(symbol, parameters.clone());
             for parameter_symbol in parameters {
-                let kind = self.static_parameter_kind_for_symbol_in_module(
-                    parameter_symbol,
-                    tree,
-                    symbols,
-                );
+                let kind = self
+                    .static_parameter_kind_for_symbol_in_module(parameter_symbol, tree, symbols)
+                    .unwrap_or_else(|| {
+                        self.report_missing_declared_static_parameter_metadata(
+                            module,
+                            parameter_symbol,
+                            "kind",
+                        );
+                        StaticParameterKind::Type
+                    });
                 let variance = self.static_parameter_variance_for_symbol_in_module(
                     parameter_symbol,
                     tree,
@@ -192,6 +325,55 @@ impl Compiler {
                 types.set_static_parameter_variance(parameter_symbol, variance);
             }
         }
+    }
+
+    /// Publish declared static parameter constraint facts for one module.
+    pub(crate) fn publish_declared_static_parameter_constraint_facts_for_module(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        for symbol_id in symbols.active_symbol_ids() {
+            let symbol = symbol_id.into_global(module.id);
+            let symbol_entry = symbols.get_symbol(symbol_id);
+            if !symbol_entry.is_static_parameter() {
+                continue;
+            }
+
+            let source_id = symbol_entry
+                .primary_declaration
+                .map(|declaration| declaration.local_id)
+                .unwrap_or(module.dir(profile).anchor_node);
+            let published_constraint_type_id = if let Some(primary_declaration) =
+                symbol_entry.primary_declaration
+                && let Some(declared_type_id) = types.get_declared_type_id(primary_declaration)
+            {
+                if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
+                    self.evaluate_static_parameter_constraint_type(
+                        module,
+                        profile,
+                        declared_type_id,
+                        tree,
+                        symbols,
+                        types,
+                    )?;
+                }
+
+                if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
+                    types.insert_type_from_any(Type::Error, source_id)
+                } else {
+                    declared_type_id
+                }
+            } else {
+                self.synthesize_unknown_type_for_source(source_id, types)
+            };
+            types.set_static_parameter_constraint_type(symbol, published_constraint_type_id);
+        }
+
+        Ok(())
     }
 
     /// Resolve the static parameter kind from a parameter node.
@@ -436,8 +618,9 @@ impl Compiler {
             .ok()
             .flatten();
 
-        // synthesize unknown metadata when parameter details are unavailable
+        // report invariant violations and continue with unknown metadata
         parameter.unwrap_or_else(|| {
+            self.report_missing_declared_static_parameter_metadata(module, symbol_id, "definition");
             let kind = self
                 .static_parameter_kind_for_symbol(module, profile, symbol_id, tree, symbols, types);
             self.synthesize_unknown_static_parameter(symbol_id, kind, source_id, types)
@@ -551,134 +734,79 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
-        // synthesize unknown when constraints are missing or unavailable
-
         // reuse cached constraints when available
         if let Some(cached) = types.get_static_parameter_constraint_type(symbol) {
             return Some(cached);
         }
 
-        // avoid recursive constraint resolution
-        if types.is_static_parameter_constraint_in_progress(symbol) {
-            return Some(self.synthesize_unknown_type_for_source(source_id, types));
-        }
-
-        // mark constraint resolution as in progress
-        types.mark_static_parameter_constraint_in_progress(symbol);
-
-        // resolve local constraints only when the type table matches the module
+        // resolve local constraints with local on-demand evaluation
         let resolved = if symbol.module_id == module.id && types.module_id == module.id {
-            // read the local symbol entry
-            let symbol_entry = symbols.get_symbol(symbol.local_id);
-            if !symbol_entry.is_static_parameter() {
-                self.error(AnalyzeError::InvalidStaticConstraint {
-                    node: source_id.into_anchored(module.id, Some(profile)),
-                });
-                None
-            } else if let Some(primary_declaration) = symbol_entry.primary_declaration {
-                // read the declared constraint type or fall back to unknown
-                let declared_type_id = types
-                    .get_declared_type_id(primary_declaration)
-                    .unwrap_or_else(|| self.synthesize_unknown_type_for_source(source_id, types));
+            if types.is_static_parameter_constraint_in_progress(symbol) {
+                return Some(self.static_parameter_constraint_cycle_error_type(
+                    module, profile, symbol, source_id, types,
+                ));
+            }
+            types.mark_static_parameter_constraint_in_progress(symbol);
 
-                // evaluate unevaluated constraint types on demand
-                let needs_evaluation =
-                    matches!(types.get_type(declared_type_id), Type::Unevaluated(_));
-                if needs_evaluation {
-                    let tree = module.dir(profile).tree.read();
-                    if self
-                        .evaluate_static_parameter_constraint_type(
-                            module,
-                            profile,
-                            declared_type_id,
-                            &tree,
-                            symbols,
-                            types,
-                        )
-                        .is_err()
-                    {
-                        Some(self.synthesize_unknown_type_for_source(source_id, types))
+            let local_resolved = {
+                let symbol_entry = symbols.get_symbol(symbol.local_id);
+                if !symbol_entry.is_static_parameter() {
+                    types
+                        .get_static_parameter_constraint_type(symbol)
+                        .or_else(|| Some(self.synthesize_unknown_type_for_source(source_id, types)))
+                } else if let Some(primary_declaration) = symbol_entry.primary_declaration {
+                    let declared_type_id = types
+                        .get_declared_type_id(primary_declaration)
+                        .unwrap_or_else(|| {
+                            self.synthesize_unknown_type_for_source(source_id, types)
+                        });
+                    if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
+                        let tree = module.dir(profile).tree.read();
+                        if self
+                            .evaluate_static_parameter_constraint_type(
+                                module,
+                                profile,
+                                declared_type_id,
+                                &tree,
+                                symbols,
+                                types,
+                            )
+                            .is_err()
+                        {
+                            Some(self.synthesize_unknown_type_for_source(source_id, types))
+                        } else {
+                            Some(declared_type_id)
+                        }
                     } else {
                         Some(declared_type_id)
                     }
                 } else {
-                    Some(declared_type_id)
+                    Some(self.synthesize_unknown_type_for_source(source_id, types))
                 }
-            } else {
-                Some(self.synthesize_unknown_type_for_source(source_id, types))
+            };
+            types.clear_static_parameter_constraint_in_progress(symbol);
+
+            // preserve cycle-error facts emitted during recursive evaluation
+            if let Some(cached_type_id) = types.get_static_parameter_constraint_type(symbol)
+                && matches!(types.get_type(cached_type_id), Type::Error)
+            {
+                return Some(cached_type_id);
             }
+
+            local_resolved
         } else {
-            // resolve remote static parameter constraints by importing the declared type
-            self.with_module_tree_symbols_at_stage(
-                module,
-                profile,
-                symbol.module_id,
-                AnalyzeDependencyStage::Declare,
-                |owner_module, owner_tree, owner_symbols| {
-                    // read the remote symbol
-                    let owner_symbol = owner_symbols.get_symbol(symbol.local_id);
-                    if !owner_symbol.is_static_parameter() {
-                        self.error(AnalyzeError::InvalidStaticConstraint {
-                            node: source_id.into_anchored(module.id, Some(profile)),
-                        });
-                        return None;
-                    }
-
-                    if let Some(primary_declaration) = owner_symbol.primary_declaration {
-                        // read and import the declared constraint type
-                        let mut owner_types = owner_module.dir(profile).types.write();
-                        if let Some(remote_declared_type_id) =
-                            owner_types.get_declared_type_id(primary_declaration)
-                        {
-                            let needs_evaluation = matches!(
-                                owner_types.get_type(remote_declared_type_id),
-                                Type::Unevaluated(_)
-                            );
-                            if needs_evaluation {
-                                let _ = self.evaluate_static_parameter_constraint_type(
-                                    owner_module,
-                                    profile,
-                                    remote_declared_type_id,
-                                    owner_tree,
-                                    owner_symbols,
-                                    &mut owner_types,
-                                );
-                            }
-
-                            let remote_declared_type =
-                                owner_types.get_type(remote_declared_type_id);
-                            if matches!(remote_declared_type, Type::Unevaluated(_)) {
-                                Some(self.synthesize_unknown_type_for_source(source_id, types))
-                            } else {
-                                Some(self.import_type_from_remote_for_node(
-                                    source_id,
-                                    remote_declared_type,
-                                    &owner_types,
-                                    symbol,
-                                    types,
-                                ))
-                            }
-                        } else {
-                            Some(self.synthesize_unknown_type_for_source(source_id, types))
-                        }
-                    } else {
-                        Some(self.synthesize_unknown_type_for_source(source_id, types))
-                    }
-                },
+            self.query_declared_static_parameter_constraint(
+                module, profile, symbol, source_id, types,
             )
-            .ok()
-            .flatten()
-            .or_else(|| Some(self.synthesize_unknown_type_for_source(source_id, types)))
         };
-
-        // clear the in progress marker
-        types.clear_static_parameter_constraint_in_progress(symbol);
-        if let Some(resolved) = resolved {
-            // cache the resolved constraint type id
-            types.set_static_parameter_constraint_type(symbol, resolved);
+        if let Some(resolved_constraint_type_id) = resolved {
+            types.set_static_parameter_constraint_type(symbol, resolved_constraint_type_id);
+            return Some(resolved_constraint_type_id);
         }
 
-        resolved
+        let unknown_type_id = self.synthesize_unknown_type_for_source(source_id, types);
+        types.set_static_parameter_constraint_type(symbol, unknown_type_id);
+        Some(unknown_type_id)
     }
 
     /// Resolve static parameter metadata from a module.

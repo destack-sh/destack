@@ -135,7 +135,7 @@ impl Compiler {
                         &ctx.options,
                     );
                     if !assignable.is_assignable() {
-                        let _reported = self.report_unassignable_type_for_types(
+                        self.emit_unassignable_type_for_types(
                             module,
                             ctx.profile,
                             value.into_any(),
@@ -245,7 +245,7 @@ impl Compiler {
                         },
                         pattern_id.into_any(),
                     );
-                    let _reported = self.report_unassignable_type_for_types(
+                    self.emit_unassignable_type_for_types(
                         module,
                         ctx.profile,
                         pattern_id.into_any(),
@@ -986,7 +986,7 @@ impl Compiler {
                 is_readonly: false,
             };
             let actual_ty_id = types.insert_type_from(actual_ty, first_field_id);
-            let _reported = self.report_unassignable_type_for_types(
+            self.emit_unassignable_type_for_types(
                 module,
                 ctx.profile,
                 first_field_id.into_any(),

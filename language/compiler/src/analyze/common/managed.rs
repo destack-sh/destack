@@ -113,8 +113,8 @@ impl Compiler {
         }
 
         // skip error types to avoid noisy diagnostics
-        if self.type_blocks_follow_on_diagnostic(expected_ty_id, types)
-            || self.type_blocks_follow_on_diagnostic(actual_ty_id, types)
+        if self.type_blocks_cascading_diagnostic(expected_ty_id, types)
+            || self.type_blocks_cascading_diagnostic(actual_ty_id, types)
         {
             return;
         }
@@ -159,7 +159,7 @@ impl Compiler {
         }
 
         // skip error types to avoid noisy diagnostics
-        if self.type_blocks_follow_on_diagnostic(inferred_ty_id, types) {
+        if self.type_blocks_cascading_diagnostic(inferred_ty_id, types) {
             return;
         }
 

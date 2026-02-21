@@ -1,15 +1,35 @@
+use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, Generics, GlobalSymbolId, Heritage, LocalNodeId, Member, NodeTree, Parameter,
-    SymbolTable, Type, TypeTable,
+    StringId, SymbolTable, Type, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 use std::collections::HashSet;
 
+/// The associated requirement category for declaration checks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DeclaredAssociatedRequirementKind {
+    /// Associated type requirements.
+    Type,
+    /// Associated comptime requirements.
+    Comptime,
+}
+
+impl DeclaredAssociatedRequirementKind {
+    /// Return the missing-requirement diagnostic message for this category.
+    fn missing_requirement_message(self) -> &'static str {
+        match self {
+            Self::Type => "missing associated type implementation",
+            Self::Comptime => "missing associated comptime implementation",
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Validate associated type contract requirements for one declaration.
-    pub(crate) fn validate_associated_type_contract_requirements(
+    /// Report missing declared associated type requirements for one declaration.
+    pub(crate) fn report_missing_declared_associated_type_requirements(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -21,82 +41,22 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
-        let declaration_symbol = self
-            .declaration_symbol_id(module, symbols, profile, declaration_symbol)
-            .unwrap_or(declaration_symbol);
-
-        // skip non-user modules
-        if !matches!(module.source, ModuleSource::User) {
-            return Ok(());
-        }
-
-        // collect declaration associated type names
-        let mut declared_associated_names = HashSet::new();
-        for member_id in members {
-            if let Member::Type { name, .. } = tree.get(*member_id) {
-                declared_associated_names.insert(*name);
-            }
-        }
-
-        // collect inherited contract expressions
-        let mut contract_expressions = Vec::new();
-        if let Some(extends_types) = heritage.extends_types.as_ref() {
-            contract_expressions.extend(extends_types.iter().copied());
-        }
-        if let Some(implements_types) = heritage.implements_types.as_ref() {
-            contract_expressions.extend(implements_types.iter().copied());
-        }
-        if contract_expressions.is_empty() {
-            return Ok(());
-        }
-
-        // report missing requirements once per associated name
-        let mut reported_missing_names = HashSet::new();
-        for expression_id in contract_expressions {
-            let Some(target_symbol) = self.contract_target_symbol_for_expression(
-                module,
-                profile,
-                expression_id,
-                tree,
-                symbols,
-                types,
-            )?
-            else {
-                continue;
-            };
-            let requirements = self.collect_contract_associated_type_requirements(
-                module,
-                profile,
-                target_symbol,
-                tree,
-                symbols,
-            )?;
-
-            for requirement in requirements {
-                if !requirement.requires_implementation
-                    || declared_associated_names.contains(&requirement.name)
-                    || allows_deferred_associated_types
-                    || !reported_missing_names.insert(requirement.name)
-                {
-                    continue;
-                }
-
-                let node = expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile));
-                self.error(AnalyzeError::InvalidStaticArgument {
-                    node,
-                    message: "missing associated type implementation".to_string(),
-                });
-                types.mark_symbol_with_unimplemented_associated_requirements(declaration_symbol);
-            }
-        }
-
-        Ok(())
+        self.check_declared_associated_requirements(
+            module,
+            profile,
+            declaration_symbol,
+            heritage,
+            members,
+            allows_deferred_associated_types,
+            DeclaredAssociatedRequirementKind::Type,
+            tree,
+            symbols,
+            types,
+        )
     }
 
-    /// Validate associated comptime contract requirements for one declaration.
-    pub(crate) fn validate_associated_comptime_contract_requirements(
+    /// Report missing declared associated comptime requirements for one declaration.
+    pub(crate) fn report_missing_declared_associated_comptime_requirements(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -104,6 +64,35 @@ impl Compiler {
         heritage: &Heritage,
         members: &[LocalNodeId<Member>],
         allows_deferred_associated_comptime: bool,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        self.check_declared_associated_requirements(
+            module,
+            profile,
+            declaration_symbol,
+            heritage,
+            members,
+            allows_deferred_associated_comptime,
+            DeclaredAssociatedRequirementKind::Comptime,
+            tree,
+            symbols,
+            types,
+        )
+    }
+
+    /// Check declared associated requirements for one declaration.
+    #[allow(clippy::too_many_arguments)]
+    fn check_declared_associated_requirements(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        declaration_symbol: GlobalSymbolId,
+        heritage: &Heritage,
+        members: &[LocalNodeId<Member>],
+        allows_deferred_requirements: bool,
+        requirement_kind: DeclaredAssociatedRequirementKind,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -117,27 +106,17 @@ impl Compiler {
             return Ok(());
         }
 
-        // collect declaration associated comptime names
-        let mut declared_associated_names = HashSet::new();
-        for member_id in members {
-            if let Member::ComptimeConst { name, .. } = tree.get(*member_id) {
-                declared_associated_names.insert(*name);
-            }
-        }
-
         // collect inherited contract expressions
-        let mut contract_expressions = Vec::new();
-        if let Some(extends_types) = heritage.extends_types.as_ref() {
-            contract_expressions.extend(extends_types.iter().copied());
-        }
-        if let Some(implements_types) = heritage.implements_types.as_ref() {
-            contract_expressions.extend(implements_types.iter().copied());
-        }
+        let contract_expressions = self.contract_expression_ids_for_heritage(heritage);
         if contract_expressions.is_empty() {
             return Ok(());
         }
 
-        // report missing requirements once per associated name
+        // collect declaration associated names for this requirement category
+        let declared_associated_names =
+            self.declared_associated_member_names(requirement_kind, members, tree);
+
+        // report or mark missing requirements once per associated name
         let mut reported_missing_names = HashSet::new();
         for expression_id in contract_expressions {
             let Some(target_symbol) = self.contract_target_symbol_for_expression(
@@ -151,7 +130,9 @@ impl Compiler {
             else {
                 continue;
             };
-            let requirements = self.collect_contract_associated_comptime_requirements(
+
+            let requirements = self.collect_declared_associated_requirement_pairs_for_contract(
+                requirement_kind,
                 module,
                 profile,
                 target_symbol,
@@ -159,27 +140,106 @@ impl Compiler {
                 symbols,
             )?;
 
-            for requirement in requirements {
-                if !requirement.requires_implementation
-                    || declared_associated_names.contains(&requirement.name)
-                    || allows_deferred_associated_comptime
-                    || !reported_missing_names.insert(requirement.name)
+            for (requirement_name, requires_implementation) in requirements {
+                if !requires_implementation
+                    || declared_associated_names.contains(&requirement_name)
+                    || allows_deferred_requirements
+                    || !reported_missing_names.insert(requirement_name)
                 {
                     continue;
                 }
 
+                types.mark_symbol_with_unimplemented_associated_requirements(declaration_symbol);
                 let node = expression_id
                     .into_global_any(module.id)
                     .into_anchored(Some(profile));
                 self.error(AnalyzeError::InvalidStaticArgument {
                     node,
-                    message: "missing associated comptime implementation".to_string(),
+                    message: requirement_kind.missing_requirement_message().to_string(),
                 });
-                types.mark_symbol_with_unimplemented_associated_requirements(declaration_symbol);
             }
         }
 
         Ok(())
+    }
+
+    /// Return declaration associated names for one requirement category.
+    fn declared_associated_member_names(
+        &self,
+        requirement_kind: DeclaredAssociatedRequirementKind,
+        members: &[LocalNodeId<Member>],
+        tree: &NodeTree,
+    ) -> HashSet<StringId> {
+        let mut names = HashSet::new();
+        for member_id in members {
+            let name = match (requirement_kind, tree.get(*member_id)) {
+                (DeclaredAssociatedRequirementKind::Type, Member::Type { name, .. })
+                | (
+                    DeclaredAssociatedRequirementKind::Comptime,
+                    Member::ComptimeConst { name, .. },
+                ) => Some(*name),
+                _ => None,
+            };
+            if let Some(name) = name {
+                names.insert(name);
+            }
+        }
+
+        names
+    }
+
+    /// Return direct contract expression ids from one declaration heritage.
+    fn contract_expression_ids_for_heritage(
+        &self,
+        heritage: &Heritage,
+    ) -> Vec<LocalNodeId<Expression>> {
+        let mut contract_expressions = Vec::new();
+        if let Some(extends_types) = heritage.extends_types.as_ref() {
+            contract_expressions.extend(extends_types.iter().copied());
+        }
+        if let Some(implements_types) = heritage.implements_types.as_ref() {
+            contract_expressions.extend(implements_types.iter().copied());
+        }
+
+        contract_expressions
+    }
+
+    /// Collect requirement name or required-implementation pairs for one contract.
+    fn collect_declared_associated_requirement_pairs_for_contract(
+        &self,
+        requirement_kind: DeclaredAssociatedRequirementKind,
+        module: &Module,
+        profile: ProfileId,
+        contract_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> AnalyzeResult<Vec<(StringId, bool)>> {
+        let requirements = match requirement_kind {
+            DeclaredAssociatedRequirementKind::Type => self
+                .collect_contract_associated_type_requirements(
+                    module,
+                    profile,
+                    contract_symbol,
+                    tree,
+                    symbols,
+                )?
+                .into_iter()
+                .map(|requirement| (requirement.name, requirement.requires_implementation))
+                .collect(),
+            DeclaredAssociatedRequirementKind::Comptime => self
+                .collect_contract_associated_comptime_requirements(
+                    module,
+                    profile,
+                    contract_symbol,
+                    tree,
+                    symbols,
+                )?
+                .into_iter()
+                .map(|requirement| (requirement.name, requirement.requires_implementation))
+                .collect(),
+        };
+
+        Ok(requirements)
     }
 
     /// Resolve one heritage contract target symbol from expression metadata or type evaluation.
@@ -192,9 +252,22 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
-        // reuse direct symbol links from the declaration tree
+        // resolve direct symbol links through canonical declaration ownership
         if let Some(target_symbol) = tree.get(expression_id).target_symbol() {
-            return Ok(Some(target_symbol));
+            let mut target_symbol = self.canonical_symbol_id(
+                module,
+                symbols,
+                profile,
+                target_symbol,
+                CanonicalSymbolMode::FollowAliases,
+            );
+            target_symbol =
+                self.resolve_type_reference_symbol(module, profile, target_symbol, tree, symbols);
+            if let Some(target_symbol) =
+                self.declaration_symbol_id(module, symbols, profile, target_symbol)
+            {
+                return Ok(Some(target_symbol));
+            }
         }
 
         // otherwise evaluate the heritage expression to recover the target symbol
@@ -217,7 +290,20 @@ impl Compiler {
                 _ => None,
             },
             _ => None,
-        };
+        }
+        .map(|target_symbol| {
+            let mut target_symbol = self.canonical_symbol_id(
+                module,
+                symbols,
+                profile,
+                target_symbol,
+                CanonicalSymbolMode::FollowAliases,
+            );
+            target_symbol =
+                self.resolve_type_reference_symbol(module, profile, target_symbol, tree, symbols);
+            self.declaration_symbol_id(module, symbols, profile, target_symbol)
+                .unwrap_or(target_symbol)
+        });
 
         Ok(target_symbol)
     }

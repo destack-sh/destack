@@ -453,7 +453,7 @@ impl Compiler {
         let mut call_signatures = Vec::new();
         let mut construct_signatures = Vec::new();
         let mut index_signatures = Vec::new();
-        let mut fallback_instance_id = None;
+        let mut own_instance_id = None;
 
         for group_symbol in group_symbols.iter().copied() {
             // load the instance type for the group symbol
@@ -472,7 +472,7 @@ impl Compiler {
             };
 
             if group_symbol == symbol {
-                fallback_instance_id = Some(local_instance_id);
+                own_instance_id = Some(local_instance_id);
             }
 
             // extract instance type members
@@ -498,10 +498,10 @@ impl Compiler {
                 && construct_signatures.is_empty()
                 && index_signatures.is_empty())
         {
-            if let Some(fallback_instance_id) = fallback_instance_id {
-                types.set_instance_type(symbol, fallback_instance_id);
+            if let Some(own_instance_id) = own_instance_id {
+                types.set_instance_type(symbol, own_instance_id);
             }
-            return Ok(fallback_instance_id);
+            return Ok(own_instance_id);
         }
 
         // create a merged instance type for all group symbols

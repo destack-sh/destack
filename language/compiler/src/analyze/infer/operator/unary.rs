@@ -68,7 +68,7 @@ impl Compiler {
             symbols,
             types,
         ) {
-            let _reported = self.report_no_overload_for_receiver_type(
+            self.emit_no_overload_for_receiver_type(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -98,7 +98,7 @@ impl Compiler {
             infer,
         )?
         else {
-            let _reported = self.report_no_overload_for_receiver_type(
+            self.emit_no_overload_for_receiver_type(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -124,7 +124,7 @@ impl Compiler {
                 infer,
                 types,
             )?;
-            let _reported = self.report_no_overload_for_receiver_type(
+            self.emit_no_overload_for_receiver_type(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -139,7 +139,7 @@ impl Compiler {
 
         // unary operators expect no dynamic parameters
         if !resolved.signature.dynamic_parameters.is_empty() {
-            let _reported = self.report_no_overload_for_receiver_type(
+            self.emit_no_overload_for_receiver_type(
                 module,
                 ctx.profile,
                 expression_id.into_any(),

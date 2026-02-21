@@ -162,13 +162,14 @@ pub mod tags {
         TimingTag::new("analyze.types.evaluate.reference.well_known");
     pub const ANALYZE_DECLARE_DECLARATIONS: TimingTag =
         TimingTag::new("analyze.declarations.declare");
+    pub const ANALYZE_DECLARE_ALIASES: TimingTag = TimingTag::new("analyze.declarations.aliases");
     pub const ANALYZE_DECLARE_DECORATORS: TimingTag = TimingTag::new("analyze.decorators.register");
 
-    // analyze export
-    pub const ANALYZE_MODULE_EXPORT: TimingTag = TimingTag::new("analyze.module.export");
-    pub const ANALYZE_EXPORT_VALUES: TimingTag = TimingTag::new("analyze.exports.declare");
-    pub const ANALYZE_EXPORT_ALIASES: TimingTag = TimingTag::new("analyze.exports.materialize");
-    pub const ANALYZE_EXPORT_NAMESPACE: TimingTag = TimingTag::new("analyze.namespace.declare");
+    // analyze interface
+    pub const ANALYZE_MODULE_INTERFACE: TimingTag = TimingTag::new("analyze.module.interface");
+    pub const ANALYZE_INTERFACE_VALUES: TimingTag = TimingTag::new("analyze.interface.values");
+    pub const ANALYZE_INTERFACE_NAMESPACE: TimingTag =
+        TimingTag::new("analyze.interface.namespace");
 
     // analyze infer
     pub const ANALYZE_MODULE_INFER: TimingTag = TimingTag::new("analyze.module.infer");

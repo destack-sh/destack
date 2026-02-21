@@ -353,8 +353,30 @@ impl Compiler {
 
             match source_field {
                 Some(source_field) => {
+                    let target_field_ty_id = self.prepare_assignability_type(
+                        module,
+                        profile,
+                        target_field.ty,
+                        symbols,
+                        types,
+                    );
+                    let source_field_ty_id = self.prepare_assignability_type(
+                        module,
+                        profile,
+                        source_field.ty,
+                        symbols,
+                        types,
+                    );
+                    let target_field_ty = types.get_type(target_field_ty_id);
+                    let source_field_ty = types.get_type(source_field_ty_id);
+                    let fields_are_method_like = matches!(target_field_ty, Type::Function { .. })
+                        && matches!(source_field_ty, Type::Function { .. });
+
                     // reject readonly source fields when the target is mutable
-                    if source_field.is_readonly && !target_field.is_readonly {
+                    if source_field.is_readonly
+                        && !target_field.is_readonly
+                        && !fields_are_method_like
+                    {
                         return Assignability::NotAssignable;
                     }
 
@@ -368,8 +390,8 @@ impl Compiler {
                             module,
                             profile,
                             symbols,
-                            target_field.ty,
-                            source_field.ty,
+                            target_field_ty_id,
+                            source_field_ty_id,
                             types,
                             options,
                         )
@@ -382,7 +404,7 @@ impl Compiler {
                                 profile,
                                 symbols,
                                 undefined_ty_id,
-                                source_field.ty,
+                                source_field_ty_id,
                                 types,
                                 options,
                             )
@@ -395,7 +417,7 @@ impl Compiler {
                                 module,
                                 profile,
                                 symbols,
-                                target_field.ty,
+                                target_field_ty_id,
                                 undefined_ty_id,
                                 types,
                                 options,

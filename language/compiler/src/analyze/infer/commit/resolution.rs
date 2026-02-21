@@ -101,7 +101,15 @@ impl Compiler {
                         .collect();
                     self.commit_dynamic_resolution(node_id, receiver_ty_id, candidates, types);
                 }
-                MemberResolution::Unresolved | MemberResolution::None => {}
+                MemberResolution::Unresolved | MemberResolution::None => {
+                    self.commit_unresolved_resolution(
+                        node_id,
+                        receiver_ty_id,
+                        Vec::new(),
+                        Vec::new(),
+                        types,
+                    );
+                }
             }
         } else {
             self.commit_unresolved_resolution(

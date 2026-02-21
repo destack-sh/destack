@@ -2,6 +2,7 @@ mod commit;
 mod common;
 mod constraint;
 mod declaration;
+mod dependency;
 mod expression;
 pub(crate) mod member;
 mod operator;

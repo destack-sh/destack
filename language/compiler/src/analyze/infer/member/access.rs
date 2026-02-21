@@ -1,4 +1,5 @@
 use super::*;
+use destack_dir::StaticExpression;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -432,10 +433,9 @@ impl Compiler {
                     true,
                     types,
                 );
-
                 resolved_member.type_id
             } else {
-                self.resolve_member_index_or_missing_fallback(
+                self.resolve_member_index_or_missing(
                     module,
                     expression_id,
                     receiver.receiver_id,
@@ -444,6 +444,7 @@ impl Compiler {
                     &lookup.member_key,
                     &lookup.resolution,
                     ctx.profile,
+                    ctx.is_surface_inference,
                     &ctx.options,
                     tree,
                     symbols,
@@ -461,10 +462,42 @@ impl Compiler {
                 &mut cache,
             )
         };
+        resolved_member_ty_id = self.materialize_associated_comptime_member_access_type(
+            module,
+            expression_id,
+            resolved_member_ty_id,
+            lookup,
+            ctx.profile,
+            tree,
+            symbols,
+            types,
+        )?;
 
         // register associated comptime obligations until post infer convergence
-        if let Some(member_symbol) = lookup.member_symbol
-            && self.projection_requires_associated_comptime_obligation(
+        let obligation_member_symbol = self.projection_obligation_member_symbol_for_expression(
+            module,
+            ctx.profile,
+            expression_id,
+            receiver.receiver_id,
+            &lookup.member_key,
+            lookup.member_symbol,
+            tree,
+            symbols,
+            types,
+        )?;
+        let receiver_is_projection_receiver = self
+            .query_expression_is_projection_receiver_for_infer(
+                module,
+                ctx.profile,
+                receiver.receiver_id,
+                tree,
+                symbols,
+                types,
+            );
+        let member_type_is_unevaluated =
+            matches!(types.get_type(resolved_member_ty_id), Type::Unevaluated(_));
+        let requires_projection_obligation = if let Some(member_symbol) = obligation_member_symbol {
+            self.projection_requires_associated_comptime_obligation(
                 module,
                 ctx.profile,
                 member_symbol,
@@ -472,32 +505,168 @@ impl Compiler {
                 tree,
                 symbols,
             )?
-        {
-            let obligation_is_unresolved = self.projection_obligation_is_unresolved(
-                module,
-                ctx.profile,
-                resolved_member_ty_id,
-                &lookup.substitutions,
-                symbols,
-                types,
-            );
+        } else {
+            (lookup.receiver_context.has_static_arguments || member_type_is_unevaluated)
+                && receiver_is_projection_receiver
+        };
+        if requires_projection_obligation {
             infer.push_associated_comptime_projection_obligation(
                 AssociatedComptimeProjectionObligation {
                     expression_id,
-                    member_symbol,
+                    member_symbol: obligation_member_symbol,
                     member_type_id: resolved_member_ty_id,
+                    receiver_arguments: lookup.inherited.arguments.clone(),
                     substitutions: lookup.substitutions.clone(),
                 },
             );
-
-            if obligation_is_unresolved {
-                // unresolved projections are semantically invalid in value space
-                // keep the local expression type as error to suppress cascades
-                resolved_member_ty_id = types.insert_type_from(Type::Error, expression_id);
-            }
         }
 
         Ok(resolved_member_ty_id)
+    }
+
+    /// Resolve one associated-comptime member symbol for deferred projection obligations.
+    #[allow(clippy::too_many_arguments)]
+    fn projection_obligation_member_symbol_for_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        receiver_id: LocalNodeId<Expression>,
+        member_key: &StaticKey,
+        resolved_member_symbol: Option<GlobalSymbolId>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        if resolved_member_symbol.is_some() {
+            return Ok(resolved_member_symbol);
+        }
+
+        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
+        if !self.query_expression_is_projection_receiver_for_infer(
+            module,
+            profile,
+            receiver_id,
+            tree,
+            symbols,
+            types,
+        ) {
+            return Ok(None);
+        }
+
+        let selection = self.select_associated_projection_member_symbol(
+            module,
+            profile,
+            expression_id,
+            receiver_id,
+            *member_key,
+            Some(StaticMemberSymbolKind::AssociatedComptimeConst),
+            tree,
+            symbols,
+            types,
+            true,
+            true,
+        )?;
+
+        Ok(selection.map(|selection| selection.target_symbol))
+    }
+
+    /// Materialize one associated comptime member access after receiver substitution.
+    #[allow(clippy::too_many_arguments)]
+    fn materialize_associated_comptime_member_access_type(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        member_ty_id: LocalTypeId,
+        lookup: &MemberAccessLookup,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        let Some(member_symbol) = lookup.member_symbol else {
+            return Ok(member_ty_id);
+        };
+
+        let kind = self.query_static_member_symbol_kind_for_symbol(
+            module,
+            profile,
+            member_symbol,
+            tree,
+            symbols,
+        )?;
+        if kind != Some(crate::analyze::StaticMemberSymbolKind::AssociatedComptimeConst) {
+            return Ok(member_ty_id);
+        }
+
+        // defer projection materialization until receiver static arguments converge
+        // unresolved obligations are reported after infer convergence
+        if self.receiver_arguments_are_unresolved_for_projection_materialization(
+            module,
+            profile,
+            &lookup.inherited.arguments,
+            symbols,
+            types,
+        ) {
+            return Ok(member_ty_id);
+        }
+
+        let member_ty = types.get_type(member_ty_id).clone();
+        let materialized_ty = self.materialize_associated_member_projection(
+            module,
+            profile,
+            expression_id.into_any(),
+            member_symbol,
+            lookup.receiver_context.nominal_symbol,
+            &lookup.inherited.arguments,
+            None,
+            member_ty,
+            tree,
+            symbols,
+            types,
+        )?;
+
+        Ok(types.insert_type_from_type(materialized_ty, member_ty_id))
+    }
+
+    /// Return true when receiver arguments are not converged enough for projection materialization.
+    fn receiver_arguments_are_unresolved_for_projection_materialization(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        arguments: &[StaticArgument],
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> bool {
+        for argument in arguments {
+            // unevaluated static arguments are unresolved
+            let StaticArgument::Evaluated { value, .. } = argument else {
+                return true;
+            };
+
+            // type arguments must be fully solved before projection materialization
+            let StaticExpression::Type { ty } = value else {
+                continue;
+            };
+            if self.type_contains_static_parameters(
+                module,
+                profile,
+                *ty,
+                symbols,
+                types,
+                &mut HashSet::new(),
+            ) {
+                return true;
+            }
+            if self.type_contains_infer_vars(*ty, types, &mut HashSet::new()) {
+                return true;
+            }
+            if self.type_contains_unevaluated_static_arguments(*ty, types, &mut HashSet::new()) {
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Return the member access type for `any` receivers.

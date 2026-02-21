@@ -30,7 +30,7 @@ impl Compiler {
         argument_ty_id: LocalTypeId,
         types: &TypeTable,
     ) {
-        let _reported = self.report_unassignable_type_for_types(
+        self.emit_unassignable_type_for_types(
             module,
             profile,
             argument_id.into_any(),
@@ -67,7 +67,7 @@ impl Compiler {
         // require callable signatures on the tag
         let call_signatures = self.call_signatures_for_type(tag_ty_id, types);
         if call_signatures.is_empty() {
-            let _reported = self.report_non_callable_for_callee_type(
+            self.emit_non_callable_for_callee_type(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -173,7 +173,7 @@ impl Compiler {
                 &ctx.options,
             );
             if candidates.is_empty() {
-                let _reported = self.report_no_overload_for_receiver_type(
+                self.emit_no_overload_for_receiver_type(
                     module,
                     ctx.profile,
                     expression_id.into_any(),
@@ -304,7 +304,7 @@ impl Compiler {
                 &ctx.options,
             ) == Assignability::NotAssignable
             {
-                let _reported = self.report_unassignable_type_for_types(
+                self.emit_unassignable_type_for_types(
                     module,
                     ctx.profile,
                     argument.value().into_any(),
@@ -403,7 +403,7 @@ impl Compiler {
                 return Ok(None);
             }
 
-            let _reported = self.report_unassignable_type_for_types(
+            self.emit_unassignable_type_for_types(
                 module,
                 profile,
                 types.get_type_source(strings_param_ty_id),

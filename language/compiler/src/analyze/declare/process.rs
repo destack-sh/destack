@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::timing::tags;
 use crate::{
@@ -6,7 +6,10 @@ use crate::{
     TaskDependencyError, TaskResultCollector,
 };
 use destack_builtin::BuiltinLibKind;
-use destack_dir::{LocalTypeId, Type};
+use destack_dir::{
+    Export, GlobalSymbolId, LocalTypeId, NodeTree, StaticKey, SymbolSpace, SymbolTable, SymbolType,
+    Type, TypeTable,
+};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{ModuleSource, ProfileId};
 
@@ -129,6 +132,51 @@ impl Compiler {
             }
         }
 
+        // publish declared static parameter constraint facts
+        let mut publish_collector = TaskResultCollector::new();
+        self.collect(
+            &mut publish_collector,
+            self.publish_declared_static_parameter_constraint_facts_for_module(
+                &module, profile, &tree, &symbols, &mut types,
+            ),
+        );
+        {
+            let _timing = self.timing_scope(tags::ANALYZE_DECLARE_ALIASES);
+
+            // publish exported alias targets from declared type facts
+            let exported_symbols = dir.exported_symbols.read();
+            let binding_exports = dir.module_binding_exports.read();
+            self.collect(
+                &mut publish_collector,
+                self.publish_declared_alias_target_facts_for_exports(
+                    &module,
+                    profile,
+                    &exported_symbols,
+                    &tree,
+                    &symbols,
+                    &mut types,
+                ),
+            );
+            for binding in binding_exports.values() {
+                self.collect(
+                    &mut publish_collector,
+                    self.publish_declared_alias_target_facts_for_exports(
+                        &module,
+                        profile,
+                        &binding.exports,
+                        &tree,
+                        &symbols,
+                        &mut types,
+                    ),
+                );
+            }
+        }
+
+        // yield after static-constraint fact publication
+        if let Some(dependency) = publish_collector.try_into_yield_any() {
+            return Err(AnalyzeError::Yield { dependency });
+        }
+
         // drop the read guard before taking a mutable lock for decorators
         drop(symbols);
 
@@ -232,9 +280,9 @@ impl Compiler {
         &self,
         module: &destack_workspace::Module,
         profile: ProfileId,
-        tree: &destack_dir::NodeTree,
-        symbols: &destack_dir::SymbolTable,
-        types: &mut destack_dir::TypeTable,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
         collector: &mut TaskResultCollector,
     ) -> bool {
         // seed the worklist
@@ -286,5 +334,75 @@ impl Compiler {
         }
 
         false
+    }
+
+    /// Publish exported alias target facts from declared local type metadata.
+    fn publish_declared_alias_target_facts_for_exports(
+        &self,
+        module: &destack_workspace::Module,
+        profile: ProfileId,
+        exports: &indexmap::IndexMap<(SymbolSpace, StaticKey), Export>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        for export in exports.values() {
+            // skip non-type exports
+            if export.space != SymbolSpace::Type {
+                continue;
+            }
+
+            // skip unresolved or remote exports
+            let Some(export_symbol) = export.target.resolved() else {
+                continue;
+            };
+            if export_symbol.module_id != module.id {
+                continue;
+            }
+
+            // skip non-alias symbols
+            let symbol_entry = symbols.get_symbol(export_symbol.local_id);
+            if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
+                continue;
+            }
+
+            // load the declared alias target and ensure it is evaluated
+            let typed_symbol =
+                GlobalSymbolId::new(module.id, export_symbol.local_id.with_type(symbol_entry.ty));
+            let Some(alias_target_id) = types.get_alias_target_type_id(typed_symbol) else {
+                continue;
+            };
+            self.ensure_type_evaluated(module, profile, alias_target_id, tree, symbols, types)?;
+
+            // materialize value static arguments before publishing
+            let needs_materialization = self.type_contains_unevaluated_value_static_arguments(
+                module,
+                profile,
+                alias_target_id,
+                tree,
+                symbols,
+                types,
+                &mut HashSet::new(),
+            );
+            if !needs_materialization {
+                continue;
+            }
+
+            let mut cache = HashMap::new();
+            let materialized = self.materialize_static_arguments_in_type(
+                module,
+                profile,
+                alias_target_id,
+                tree,
+                symbols,
+                types,
+                &mut cache,
+            );
+            if materialized != alias_target_id {
+                types.set_alias_target_type_id(typed_symbol, materialized);
+            }
+        }
+
+        Ok(())
     }
 }

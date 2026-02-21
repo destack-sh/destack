@@ -2,9 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use crate::analyze::common::{
     AnalyzeDependencyStage, CanonicalSymbolMode, ContextualTypingMode, MaterializationMode,
-    REWRITER_TAG_STATIC_ARGUMENT, StaticMemberSymbolKind, TypeRewriteCache, TypeWalkContext,
-    rewrite_type_with_cache,
+    REWRITER_TAG_STATIC_ARGUMENT, TypeRewriteCache, TypeWalkContext, rewrite_type_with_cache,
 };
+use crate::analyze::StaticMemberSymbolKind;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
@@ -1926,7 +1926,7 @@ impl Compiler {
                 }
 
                 // report failed bound validation
-                let _reported = self.report_unassignable_type_for_types(
+                self.emit_unassignable_type_for_types(
                     module,
                     profile,
                     error_node.local_id,
@@ -2007,7 +2007,7 @@ impl Compiler {
             ) == Assignability::NotAssignable
         {
             // report unassignable value arguments
-            let _reported = self.report_unassignable_type_for_types(
+            self.emit_unassignable_type_for_types(
                 module,
                 profile,
                 error_node.local_id,

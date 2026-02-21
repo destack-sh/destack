@@ -1360,6 +1360,44 @@ impl Compiler {
                 ))
             }
 
+            // objects: structural assignability from reference-like apparent object shapes
+            (
+                Type::Object {
+                    fields: target_fields,
+                    call_signatures: target_call_signatures,
+                    construct_signatures: target_construct_signatures,
+                    index_signatures: target_index_signatures,
+                },
+                source_type,
+            ) if let Some((
+                source_fields,
+                source_call_signatures,
+                source_construct_signatures,
+                source_index_signatures,
+            )) = self.record_like_source_object_parts(source_type, types) =>
+            {
+                if !target_index_signatures.is_empty() {
+                    let anchor = types.get_type_source(target_id);
+                    self.check_implicit_collection_conversion(module, profile, anchor);
+                }
+
+                Some(self.is_object_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    target_fields,
+                    target_call_signatures,
+                    target_construct_signatures,
+                    target_index_signatures,
+                    &source_fields,
+                    &source_call_signatures,
+                    &source_construct_signatures,
+                    &source_index_signatures,
+                    types,
+                    options,
+                ))
+            }
+
             // functions: contravariant params, covariant return
             (
                 Type::Function {
@@ -1714,6 +1752,101 @@ impl Compiler {
             *source_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
+
+        // expand target alias references into their structural targets
+        if target_symbol.ty() == SymbolType::TypeAlias {
+            let target_source_id = types.get_type_source(target_id);
+            if let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
+                module,
+                profile,
+                target_symbol,
+                target_source_id,
+                symbols,
+                types,
+            ) {
+                let prepared_alias_target_id = self.prepare_assignability_type(
+                    module,
+                    profile,
+                    alias_target_id,
+                    symbols,
+                    types,
+                );
+
+                if let Type::Object {
+                    fields: target_fields,
+                    call_signatures: target_call_signatures,
+                    construct_signatures: target_construct_signatures,
+                    index_signatures: target_index_signatures,
+                } = types.get_type(prepared_alias_target_id).clone()
+                    && let Some((
+                        source_fields,
+                        source_call_signatures,
+                        source_construct_signatures,
+                        source_index_signatures,
+                    )) = self.record_like_source_object_parts(source, types)
+                {
+                    return Some(self.is_object_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        &target_fields,
+                        &target_call_signatures,
+                        &target_construct_signatures,
+                        &target_index_signatures,
+                        &source_fields,
+                        &source_call_signatures,
+                        &source_construct_signatures,
+                        &source_index_signatures,
+                        types,
+                        options,
+                    ));
+                }
+
+                if prepared_alias_target_id != target_id {
+                    return Some(self.is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        prepared_alias_target_id,
+                        source_id,
+                        types,
+                        options,
+                    ));
+                }
+            }
+        }
+
+        // expand source alias references into their structural targets
+        if source_symbol.ty() == SymbolType::TypeAlias {
+            let source_source_id = types.get_type_source(source_id);
+            if let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
+                module,
+                profile,
+                source_symbol,
+                source_source_id,
+                symbols,
+                types,
+            ) {
+                let prepared_alias_target_id = self.prepare_assignability_type(
+                    module,
+                    profile,
+                    alias_target_id,
+                    symbols,
+                    types,
+                );
+                if prepared_alias_target_id != source_id {
+                    return Some(self.is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        target_id,
+                        prepared_alias_target_id,
+                        types,
+                        options,
+                    ));
+                }
+            }
+        }
 
         if target_symbol == source_symbol {
             if self.reference_static_arguments_assignable(

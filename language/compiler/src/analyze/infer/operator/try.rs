@@ -82,7 +82,7 @@ impl Compiler {
             )?;
 
             if !branch.resolved.has_member {
-                let _reported = self.report_no_overload_for_receiver_type(
+                self.emit_no_overload_for_receiver_type(
                     module,
                     ctx.profile,
                     expression_id.into_any(),
@@ -189,7 +189,7 @@ impl Compiler {
                     types,
                 );
                 if !implements_try {
-                    let _reported = self.report_no_overload_for_receiver_type(
+                    self.emit_no_overload_for_receiver_type(
                         module,
                         ctx.profile,
                         expression_id.into_any(),
@@ -215,7 +215,7 @@ impl Compiler {
                     infer,
                 )?;
                 if !branch.resolved.has_member {
-                    let _reported = self.report_no_overload_for_receiver_type(
+                    self.emit_no_overload_for_receiver_type(
                         module,
                         ctx.profile,
                         expression_id.into_any(),
@@ -300,7 +300,7 @@ impl Compiler {
             symbols,
             types,
         ) {
-            let _reported = self.report_no_overload_for_receiver_type(
+            self.emit_no_overload_for_receiver_type(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -328,7 +328,7 @@ impl Compiler {
 
         // reject missing branch members
         if !branch.resolved.has_member {
-            let _reported = self.report_no_overload_for_receiver_type(
+            self.emit_no_overload_for_receiver_type(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -854,7 +854,7 @@ impl Compiler {
 
         // branch expects no dynamic parameters
         if !resolved.signature.dynamic_parameters.is_empty() {
-            let _reported = self.report_no_overload_for_receiver_type(
+            self.emit_no_overload_for_receiver_type(
                 module,
                 profile,
                 expression_id.into_any(),
@@ -1061,7 +1061,7 @@ impl Compiler {
 
         // report missing fromError implementations
         if missing_from_error {
-            let _reported = self.report_missing_member_diagnostic_for_receiver_type(
+            self.emit_missing_member_diagnostic_for_receiver_type(
                 module,
                 profile,
                 expression_id,
@@ -1211,24 +1211,21 @@ impl Compiler {
             variance: None,
         });
 
-        // report incompatible error types when inference is resolved
-        if !self.is_type_assignable_or_deferred(
+        // enforce propagated error compatibility after convergence when needed
+        let assignability_check = self.enforce_assignability_or_defer_unassignable_diagnostic(
             module,
             ctx.profile,
-            symbols,
+            expression_id.into_any(),
             return_error_ty_id,
             error_ty_id,
+            symbols,
             types,
+            infer,
             &ctx.options,
-        ) {
-            let _reported = self.report_unassignable_type_for_types(
-                module,
-                ctx.profile,
-                expression_id.into_any(),
-                return_error_ty_id,
-                error_ty_id,
-                types,
-            );
+            UnassignableRelationFailureMode::ReportAndContinue,
+        );
+        if let Err(error) = assignability_check {
+            self.error(error);
         }
     }
 
@@ -1379,7 +1376,7 @@ impl Compiler {
 
             // reject missing branches for Try elements
             if !branch.resolved.has_member {
-                let _reported = self.report_no_overload_for_receiver_type(
+                self.emit_no_overload_for_receiver_type(
                     module,
                     profile,
                     expression_id.into_any(),

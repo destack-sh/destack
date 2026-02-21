@@ -1,5 +1,5 @@
 use super::*;
-use crate::analyze::common::StaticMemberSymbolKind;
+use crate::analyze::StaticMemberSymbolKind;
 use destack_dir::Resolution;
 
 /// Shared assignment target metadata used by assignment inference paths.
@@ -47,8 +47,7 @@ impl Compiler {
         let AssignTargetBinding {
             target_id,
             target_symbol,
-        } = self
-            .validate_assignment_left_target(module, left_id, tree, symbols, types, infer, ctx)?;
+        } = self.check_assignment_left_target(module, left_id, tree, symbols, types, infer, ctx)?;
 
         let left_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
@@ -105,27 +104,19 @@ impl Compiler {
             variance: None,
         });
 
-        // check assignability when types are resolved
-        if !self.is_type_assignable_or_deferred(
+        // enforce assignment relation after convergence when needed
+        self.enforce_assignability_or_defer_unassignable_diagnostic(
             module,
             ctx.profile,
-            symbols,
+            expression_id.into_any(),
             left_ty_id,
             right_ty_id,
+            symbols,
             types,
+            infer,
             &options,
-        ) {
-            if let Some(error) = self.unassignable_type_error_for_types(
-                module,
-                ctx.profile,
-                expression_id.into_any(),
-                left_ty_id,
-                right_ty_id,
-                types,
-            ) {
-                return Err(error);
-            }
-        }
+            UnassignableRelationFailureMode::PropagateError,
+        )?;
 
         // narrow desugared nullish assignments to non nullish targets
         if let Expression::Binary {
@@ -190,8 +181,7 @@ impl Compiler {
         let AssignTargetBinding {
             target_id: _,
             target_symbol,
-        } = self
-            .validate_assignment_left_target(module, left_id, tree, symbols, types, infer, ctx)?;
+        } = self.check_assignment_left_target(module, left_id, tree, symbols, types, infer, ctx)?;
 
         // infer left and right types
         let left_ty_id =
@@ -256,27 +246,19 @@ impl Compiler {
                 variance: None,
             });
 
-            // check assignability when types are resolved
-            if !self.is_type_assignable_or_deferred(
+            // enforce assignment relation after convergence when needed
+            self.enforce_assignability_or_defer_unassignable_diagnostic(
                 module,
                 ctx.profile,
-                symbols,
+                expression_id.into_any(),
                 left_ty_id,
                 right_ty_id,
+                symbols,
                 types,
+                infer,
                 &options,
-            ) {
-                if let Some(error) = self.unassignable_type_error_for_types(
-                    module,
-                    ctx.profile,
-                    expression_id.into_any(),
-                    left_ty_id,
-                    right_ty_id,
-                    types,
-                ) {
-                    return Err(error);
-                }
-            }
+                UnassignableRelationFailureMode::PropagateError,
+            )?;
 
             // narrow nullish assignments to non nullish targets
             if matches!(operator, AssignOperator::CoalesceAssign)
@@ -317,7 +299,7 @@ impl Compiler {
     }
 
     /// Validate assignment target mutability and readonly restrictions.
-    fn validate_assignment_left_target(
+    fn check_assignment_left_target(
         &self,
         module: &Module,
         left_id: LocalNodeId<Expression>,

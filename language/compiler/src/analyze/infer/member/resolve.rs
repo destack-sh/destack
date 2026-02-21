@@ -1,5 +1,6 @@
 use super::*;
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Resolve the preferred member type for a symbol-aware lookup.
     pub(crate) fn resolve_member_type_for_symbol(
@@ -215,7 +216,7 @@ impl Compiler {
             false
         };
 
-        // allow associated projection fallback for type-value receivers:
+        // allow associated projection lookup for type-value receivers:
         // this covers both explicit static-argument projections and non-generic
         // owner projections like `Owner.AssociatedComptime`
         if (receiver_context.has_static_arguments || nominal_receiver)
@@ -288,9 +289,8 @@ impl Compiler {
         }
     }
 
-    /// Resolve member access fallback through index signatures or missing-member diagnostics.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn resolve_member_index_or_missing_fallback(
+    /// Resolve member access through index signatures or missing-member diagnostics.
+    pub(crate) fn resolve_member_index_or_missing(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
@@ -300,12 +300,13 @@ impl Compiler {
         member_key: &StaticKey,
         member_resolution: &MemberResolution,
         profile: ProfileId,
+        is_surface_inference: bool,
         options: &AnalyzeOptions,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
-        // infer index signature fallback for missing concrete members
+        // infer index signature access for missing concrete members
         let mut index_visited = Vec::new();
         let index_signature_ty_id = self.infer_index_signature_value_type_for_key(
             module,
@@ -331,7 +332,7 @@ impl Compiler {
                 });
             }
 
-            // commit fallback resolution with index-based success
+            // commit index-signature member resolution
             self.commit_member_resolution(
                 expression_id.into_global_any(module.id),
                 Some(receiver_ty_id),
@@ -345,7 +346,25 @@ impl Compiler {
             return Ok(index_signature_ty_id);
         }
 
-        // suppress missing-member follow-ons only when a primary semantic fault blocks lookup
+        // keep surface inference diagnostics minimal until interface convergence
+        if is_surface_inference {
+            self.commit_member_resolution(
+                expression_id.into_global_any(module.id),
+                Some(receiver_ty_id),
+                member_resolution,
+                None,
+                None,
+                false,
+                types,
+            );
+
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            return Ok(types.insert_type_from(ty, expression_id));
+        }
+
+        // suppress missing-member cascades only when a primary semantic fault blocks lookup
         let allow_associated_contract_blocker = self
             .query_expression_is_projection_receiver_for_infer(
                 module,
@@ -380,7 +399,7 @@ impl Compiler {
         }
 
         // keep unresolved member resolution for downstream consumers
-        // and preserve unknown fallback after a reported missing member
+        // and preserve unknown typing after a reported missing member
 
         // commit unresolved member resolution for downstream consumers
         self.commit_member_resolution(

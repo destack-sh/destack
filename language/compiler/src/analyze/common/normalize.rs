@@ -863,7 +863,7 @@ impl Compiler {
                 qualifier,
                 static_arguments,
             } => {
-                let resolved = self.resolve_import_type_reference_best_effort(
+                let resolved = self.query_import_type_reference(
                     module,
                     profile,
                     source_id,
@@ -1614,7 +1614,7 @@ impl Compiler {
         };
         let has_value_parameters = parameters.iter().any(|parameter_symbol| {
             self.static_parameter_kind_for_symbol_in_module(*parameter_symbol, &tree, &symbols)
-                == StaticParameterKind::Value
+                == Some(StaticParameterKind::Value)
         });
         if !has_value_parameters {
             return false;

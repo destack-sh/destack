@@ -1,5 +1,5 @@
 use crate::analyze::common::ConstContext;
-use crate::{AnalyzeError, AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
+use crate::{AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
 use destack_dir::{
     Constraint, Declaration, Declarator, Export, Expression, GlobalNodeIdAny, GlobalSymbolId,
     InferOrigin, InferScope, InferTable, LocalNodeId, LocalTypeId, NodeTree, NodeType, NodeVisitor,
@@ -11,7 +11,7 @@ use destack_workspace::{Module, ProfileId};
 
 /// Track an exported declarator that needs surface inference.
 #[derive(Debug)]
-struct ExportInference {
+struct InterfaceValueInference {
     /// The exported symbol to assign a value type.
     export_symbol: GlobalSymbolId,
     /// The declarator that owns the binding.
@@ -26,26 +26,26 @@ struct ExportInference {
 
 /// Track a function declaration that needs return inference.
 #[derive(Debug)]
-struct ExportDeclarationInference {
+struct InterfaceDeclarationInference {
     /// The declaration id to infer.
     declaration_id: LocalNodeId<Declaration>,
 }
 
-/// Collect remote references in exported initializers.
+/// Collect remote references in interface value initializers.
 #[derive(Debug)]
-struct ExportInferenceReferenceCollector<'a> {
+struct InterfaceValueReferenceCollector<'a> {
     /// The module being analyzed.
     module: &'a Module,
     /// The symbol table for the module.
     symbols: &'a SymbolTable,
-    /// Remote symbols referenced by the export initializer.
+    /// Remote symbols referenced by the interface initializer.
     references: Vec<GlobalSymbolId>,
     /// Node visitor options.
     options: NodeVisitorOptions,
 }
 
-impl<'a> ExportInferenceReferenceCollector<'a> {
-    /// Create a new export inference collector.
+impl<'a> InterfaceValueReferenceCollector<'a> {
+    /// Create a new interface value reference collector.
     fn new(module: &'a Module, symbols: &'a SymbolTable) -> Self {
         // initialize the collector state
         Self {
@@ -57,7 +57,7 @@ impl<'a> ExportInferenceReferenceCollector<'a> {
     }
 }
 
-impl NodeVisitor for ExportInferenceReferenceCollector<'_> {
+impl NodeVisitor for InterfaceValueReferenceCollector<'_> {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
@@ -68,7 +68,7 @@ impl NodeVisitor for ExportInferenceReferenceCollector<'_> {
         id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
-        // collect remote references for export inference
+        // collect remote references for interface value inference
         if let Some(target_symbol) = expression.target_symbol() {
             if target_symbol.module_id != self.module.id {
                 self.references.push(target_symbol);
@@ -89,8 +89,8 @@ impl NodeVisitor for ExportInferenceReferenceCollector<'_> {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Infer exported value types using local information only.
-    pub(crate) fn infer_exported_value_types(
+    /// Infer interface value types using local information only.
+    pub(crate) fn infer_interface_value_types(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -98,17 +98,18 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        emit_unknown_warnings: bool,
     ) -> AnalyzeResult<()> {
-        // skip export inference for declaration modules
+        // skip interface value inference for declaration modules
         if module.language_type.is_declaration() {
             for export in exported_symbols.values() {
                 let Some((export_symbol, value_symbol)) =
-                    self.export_inference_value_symbol(symbols, module.id, export)
+                    self.interface_value_symbol_for_export(symbols, module.id, export)
                 else {
                     continue;
                 };
 
-                if let Some(value_ty_id) = self.export_known_value_type_id(types, value_symbol) {
+                if let Some(value_ty_id) = self.known_interface_value_type_id(types, value_symbol) {
                     types.set_value_type(export_symbol, value_ty_id);
                     continue;
                 }
@@ -129,7 +130,7 @@ impl Compiler {
             return Ok(());
         }
 
-        // prepare surface inference for exported values
+        // prepare surface inference for interface values
         let options = self.analyze_context_options_for_module(module.id);
         let mut infer = InferTable::default();
         let base_ctx = InferContext::new(profile, options).for_surface_inference();
@@ -139,9 +140,9 @@ impl Compiler {
 
         // collect exported symbols that need value types
         for export in exported_symbols.values() {
-            // resolve the local export symbol for value inference
+            // resolve the local export symbol for interface value inference
             let Some((export_symbol, value_symbol)) =
-                self.export_inference_value_symbol(symbols, module.id, export)
+                self.interface_value_symbol_for_export(symbols, module.id, export)
             else {
                 continue;
             };
@@ -154,14 +155,14 @@ impl Compiler {
 
             // defer unannotated function returns to declaration inference
             if let Some(declaration_id) =
-                self.export_inference_function_declaration(tree, primary_declaration)
+                self.interface_function_declaration_for_inference(tree, primary_declaration)
             {
-                export_declarations.push(ExportDeclarationInference { declaration_id });
+                export_declarations.push(InterfaceDeclarationInference { declaration_id });
                 continue;
             }
 
             // reuse known value types when already available
-            if let Some(value_ty_id) = self.export_known_value_type_id(types, value_symbol) {
+            if let Some(value_ty_id) = self.known_interface_value_type_id(types, value_symbol) {
                 types.set_value_type(export_symbol, value_ty_id);
                 continue;
             }
@@ -174,7 +175,7 @@ impl Compiler {
             };
 
             // evaluate declared types when present
-            if let Some(declared_type_id) = self.export_declared_value_type_id(
+            if let Some(declared_type_id) = self.declared_interface_value_type_id(
                 module,
                 profile,
                 declarator_id,
@@ -190,7 +191,7 @@ impl Compiler {
             let declarator = tree.get(declarator_id);
             let binding_mutability = symbols.get_symbol(value_symbol.local_id).binding_mutability;
             let is_const_asserted = self.declarator_is_const_assertion(declarator_id, tree);
-            export_inference.push(ExportInference {
+            export_inference.push(InterfaceValueInference {
                 export_symbol,
                 declarator_id,
                 value_id: declarator.value,
@@ -240,7 +241,7 @@ impl Compiler {
         }
 
         // infer initializer types and constrain export symbols
-        for export in export_inference {
+        for export in &export_inference {
             // skip exports without initializers or symbols
             let Some(value_id) = export.value_id else {
                 continue;
@@ -248,20 +249,6 @@ impl Compiler {
             let Some(symbol_ty_id) = types.get_value_type_id(export.export_symbol) else {
                 continue;
             };
-
-            // reject export inference cycles that lack explicit annotations
-            if self
-                .export_inference_requires_annotation(module, profile, tree, symbols, value_id)?
-            {
-                self.error(AnalyzeError::ExportInferenceRequiresAnnotation {
-                    node: value_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile)),
-                });
-                let error_ty_id = types.insert_type_from_any(Type::Error, value_id.into_any());
-                types.set_value_type(export.export_symbol, error_ty_id);
-                continue;
-            }
 
             // infer the initializer with binding defaults and export expectations
             let mut ctx = base_ctx.fork().with_expected_type(Some(symbol_ty_id));
@@ -294,25 +281,27 @@ impl Compiler {
             self.solve_infer_table(module, profile, symbols, &infer, types, &base_ctx.options);
         }
 
-        // warn when exports remain unknown after surface inference
-        for (ty_id, node_id) in inferred_exports {
-            if matches!(
-                types.get_type(ty_id),
-                Type::TypeLiteral {
-                    value: TypeLiteral::Unknown
+        // warn when interface exports remain unknown after surface inference
+        if emit_unknown_warnings {
+            for (ty_id, node_id) in inferred_exports {
+                if matches!(
+                    types.get_type(ty_id),
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Unknown
+                    }
+                ) {
+                    self.warning(AnalyzeWarning::ExportTypeUnknown {
+                        node: node_id.into_anchored(Some(profile)),
+                    });
                 }
-            ) {
-                self.warning(AnalyzeWarning::ExportTypeUnknown {
-                    node: node_id.into_anchored(Some(profile)),
-                });
             }
         }
 
         Ok(())
     }
 
-    /// Resolve the export symbol and its local target for value inference.
-    fn export_inference_value_symbol(
+    /// Resolve the export symbol and its local target for interface value inference.
+    pub(crate) fn interface_value_symbol_for_export(
         &self,
         symbols: &SymbolTable,
         module_id: ModuleId,
@@ -338,8 +327,8 @@ impl Compiler {
         Some((export_symbol, value_symbol))
     }
 
-    /// Return an exported function declaration that needs return inference.
-    fn export_inference_function_declaration(
+    /// Return an exported function declaration that needs interface return inference.
+    fn interface_function_declaration_for_inference(
         &self,
         tree: &NodeTree,
         primary_declaration: GlobalNodeIdAny,
@@ -362,7 +351,7 @@ impl Compiler {
     }
 
     /// Return a known value type id for an exported symbol.
-    fn export_known_value_type_id(
+    fn known_interface_value_type_id(
         &self,
         types: &TypeTable,
         value_symbol: GlobalSymbolId,
@@ -384,7 +373,7 @@ impl Compiler {
     }
 
     /// Resolve and evaluate the declared value type for an export.
-    fn export_declared_value_type_id(
+    fn declared_interface_value_type_id(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -404,32 +393,8 @@ impl Compiler {
         Ok(Some(declared_type_id))
     }
 
-    /// Return true when an export initializer needs an explicit annotation.
-    fn export_inference_requires_annotation(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        value_id: LocalNodeId<Expression>,
-    ) -> AnalyzeResult<bool> {
-        // collect remote references used by the initializer
-        let references = self.export_inference_references(module, tree, symbols, value_id);
-
-        // check for cycles without declared annotations
-        for referenced in references {
-            let has_cycle =
-                self.export_inference_has_cycle(module.id, profile, referenced.module_id)?;
-            if has_cycle && !self.remote_symbol_has_declared_value_type(profile, referenced)? {
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
-    }
-
-    /// Collect remote references used by an export inference initializer.
-    fn export_inference_references(
+    /// Collect remote references used by an interface value initializer.
+    pub(crate) fn interface_value_references(
         &self,
         module: &Module,
         tree: &NodeTree,
@@ -437,7 +402,7 @@ impl Compiler {
         value_id: LocalNodeId<Expression>,
     ) -> Vec<GlobalSymbolId> {
         // walk the initializer and collect remote symbols
-        let mut collector = ExportInferenceReferenceCollector::new(module, symbols);
+        let mut collector = InterfaceValueReferenceCollector::new(module, symbols);
         collector.visit_expression(tree, value_id, tree.get(value_id));
         collector.references
     }
@@ -486,5 +451,20 @@ impl Compiler {
             }
             _ => None,
         }
+    }
+
+    /// Return true when one interface value type is unresolved.
+    pub(crate) fn interface_value_type_is_unresolved(
+        &self,
+        types: &TypeTable,
+        ty_id: LocalTypeId,
+    ) -> bool {
+        matches!(
+            types.get_type(ty_id),
+            Type::InferVar { .. }
+                | Type::TypeLiteral {
+                    value: TypeLiteral::Unknown
+                }
+        )
     }
 }

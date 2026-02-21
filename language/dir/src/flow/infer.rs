@@ -166,6 +166,9 @@ pub struct InferTable {
     /// Associated comptime projection obligations collected during infer.
     #[serde(skip)]
     pub associated_comptime_projection_obligations: Vec<AssociatedComptimeProjectionObligation>,
+    /// Type relation obligations collected during infer.
+    #[serde(skip)]
+    pub type_relation_obligations: Vec<TypeRelationObligation>,
     /// Instance-commit obligations collected during infer.
     #[serde(skip)]
     pub instance_commit_obligations: Vec<InstanceCommitObligation>,
@@ -184,12 +187,53 @@ pub struct InferTable {
 pub struct AssociatedComptimeProjectionObligation {
     /// The member expression that created this obligation.
     pub expression_id: LocalNodeId<Expression>,
-    /// The projected member symbol.
-    pub member_symbol: GlobalSymbolId,
+    /// The projected member symbol, when infer resolved it eagerly.
+    pub member_symbol: Option<GlobalSymbolId>,
     /// The projected member type id.
     pub member_type_id: LocalTypeId,
+    /// Receiver static arguments captured at the projection site.
+    pub receiver_arguments: Vec<StaticArgument>,
     /// The projection substitution environment captured at infer time.
     pub substitutions: HashMap<GlobalSymbolId, LocalTypeId>,
+}
+
+/// Diagnostic to emit when a type relation obligation fails after infer convergence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TypeRelationObligationDiagnostic {
+    /// Emit an unassignable type diagnostic.
+    UnassignableType,
+    /// Emit an unsatisfied type diagnostic.
+    UnsatisfiedType,
+}
+
+/// Operand source for a deferred type relation obligation.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TypeRelationObligationOperands {
+    /// Use captured type ids recorded during infer.
+    CapturedTypes {
+        /// The target type id for assignability.
+        target_type_id: LocalTypeId,
+        /// The source type id for assignability.
+        source_type_id: LocalTypeId,
+    },
+    /// Read operand inferred types from expression nodes after solve convergence.
+    ExpressionOperands {
+        /// The target expression id.
+        target_expression_id: GlobalNodeIdAny,
+        /// The source expression id.
+        source_expression_id: GlobalNodeIdAny,
+    },
+}
+
+/// Type relation obligation collected during infer and checked after solve convergence.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TypeRelationObligation {
+    /// The source node that owns this relation check.
+    pub source_node_id: GlobalNodeIdAny,
+    /// The deferred operand source for this relation.
+    pub operands: TypeRelationObligationOperands,
+    /// The diagnostic to emit when the relation fails.
+    pub diagnostic: TypeRelationObligationDiagnostic,
 }
 
 /// Infer-local identifier for one instance-commit obligation.
@@ -258,6 +302,7 @@ impl Default for InferTable {
             cache_key_base: infer_table_cache_key_base_default(),
             cache_generation: 0,
             associated_comptime_projection_obligations: Vec::new(),
+            type_relation_obligations: Vec::new(),
             instance_commit_obligations: Vec::new(),
             instance_commit_obligation_by_node_id: IndexMap::new(),
             instance_commit_obligation_by_resolution_candidate: Vec::new(),
@@ -321,6 +366,24 @@ impl InferTable {
         &mut self,
     ) -> Vec<AssociatedComptimeProjectionObligation> {
         std::mem::take(&mut self.associated_comptime_projection_obligations)
+    }
+
+    /// Record one type relation obligation.
+    pub fn push_type_relation_obligation(&mut self, obligation: TypeRelationObligation) {
+        if self
+            .type_relation_obligations
+            .iter()
+            .any(|existing| existing == &obligation)
+        {
+            return;
+        }
+
+        self.type_relation_obligations.push(obligation);
+    }
+
+    /// Take type relation obligations.
+    pub fn take_type_relation_obligations(&mut self) -> Vec<TypeRelationObligation> {
+        std::mem::take(&mut self.type_relation_obligations)
     }
 
     /// Upsert one instance-commit obligation and return its infer-local id.

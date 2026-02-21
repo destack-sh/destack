@@ -2279,6 +2279,60 @@ export type { MyType };
 export { type MyType, myValue };
 ```
 
+#### Export Inference in Cyclic Module Graphs
+
+Export inference is the cross-module cycle breaker for Analyze.
+The compiler evaluates export dependencies as strongly connected components (SCCs).
+An SCC is accepted only when every exported value binding in that SCC converges to a concrete type.
+Declared annotations seed the solve, but acceptance is based on solvedness, not an anchor count heuristic.
+If any exported value in the SCC remains unsolved after surface convergence, that binding is rejected and requires an explicit annotation.
+
+Unsolved two-module cycle:
+
+```ts
+// a.ts
+import { y } from "./b";
+export const x = y;
+
+// b.ts
+import { x } from "./a";
+export const y = x;
+```
+
+This SCC is rejected because neither `x` nor `y` is solved.
+
+Solvable three-module SCC with one anchor:
+
+```ts
+// a.ts
+import { y } from "./b";
+export const x: number = y;
+
+// b.ts
+import { z } from "./c";
+export const y = z;
+
+// c.ts
+import { x } from "./a";
+export const z = x;
+```
+
+This SCC is accepted because the one annotation on `x` determines `z` and then `y`.
+
+Solvable namespace cycle with one anchor:
+
+```ts
+// a.ts
+import * as b from "./b";
+export const x: number = b.y;
+
+// b.ts
+import * as a from "./a";
+export const y = a.x;
+```
+
+This SCC is accepted because both exports converge to `number`.
+
 ### Data Imports
 
 Destack supports importing non-code files with automatic type inference.

@@ -15,7 +15,7 @@ Import -> Resolve -> Analyze -> Elaborate -> Execute -> Lower
 Analyze is staged and ordered.
 
 ```text
-Declare -> Export -> Infer -> Capture -> Validate
+Declare -> Interface -> Infer -> Capture -> Validate
 ```
 
 ### Objectives
@@ -39,9 +39,9 @@ Downstream phases should see stable declaration and expression meaning.
 | Stage | Primary question | Reads | Writes | Must not write |
 | --- | --- | --- | --- | --- |
 | Declare | What do declarations mean | Resolved symbols, declaration syntax | Declaration type facts and declaration-owned metadata | Expression flow and use-site inference facts |
-| Export | What does this module promise to others | Resolve facts, Declare commitments | Export surface facts | Dependency internals and use-site expression facts |
-| Infer | What does each expression mean here | Resolve facts, Declare commitments, Export commitments | Expression types, resolutions, flow facts, instance facts | Declaration-owned and export-owned facts |
-| Capture | What closure environment data is required | Infer commitments | Capture metadata derived from infer facts | Declaration, export, infer, or validate semantic facts |
+| Interface | What does this module promise to others | Resolve facts, Declare commitments | Interface surface facts | Dependency internals and use-site expression facts |
+| Infer | What does each expression mean here | Resolve facts, Declare commitments, Interface commitments | Expression types, resolutions, flow facts, instance facts | Declaration-owned and interface-owned facts |
+| Capture | What closure environment data is required | Infer commitments | Capture metadata derived from infer facts | Declaration, interface, infer, or validate semantic facts |
 | Validate | Are committed semantics legal | Resolve facts, Declare commitments, Infer commitments | Diagnostics | Semantic type facts and resolution facts |
 
 ### Boundary Guarantees
@@ -68,8 +68,9 @@ Declare is declaration-first, not use-site-first.
 
 - Evaluate declaration-side type expressions into canonical type facts.
 - Commit declaration-owned associated member definitions, requirements, and defaults.
+- Report missing associated type and associated comptime requirements while declaration contracts are collected.
 - Resolve declaration-context type-form ambiguities.
-- Register declaration facts early enough for export and infer to consume without fallback.
+- Register declaration facts early enough for interface and infer to consume without fallback.
 
 ### Declare Inputs And Outputs
 
@@ -114,32 +115,38 @@ class StringBox implements Container<string> {
 Infer consumes these declaration facts later.
 Infer should not build these facts ad hoc at use sites.
 
+### Declare Diagnostic Ownership For Associated Requirements
+
+Missing associated requirements are declaration-shape diagnostics.
+Declare owns these checks so cross-module dependency analysis cannot skip them when Validate is not scheduled for dependency reads.
+Validate may still report legality over committed facts, but it does not own this declaration contract completeness check.
+
 ### Declare Must Not
 
 - Infer runtime expression flow or call-site behavior.
 - Read later-stage inferred facts to patch missing declaration meaning.
 - Emit fallback semantics that hide missing declaration ownership.
 
-## Export
+## Interface
 
-Export freezes the module boundary contract.
+Interface freezes the module boundary contract.
 This stage decides what other modules may rely on without re-inferring this module internals.
-Export is module-interface commitment, not expression checking.
+Interface is module-interface commitment, not expression checking.
 
-### Export Responsibilities
+### Interface Responsibilities
 
 - Commit exported symbol surface types from local committed facts.
 - Apply legal local surface inference for exports.
 - Publish boundary facts that dependency modules can read deterministically.
 
-### Export Inputs And Outputs
+### Interface Inputs And Outputs
 
 | Item | Description |
 | --- | --- |
 | input | Resolve facts plus Declare commitments in the local module |
 | output | Stable exported type and symbol surface for dependency readers |
 
-### Export Boundary Example
+### Interface Boundary Example
 
 Exports may use local surface inference.
 Consumers read the committed export surface rather than re-running local inference logic.
@@ -156,7 +163,7 @@ import { version, add } from "./a";
 Module `b` reads the committed boundary shape from module `a`.
 Module `b` does not re-infer module `a` internals.
 
-### Export Surface Rules
+### Interface Surface Rules
 
 | Rule | Meaning |
 | --- | --- |
@@ -164,7 +171,7 @@ Module `b` does not re-infer module `a` internals.
 | dependency reinference is forbidden | Consumers do not derive provider internals from usage |
 | boundary shape is stable | Cross-module reads depend on committed export surface |
 
-### Export Must Not
+### Interface Must Not
 
 - Infer dependency internals.
 - Depend on fallback ordering to shape the boundary contract.
@@ -187,7 +194,7 @@ Infer is where most semantic decisions become concrete program facts.
 
 | Item | Description |
 | --- | --- |
-| input | Resolve facts plus Declare and Export commitments |
+| input | Resolve facts plus Declare and Interface commitments |
 | output: expression type facts | Type meaning for expressions in context |
 | output: resolution facts | Selected callable or member targets |
 | output: flow facts | Narrowing and control-flow-refined types |
@@ -293,7 +300,7 @@ Lower consumes those committed selections and does not rerun overload choice.
 ### Infer Must Not
 
 - Rewrite declaration-owned metadata.
-- Rewrite export-owned boundary contracts.
+- Rewrite interface-owned boundary contracts.
 - Hide missing ownership facts behind generic fallback semantics.
 
 ## Validate

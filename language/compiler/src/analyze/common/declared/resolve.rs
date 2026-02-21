@@ -1,7 +1,7 @@
 use crate::analyze::common::{
-    AnalyzeDependencyStage, AssociatedProjectionSelection, CanonicalSymbolMode, RelationMode,
-    StaticMemberSymbolKind,
+    AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode,
 };
+use crate::analyze::{AssociatedProjectionSelection, StaticMemberSymbolKind};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
@@ -1309,7 +1309,7 @@ impl Compiler {
         }
 
         // fold value-space constant references used in type positions
-        let symbol_space = self.query_symbol_space_for_reference_non_blocking(
+        let symbol_space = self.query_symbol_space_for_reference_if_declared(
             module,
             profile,
             target_symbol,
@@ -1375,8 +1375,8 @@ impl Compiler {
         Ok(ty)
     }
 
-    /// Resolve symbol space for one type-reference target without blocking on remote readiness.
-    pub(crate) fn query_symbol_space_for_reference_non_blocking(
+    /// Resolve symbol space for one type-reference target when declare facts are available.
+    pub(crate) fn query_symbol_space_for_reference_if_declared(
         &self,
         module: &Module,
         profile: ProfileId,

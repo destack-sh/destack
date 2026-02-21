@@ -1,4 +1,5 @@
-use crate::analyze::common::{AssociatedProjectionSelection, CanonicalSymbolMode};
+use crate::analyze::AssociatedProjectionSelection;
+use crate::analyze::common::CanonicalSymbolMode;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
@@ -1064,7 +1065,7 @@ impl Compiler {
                         )?;
 
                         // report missing-member unless receiver has a primary blocker
-                        let _reported = self.report_missing_member_diagnostic_for_receiver_type(
+                        self.emit_missing_member_diagnostic_for_receiver_type(
                             module,
                             profile,
                             expression_id,

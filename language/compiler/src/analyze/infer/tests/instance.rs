@@ -577,6 +577,54 @@ let value = box.map(text);
     );
 }
 
+/// Verify flow narrowing feeds inferred member static arguments at call sites.
+#[test]
+fn test_instance_records_class_method_instantiation_with_flow_narrowed_argument() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+declare class Box<T> {
+    map<U>(value: U): U;
+}
+
+declare let box: Box<number>;
+declare let valueOrCount: string | number;
+
+let narrowed = typeof valueOrCount == "string" ? valueOrCount : "fallback";
+let value = box.map(narrowed);
+"#,
+    );
+
+    // analyze
+    test.analyze_module_and_check_clean(module_id);
+    let view = test.view(module_id);
+
+    // read
+    let value_name = test.program.strings.intern("value");
+    let declarator_id = view.expect_let_declarator(value_name);
+    let declarator = view.tree().get(declarator_id);
+    let value_id = declarator.value.expect("expected initializer");
+
+    let box_symbol = test
+        .resolve_to_symbol("test.ds", "Box")
+        .expect("expected Box symbol");
+    let map_name = test.program.strings.intern("map");
+    let map_symbol = view.expect_member_symbol_for_owner(box_symbol, map_name);
+
+    // box.map(valueOrCount)
+    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+
+    // Box.map
+    assert_eq!(instance_symbol, map_symbol);
+
+    // <number, string>
+    view.assert_static_argument_primitive_sequence(
+        &static_arguments,
+        &[PrimitiveType::Number, PrimitiveType::String],
+    );
+}
+
 /// Verify generic function calls commit instances with inferred arguments.
 #[test]
 fn test_instance_records_function_call_instantiation_with_inferred_arguments() {
@@ -639,6 +687,44 @@ let value = identity(text);
         panic!("expected call expression");
     };
     view.expect_no_instance_for_node(left.into_global_any(module_id));
+}
+
+/// Verify flow narrowing feeds inferred function static arguments at call sites.
+#[test]
+fn test_instance_records_function_call_instantiation_with_flow_narrowed_argument() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+declare function identity<T>(value: T): T;
+declare let valueOrCount: string | number;
+
+let narrowed = typeof valueOrCount == "string" ? valueOrCount : "fallback";
+let value = identity(narrowed);
+"#,
+    );
+
+    // analyze
+    test.analyze_module_and_check_clean(module_id);
+    let view = test.view(module_id);
+
+    // read
+    let value_name = test.program.strings.intern("value");
+    let declarator_id = view.expect_let_declarator(value_name);
+    let declarator = view.tree().get(declarator_id);
+    let value_id = declarator.value.expect("expected initializer");
+
+    // identity(valueOrCount)
+    let identity_symbol = test
+        .resolve_to_symbol("test.ds", "identity")
+        .expect("expected identity symbol");
+    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+
+    // identity
+    assert_eq!(instance_symbol, identity_symbol);
+
+    // <string>
+    view.assert_static_argument_primitive_sequence(&static_arguments, &[PrimitiveType::String]);
 }
 
 /// Verify non-generic calls commit no instance and keep resolution instance empty.
