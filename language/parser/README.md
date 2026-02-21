@@ -18,7 +18,7 @@ Many syntactic ambiguities in TypeScript (and some more in Destack) require cont
 
 ### Error Recovery
 
-The parser tries to continues after errors to report multiple diagnostics per file.
+The parser tries to continue after errors to report multiple diagnostics per file.
 We use synchronization points (`;`, `}`, keywords) to resync after malformed input.
 
 ### Tree Literals (TSX)
@@ -60,28 +60,32 @@ Comment and blank trivia are emitted in source order into split buffers:
 ## Testing
 
 Run these from the repository root.
+Use `just language/test` as an alias for `just language/test-quick`.
 
-### Quick local loop
+### Parser-focused local loop
 
 ```sh
 cargo test -p destack_parser
 cargo test -p destack_test --test smoke -- --parser
 ```
 
-### Quality gates
+### Shared test gates
 
 ```sh
-just language/format-check
-just language/check
+just language/test
+just language/test-quick
+just language/test-ci
+just language/test-nightly
+just language/test-release
 ```
 
-### Compatibility and conformance
+### Parser conformance coverage
 
 ```sh
 cargo test --release -p destack_test --test conformance
 ```
 
-### Performance and fuzzing
+### Parser performance and fuzzing
 
 ```sh
 just language/bench-parser

@@ -21,8 +21,16 @@ Integration and fixture-based tests for the Destack language toolchain.
 ## Testing
 
 Run these from `language/` unless noted otherwise.
+Use `just test` as an alias for `just test-quick`.
 
 ```bash
+# shared gate lanes
+just test
+just test-quick
+just test-ci
+just test-nightly
+just test-release
+
 # run all tests via cargo
 cargo test -p destack_test
 

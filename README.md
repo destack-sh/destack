@@ -4,7 +4,7 @@
 
 **Destack is a universal software engine for building correct, optimal, integrated software systems.**
 
-_Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and platform - all based on open standards._
+_Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and platform built on open standards._
 
 <p>
     <a href="version.txt"><img src="https://img.shields.io/badge/version-0.55.2-2ea44f" alt="Version"></a>

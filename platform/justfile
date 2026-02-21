@@ -26,8 +26,7 @@ ci-lint:
 
 # run platform test gate
 ci-tests:
-    just check-zed-grammars
-    just test
+    just test-ci
 
 # run all blocking platform ci gates locally
 ci:
@@ -78,11 +77,29 @@ clean:
 
 # --- test ---
 
-# run all tests
-test:
+# run quick tests for local development
+test-quick:
     cargo test --release --all-targets {{ test-packages }}
     just test-vscode
     just test-zed
+
+# run blocking ci test gates
+test-ci:
+    just test-quick
+    just check-zed-grammars
+
+# run nightly test gates
+test-nightly:
+    just test-ci
+    just test-vscode-host
+
+# run release test gates
+test-release:
+    just test-ci
+
+# run quick tests (alias for test-quick)
+test:
+    just test-quick
 
 # --- compatibility ---
 

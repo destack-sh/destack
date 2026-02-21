@@ -46,15 +46,14 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
+      - name: Install JS dependencies
+        run: bun install --frozen-lockfile
+
       - name: Run language fast gates
         run: |
           just language/ci-format
           just language/ci-lint
-          cargo test --release -p destack_parser --lib
-          just language/test-grammar-specification-sweep-positive
-          just language/test-grammar-overlay
-          just language/test-grammar-corpus-routing
-          just language/test-grammar-destack-node-coverage
+          just language/test-quick
 
   nightly-integration:
     name: Nightly Integration
@@ -117,29 +116,79 @@ jobs:
         if: steps.language-formatter-conformance-cache.outputs.cache-hit != 'true'
         run: just language/install-formatter-conformance
 
+      - name: Install resolver fixtures
+        run: just language/install-resolver
+
       - name: Install ecosystem fixtures
         run: just language/ecosystem-fetch
 
-      - name: Run conformance
-        run: just language/test-conformance
+      - name: Run language nightly tests
+        run: just language/test-nightly
 
-      - name: Run formatter conformance
-        run: just language/test-formatter-conformance
+      - name: Run library nightly tests
+        run: just library/test-nightly
 
-      - name: Run ecosystem tests
-        run: just language/test-ecosystem
+      - name: Run client nightly tests
+        run: just client/test-nightly
 
-      - name: Generate stress fixtures
-        run: just language/generate-stress
+      - name: Run platform nightly tests
+        run: just platform/test-nightly
 
-      - name: Run stress tests
-        run: just language/test-stress
+  nightly-fuzz-smoke:
+    name: Nightly Fuzz Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    needs:
+      - nightly-core
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
 
-      - name: Run full language crate tests
-        run: just language/test
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+          rustup default "${RUST_TOOLCHAIN}"
+          rustc --version
+          cargo --version
 
-      - name: Run library ci gates
-        run: just library/ci
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
 
-      - name: Run platform ci gates
-        run: just platform/ci
+      - name: Install just
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+
+      - name: Run nightly fuzz smoke lane
+        run: just fuzz-nightly 120
+
+  nightly-bench:
+    name: Nightly Bench
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    needs:
+      - nightly-core
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+          rustup default "${RUST_TOOLCHAIN}"
+          rustc --version
+          cargo --version
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
+
+      - name: Install just
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+
+      - name: Run nightly benchmark lane
+        run: just bench-nightly

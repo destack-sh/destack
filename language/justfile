@@ -25,20 +25,7 @@ ci-install:
 
 # run language test gates used in ci
 ci-tests:
-    cargo test --release -p destack_parser --lib
-    just test-smoke
-    just test-specification
-    just test-query
-    just test-grammar-mir
-    just test-grammar-specification-sweep-positive
-    just test-grammar-overlay
-    just test-grammar-corpus-routing
-    just test-grammar-destack-node-coverage
-    just test-conformance
-    just generate-stress
-    just test-stress
-    just test-formatter
-    just test-formatter-conformance
+    just test-ci
 
 # run all blocking language ci gates locally
 ci:
@@ -304,10 +291,45 @@ generate-builtin-libs:
 
 # --- test ---
 
-# run all tests
-test:
+# run quick tests for local development
+test-quick:
+    cargo test --release -p destack_parser --lib
+    just test-smoke
+    just test-specification
+    just test-query
+    just test-formatter
+
+# run blocking ci test gates
+test-ci:
+    just test-quick
+    just test-grammar-mir
+    just test-grammar-specification-sweep-positive
+    just test-grammar-overlay
+    just test-grammar-corpus-routing
+    just test-grammar-destack-node-coverage
+    just test-conformance
+    just generate-stress
+    just test-stress
+    just test-formatter-conformance
+
+# run full language test sweep for nightly
+test-nightly:
+    just generate-stress
+    just test-all
+    just test-grammar-all
+
+# run release test gates
+test-release:
+    just test-ci
+
+# run all crate tests
+test-all:
     cargo test --release --all-targets --no-fail-fast {{ packages-no-linter }}
     cargo test --release --all-targets --no-fail-fast -p destack_linter -- --test-threads={{ linter-test-threads }}
+
+# run quick tests (alias for test-quick)
+test:
+    just test-quick
 
 # run linter tests with capped rust test threads
 test-linter:
@@ -456,6 +478,12 @@ bench:
 bench-compiler:
     cargo bench -p destack_compiler -- destack_compile
 
+# run nightly benchmark lane
+bench-nightly:
+    just bench-parser
+    just bench-lexer
+    just bench-compiler
+
 # run compiler bench stats
 bench-compiler-stats args="--help":
     cargo run -p destack_compiler --example bench_stats --features bench -- {{args}}
@@ -479,6 +507,10 @@ fuzz duration="60":
     just fuzz-lexer {{duration}}
     just fuzz-parser {{duration}}
     just fuzz-formatter {{duration}}
+
+# run nightly fuzz smoke lane
+fuzz-nightly duration="120":
+    just fuzz {{duration}}
 
 # run lexer fuzzer
 fuzz-lexer duration="300":

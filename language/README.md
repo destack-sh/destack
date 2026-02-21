@@ -36,13 +36,19 @@ The language toolchain is split into several crates, each handling a specific pa
 
 ## Commands
 
-Common development commands:
 Run these commands from the repository root.
+Use `just language/test` as an alias for `just language/test-quick`.
 
 ```sh
-just language/check   # cargo clippy --release
-just language/build   # cargo build --release
-just language/test    # cargo test
-just language/format  # cargo fmt
-just language/bench   # cargo bench
+just language/install
+just language/format
+just language/check
+just language/build
+just language/test
+just language/test-quick
+just language/test-ci
+just language/test-nightly
+just language/test-release
+just language/bench
+just language/fuzz 60
 ```

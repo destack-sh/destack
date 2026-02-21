@@ -16,11 +16,17 @@ This layer provides publishable package and crate surfaces across JavaScript, Ru
 ## Commands
 
 Run these commands from the repository root.
+Use `just client/test` as an alias for `just client/test-quick`.
 
 ```sh
-just client/build
+just client/format
 just client/check
+just client/build
 just client/test
+just client/test-quick
+just client/test-ci
+just client/test-nightly
+just client/test-release
 just client/wasm-size
 just client/publish-npm --dry-run
 just client/publish-cargo --dry-run

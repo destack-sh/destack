@@ -95,8 +95,8 @@ jobs:
         if: steps.language-formatter-conformance-cache.outputs.cache-hit != 'true'
         run: just language/install-formatter-conformance
 
-      - name: Run language test gates
-        run: just language/ci-tests
+      - name: Run language release tests
+        run: just language/test-release
 
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
@@ -107,8 +107,8 @@ jobs:
       - name: Run library lint
         run: just library/ci-lint
 
-      - name: Run library tests
-        run: just library/ci-tests
+      - name: Run library release tests
+        run: just library/test-release
 
       - name: Run platform format check
         run: just platform/ci-format
@@ -122,11 +122,11 @@ jobs:
       - name: Run client lint
         run: just client/ci-lint
 
-      - name: Run platform tests
-        run: just platform/ci-tests
+      - name: Run platform release tests
+        run: just platform/test-release
 
-      - name: Run client tests
-        run: just client/ci-tests
+      - name: Run client release tests
+        run: just client/test-release
 
   build-artifacts:
     name: Build Release Artifacts

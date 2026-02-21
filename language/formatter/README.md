@@ -175,12 +175,23 @@ function process(data: &readonly Buffer, out: ^Result): &readonly Output {
 ## Testing
 
 Run these from the repository root.
+Use `just language/test` as an alias for `just language/test-quick`.
 
 ### Quick local loop
 
 ```sh
 cargo test -p destack_formatter
 just language/test-formatter
+```
+
+### Shared test gates
+
+```sh
+just language/test
+just language/test-quick
+just language/test-ci
+just language/test-nightly
+just language/test-release
 ```
 
 ### Conformance coverage

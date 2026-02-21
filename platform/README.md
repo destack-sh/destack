@@ -19,14 +19,19 @@ Language bindings and embeddable SDKs live in [../client](../client/README.md).
 ## Commands
 
 Run these commands from the repository root.
+Use `just platform/test` as an alias for `just platform/test-quick`.
 
 ```sh
-just platform/build            # build all platform crates
-just client/napi              # build napi bindings
-just client/wasm              # build wasm bindings
-just client/wasm-size         # canonical wasm size analysis with preset defaults
-just platform/build-vscode     # build VS Code extension package
-just platform/build-zed        # check Zed extension
-just platform/test             # run platform tests
-just platform/generate-schema  # generate CLI report schema
+just platform/format
+just platform/check
+just platform/build
+just platform/build-vscode
+just platform/build-zed
+just platform/test
+just platform/test-quick
+just platform/test-ci
+just platform/test-nightly
+just platform/test-release
+just platform/test-ide
+just platform/generate-schema
 ```
