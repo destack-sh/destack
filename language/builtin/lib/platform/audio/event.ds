@@ -1,8 +1,13 @@
 import type { PlatformError } from "../error/index.ds";
-import { AudioEventHandle } from "../resource/index.ds";
+import { AudioEventHandle, AudioStreamHandle } from "../resource/index.ds";
+import { AudioBackend, AudioBackendSelectionPolicy } from "./device.ds";
+import { AudioStreamStatusFlags } from "./stream.ds";
 
-/// Audio device event kind.
-export enum AudioDeviceEventKind {
+/// Event subscription flags.
+export newtype AudioEventSubscriptionFlags = uint32;
+
+/// Audio event kind.
+export enum AudioEventKind {
     /// One device became available.
     DeviceAdded = 1,
     /// One device became unavailable.
@@ -11,34 +16,82 @@ export enum AudioDeviceEventKind {
     DefaultPlaybackChanged = 3,
     /// Default capture device changed.
     DefaultCaptureChanged = 4,
+    /// Default loopback device changed.
+    DefaultLoopbackChanged = 5,
     /// Device format capabilities changed.
-    DeviceFormatChanged = 5,
+    DeviceFormatChanged = 6,
+    /// Device stream route changed.
+    DeviceRerouted = 7,
+    /// Host interruption started.
+    InterruptionBegan = 8,
+    /// Host interruption ended.
+    InterruptionEnded = 9,
+    /// Backend disconnected.
+    BackendDisconnected = 10,
+    /// Stream reported one xrun.
+    StreamXRun = 11,
+    /// Stream device changed.
+    StreamDeviceChanged = 12,
+    /// Stream state changed.
+    StreamStateChanged = 13,
     /// Backend session reset occurred.
-    BackendReset = 6,
+    BackendReset = 14,
 }
 
-/// Audio device event payload.
-export struct AudioDeviceEvent {
+/// Event subscription options.
+export struct AudioEventSubscriptionOptions {
+    /// Backend selector for this subscription.
+    backend: AudioBackend;
+    /// Backend selection policy.
+    backendPolicy: AudioBackendSelectionPolicy;
+    /// Subscription behavior flags.
+    flags: AudioEventSubscriptionFlags;
+    /// Whether this subscription also tracks one stream.
+    hasStream: boolean;
+    /// Stream to monitor when `hasStream` is true.
+    stream: AudioStreamHandle;
+    /// Requested queue capacity, or zero for backend default.
+    queueCapacity: uint32;
+    /// Requested backend poll interval in nanoseconds, or zero for backend default.
+    pollIntervalNs: uint64;
+}
+
+/// Audio event payload.
+export struct AudioEvent {
     /// Event kind selector.
-    kind: AudioDeviceEventKind;
+    kind: AudioEventKind;
     /// Event timestamp in nanoseconds.
     timestampNs: uint64;
-    /// Target device identifier when available.
-    deviceId: string;
+    /// Backend selector for this event.
+    backend: AudioBackend;
     /// Event flags.
     flags: uint32;
+    /// Current stream status flags when event kind is stream-related.
+    statusFlags: AudioStreamStatusFlags;
+    /// Xrun count delta when event kind is stream-related.
+    xrunCountDelta: uint64;
+    /// Whether one target device identifier is present.
+    hasDeviceId: boolean;
+    /// Target device identifier when `hasDeviceId` is true.
+    deviceId: string;
+    /// Whether one target stream handle is present.
+    hasStream: boolean;
+    /// Target stream handle when `hasStream` is true.
+    stream: AudioStreamHandle;
 }
 
 /// Audio event bindings.
 declare namespace audio {
-    /// Open one audio device event subscription.
+    /// Open one audio event subscription.
     ///
-    /// Open one backend event subscription for hotplug and default-route changes.
+    /// Open one backend event subscription for device and optional stream events.
     /// Subscription routing and queue depth follow host backend behavior.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES device-notification registration APIs.
+    /// Mirrors cubeb device and stream change callbacks.
+    /// Mirrors libsoundio device-change and backend-disconnect callback families.
+    /// Mirrors miniaudio `ma_device_notification_proc` notification routing.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -56,16 +109,16 @@ declare namespace audio {
         scope: "host",
         blocking: "sometimes",
     })
-    export function eventOpen(): Result<AudioEventHandle, PlatformError>;
+    export function eventOpen(options: AudioEventSubscriptionOptions): Result<AudioEventHandle, PlatformError>;
 
-    /// Close one audio device event subscription.
+    /// Close one audio event subscription.
     ///
     /// Close one event subscription and release backend notification resources.
     /// Pending events are discarded.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES notification unregistration APIs.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available notification unregistration APIs.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -85,14 +138,14 @@ declare namespace audio {
     })
     export function eventClose(handle: AudioEventHandle): Result<void, PlatformError>;
 
-    /// Wait for one audio device event.
+    /// Wait for one audio event.
     ///
-    /// Wait for one pending device event from one subscription queue.
+    /// Wait for one pending event from one subscription queue.
     /// Timeout uses nanoseconds in the runtime monotonic domain.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES event wait or callback-queue drain operations.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available event wait or callback-queue drain operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -113,16 +166,16 @@ declare namespace audio {
     export function eventRead(
         handle: AudioEventHandle,
         timeoutNs: uint64,
-    ): Result<AudioDeviceEvent, PlatformError>;
+    ): Result<AudioEvent, PlatformError>;
 
-    /// Poll one audio device event without blocking.
+    /// Poll one audio event without blocking.
     ///
-    /// Poll one pending device event from one subscription queue.
+    /// Poll one pending event from one subscription queue.
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES nonblocking event queue reads.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available nonblocking event queue reads.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -140,5 +193,20 @@ declare namespace audio {
         scope: "host",
         blocking: "never",
     })
-    export function eventTryRead(handle: AudioEventHandle): Result<AudioDeviceEvent, PlatformError>;
+    export function eventTryRead(handle: AudioEventHandle): Result<AudioEvent, PlatformError>;
 }
+
+/// Subscribe to device hotplug add and remove events.
+export const AUDIO_EVENT_SUBSCRIBE_DEVICE_HOTPLUG: AudioEventSubscriptionFlags = AudioEventSubscriptionFlags(0x1);
+/// Subscribe to default-route change events.
+export const AUDIO_EVENT_SUBSCRIBE_DEFAULT_ROUTE: AudioEventSubscriptionFlags = AudioEventSubscriptionFlags(0x2);
+/// Subscribe to format-change events.
+export const AUDIO_EVENT_SUBSCRIBE_FORMAT_CHANGE: AudioEventSubscriptionFlags = AudioEventSubscriptionFlags(0x4);
+/// Subscribe to reroute events.
+export const AUDIO_EVENT_SUBSCRIBE_REROUTE: AudioEventSubscriptionFlags = AudioEventSubscriptionFlags(0x8);
+/// Subscribe to interruption begin and end events.
+export const AUDIO_EVENT_SUBSCRIBE_INTERRUPTION: AudioEventSubscriptionFlags = AudioEventSubscriptionFlags(0x10);
+/// Subscribe to backend disconnect and reset events.
+export const AUDIO_EVENT_SUBSCRIBE_BACKEND: AudioEventSubscriptionFlags = AudioEventSubscriptionFlags(0x20);
+/// Subscribe to stream xrun, state, and device-change events.
+export const AUDIO_EVENT_SUBSCRIBE_STREAM: AudioEventSubscriptionFlags = AudioEventSubscriptionFlags(0x40);
