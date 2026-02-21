@@ -53,7 +53,8 @@ pub(crate) fn should_split_chain_root_path_segments(
     if first_segment == "this" && !has_optional_or_must_tail && !has_boundary_comments {
         return false;
     }
-    // conditional branches read better with a compact head
+
+    // conditional branches keep compact path heads
     if expression_is_in_conditional_branch(context, root_id) {
         return false;
     }

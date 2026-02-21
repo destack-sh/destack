@@ -2,7 +2,7 @@ use crate::expression::{
     Argument, Declaration, DestackFormatContext, DestackFormatter, Expression, FormatResult,
     FunctionKind, HugOptions, LocalNodeId, NodeTree, argument_value, block_indent, format_with,
     group, hard_line_break, if_group_breaks, lambda_expression_should_break,
-    soft_line_break_or_space, space, span_inline_char_bounds, token, transparent_inner_expression,
+    soft_line_break_or_space, space, token, transparent_inner_expression,
 };
 use destack_fir::format::{Buffer, Format, GroupId};
 use destack_fir::prelude::expand_parent;
@@ -109,7 +109,6 @@ fn choose_hugged_argument_layout<'ast, InlineDoc, HuggedDoc>(
     f: &mut DestackFormatter<'ast, '_>,
     argument_id: LocalNodeId<Argument>,
     value_id: LocalNodeId<Expression>,
-    config: &HugOptions,
     force_expand: bool,
     signals: HuggedArrowLayoutSignals,
     inline_format: InlineDoc,
@@ -121,50 +120,6 @@ where
 {
     // forced expansion always selects hugged output
     if force_expand {
-        hugged_format.format(f)?;
-        return Ok(());
-    }
-
-    // compute inline overflow bounds once
-    let line_width = usize::from(f.context().options.line_width);
-    let value_span = f.context().span(value_id);
-    let (inline_value_len, _) = span_inline_char_bounds(f.context(), value_span);
-    let inline_candidate_len = config
-        .open
-        .len()
-        .saturating_add(config.close.len())
-        .saturating_add(inline_value_len)
-        .saturating_add(usize::from(config.force_trailing));
-
-    // short-circuit inline path for non-arrow simple cases
-    let can_use_inline_short_circuit = !f.context().has_annotation(argument_id)
-        && !f.context().has_annotation(value_id)
-        && !signals.is_arrow_function
-        && inline_candidate_len <= line_width;
-    if can_use_inline_short_circuit {
-        f.context()
-            .increment_counter("profile.jsx.hug.inline.short_circuit", 1);
-        inline_format.format(f)?;
-        return Ok(());
-    }
-
-    // short-circuit inline path for arrow values that do not force expand
-    let can_use_arrow_inline_short_circuit = !f.context().has_annotation(argument_id)
-        && !f.context().has_annotation(value_id)
-        && signals.is_arrow_function
-        && !signals.arrow_force_expand
-        && inline_candidate_len <= line_width;
-    if can_use_arrow_inline_short_circuit {
-        f.context()
-            .increment_counter("profile.jsx.hug.inline.arrow_short_circuit", 1);
-        inline_format.format(f)?;
-        return Ok(());
-    }
-
-    // budget overflow selects hugged output
-    if inline_candidate_len > line_width {
-        f.context()
-            .increment_counter("profile.jsx.hug.by_budget.hug", 1);
         hugged_format.format(f)?;
         return Ok(());
     }
@@ -406,7 +361,6 @@ pub(crate) fn format_hugged<'ast>(
         f,
         argument_id,
         value_id,
-        &config,
         force_expand,
         signals,
         inline_format,

@@ -1,8 +1,7 @@
 use crate::declaration::imports::sort_dependency_items;
 use crate::expression::{
     Argument, DependencyItem, DependencyKind, DependencyMode, DestackFormatter, FormatResult,
-    ImportSource, Keyword, LocalNodeId, call_arguments_are_multiline_in_source, list_like, space,
-    token,
+    ImportSource, Keyword, LocalNodeId, call_arguments_are_multiline_span, list_like, space, token,
 };
 use destack_ast::ImportTarget;
 use destack_base::StringId;
@@ -16,8 +15,7 @@ fn format_dependency_with_arguments<'ast>(
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     // source newlines inside `with` should expand the collection
-    let should_expand_with_arguments =
-        call_arguments_are_multiline_in_source(f.context(), arguments);
+    let should_expand_with_arguments = call_arguments_are_multiline_span(f.context(), arguments);
     let mut with_arguments = list_like("{", "}", ",", arguments);
     with_arguments
         .as_collection()

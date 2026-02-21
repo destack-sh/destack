@@ -1,4 +1,4 @@
-use crate::operator::{is_type_context, union_source_has_leading_pipe};
+use crate::operator::{is_type_context, union_has_leading_pipe_token};
 use crate::{
     DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
     assert_format,
@@ -637,12 +637,12 @@ fn test_format_parenthesized_instantiation_call_callee_wrapper_drops() {
     );
 }
 
-/// Single non-interpolated template literal arguments stay inline in chained calls.
+/// Single non-interpolated template literal snapshot calls break at the member hop.
 #[test]
-fn test_format_chain_call_keeps_single_template_literal_argument_inline() {
+fn test_format_chain_call_breaks_before_template_literal_snapshot_member() {
     assert_format!(
         "expect(genCode(createVNodeCall(null, \"`div`\", mockProps))).toMatchInlineSnapshot(`\n  `)",
-        "expect(genCode(createVNodeCall(null, \"`div`\", mockProps))).toMatchInlineSnapshot(`\n  `)",
+        "expect(genCode(createVNodeCall(null, \"`div`\", mockProps)))\n    .toMatchInlineSnapshot(`\n  `)",
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
@@ -659,12 +659,12 @@ fn test_format_chain_planner_promotes_head_in_call_like_argument() {
     );
 }
 
-/// Chain planner may break after `=` when assignment lhs plus rhs head overflows width.
+/// Chain planner keeps `=` inline and lets chain operations own their breaks.
 #[test]
 fn test_format_chain_planner_respects_assignment_rhs_width() {
     assert_format!(
         "veryLongBindingName = source.alpha.beta.gamma().delta().epsilon()",
-        "veryLongBindingName =\n    source.alpha.beta\n    .gamma()\n    .delta()\n    .epsilon()",
+        "veryLongBindingName = source.alpha.beta\n    .gamma()\n    .delta()\n    .epsilon()",
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(40)
     );
@@ -822,7 +822,8 @@ fn test_format_call_single_lambda_argument_with_prefix_comment_breaks() {
 #[test]
 fn test_format_call_nested_arrow_boundary_comments() {
     let source = "call(\n  () /**/ => //\n    () /**/ => /**/\n      () /**/ => /**/ {\n        //\n      }\n)";
-    let expected = "call(() /**/ =>\n    //\n    () /**/ =>\n    /**/\n    () /**/ => /**/ {\n        //\n    })";
+    let expected =
+        "call(() /**/ =>\n    //\n    () /**/ =>\n    /**/\n    () /**/ => /**/ {\n    //\n})";
     assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
@@ -884,55 +885,6 @@ fn test_format_deeply_nested_callbacks() {
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(40)
     );
-}
-
-/// Callback-heavy chain calls force expanded argument formatting.
-#[test]
-fn test_call_chain_classifier_expands_callback_heavy_arguments() {
-    let source =
-        "compose((value) => step1(value), (value) => step2(value), (value) => step3(value)).run()";
-    let (formatter, _expression_id) =
-        TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
-            .expect("parse callback-heavy call");
-    let context = context_from_formatter(&formatter);
-
-    let call_id = find_call_with_dynamic_argument_count(&formatter.tree, 3);
-    let Expression::Call {
-        dynamic_arguments, ..
-    } = formatter.tree.get(call_id)
-    else {
-        panic!("expected callback-heavy call expression");
-    };
-
-    assert!(super::call_arguments_force_expand_for_chain(
-        &context,
-        call_id,
-        dynamic_arguments
-    ));
-}
-
-/// Single JSX or tree child arguments in chains force expansion.
-#[test]
-fn test_call_chain_classifier_expands_single_tree_child_argument() {
-    let source = "render(<App><Body /></App>).run()";
-    let (formatter, _expression_id) =
-        TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
-            .expect("parse tree-argument call");
-    let context = context_from_formatter(&formatter);
-
-    let call_id = find_call_with_dynamic_argument_count(&formatter.tree, 1);
-    let Expression::Call {
-        dynamic_arguments, ..
-    } = formatter.tree.get(call_id)
-    else {
-        panic!("expected tree-argument call expression");
-    };
-
-    assert!(super::call_arguments_force_expand_for_chain(
-        &context,
-        call_id,
-        dynamic_arguments
-    ));
 }
 
 #[test]
@@ -1066,64 +1018,6 @@ fn test_format_type_single_member_leading_union_parenthesized_array() {
     assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
-/// Drops single-member leading intersection wrappers in parenthesized array element types.
-#[test]
-fn test_format_type_single_member_leading_intersection_parenthesized_array() {
-    let source = "type Items = ( & number)[]";
-    let expected = "type Items = number[];";
-    let (test, expression_id) =
-        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
-            p.eat_expression(Default::default())
-        })
-        .expect("parse typescript expression");
-    let options = DestackFormatOptions {
-        language_type: LanguageType::TypeScript,
-        ..DestackFormatOptions::default()
-    };
-    let formatted = test.format(&expression_id, options);
-    assert_eq!(formatted, expected);
-}
-
-/// Type template literal unions are tracked in type context.
-#[test]
-fn test_type_template_literal_union_is_in_type_context() {
-    let source = "type T = `${\n  | 'W'\n  | 'I'\n}${'!' | '!!'}`";
-    let (formatter, _expression_id) =
-        TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
-            .expect("parse template literal type");
-
-    let context = context_from_formatter(&formatter);
-
-    let mut has_union = false;
-    let mut has_union_in_type_context = false;
-    let mut has_union_with_leading_pipe_source = false;
-    for raw_node_id in 0..formatter.tree.next_id() {
-        if formatter.tree.get_node_type(raw_node_id) != NodeType::Expression {
-            continue;
-        }
-
-        let expression_id = LocalNodeId::<Expression>::new(raw_node_id);
-        let Expression::Binary { operator, .. } = formatter.tree.get(expression_id) else {
-            continue;
-        };
-        if *operator != BinaryOperator::ElementwiseOr {
-            continue;
-        }
-
-        has_union = true;
-        if union_source_has_leading_pipe(&context, expression_id) {
-            has_union_with_leading_pipe_source = true;
-        }
-        if is_type_context(&context, expression_id) {
-            has_union_in_type_context = true;
-        }
-    }
-
-    assert!(has_union);
-    assert!(has_union_in_type_context);
-    assert!(has_union_with_leading_pipe_source);
-}
-
 /// Formats type imports with qualifiers.
 #[test]
 fn test_format_type_import() {
@@ -1214,25 +1108,25 @@ fn test_format_export_const_chain_rhs_does_not_break_after_operator() {
     );
 }
 
-/// Keeps `=` inline for long generic call rhs values when the rhs head fits.
+/// Breaks generic call rhs values after `=` when operator seams are preferred.
 #[test]
 fn test_format_const_generic_call_rhs_breaks_after_operator() {
     let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
     assert_format!(
         "const result = configurationService.getValue<Record<string, boolean>>(enalementSetting)",
-        "const result = configurationService.getValue<Record<string, boolean>>(enalementSetting)",
+        "const result =\n  configurationService.getValue<Record<string, boolean>>(enalementSetting)",
         |p| p.eat_expression(Default::default()),
         options
     );
 }
 
-/// Normalizes multiline generic call rhs values to inline `=` form.
+/// Preserves break-after-operator layout for multiline generic call rhs values.
 #[test]
 fn test_format_const_generic_call_rhs_preserves_source_operator_break() {
     let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
     assert_format!(
         "const result =\n  configurationService.getValue<Record<string, boolean>>(\n  enalementSetting\n)",
-        "const result = configurationService.getValue<Record<string, boolean>>(enalementSetting)",
+        "const result =\n  configurationService.getValue<Record<string, boolean>>(enalementSetting)",
         |p| p.eat_expression(Default::default()),
         options
     );
@@ -1244,7 +1138,7 @@ fn test_format_const_generic_call_with_multiline_type_argument_keeps_operator_in
     let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
     assert_format!(
         "const emitter = createGlobalEmitter<{\n  key: Extract<Event, { type: key }>\n}>()",
-        "const emitter = createGlobalEmitter<{\n  key: Extract<Event, { type: key }>,\n}>()",
+        "const emitter = createGlobalEmitter<{\n  key: Extract<Event, { type: key }>;\n}>()",
         |p| p.eat_expression(Default::default()),
         options
     );

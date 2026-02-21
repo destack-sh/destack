@@ -9,17 +9,17 @@ use crate::declaration::signature::{
 use crate::declaration::r#where::format_where_clause_with_break;
 use crate::{Annotation, DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Comment, CommentStyle, Declaration, DeclarationDescriptor, Expression, FunctionCardinality,
-    FunctionKind, FunctionSignature, Keyword, LocalNodeId, NodeType, Parameter, Pattern,
+    Argument, Comment, CommentStyle, Declaration, DeclarationDescriptor, Expression,
+    FunctionCardinality, FunctionKind, FunctionSignature, Keyword, LocalNodeId, NodeType,
+    Parameter, Pattern,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
-use destack_source::Span;
 use destack_workspace::ArrowParentheses;
 
 /// Return whether this file is a module typescript source.
-fn is_module_typescript_source(file_name: &str) -> bool {
+fn is_module_typescript_file(file_name: &str) -> bool {
     file_name.ends_with(".mts") || file_name.ends_with(".cts")
 }
 
@@ -60,94 +60,6 @@ fn lambda_parameter_is_simple_tail(
     )
 }
 
-/// Return whether source text before the first lambda parameter already contains a newline.
-fn lambda_has_newline_before_first_parameter(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Declaration>,
-    parameters: &[LocalNodeId<Parameter>],
-) -> bool {
-    let Some(first_parameter) = parameters.first().copied() else {
-        return false;
-    };
-
-    let declaration_span = context.span(node_id);
-    let parameter_span = context.span(first_parameter);
-    if declaration_span.file != parameter_span.file
-        || parameter_span.start <= declaration_span.start
-    {
-        return false;
-    }
-
-    let before_parameter_span = Span::new(
-        declaration_span.file,
-        declaration_span.start,
-        parameter_span.start,
-    );
-    context.has_newline(before_parameter_span)
-}
-
-/// Return whether lambda parameters can stay inline without forcing parameter list expansion.
-fn lambda_parameters_can_stay_inline(
-    context: &DestackFormatContext<'_>,
-    parameters: &[LocalNodeId<Parameter>],
-    line_width: usize,
-) -> bool {
-    if parameters.len() < 2 {
-        return false;
-    }
-
-    let has_complex_parameter = parameters.iter().copied().any(|parameter_id| {
-        context.node_has_newline(parameter_id)
-            || context.has_non_blank_annotation(parameter_id)
-            || matches!(
-                context.tree.get(parameter_id),
-                Parameter::Named {
-                    modifiers: Some(_),
-                    ..
-                } | Parameter::Pattern {
-                    modifiers: Some(_),
-                    ..
-                } | Parameter::VariadicNamed {
-                    modifiers: Some(_),
-                    ..
-                } | Parameter::VariadicPattern {
-                    modifiers: Some(_),
-                    ..
-                }
-            )
-    });
-    if has_complex_parameter {
-        return false;
-    }
-
-    let parameters_char_len = parameters
-        .iter()
-        .copied()
-        .map(|parameter_id| context.span_char_len(context.span(parameter_id)))
-        .sum::<usize>();
-    let separators_char_len = 2 * parameters.len().saturating_sub(1);
-    let parameter_list_char_len = 2 + parameters_char_len + separators_char_len;
-    parameter_list_char_len <= line_width
-}
-
-/// Write one inline lambda parameter list with comma spacing.
-fn write_inline_lambda_parameter_list<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    parameters: &[LocalNodeId<Parameter>],
-) -> FormatResult<()> {
-    write!(f, [token("(")])?;
-
-    for (index, parameter_id) in parameters.iter().copied().enumerate() {
-        if index > 0 {
-            write!(f, [token(","), space()])?;
-        }
-        write!(f, [parameter_id])?;
-    }
-
-    write!(f, [token(")")])?;
-    Ok(())
-}
-
 /// Return whether one lambda declaration appears in statement position.
 fn lambda_declaration_is_statement_position(
     context: &DestackFormatContext<'_>,
@@ -177,6 +89,73 @@ fn lambda_declaration_is_statement_position(
         context.tree.get(parent_expression_id),
         Expression::Statement(inner_id) if inner_id.id == declaration_expression_id.id
     )
+}
+
+/// Return whether one lambda declaration is nested under a call argument lambda chain.
+fn lambda_declaration_is_call_argument_chain(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Declaration>,
+) -> bool {
+    let mut current_declaration_id = node_id;
+    let mut has_parent_lambda = false;
+
+    loop {
+        let Some((declaration_expression_id, parent_type)) = context.parent(current_declaration_id)
+        else {
+            return false;
+        };
+        if parent_type != NodeType::Expression {
+            return false;
+        }
+        let declaration_expression_id = LocalNodeId::<Expression>::new(declaration_expression_id);
+
+        let Some((parent_id, parent_type)) = context.parent(declaration_expression_id) else {
+            return false;
+        };
+
+        match parent_type {
+            NodeType::Argument => {
+                let argument_id = LocalNodeId::<Argument>::new(parent_id);
+                return has_parent_lambda
+                    && matches!(
+                        context.tree.get(argument_id),
+                        Argument::Positional { value, .. } if value.id == declaration_expression_id.id
+                    );
+            }
+            NodeType::Declaration => {
+                let parent_declaration_id = LocalNodeId::<Declaration>::new(parent_id);
+                let Declaration::Function {
+                    signature,
+                    body: Some(parent_body_id),
+                    ..
+                } = context.tree.get(parent_declaration_id)
+                else {
+                    return false;
+                };
+                if signature.kind != FunctionKind::Lambda
+                    || parent_body_id.id != declaration_expression_id.id
+                {
+                    return false;
+                }
+
+                has_parent_lambda = true;
+                current_declaration_id = parent_declaration_id;
+            }
+            _ => return false,
+        }
+    }
+}
+
+/// Return whether one lambda body is an empty block containing infix annotations only.
+fn lambda_body_is_empty_annotated_block(
+    context: &DestackFormatContext<'_>,
+    body_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Block(block_id) = context.tree.get(body_expression_id) else {
+        return false;
+    };
+    let block = context.tree.get(*block_id);
+    block.expressions.is_empty() && context.has_non_blank_infix_annotation(*block_id)
 }
 
 /// Return whether one expression has a block-style prefix comment annotation.
@@ -278,7 +257,7 @@ pub(super) fn format_function_declaration<'ast>(
             && static_parameters.len() == 1;
         let needs_module_typescript_trailing_comma = signature.kind == FunctionKind::Lambda
             && static_parameters.len() == 1
-            && is_module_typescript_source(&f.context().file.name);
+            && is_module_typescript_file(&f.context().file.name);
         let mut static_params_list = list_like("<", ">", ",", static_parameters);
 
         if needs_jsx_disambiguation || needs_module_typescript_trailing_comma {
@@ -326,8 +305,6 @@ pub(super) fn format_function_declaration<'ast>(
         signature.return_type,
         true,
     );
-    let mut used_inline_lambda_parameters = false;
-
     if can_omit_parens {
         write!(f, [&dynamic_parameters[0]])?;
     } else if dynamic_parameters.len() == 1
@@ -335,20 +312,6 @@ pub(super) fn format_function_declaration<'ast>(
         && single_parameter_should_hug(f.context(), dynamic_parameters[0])
     {
         write!(f, [token("("), dynamic_parameters[0], token(")")])?;
-    } else if signature.kind == FunctionKind::Lambda
-        && !force_expand_parameters
-        && signature.return_type.is_none()
-        && !lambda_has_newline_before_first_parameter(f.context(), node_id, &dynamic_parameters)
-        && (f.context().options.language_type.is_javascript()
-            || f.context().options.language_type.is_typescript())
-        && lambda_parameters_can_stay_inline(
-            f.context(),
-            &dynamic_parameters,
-            usize::from(f.context().options.line_width),
-        )
-    {
-        write_inline_lambda_parameter_list(f, &dynamic_parameters)?;
-        used_inline_lambda_parameters = true;
     } else if signature.kind == FunctionKind::Lambda
         && dynamic_parameters.len() == 2
         && lambda_parameter_should_expand(f.context(), dynamic_parameters[0])
@@ -416,7 +379,14 @@ pub(super) fn format_function_declaration<'ast>(
             // arrow is fine since lambdas can only have return type or body
             if body_is_block {
                 write_lambda_arrow_with_infix_annotations(f, node_id)?;
-                write!(f, [space(), body])?;
+                let should_dedent_body =
+                    lambda_declaration_is_call_argument_chain(f.context(), node_id)
+                        && lambda_body_is_empty_annotated_block(f.context(), *body);
+                if should_dedent_body {
+                    write!(f, [space(), dedent(body)])?;
+                } else {
+                    write!(f, [space(), body])?;
+                }
             } else if body_is_tree {
                 // tree bodies need conditional parentheses when they break
                 let body_group_id = f.group_id("lambda_body");
@@ -465,7 +435,7 @@ pub(super) fn format_function_declaration<'ast>(
                         ])
                         .should_expand(force_break)]
                     )?;
-                } else if body_is_simple_inline_expression && !used_inline_lambda_parameters {
+                } else if body_is_simple_inline_expression {
                     write!(
                         f,
                         [group(&format_args![

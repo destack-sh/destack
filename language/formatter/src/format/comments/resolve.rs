@@ -231,11 +231,15 @@ pub(in super::super) fn resolve_comment_trivia_attachment(
         &mut seam_owner_cache,
         owners,
     ) {
-        return normalize_trailing_object_member_comment_attachment(
+        let decision = normalize_trailing_object_member_comment_attachment(
             tree, parents, &context, &facts, decision,
         );
+        return decision;
     }
 
     let decision = attach_comment_default(&context, &facts, &mut seam_owner_cache, owners);
-    normalize_trailing_object_member_comment_attachment(tree, parents, &context, &facts, decision)
+    let decision = normalize_trailing_object_member_comment_attachment(
+        tree, parents, &context, &facts, decision,
+    );
+    decision
 }

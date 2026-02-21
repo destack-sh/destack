@@ -1,26 +1,10 @@
 use crate::expression::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, DeclarationKind, Declarator,
-    DestackFormatContext, DestackFormatter, Expression, FormatError, FormatResult, LetKind,
-    LocalNodeId, NodeTree, NodeType, PostfixPosition, StringId, expression_inline_width_hint,
-    is_chain_expression, needs_parens_in_postfix_position, pattern_inline_width_hint, token,
-    write_postfix_base_expression,
+    Argument, Declarator, DestackFormatContext, DestackFormatter, Expression, FormatError,
+    FormatResult, LocalNodeId, NodeTree, NodeType, PostfixPosition, StringId, is_chain_expression,
+    needs_parens_in_postfix_position, token, write_postfix_base_expression,
 };
 use destack_fir::format::Buffer;
 use destack_fir::write;
-
-// assignment/declarator inline width constants
-const ASSIGNMENT_OPERATOR_PADDING_WIDTH: usize = 2;
-const DECLARATOR_TYPE_SEPARATOR_INLINE_WIDTH: usize = 2;
-const DECLARATOR_ASSIGNMENT_SEPARATOR_INLINE_WIDTH: usize = 3;
-
-// declaration prefix lengths with trailing space
-const EXPORT_PREFIX_LEN: usize = 7;
-const DECLARE_PREFIX_LEN: usize = 8;
-const ASYNC_PREFIX_LEN: usize = 6;
-const USING_PREFIX_LEN: usize = 6;
-const LET_PREFIX_LEN: usize = 4;
-const VAR_PREFIX_LEN: usize = 4;
-const CONST_PREFIX_LEN: usize = 6;
 
 /// Extract a parenthesized base with a direct index chain.
 pub(crate) fn extract_parenthesized_index_chain(
@@ -335,76 +319,6 @@ pub(crate) fn transparent_inner_expression(
     context.transparent_inner_expression(node_id)
 }
 
-/// Get the display width of an assignment operator token.
-pub(crate) fn assign_operator_len(operator: &AssignOperator) -> usize {
-    match operator {
-        AssignOperator::Assign => 1,
-        AssignOperator::MultiplyAssign
-        | AssignOperator::DivideAssign
-        | AssignOperator::RemainderAssign
-        | AssignOperator::AddAssign
-        | AssignOperator::SubtractAssign
-        | AssignOperator::ElementwiseAndAssign
-        | AssignOperator::ElementwiseXorAssign
-        | AssignOperator::ElementwiseOrAssign => 2,
-        AssignOperator::WrappingMultiplyAssign
-        | AssignOperator::SaturatingMultiplyAssign
-        | AssignOperator::WrappingAddAssign
-        | AssignOperator::SaturatingAddAssign
-        | AssignOperator::WrappingSubtractAssign
-        | AssignOperator::SaturatingSubtractAssign
-        | AssignOperator::ShiftLeftAssign
-        | AssignOperator::ShiftRightAssign
-        | AssignOperator::AndAssign
-        | AssignOperator::OrAssign
-        | AssignOperator::CoalesceAssign
-        | AssignOperator::ExponentAssign => 3,
-        AssignOperator::WrappingExponentAssign
-        | AssignOperator::SaturatingExponentAssign
-        | AssignOperator::SaturatingShiftLeftAssign
-        | AssignOperator::UnsignedShiftRightAssign => 4,
-    }
-}
-
-/// Get the display width of a binary operator token.
-pub(crate) fn binary_operator_len(operator: &BinaryOperator) -> usize {
-    match operator {
-        BinaryOperator::Multiply
-        | BinaryOperator::WrappingMultiply
-        | BinaryOperator::SaturatingMultiply
-        | BinaryOperator::Divide
-        | BinaryOperator::Remainder
-        | BinaryOperator::Add
-        | BinaryOperator::WrappingAdd
-        | BinaryOperator::SaturatingAdd
-        | BinaryOperator::Subtract
-        | BinaryOperator::WrappingSubtract
-        | BinaryOperator::SaturatingSubtract
-        | BinaryOperator::ElementwiseAnd
-        | BinaryOperator::ElementwiseXor
-        | BinaryOperator::ElementwiseOr
-        | BinaryOperator::Equal
-        | BinaryOperator::NotEqual
-        | BinaryOperator::LessThan
-        | BinaryOperator::GreaterThan => 1,
-        BinaryOperator::Exponent
-        | BinaryOperator::ShiftLeft
-        | BinaryOperator::ShiftRight
-        | BinaryOperator::EqualStrict
-        | BinaryOperator::NotEqualStrict
-        | BinaryOperator::LessThanOrEqual
-        | BinaryOperator::GreaterThanOrEqual
-        | BinaryOperator::And
-        | BinaryOperator::Or
-        | BinaryOperator::Coalesce
-        | BinaryOperator::In => 2,
-        BinaryOperator::UnsignedShiftRight => 3,
-        BinaryOperator::SaturatingShiftLeft => 3,
-        BinaryOperator::WrappingExponent | BinaryOperator::SaturatingExponent => 3,
-        BinaryOperator::InstanceOf => 10,
-    }
-}
-
 /// Decide whether a nullish coalescing operator should trail on a new line.
 pub(crate) fn should_use_trailing_coalesce(
     context: &DestackFormatContext<'_>,
@@ -443,117 +357,4 @@ pub(crate) fn should_use_trailing_coalesce(
     }
 
     false
-}
-
-/// Estimate the remaining inline width for a rhs in an assignment-like parent.
-pub(crate) fn assignment_like_remaining_width(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> Option<usize> {
-    let line_width = usize::from(context.options.line_width);
-    let (parent_type, parent_id) = assignment_like_parent(context, node_id)?;
-
-    match parent_type {
-        NodeType::Expression => {
-            let parent_expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
-            let Expression::Assign { left, operator, .. } = parent_expression else {
-                return Some(line_width);
-            };
-
-            let left_len = expression_inline_width_hint(context, *left);
-            let operator_len = assign_operator_len(operator);
-            let consumed_len = left_len
-                .saturating_add(operator_len)
-                .saturating_add(ASSIGNMENT_OPERATOR_PADDING_WIDTH);
-
-            Some(line_width.saturating_sub(consumed_len))
-        }
-        NodeType::Declarator => {
-            let declarator = context.tree.get(LocalNodeId::<Declarator>::new(parent_id));
-            let prefix_len =
-                declarator_leading_prefix_len(context, LocalNodeId::<Declarator>::new(parent_id));
-            let pattern_len = pattern_inline_width_hint(context, declarator.pattern);
-            let type_len = declarator.ty.map_or(0usize, |type_id| {
-                expression_inline_width_hint(context, type_id)
-                    .saturating_add(DECLARATOR_TYPE_SEPARATOR_INLINE_WIDTH)
-            });
-            let consumed_len = prefix_len
-                .saturating_add(pattern_len)
-                .saturating_add(type_len)
-                .saturating_add(DECLARATOR_ASSIGNMENT_SEPARATOR_INLINE_WIDTH);
-
-            Some(line_width.saturating_sub(consumed_len))
-        }
-        _ => Some(line_width),
-    }
-}
-
-/// Estimate the leading declaration header width before a declarator.
-pub(crate) fn declarator_leading_prefix_len(
-    context: &DestackFormatContext<'_>,
-    declarator_id: LocalNodeId<Declarator>,
-) -> usize {
-    let Some((parent_id, parent_type)) = context.parent(declarator_id) else {
-        return 0;
-    };
-
-    if parent_type != NodeType::Expression {
-        return 0;
-    }
-
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
-    match context.tree.get(parent_id) {
-        Expression::Let {
-            kind,
-            descriptor,
-            declarators,
-            ..
-        } => {
-            if declarators
-                .first()
-                .is_none_or(|id| id.id != declarator_id.id)
-            {
-                return 0;
-            }
-
-            let mut prefix_len = 0usize;
-            if descriptor.export.is_some() {
-                prefix_len = prefix_len.saturating_add(EXPORT_PREFIX_LEN);
-            }
-            if descriptor.kind == DeclarationKind::Declaration {
-                prefix_len = prefix_len.saturating_add(DECLARE_PREFIX_LEN);
-            }
-            prefix_len = prefix_len.saturating_add(match kind {
-                LetKind::Let => LET_PREFIX_LEN,
-                LetKind::Var => VAR_PREFIX_LEN,
-                LetKind::Const => CONST_PREFIX_LEN,
-            });
-            prefix_len
-        }
-        Expression::Using {
-            asynchrony,
-            descriptor,
-            declarators,
-        } => {
-            if declarators
-                .first()
-                .is_none_or(|id| id.id != declarator_id.id)
-            {
-                return 0;
-            }
-
-            let mut prefix_len = 0usize;
-            if descriptor.export.is_some() {
-                prefix_len = prefix_len.saturating_add(EXPORT_PREFIX_LEN);
-            }
-            if descriptor.kind == DeclarationKind::Declaration {
-                prefix_len = prefix_len.saturating_add(DECLARE_PREFIX_LEN);
-            }
-            if *asynchrony == Asynchrony::Async {
-                prefix_len = prefix_len.saturating_add(ASYNC_PREFIX_LEN);
-            }
-            prefix_len.saturating_add(USING_PREFIX_LEN)
-        }
-        _ => 0,
-    }
 }

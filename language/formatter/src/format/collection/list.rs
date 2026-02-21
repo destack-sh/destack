@@ -179,21 +179,6 @@ where
             Ok(())
         });
 
-        // prefer keeping the list on a single line
-        let format_inline = format_with(|f| {
-            if let Some(group_id) = self.group_id {
-                group(&format_args![
-                    &token(self.start_token),
-                    body,
-                    &token(self.end_token)
-                ])
-                .with_id(Some(group_id))
-                .format(f)
-            } else {
-                write!(f, [&token(self.start_token), body, &token(self.end_token)])
-            }
-        });
-
         // otherwise, indent the body
         let format_indented = format_with(|f| {
             group(&format_args![
@@ -217,44 +202,6 @@ where
             .should_expand(self.force_expand || has_ignore_ranges)
             .format(f)
         });
-
-        // small annotation free lists almost always fit inline, skip extra fitting checks
-        let can_use_single_element_inline_short_circuit = !self.force_expand
-            && !has_ignore_ranges
-            && self.group_id.is_some()
-            && self.elements.len() == 1;
-        if can_use_single_element_inline_short_circuit {
-            let element_id = self.elements[0];
-            let element_span = f.context().span(element_id);
-            let element_span_len = f.context().span_char_len(element_span);
-            let compact_single_element_limit = usize::from(options.line_width).min(28);
-            let inline_call_parent_fits = if self.start_token == "(" && self.end_token == ")" {
-                f.context()
-                    .parent(element_id)
-                    .is_some_and(|(parent_id, parent_type)| {
-                        if parent_type != NodeType::Expression {
-                            return false;
-                        }
-
-                        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-                        let parent_span = f.context().span::<Expression>(parent_expression_id);
-                        let parent_len = f.context().span_char_len(parent_span);
-                        parent_len <= usize::from(options.line_width)
-                    })
-            } else {
-                true
-            };
-            let can_keep_single_element_inline = !f.context().has_newline(element_span)
-                && !f.context().has_annotation(element_id)
-                && inline_call_parent_fits
-                && element_span_len <= compact_single_element_limit;
-            if can_keep_single_element_inline {
-                f.context()
-                    .increment_counter("profile.list_like.single_inline.short_circuit", 1);
-                format_inline.format(f)?;
-                return Ok(());
-            }
-        }
 
         // grouped lists use one adaptive layout path
         if self.group_id.is_some() {

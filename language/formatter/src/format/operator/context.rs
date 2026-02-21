@@ -420,7 +420,7 @@ pub(crate) fn should_hug_static_argument_union_type(
         return false;
     }
 
-    if union_source_has_leading_pipe(context, node_id) {
+    if union_has_leading_pipe_token(context, node_id) {
         return false;
     }
 
@@ -461,7 +461,7 @@ pub(crate) fn should_hug_static_argument_union_type(
 }
 
 /// Return whether a union expression source starts with a leading `|`.
-pub(crate) fn union_source_has_leading_pipe(
+pub(crate) fn union_has_leading_pipe_token(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {

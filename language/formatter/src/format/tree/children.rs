@@ -272,6 +272,34 @@ fn argument_has_line_comment_annotation(
     })
 }
 
+/// Return whether one ternary expression has any line-comment annotations on its branches.
+fn ternary_has_line_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::If {
+        kind: IfKind::Ternary,
+        condition,
+        then_expression,
+        else_expression,
+        ..
+    } = context.tree.get(expression_id)
+    else {
+        return false;
+    };
+
+    let condition_id = match condition {
+        IfCondition::Expression { condition } => *condition,
+        IfCondition::Let { .. } => return true,
+    };
+
+    expression_has_line_comment_annotation(context, expression_id)
+        || expression_has_line_comment_annotation(context, condition_id)
+        || expression_has_line_comment_annotation(context, *then_expression)
+        || else_expression
+            .is_some_and(|else_id| expression_has_line_comment_annotation(context, else_id))
+}
+
 /// Check whether a tree child forces the element to break.
 pub(crate) fn tree_child_breaks_element(
     context: &DestackFormatContext<'_>,
@@ -295,6 +323,16 @@ pub(crate) fn tree_child_breaks_element(
         && !is_text_node
         && !matches!(value_expr, Expression::Stub)
     {
+        if matches!(
+            value_expr,
+            Expression::If {
+                kind: IfKind::Ternary,
+                ..
+            }
+        ) {
+            return ternary_has_line_comment_annotation(context, value_id);
+        }
+
         return true;
     }
 
@@ -303,7 +341,7 @@ pub(crate) fn tree_child_breaks_element(
         Expression::If {
             kind: IfKind::Ternary,
             ..
-        } => false,
+        } => ternary_has_line_comment_annotation(context, value_id),
         Expression::Block(_) | Expression::Match { .. } => true,
         Expression::Declaration(declaration_id) => {
             lambda_body_is_complex_for_tree(context, *declaration_id)

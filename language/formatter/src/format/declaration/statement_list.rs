@@ -192,6 +192,55 @@ fn expression_has_effective_postfix_annotation(
     }
 }
 
+/// Return whether an expression or its declaration wrapper has blank postfix annotations.
+fn expression_has_effective_blank_postfix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let has_blank_postfix_annotation = context
+        .annotations(expression_id)
+        .map(|annotation_ids| {
+            annotation_ids.into_iter().any(|annotation_id| {
+                matches!(
+                    context.annotation(annotation_id),
+                    Annotation::Blank {
+                        position: AnnotationPosition::BlockPostfix
+                            | AnnotationPosition::LinePostfix
+                            | AnnotationPosition::LinePostfixBoundary,
+                        ..
+                    }
+                )
+            })
+        })
+        .unwrap_or(false);
+    if has_blank_postfix_annotation {
+        return true;
+    }
+
+    match context.tree.get(expression_id) {
+        Expression::Declaration(declaration_id) => context
+            .annotations(*declaration_id)
+            .map(|annotation_ids| {
+                annotation_ids.into_iter().any(|annotation_id| {
+                    matches!(
+                        context.annotation(annotation_id),
+                        Annotation::Blank {
+                            position: AnnotationPosition::BlockPostfix
+                                | AnnotationPosition::LinePostfix
+                                | AnnotationPosition::LinePostfixBoundary,
+                            ..
+                        }
+                    )
+                })
+            })
+            .unwrap_or(false),
+        Expression::Statement(inner_id) => {
+            expression_has_effective_blank_postfix_annotation(context, *inner_id)
+        }
+        _ => false,
+    }
+}
+
 /// Format a block inline with zero or one expression (including label and infix annotations).
 /// Format block contents with compact inner spacing.
 #[inline]
@@ -332,6 +381,11 @@ pub(crate) fn format_block_of_statements<'ast>(
                 expression_has_effective_non_comment_prefix_annotation(f.context(), expression_id);
             let previous_has_postfix_annotation =
                 expression_has_effective_postfix_annotation(f.context(), previous_expression_id);
+            let previous_has_blank_postfix_annotation =
+                expression_has_effective_blank_postfix_annotation(
+                    f.context(),
+                    previous_expression_id,
+                );
             let source_has_blank_line_between = if has_ignore_range {
                 if let Some((previous_file, previous_end)) = previous_output_end {
                     if previous_file != expression_span.file {
@@ -373,55 +427,65 @@ pub(crate) fn format_block_of_statements<'ast>(
                 && !has_non_comment_prefix_annotation
                 && !previous_has_postfix_annotation
                 && !has_ignore_range;
-            if (!has_blank_prefix_annotation || has_ignore_range)
-                && !uses_source_blank_line_without_leading_break
-            {
-                write!(f, [hard_line_break()])?;
-            }
+            if !has_ignore_range {
+                if !has_blank_prefix_annotation
+                    && !uses_source_blank_line_without_leading_break
+                    && !previous_has_blank_postfix_annotation
+                {
+                    write!(f, [hard_line_break()])?;
+                }
 
-            // determine if we need an extra blank line
-            let needs_blank = if directive_count > 0 && i == directive_count {
-                insert_blank_after_directive_prologue && !has_blank_prefix_annotation
-            } else if has_ignore_range && has_blank_prefix_annotation {
-                true
-            } else if organize && prev_was_import && is_import_expr {
-                // check if different import groups
-                prev_import_id.is_some_and(|prev_id| {
-                    imports::should_insert_blank_between(
-                        prev_id,
-                        expression_id,
-                        f.context().tree,
-                        f.context().strings,
-                    )
-                })
-            } else if prev_was_import && !is_import_expr {
-                // blank line after import section (if not already present)
-                !has_blank_prefix_annotation || has_ignore_range
-            } else if source_has_blank_line_between {
-                (!has_blank_prefix_annotation
-                    && !has_non_comment_prefix_annotation
-                    && !previous_has_postfix_annotation)
-                    || has_ignore_range
-            } else {
-                false
-            };
+                // determine if we need an extra blank line
+                let needs_blank = if directive_count > 0 && i == directive_count {
+                    insert_blank_after_directive_prologue && !has_blank_prefix_annotation
+                } else if organize && prev_was_import && is_import_expr {
+                    // check if different import groups
+                    prev_import_id.is_some_and(|prev_id| {
+                        imports::should_insert_blank_between(
+                            prev_id,
+                            expression_id,
+                            f.context().tree,
+                            f.context().strings,
+                        )
+                    })
+                } else if prev_was_import && !is_import_expr {
+                    // blank line after import section (if not already present)
+                    !has_blank_prefix_annotation && !previous_has_blank_postfix_annotation
+                } else if source_has_blank_line_between {
+                    !has_blank_prefix_annotation
+                        && !has_non_comment_prefix_annotation
+                        && !previous_has_postfix_annotation
+                } else {
+                    false
+                };
 
-            if needs_blank {
-                write!(f, [empty_line()])?;
+                if needs_blank {
+                    write!(f, [empty_line()])?;
+                }
             }
         }
 
         if let Some(range_span) = ignore_range {
-            let prefix_start =
-                expression_prefix_start(f.context(), expression_id, expression_span.start);
-            if prefix_start < range_span.start {
-                let prefix_span = Span::new(expression_span.file, prefix_start, range_span.start);
-                // preserve the final source newline between prefix trivia and ignored range
-                let prefix_has_trailing_newline = f.context().span_ends_with_newline(prefix_span);
-                write_ignored_span(f, prefix_span)?;
-                if prefix_has_trailing_newline {
-                    write!(f, [hard_line_break()])?;
+            let prefix_start = if let Some((previous_file, previous_end)) = previous_output_end {
+                if previous_file == range_span.file {
+                    previous_end
+                } else {
+                    expression_prefix_start(f.context(), expression_id, expression_span.start)
                 }
+            } else if i > 0 {
+                let previous_expression_id = effective_expressions[i - 1];
+                let previous_span = f.context().span(previous_expression_id);
+                if previous_span.file == range_span.file {
+                    previous_span.end
+                } else {
+                    expression_prefix_start(f.context(), expression_id, expression_span.start)
+                }
+            } else {
+                expression_prefix_start(f.context(), expression_id, expression_span.start)
+            };
+            if prefix_start < range_span.start {
+                let prefix_span = Span::new(range_span.file, prefix_start, range_span.start);
+                write_ignored_span(f, prefix_span)?;
             }
 
             write_ignored_span(f, range_span)?;

@@ -1,4 +1,3 @@
-use crate::analysis::call_arguments_preserve_blank_line_between;
 use crate::analysis::scan::{
     next_non_whitespace_token_after_annotation, previous_non_whitespace_token_before_annotation,
 };
@@ -13,7 +12,6 @@ use destack_ast::{
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
-use destack_source::Span;
 
 /// Return whether an argument should emit its prefix annotations.
 fn argument_should_emit_prefix_annotations(
@@ -363,10 +361,6 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
         // lambda argument comments are handled at the lambda arrow site
         let should_emit_prefix_annotations =
             argument_should_emit_prefix_annotations(f.context(), node_id);
-        let should_preserve_blank_line_before_prefix_comment =
-            argument_prefix_comment_has_leading_blank_line_after_separator(f.context(), node_id);
-        let has_argument_prefix_comment =
-            argument_has_prefix_comment_annotation(f.context(), node_id);
         let has_lambda_value = argument_contains_lambda_value(f.context(), self);
         let force_break_after_lambda_prefix_comment = has_lambda_value
             && argument_prefix_lambda_comment_needs_forced_break(f.context(), node_id);
@@ -374,9 +368,6 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
         if has_lambda_value {
             write!(f, [f.context().any_prefix_annotations(node_id)])?;
         } else if should_emit_prefix_annotations {
-            if should_preserve_blank_line_before_prefix_comment && has_argument_prefix_comment {
-                write!(f, [empty_line()])?;
-            }
             write!(f, [f.context().any_prefix_annotations(node_id)])?;
         }
 
@@ -393,10 +384,6 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // value
-                if should_preserve_blank_line_before_prefix_comment && !has_argument_prefix_comment
-                {
-                    write!(f, [empty_line()])?;
-                }
                 write!(f, [token(":"), space(), value])?;
             }
             Argument::Labeled {
@@ -411,10 +398,6 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // value
-                if should_preserve_blank_line_before_prefix_comment && !has_argument_prefix_comment
-                {
-                    write!(f, [empty_line()])?;
-                }
                 write!(f, [token(":"), space(), value])?;
             }
             Argument::Positional { modifiers, value } => {
@@ -423,10 +406,6 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                 // value
                 if force_break_after_lambda_prefix_comment {
                     write!(f, [hard_line_break()])?;
-                }
-                if should_preserve_blank_line_before_prefix_comment && !has_argument_prefix_comment
-                {
-                    write!(f, [empty_line()])?;
                 }
                 write!(f, [value])?;
                 // modifiers
@@ -444,20 +423,10 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                 if let Some(label) = label {
                     write!(f, [label])?;
                     format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                    if should_preserve_blank_line_before_prefix_comment
-                        && !has_argument_prefix_comment
-                    {
-                        write!(f, [empty_line()])?;
-                    }
                     write!(f, [token(":"), space(), value])?;
                 } else {
                     if force_break_after_lambda_prefix_comment {
                         write!(f, [hard_line_break()])?;
-                    }
-                    if should_preserve_blank_line_before_prefix_comment
-                        && !has_argument_prefix_comment
-                    {
-                        write!(f, [empty_line()])?;
                     }
                     write!(f, [value])?;
                     format_binding_modifiers_postfix_maybe(f, *modifiers)?;
@@ -469,142 +438,6 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
 
         Ok(())
     }
-}
-
-/// Return whether the argument itself has a prefix comment annotation.
-fn argument_has_prefix_comment_annotation(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    let Some(annotations) = context.annotations(argument_id) else {
-        return false;
-    };
-
-    annotations.iter().any(|annotation_id| {
-        matches!(
-            context.annotation(*annotation_id),
-            Annotation::Comment {
-                position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                ..
-            }
-        )
-    })
-}
-
-/// Return whether an argument has a prefix comment separated by a blank line after a comma.
-fn argument_prefix_comment_has_leading_blank_line_after_separator(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    if !argument_is_call_or_new(context, argument_id) {
-        return false;
-    }
-    let Some(prefix_comment_start) =
-        first_prefix_comment_annotation_start_for_argument(context, argument_id)
-    else {
-        return false;
-    };
-    let Some(previous_argument_id) = previous_dynamic_argument_in_call_or_new(context, argument_id)
-    else {
-        return false;
-    };
-
-    if call_arguments_preserve_blank_line_between(context, previous_argument_id, argument_id) {
-        return true;
-    }
-
-    let previous_span = context.span(previous_argument_id);
-    if previous_span.end >= prefix_comment_start {
-        return false;
-    }
-
-    let between_span = Span::new(previous_span.file, previous_span.end, prefix_comment_start);
-    context.has_blank_line(between_span)
-}
-
-/// Return the start offset of the first prefix comment on an argument or its value.
-fn first_prefix_comment_annotation_start_for_argument(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> Option<u32> {
-    let argument_annotation_start = context.annotations(argument_id).and_then(|annotations| {
-        annotations.iter().find_map(|annotation_id| {
-            let annotation = context.annotation(*annotation_id);
-            let is_prefix_comment = matches!(
-                annotation,
-                Annotation::Comment {
-                    position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                    ..
-                }
-            );
-            if is_prefix_comment {
-                Some(context.annotation_span(*annotation_id).start)
-            } else {
-                None
-            }
-        })
-    });
-
-    let argument = context.tree.get(argument_id);
-    let value_id = match argument {
-        Argument::Named { value, .. }
-        | Argument::Labeled { value, .. }
-        | Argument::Positional { value, .. }
-        | Argument::Spread { value, .. } => *value,
-    };
-    let value_annotation_start = context.annotations(value_id).and_then(|annotations| {
-        annotations.iter().find_map(|annotation_id| {
-            let annotation = context.annotation(*annotation_id);
-            let is_prefix_comment = matches!(
-                annotation,
-                Annotation::Comment {
-                    position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                    ..
-                }
-            );
-            if is_prefix_comment {
-                Some(context.annotation_span(*annotation_id).start)
-            } else {
-                None
-            }
-        })
-    });
-
-    match (argument_annotation_start, value_annotation_start) {
-        (Some(argument_start), Some(value_start)) => Some(argument_start.min(value_start)),
-        (Some(argument_start), None) => Some(argument_start),
-        (None, Some(value_start)) => Some(value_start),
-        (None, None) => None,
-    }
-}
-
-/// Return the previous dynamic argument in a call or new expression.
-fn previous_dynamic_argument_in_call_or_new(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> Option<LocalNodeId<Argument>> {
-    let (parent_id, parent_type) = context.parent(argument_id)?;
-    if parent_type != NodeType::Expression {
-        return None;
-    }
-
-    let expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
-    let arguments = match expression {
-        Expression::Call {
-            dynamic_arguments, ..
-        }
-        | Expression::New {
-            dynamic_arguments, ..
-        } => dynamic_arguments,
-        _ => return None,
-    };
-
-    let index = arguments
-        .iter()
-        .position(|argument| *argument == argument_id)?;
-    index
-        .checked_sub(1)
-        .and_then(|index| arguments.get(index).copied())
 }
 
 /// Return whether this argument wraps a lambda declaration expression.

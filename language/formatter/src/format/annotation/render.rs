@@ -125,6 +125,18 @@ impl<'ast> DestackFormatContext<'ast> {
         }
     }
 
+    /// Format declaration body-head seam comments before `{`.
+    #[inline]
+    pub fn declaration_body_head_annotations(
+        &self,
+        node_id: LocalNodeId<Declaration>,
+    ) -> Annotations<Declaration> {
+        Annotations {
+            position: AnnotationCapture::DeclarationBodyHead,
+            node_id,
+        }
+    }
+
     /// Return whether one declaration has any generic-head seam comment annotations.
     pub fn has_declaration_generic_head_annotation(
         &self,
@@ -136,6 +148,22 @@ impl<'ast> DestackFormatContext<'ast> {
 
         annotation_ids.iter().copied().any(|annotation_id| {
             annotation_is_declaration_generic_head_comment(
+                self,
+                node_id,
+                self.annotation(annotation_id),
+                annotation_id,
+            )
+        })
+    }
+
+    /// Return whether one declaration has any body-head seam comment annotations.
+    pub fn has_declaration_body_head_annotation(&self, node_id: LocalNodeId<Declaration>) -> bool {
+        let Some(annotation_ids) = self.annotations(node_id) else {
+            return false;
+        };
+
+        annotation_ids.iter().copied().any(|annotation_id| {
+            annotation_is_declaration_body_head_comment(
                 self,
                 node_id,
                 self.annotation(annotation_id),
@@ -336,12 +364,16 @@ pub(super) fn annotation_render_facts(
     }
 }
 
-/// Return whether decorators may stay inline for this owner node type.
+/// Return whether decorators may stay inline via source-seam facts for this owner node type.
 #[inline]
-fn decorator_can_stay_inline_for_node_type(node_type: NodeType) -> bool {
+fn decorator_can_stay_inline_for_comment_seam(node_type: NodeType) -> bool {
     !matches!(
         node_type,
-        NodeType::Declaration | NodeType::Member | NodeType::Property | NodeType::MatchCase
+        NodeType::Declaration
+            | NodeType::Property
+            | NodeType::Member
+            | NodeType::EnumField
+            | NodeType::MatchCase
     )
 }
 
@@ -360,6 +392,7 @@ pub enum AnnotationCapture {
     DeclarationPrefix,
     DeclarationExportHead,
     DeclarationGenericHead,
+    DeclarationBodyHead,
 }
 
 /// Annotations for a node.
@@ -387,6 +420,7 @@ fn annotation_capture_includes_position(
                 || capture == AnnotationCapture::DeclarationPrefix
                 || capture == AnnotationCapture::DeclarationExportHead
                 || capture == AnnotationCapture::DeclarationGenericHead
+                || capture == AnnotationCapture::DeclarationBodyHead
         }
         AnnotationPosition::BlockPostfix => {
             capture == AnnotationCapture::BlockPostfix
@@ -399,6 +433,7 @@ fn annotation_capture_includes_position(
                 || capture == AnnotationCapture::DeclarationPrefix
                 || capture == AnnotationCapture::DeclarationExportHead
                 || capture == AnnotationCapture::DeclarationGenericHead
+                || capture == AnnotationCapture::DeclarationBodyHead
         }
         AnnotationPosition::LinePostfix => {
             capture == AnnotationCapture::LinePostfix
@@ -509,6 +544,34 @@ fn annotation_is_declaration_generic_head_comment<T: Node>(
     )
 }
 
+/// Return whether one annotation is a declaration-body seam comment before `{`.
+fn annotation_is_declaration_body_head_comment<T: Node>(
+    context: &DestackFormatContext<'_>,
+    _node_id: LocalNodeId<T>,
+    annotation: Annotation,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    if T::TYPE != NodeType::Declaration {
+        return false;
+    }
+
+    let Annotation::Comment { position, .. } = annotation else {
+        return false;
+    };
+    if !matches!(
+        position,
+        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+    ) {
+        return false;
+    }
+
+    let annotation_span = context.annotation_span(annotation_id);
+    matches!(
+        next_non_whitespace_after_span(context, annotation_span),
+        Some('{')
+    )
+}
+
 impl<'ast, T> Format<DestackFormatContext<'ast>> for Annotations<T>
 where
     T: Node + Clone,
@@ -554,8 +617,28 @@ where
             {
                 continue;
             }
+            if self.position == AnnotationCapture::DeclarationPrefix
+                && annotation_is_declaration_body_head_comment(
+                    f.context(),
+                    self.node_id,
+                    annotation,
+                    annotation_id,
+                )
+            {
+                continue;
+            }
             if self.position == AnnotationCapture::DeclarationExportHead
                 && !annotation_is_declaration_export_head_comment(
+                    f.context(),
+                    self.node_id,
+                    annotation,
+                    annotation_id,
+                )
+            {
+                continue;
+            }
+            if self.position == AnnotationCapture::DeclarationBodyHead
+                && !annotation_is_declaration_body_head_comment(
                     f.context(),
                     self.node_id,
                     annotation,
@@ -601,6 +684,21 @@ where
                     let comment = f.context().tree.get::<Comment>(node);
                     comment.style == CommentStyle::Star
                 });
+            let next_annotation_is_own_line_comment = annotations
+                .get(annotation_index + 1)
+                .copied()
+                .is_some_and(|next_annotation_id| {
+                    let next_annotation = f.context().annotation(next_annotation_id);
+                    if !annotation_capture_includes_position(
+                        self.position,
+                        next_annotation.position(),
+                    ) {
+                        return false;
+                    }
+
+                    matches!(next_annotation, Annotation::Comment { .. })
+                        && annotation_starts_on_own_line(f.context(), next_annotation_id)
+                });
             let is_ignore_directive_postfix_comment = render_facts.is_slash_comment
                 && matches!(
                     position,
@@ -622,15 +720,45 @@ where
                         false
                     }
                 };
-            let decorator_can_stay_inline_for_owner = render_facts.follows_colon
+            let decorator_and_owner_share_line = {
+                let annotation_span = annotation_content_span(f.context(), annotation_id);
+                let node_span = f.context().span(self.node_id);
+                annotation_span.file == node_span.file
+                    && annotation_span.end > annotation_span.start
+                    && f.context()
+                        .file
+                        .is_same_line(annotation_span.end.saturating_sub(1), node_span.start)
+            };
+            let decorator_can_stay_inline_for_seam = (render_facts.follows_colon
                 || render_facts.follows_opening_delimiter
-                || render_facts.follows_separator;
+                || render_facts.follows_separator)
+                && decorator_can_stay_inline_for_comment_seam(T::TYPE);
+            let previous_annotation_is_own_line_slash_comment = annotation_index
+                .checked_sub(1)
+                .and_then(|previous_index| annotations.get(previous_index).copied())
+                .is_some_and(|previous_annotation_id| {
+                    let previous_annotation = f.context().annotation(previous_annotation_id);
+                    if !annotation_capture_includes_position(
+                        self.position,
+                        previous_annotation.position(),
+                    ) {
+                        return false;
+                    }
+
+                    let Annotation::Comment { node, .. } = previous_annotation else {
+                        return false;
+                    };
+                    let comment = f.context().tree.get::<Comment>(node);
+                    comment.style == CommentStyle::Slash
+                        && annotation_starts_on_own_line(f.context(), previous_annotation_id)
+                });
+            let decorator_can_stay_inline_for_same_line_owner = decorator_and_owner_share_line
+                && matches!(T::TYPE, NodeType::Property | NodeType::Member);
             let is_inline_decorator_prefix = matches!(annotation, Annotation::Decorator { .. })
                 && position == AnnotationPosition::BlockPrefix
-                && !starts_on_own_line
-                && annotation_next_token_is_on_same_line(f.context(), annotation_id)
-                && decorator_can_stay_inline_for_owner
-                && decorator_can_stay_inline_for_node_type(T::TYPE);
+                && (decorator_can_stay_inline_for_seam
+                    || (decorator_can_stay_inline_for_same_line_owner
+                        && previous_annotation_is_own_line_slash_comment));
             let is_blank_annotation = matches!(annotation, Annotation::Blank { .. });
             if is_blank_annotation && previous_was_blank_annotation {
                 continue;
@@ -747,58 +875,71 @@ where
                     && render_facts.is_star_comment
                     && render_facts.follows_colon;
 
-                // insert space / newline
-                match position {
-                    AnnotationPosition::BlockInfix => {
-                        if is_inline_block_star_comment {
-                            if !inline_block_comment_follows_opening_delimiter
-                                && !starts_on_own_line
+                if is_blank_annotation {
+                    // blank annotations carry their own spacing
+                } else {
+                    // insert space / newline
+                    match position {
+                        AnnotationPosition::BlockInfix => {
+                            if is_inline_block_star_comment {
+                                if !inline_block_comment_follows_opening_delimiter
+                                    && !starts_on_own_line
+                                {
+                                    write!(f, [space()])?;
+                                }
+                            } else {
+                                write!(f, [hard_line_break()])?;
+                            }
+                        }
+                        AnnotationPosition::BlockPostfix => {
+                            if is_inline_delimited_block_postfix_star_comment {
+                                if !render_facts.follows_opening_delimiter {
+                                    write!(f, [space()])?;
+                                }
+                            } else {
+                                write!(f, [hard_line_break()])?;
+                            }
+                        }
+                        AnnotationPosition::BlockPrefix => {
+                            if is_inline_block_star_comment {
+                                if !inline_block_comment_follows_opening_delimiter
+                                    && !starts_on_own_line
+                                {
+                                    write!(f, [space()])?;
+                                }
+                            } else if is_inline_decorator_prefix {
+                                if !starts_on_own_line
+                                    && !render_facts.follows_colon
+                                    && !render_facts.follows_opening_delimiter
+                                {
+                                    write!(f, [space()])?;
+                                }
+                            } else if !is_block_prefix_after_colon {
+                                write!(f, [hard_line_break()])?;
+                            }
+                        }
+                        AnnotationPosition::LinePostfix
+                        | AnnotationPosition::LinePostfixBoundary => {
+                            // keep own-line boundary comments on their own line
+                            if position == AnnotationPosition::LinePostfixBoundary
+                                && starts_on_own_line
                             {
+                                write!(f, [hard_line_break()])?;
+                            } else {
+                                // block comments in line postfix still need spacing (slash handled above)
                                 write!(f, [space()])?;
                             }
-                        } else {
-                            write!(f, [hard_line_break()])?;
                         }
-                    }
-                    AnnotationPosition::BlockPostfix => {
-                        if is_inline_delimited_block_postfix_star_comment {
-                            if !render_facts.follows_opening_delimiter {
+                        AnnotationPosition::LinePrefix => {
+                            if self.position == AnnotationCapture::DeclarationGenericHead {
                                 write!(f, [space()])?;
+                            } else if self.position == AnnotationCapture::DeclarationBodyHead {
+                                if starts_on_own_line {
+                                    write!(f, [hard_line_break()])?;
+                                } else {
+                                    write!(f, [space()])?;
+                                }
                             }
-                        } else {
-                            write!(f, [hard_line_break()])?;
-                        }
-                    }
-                    AnnotationPosition::BlockPrefix => {
-                        if is_inline_block_star_comment {
-                            if !inline_block_comment_follows_opening_delimiter
-                                && !starts_on_own_line
-                            {
-                                write!(f, [space()])?;
-                            }
-                        } else if is_inline_decorator_prefix {
-                            if !render_facts.follows_colon
-                                && !render_facts.follows_opening_delimiter
-                            {
-                                write!(f, [space()])?;
-                            }
-                        } else if !is_block_prefix_after_colon {
-                            write!(f, [hard_line_break()])?;
-                        }
-                    }
-                    AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary => {
-                        // keep own-line boundary comments on their own line
-                        if position == AnnotationPosition::LinePostfixBoundary && starts_on_own_line
-                        {
-                            write!(f, [hard_line_break()])?;
-                        } else {
-                            // block comments in line postfix still need spacing (slash handled above)
-                            write!(f, [space()])?;
-                        }
-                    }
-                    AnnotationPosition::LinePrefix => {
-                        if self.position == AnnotationCapture::DeclarationGenericHead {
-                            write!(f, [space()])?;
                         }
                     }
                 }
@@ -809,8 +950,23 @@ where
                 && T::TYPE == NodeType::Expression
                 && matches!(annotation, Annotation::Comment { .. })
                 && matches!(render_facts.next_character, Some('|' | '&'));
+
+            if is_blank_annotation
+                && position == AnnotationPosition::BlockPrefix
+                && render_facts.follows_separator
+                && next_annotation_is_own_line_comment
+            {
+                previous_was_blank_annotation = true;
+                continue;
+            }
+
             // format annotation itself
             annotation.format_node(annotation_id, f)?;
+
+            if is_blank_annotation {
+                previous_was_blank_annotation = true;
+                continue;
+            }
 
             // insert space / newline
             match position {

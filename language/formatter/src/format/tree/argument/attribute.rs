@@ -1,5 +1,4 @@
 use super::core::tree_attribute_value_id;
-use crate::chain::span_inline_char_bounds;
 use crate::collection::{collection_nodes_have_annotations, collection_value_should_force_break};
 use crate::expression::{is_complex_expression, is_expression_breakable, is_trivial_expression};
 use crate::{DestackFormatContext, DestackFormatter};
@@ -188,30 +187,6 @@ where
     InlineDoc: Format<DestackFormatContext<'ast>>,
     HuggedDoc: Format<DestackFormatContext<'ast>>,
 {
-    // evaluate inline overflow bounds
-    let line_width = usize::from(f.context().options.line_width);
-    let value_span = f.context().span(value_id);
-    let (inline_value_len, _) = span_inline_char_bounds(f.context(), value_span);
-    let inline_candidate_len = 3usize.saturating_add(inline_value_len);
-
-    // inline short-circuit for unannotated short values
-    let can_use_inline_short_circuit =
-        !f.context().has_annotation(value_id) && inline_candidate_len <= line_width;
-    if can_use_inline_short_circuit {
-        f.context()
-            .increment_counter("profile.jsx.attribute.inline.short_circuit", 1);
-        inline_format.format(f)?;
-        return Ok(());
-    }
-
-    // budget overflow selects hugged output
-    if inline_candidate_len > line_width {
-        f.context()
-            .increment_counter("profile.jsx.attribute.by_budget.hug", 1);
-        hugged_format.format(f)?;
-        return Ok(());
-    }
-
     // context-based default selection
     if f.context().has_annotation(value_id) {
         f.context()

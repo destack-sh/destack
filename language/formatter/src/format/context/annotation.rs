@@ -404,36 +404,6 @@ impl<'a> DestackFormatContext<'a> {
         );
     }
 
-    /// Return a cached inline call width hint for one call node.
-    #[inline]
-    pub fn lookup_call_inline_width_hint_without_static_arguments(
-        &self,
-        call_node_id: LocalNodeId<Expression>,
-    ) -> Option<Option<usize>> {
-        self.lookup_node_cache_value(
-            &self
-                .node_caches
-                .call_inline_width_hint_without_static_arguments,
-            call_node_id.id,
-        )
-    }
-
-    /// Store an inline call width hint for one call node.
-    #[inline]
-    pub fn store_call_inline_width_hint_without_static_arguments(
-        &self,
-        call_node_id: LocalNodeId<Expression>,
-        inline_width_hint_without_static_arguments: Option<usize>,
-    ) {
-        self.store_node_cache_value(
-            &self
-                .node_caches
-                .call_inline_width_hint_without_static_arguments,
-            call_node_id.id,
-            inline_width_hint_without_static_arguments,
-        );
-    }
-
     /// Compute annotation facts for one argument node.
     fn compute_argument_annotation_facts(
         &self,

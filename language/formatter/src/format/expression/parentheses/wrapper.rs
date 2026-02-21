@@ -1,6 +1,6 @@
 use super::super::{
     Declaration, DestackFormatContext, Expression, FunctionKind, LocalNodeId, NodeTree, NodeType,
-    TypeBinaryOperator,
+    TypeBinaryOperator, tree_literal_should_break,
 };
 use super::member::{
     expression_has_prefix_comment_or_doc_annotation_in_left_spine,
@@ -99,6 +99,21 @@ pub(crate) fn should_drop_parenthesized_expression_wrapper(
             && !parenthesized_has_leading_inner_newline(context, node_id, inner_expression_id)
             && expression_is_decorated_class_declaration(context, inner_expression_id);
         if should_drop_argument_decorated_class_wrapper {
+            return true;
+        }
+
+        // declarator tree wrappers can drop because declarator rhs does not need no-semi shielding
+        let should_drop_declarator_tree_wrapper = parent_type == NodeType::Declarator
+            && !context.has_annotation(node_id)
+            && matches!(
+                context.tree.get(inner_expression_id),
+                Expression::TreeExpression {
+                    arguments,
+                    elements,
+                    ..
+                } if !tree_literal_should_break(context, arguments, elements)
+            );
+        if should_drop_declarator_tree_wrapper {
             return true;
         }
 

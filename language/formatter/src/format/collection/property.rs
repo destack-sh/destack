@@ -122,7 +122,7 @@ pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
 }
 
 /// Return whether method signature source spans multiple lines before the body.
-fn method_signature_source_is_multiline(
+fn method_signature_is_multiline_before_body(
     context: &DestackFormatContext<'_>,
     node_span: Span,
     body: Option<LocalNodeId<Expression>>,
@@ -350,7 +350,7 @@ fn format_method_like<'ast>(
     signature: &FunctionSignature,
     body: Option<LocalNodeId<Expression>>,
     force_quote_keys: bool,
-    signature_source_is_multiline: bool,
+    signature_is_multiline_before_body: bool,
 ) -> FormatResult<()> {
     let generics = signature.generics.as_ref();
 
@@ -388,7 +388,7 @@ fn format_method_like<'ast>(
         && !should_expand_parameters
         && single_parameter_should_hug(f.context(), signature.dynamic_parameters[0])
         && !signature_return_type_is_multiline(f.context(), signature.return_type)
-        && !signature_source_is_multiline
+        && !signature_is_multiline_before_body
     {
         write!(f, [token("("), signature.dynamic_parameters[0], token(")")])?;
     } else {
@@ -488,11 +488,12 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                     body,
                 } => {
                     let force_quote_keys = should_force_quote_keys_for_property();
-                    let signature_source_is_multiline = method_signature_source_is_multiline(
-                        f.context(),
-                        f.context().span(node_id),
-                        *body,
-                    );
+                    let signature_is_multiline_before_body =
+                        method_signature_is_multiline_before_body(
+                            f.context(),
+                            f.context().span(node_id),
+                            *body,
+                        );
                     format_method_like(
                         f,
                         *modifiers,
@@ -500,7 +501,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                         signature,
                         *body,
                         force_quote_keys,
-                        signature_source_is_multiline,
+                        signature_is_multiline_before_body,
                     )?;
                 }
                 Property::Spread { modifiers, value } => {
@@ -609,11 +610,12 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     body,
                 } => {
                     let force_quote_keys = should_force_quote_keys_for_member(f, node_id);
-                    let signature_source_is_multiline = method_signature_source_is_multiline(
-                        f.context(),
-                        f.context().span(node_id),
-                        *body,
-                    );
+                    let signature_is_multiline_before_body =
+                        method_signature_is_multiline_before_body(
+                            f.context(),
+                            f.context().span(node_id),
+                            *body,
+                        );
                     format_method_like(
                         f,
                         *modifiers,
@@ -621,7 +623,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                         signature,
                         *body,
                         force_quote_keys,
-                        signature_source_is_multiline,
+                        signature_is_multiline_before_body,
                     )?;
                 }
                 Member::Embed { modifiers, value } => {

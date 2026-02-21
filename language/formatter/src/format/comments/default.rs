@@ -277,27 +277,46 @@ fn try_attach_trailing_line_comment(
         }
     }
 
-    // line comments after ternary `:` stay on the then branch expression
+    // line comments after ternary `:` stay with the consequent branch boundary
     if facts.comment_is_line
         && !facts.has_leading_newline
         && facts.token_before_is(ast::TokenType::Colon)
         && !facts.token_before_is_return_type_colon
-        && let Some(target_node) =
-            resolve_comment_seam_owner(context, seam_owner_cache).or(left_owner)
-        && tree.get_node_type(target_node) == NodeType::Expression
+        && let Some(target_node) = left_owner
     {
-        let target_expression = LocalNodeId::<Expression>::new(target_node);
-        if let Expression::If {
-            kind: ast::IfKind::Ternary,
-            then_expression,
-            ..
-        } = tree.get(target_expression)
-        {
-            return Some((
-                Some(then_expression.id),
-                AnnotationPosition::LinePostfixBoundary,
-            ));
+        let target_node =
+            normalize_owner_with_shared_end(tree, parents, target_node, token_before_span);
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
+    }
+
+    // block comments immediately before ternary `:` stay on the branch seam
+    if facts.comment_is_star
+        && facts.token_after_is(ast::TokenType::Colon)
+        && !facts.token_before_is_return_type_colon
+        && let Some(left_target_node) = left_owner
+        && tree.get_node_type(left_target_node) == NodeType::Expression
+    {
+        let right_prefers_tree_expression = right_owner.is_some_and(|target_node| {
+            tree.get_node_type(target_node) == NodeType::Expression
+                && matches!(
+                    tree.get(LocalNodeId::<Expression>::new(target_node)),
+                    Expression::TreeExpression { .. }
+                )
+        });
+        if right_prefers_tree_expression && let Some(target_node) = right_owner {
+            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+            return Some((Some(target_node), AnnotationPosition::LinePrefix));
         }
+
+        let target_expression = LocalNodeId::<Expression>::new(left_target_node);
+        if let Expression::Parenthesized { expression } = tree.get(target_expression) {
+            let target_node = normalize_formatter_trivia_target_owner(tree, expression.id);
+            return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
+        }
+
+        let target_node = normalize_formatter_trivia_target_owner(tree, left_target_node);
+        return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
     }
 
     // line comments before tree-expression container `}` stay on the container value expression

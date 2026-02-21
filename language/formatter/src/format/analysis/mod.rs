@@ -21,17 +21,17 @@ pub(crate) use call::{
     call_arguments_use_single_callback_argument_inline,
     call_arguments_use_single_simple_argument_inline,
     call_arguments_use_single_simple_argument_short_circuit, can_consider_hug_last_call_arguments,
-    resolve_call_argument_layout_facts, resolve_hug_last_call_argument_layout,
-    resolve_inline_call_width_hint_without_static_arguments,
+    leading_arguments_are_compact_simple_unannotated, resolve_call_argument_layout_facts,
+    resolve_hug_last_call_argument_layout,
 };
 pub(crate) use classify::{
     ArgumentSimplicityOptions, argument_has_line_comment_annotation,
     argument_has_multiline_prefix_annotation, argument_has_non_blank_annotation,
-    argument_has_source_separator_line_comment_annotation, argument_is_collection_literal,
+    argument_has_separator_line_comment_annotation, argument_is_collection_literal,
     argument_is_inline_closure_cast_object, argument_is_interpolated_template_literal,
-    argument_is_simple_with_options, call_arguments_are_multiline_in_source,
+    argument_is_simple_with_options, call_arguments_are_multiline_span,
     call_arguments_have_boundary_comments, call_arguments_preserve_blank_line_between,
     call_has_leading_block_callback_with_simple_tail, call_has_non_blank_infix_annotation,
-    call_has_static_arguments, is_call_like_argument, is_simple_static_argument,
-    is_tree_attribute_expression,
+    call_has_react_hook_like_callback_deps_array, call_has_static_arguments, is_call_like_argument,
+    is_simple_static_argument, is_tree_attribute_expression,
 };

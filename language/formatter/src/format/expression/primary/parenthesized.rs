@@ -4,14 +4,14 @@ use crate::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
 };
 use crate::expression::{
-    BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult, LocalNodeId,
-    NodeType, ParenthesizedDropPolicy, block_indent, collect_parenthesized_boundary_comments,
-    format_expression, format_with, group, hard_line_break, is_assignment_left_target,
-    is_call_like_argument, is_chain_root, is_expression_chain,
+    BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult, IfCondition,
+    IfKind, LocalNodeId, NodeType, ParenthesizedDropPolicy, block_indent,
+    collect_parenthesized_boundary_comments, format_expression, format_with, group,
+    hard_line_break, indent, is_assignment_left_target, is_call_like_argument, is_expression_chain,
     parenthesized_has_leading_inner_comments, parenthesized_has_leading_inner_newline,
     parenthesized_has_leading_inner_trivia, parenthesized_should_drop,
     should_hoist_parenthesized_inner_cast_prefix_comments, soft_block_indent, space, token,
-    tree_literal_should_break,
+    transparent_inner_expression, tree_literal_should_break,
 };
 use destack_ast::AnnotationPosition;
 use destack_fir::format::Buffer;
@@ -20,6 +20,41 @@ use destack_fir::{format_args, write};
 // parenthesized assignment target thresholds
 const PAREN_ASSIGNMENT_OBJECT_EXPAND_MIN_PROPERTIES: usize = 3;
 const PAREN_ASSIGNMENT_ARRAY_EXPAND_MIN_ELEMENTS: usize = 4;
+
+/// Return whether one await-like expression prefers multiline wrapper formatting.
+fn await_like_expression_prefers_multiline_wrapper(
+    context: &DestackFormatContext<'_>,
+    expression: &Expression,
+) -> bool {
+    let operand_id = match expression {
+        Expression::Await { expression }
+        | Expression::AwaitMaybe { expression }
+        | Expression::Comptime { body: expression } => *expression,
+        _ => return false,
+    };
+    let operand_id = transparent_inner_expression(context, operand_id);
+
+    let prefers_multiline = match context.tree.get(operand_id) {
+        Expression::TypeBinary { .. }
+        | Expression::Member { .. }
+        | Expression::PrivateMember { .. }
+        | Expression::Index { .. } => true,
+        Expression::Call { left, .. } => {
+            let call_left = context.tree.get(*left);
+            matches!(
+                call_left,
+                Expression::Member { .. }
+                    | Expression::PrivateMember { .. }
+                    | Expression::Index { .. }
+                    | Expression::TypeBinary { .. }
+                    | Expression::Parenthesized { .. }
+            )
+        }
+        _ => false,
+    };
+
+    prefers_multiline
+}
 
 /// Format a parenthesized primary expression.
 pub(super) fn format_primary_parenthesized_expression<'ast>(
@@ -76,13 +111,6 @@ pub(super) fn format_primary_parenthesized_expression<'ast>(
         };
         let parent_is_postfix_continuation =
             expression_parent_is_postfix_continuation(f.context(), node_id);
-        let parent_is_member_like_postfix_continuation =
-            expression_parent_is_member_like_postfix_continuation(f.context(), node_id);
-        let is_await_wrapped_chain = matches!(
-            tree.get(expression_id),
-            Expression::Await { expression } | Expression::AwaitMaybe { expression }
-                if is_expression_chain(tree, *expression) || is_chain_root(tree, *expression)
-        );
 
         if should_expand_assignment_target {
             write!(
@@ -195,10 +223,29 @@ pub(super) fn format_primary_parenthesized_expression<'ast>(
             } else {
                 write!(f, [token("("), expression, token(")")])?;
             }
+        } else if matches!(
+            inner_expression,
+            Expression::Binary {
+                operator: BinaryOperator::Coalesce,
+                ..
+            }
+        ) {
+            let should_keep_multiline_indent = f.context().node_has_newline(expression_id);
+            if should_keep_multiline_indent {
+                write!(f, [token("("), indent(&expression), token(")")])?;
+            } else {
+                write!(f, [token("("), expression, token(")")])?;
+            }
         } else if has_parenthesized_leading_inner_trivia {
             if has_parenthesized_leading_inner_newline {
-                let should_keep_multiline = has_parenthesized_leading_inner_comments
-                    || (is_await_wrapped_chain && parent_is_member_like_postfix_continuation);
+                let should_keep_multiline = has_parenthesized_leading_inner_comments;
+                let should_keep_multiline =
+                    should_keep_multiline || expression_is_ternary_condition(f.context(), node_id);
+                let should_keep_multiline = should_keep_multiline
+                    || await_like_expression_prefers_multiline_wrapper(
+                        f.context(),
+                        inner_expression,
+                    );
                 if !should_keep_multiline {
                     write!(f, [token("("), expression, token(")")])?;
                     let boundary_comments = collect_parenthesized_boundary_comments(
@@ -225,13 +272,9 @@ pub(super) fn format_primary_parenthesized_expression<'ast>(
                 write!(f, [token("("), expression, token(")")])?;
             }
         } else {
-            let should_expand_parenthesized_chain = parent_is_postfix_continuation
-                && ((is_await_wrapped_chain && parent_is_member_like_postfix_continuation)
-                    || (is_expression_chain(tree, expression_id)
-                        && (f.context().node_has_newline(node_id)
-                            || f.context().node_has_newline(expression_id))));
-
-            if should_expand_parenthesized_chain {
+            let should_expand_parenthesized_await_postfix = parent_is_postfix_continuation
+                && await_like_expression_prefers_multiline_wrapper(f.context(), inner_expression);
+            if should_expand_parenthesized_await_postfix {
                 write!(
                     f,
                     [
@@ -242,7 +285,24 @@ pub(super) fn format_primary_parenthesized_expression<'ast>(
                     ]
                 )?;
             } else {
-                write!(f, [token("("), expression, token(")")])?;
+                let should_expand_parenthesized_chain = parent_is_postfix_continuation
+                    && is_expression_chain(tree, expression_id)
+                    && (f.context().node_has_newline(node_id)
+                        || f.context().node_has_newline(expression_id));
+
+                if should_expand_parenthesized_chain {
+                    write!(
+                        f,
+                        [
+                            token("("),
+                            block_indent(&group(expression).should_expand(true)),
+                            hard_line_break(),
+                            token(")")
+                        ]
+                    )?;
+                } else {
+                    write!(f, [token("("), expression, token(")")])?;
+                }
             }
         }
 
@@ -254,6 +314,35 @@ pub(super) fn format_primary_parenthesized_expression<'ast>(
     }
 
     Ok(())
+}
+
+/// Return whether one expression is the parenthesized condition of a ternary expression.
+fn expression_is_ternary_condition(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
+    let Expression::If {
+        kind: IfKind::Ternary,
+        condition,
+        ..
+    } = parent_expression
+    else {
+        return false;
+    };
+
+    let IfCondition::Expression { condition } = condition else {
+        return false;
+    };
+
+    condition.id == node_id.id
 }
 
 /// Return whether one parenthesized expression continues into a postfix chain parent.
@@ -277,29 +366,6 @@ fn expression_parent_is_postfix_continuation(
                     | Expression::New { .. }
                     | Expression::Must { .. }
                     | Expression::Maybe { .. }
-            )
-        })
-}
-
-/// Return whether one parenthesized expression continues into a member-like postfix parent.
-fn expression_parent_is_member_like_postfix_continuation(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    context
-        .parent(node_id)
-        .is_some_and(|(parent_id, parent_type)| {
-            if parent_type != NodeType::Expression {
-                return false;
-            }
-
-            matches!(
-                context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
-                Expression::Member { .. }
-                    | Expression::PrivateMember { .. }
-                    | Expression::Index { .. }
-                    | Expression::Call { .. }
-                    | Expression::New { .. }
             )
         })
 }

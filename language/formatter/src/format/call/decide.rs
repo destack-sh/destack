@@ -5,14 +5,14 @@ use crate::analysis::{
     argument_has_line_comment_annotation, argument_is_collection_literal,
     argument_is_interpolated_template_literal, call_arguments_use_single_callback_argument_inline,
     call_arguments_use_single_simple_argument_inline,
-    call_has_leading_block_callback_with_simple_tail, can_consider_hug_last_call_arguments,
-    collect_call_argument_comment_profile, resolve_hug_last_call_argument_layout,
-    resolve_inline_call_width_hint_without_static_arguments,
+    call_has_leading_block_callback_with_simple_tail, call_has_react_hook_like_callback_deps_array,
+    can_consider_hug_last_call_arguments, collect_call_argument_comment_profile,
+    leading_arguments_are_compact_simple_unannotated, resolve_hug_last_call_argument_layout,
     resolve_regular_call_argument_expansion_profile,
 };
 use crate::expression::{
-    Argument, DestackFormatContext, Expression, LocalNodeId, argument_is_template_literal,
-    argument_value_id,
+    Argument, DestackFormatContext, Expression, LocalNodeId, argument_is_block_callback,
+    argument_is_template_literal, argument_value_id,
 };
 
 /// Decide default list layout after layout checks.
@@ -65,37 +65,21 @@ fn call_argument_trailing_collection_comment_force_expand(
 /// Return whether default list rendering should use trailing collection expansion.
 fn call_arguments_use_trailing_collection_expanded_layout(
     context: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
-    planner_state: CallArgumentPlannerState,
     force_expand: bool,
+    has_block_callback_argument: bool,
     has_any_argument_annotation: bool,
     has_line_comment_annotations: bool,
     has_boundary_comments: bool,
 ) -> bool {
-    let inline_width_hint = planner_state
-        .inline_call_width_hint_without_static_arguments
-        .or_else(|| {
-            if planner_state.call_has_static_arguments {
-                return None;
-            }
-
-            resolve_inline_call_width_hint_without_static_arguments(
-                context,
-                call_node_id,
-                planner_state.call_has_static_arguments,
-            )
-        });
-    let exceeds_line_width = inline_width_hint
-        .is_some_and(|inline_width_hint| inline_width_hint > planner_state.line_width);
-    let should_expand_trailing_collection = force_expand || exceeds_line_width;
     let has_trailing_collection_argument = dynamic_arguments
         .last()
         .copied()
         .is_some_and(|argument_id| argument_is_collection_literal(context, argument_id));
-    if !should_expand_trailing_collection
+    if !force_expand
         || dynamic_arguments.len() <= 1
         || !has_trailing_collection_argument
+        || has_block_callback_argument
         || has_any_argument_annotation
         || has_line_comment_annotations
         || has_boundary_comments
@@ -104,6 +88,39 @@ fn call_arguments_use_trailing_collection_expanded_layout(
     }
 
     !trailing_collection_argument_has_comment_signal(context, dynamic_arguments)
+}
+
+/// Return whether any call argument is a block callback.
+fn call_arguments_have_block_callback(
+    context: &DestackFormatContext<'_>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    dynamic_arguments
+        .iter()
+        .copied()
+        .any(|argument_id| argument_is_block_callback(context, argument_id))
+}
+
+/// Return whether structural trailing collection layout should force expansion.
+fn call_arguments_force_expand_for_structural_trailing_collection_layout(
+    context: &DestackFormatContext<'_>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    trailing_collection_argument: bool,
+    has_any_argument_annotation: bool,
+    has_line_comment_annotations: bool,
+    has_boundary_comments: bool,
+) -> bool {
+    if dynamic_arguments.len() < 3
+        || !trailing_collection_argument
+        || has_any_argument_annotation
+        || has_line_comment_annotations
+        || has_boundary_comments
+        || trailing_collection_argument_has_comment_signal(context, dynamic_arguments)
+    {
+        return false;
+    }
+
+    leading_arguments_are_compact_simple_unannotated(context, dynamic_arguments)
 }
 
 /// Return whether the trailing collection argument has non blank comment signals.
@@ -189,8 +206,6 @@ pub(super) fn decide_post_hugged_call_argument_layout(
         context,
         dynamic_arguments,
         SingleSimpleArgumentInlineOptions {
-            line_width: planner_state.line_width,
-            call_has_static_arguments: planner_state.call_has_static_arguments,
             force_expand_single_long_with_static_arguments: planner_state
                 .force_expand_single_long_with_static_arguments,
             force_expand_single_collection_for_type_binary_callee: planner_state
@@ -198,7 +213,6 @@ pub(super) fn decide_post_hugged_call_argument_layout(
             single_argument_force_expand: planner_state.single_argument_force_expand,
         },
         planner_state.argument_shape,
-        planner_state.inline_call_width_hint_without_static_arguments,
     );
     if use_single_simple_argument {
         context.increment_counter("call.arguments.path.single_simple", 1);
@@ -214,6 +228,14 @@ pub(super) fn decide_post_hugged_call_argument_layout(
     ) {
         context.increment_counter("call.arguments.path.single_template_inline", 1);
         return CallArgumentLayoutDecision::InlineSingle;
+    }
+
+    // keep hook-like callback plus deps-array call arguments in inline join mode
+    if !has_boundary_comments
+        && call_has_react_hook_like_callback_deps_array(context, dynamic_arguments)
+    {
+        context.increment_counter("call.arguments.path.react_hook_like_inline", 1);
+        return CallArgumentLayoutDecision::InlineAll;
     }
 
     // keep leading callback plus short tail calls inline
@@ -249,8 +271,20 @@ pub(super) fn decide_post_hugged_call_argument_layout(
     };
     let has_call_infix_annotations = expansion_profile.has_call_infix_annotations;
     let trailing_collection_argument = expansion_profile.trailing_collection_argument;
+    let has_block_callback_argument =
+        call_arguments_have_block_callback(context, dynamic_arguments);
+    let force_expand_for_structural_trailing_collection =
+        call_arguments_force_expand_for_structural_trailing_collection_layout(
+            context,
+            dynamic_arguments,
+            trailing_collection_argument,
+            has_any_argument_annotation,
+            has_line_comment_annotations,
+            has_boundary_comments,
+        );
     let force_expand = expansion_profile.force_expand
         || has_boundary_comments
+        || force_expand_for_structural_trailing_collection
         || call_argument_trailing_collection_comment_force_expand(
             context,
             dynamic_arguments,
@@ -271,7 +305,6 @@ pub(super) fn decide_post_hugged_call_argument_layout(
             context,
             call_node_id,
             dynamic_arguments,
-            planner_state,
             force_expand,
             trailing_collection_argument,
         ) {
@@ -283,10 +316,9 @@ pub(super) fn decide_post_hugged_call_argument_layout(
 
     if call_arguments_use_trailing_collection_expanded_layout(
         context,
-        call_node_id,
         dynamic_arguments,
-        planner_state,
         force_expand,
+        has_block_callback_argument,
         has_any_argument_annotation,
         has_line_comment_annotations,
         has_boundary_comments,

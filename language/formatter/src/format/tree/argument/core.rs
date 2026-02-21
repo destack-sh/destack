@@ -6,10 +6,10 @@ use crate::analysis::scan::{first_non_trivia_token_in_span, last_non_trivia_toke
 use crate::expression::{
     Annotation, AnnotationPosition, Argument, DestackFormatContext, DestackFormatter, Expression,
     FormatResult, IfCondition, IfKind, LocalNodeId, NodeTree, TokenType, argument_value,
-    block_indent, group, hard_line_break, soft_block_indent, space, text, token,
+    block_indent, group, hard_line_break, soft_block_indent, space, token,
     transparent_inner_expression,
 };
-use destack_ast::{Declaration, FunctionKind, NodeType, ScalarLiteral};
+use destack_ast::{Declaration, FunctionKind, ScalarLiteral};
 use destack_fir::format::{Buffer, Format};
 use destack_fir::{format_args, write};
 
@@ -270,92 +270,6 @@ fn tree_named_attribute_syntax_style(
     TreeNamedAttributeSyntaxStyle::EqualsUnbraced
 }
 
-/// Return whether one tree child argument is a braced whitespace scalar.
-fn tree_argument_is_braced_whitespace_scalar(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    if !tree_argument_is_wrapped_in_braces(context, argument_id) {
-        return false;
-    }
-
-    let Argument::Positional { value, .. } = context.tree.get(argument_id) else {
-        return false;
-    };
-
-    match context.tree.get(*value) {
-        Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
-            let content = context.strings.get(*string_id);
-            content.chars().all(char::is_whitespace)
-        }
-        Expression::ScalarLiteral(ScalarLiteral::Character(value)) => value.is_whitespace(),
-        _ => false,
-    }
-}
-
-/// Return whether one tree child argument is a non-whitespace text scalar.
-fn tree_argument_is_non_whitespace_text_scalar(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    let Argument::Positional { value, .. } = context.tree.get(argument_id) else {
-        return false;
-    };
-
-    match context.tree.get(*value) {
-        Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
-            let content = context.strings.get(*string_id);
-            content.chars().any(|character| !character.is_whitespace())
-        }
-        Expression::ScalarLiteral(ScalarLiteral::Character(value)) => !value.is_whitespace(),
-        _ => false,
-    }
-}
-
-/// Return whether one braced whitespace tree child should render as text space.
-fn tree_whitespace_expression_renders_as_text(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    if !tree_argument_is_braced_whitespace_scalar(context, argument_id) {
-        return false;
-    }
-
-    let Some((parent_id, parent_type)) = context.parent(argument_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-    let Expression::TreeExpression {
-        elements: Some(elements),
-        ..
-    } = context.tree.get(parent_expression_id)
-    else {
-        return false;
-    };
-
-    let Some(element_index) = elements
-        .iter()
-        .position(|element_id| *element_id == argument_id)
-    else {
-        return false;
-    };
-
-    let previous_is_text = element_index
-        .checked_sub(1)
-        .and_then(|index| elements.get(index).copied())
-        .is_some_and(|element_id| tree_argument_is_non_whitespace_text_scalar(context, element_id));
-    let next_is_text = elements
-        .get(element_index + 1)
-        .copied()
-        .is_some_and(|element_id| tree_argument_is_non_whitespace_text_scalar(context, element_id));
-
-    previous_is_text || next_is_text
-}
-
 impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
@@ -409,12 +323,6 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                 let value_expr = f.context().tree.get(*value);
                 let argument_is_braced =
                     tree_argument_is_wrapped_in_braces(f.context(), self.argument_id);
-                let argument_whitespace_renders_as_text = !f
-                    .context()
-                    .options
-                    .language_type
-                    .is_destack()
-                    && tree_whitespace_expression_renders_as_text(f.context(), self.argument_id);
                 let force_multiline_braced_expression = tree_argument_has_line_comment_annotation(
                     f.context(),
                     self.argument_id,
@@ -427,9 +335,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                             | Expression::TreeExpression { .. }
                     );
                 if needs_braces {
-                    if argument_whitespace_renders_as_text {
-                        write!(f, [text(" ")])?;
-                    } else if matches!(value_expr, Expression::Stub) {
+                    if matches!(value_expr, Expression::Stub) {
                         write!(f, [token("{")])?;
                         let mut wrote_stub_comment =
                             format_inline_stub_expression_comments(f, *value)?;

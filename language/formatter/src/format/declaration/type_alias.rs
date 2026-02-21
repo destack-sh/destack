@@ -318,46 +318,23 @@ pub(super) fn format_type_alias_declaration<'ast>(
         )
     });
 
-    // expand and indent the value
-    let format_indented = format_with(|f| {
-        group(&format_args![
-            header,
-            space(),
-            token("="),
-            block_indent(&value_id)
-        ])
-        .format(f)
-    });
-
     let tree = f.context().tree;
     let value_expression = tree.get(value_id);
     let value_has_prefix_annotation =
         expression_has_prefix_annotation_in_left_spine(f.context(), value_id);
     let value_has_doc_like_block_prefix_annotation =
         expression_has_doc_like_block_prefix_annotation(f.context(), value_id);
-    let declaration_span = f.context().span(node_id);
-    let value_span = f.context().span(value_id);
-    let leading_value_span = Span::new(value_span.file, declaration_span.start, value_span.start);
-    let inline_header_len = f.context().span_char_len(leading_value_span);
-    let inline_value_len = f.context().span_char_len(value_span);
-    let inline_total_len = inline_header_len.saturating_add(inline_value_len);
-    let line_width = usize::from(f.context().options.line_width);
-    let value_has_newline = f.context().has_newline(value_span);
-    let inline_is_impossible = inline_total_len > line_width;
     let should_break_template_literal_type_after_equals = match value_expression {
-        Expression::TypeTemplateLiteral { spans, .. } => {
-            let has_conditional_interpolation = spans.iter().any(|span_id| {
-                matches!(
-                    tree.get(*span_id),
-                    Expression::TypeConditional { .. }
-                        | Expression::If {
-                            kind: IfKind::Ternary,
-                            ..
-                        }
-                )
-            });
-            has_conditional_interpolation && inline_total_len > line_width
-        }
+        Expression::TypeTemplateLiteral { spans, .. } => spans.iter().any(|span_id| {
+            matches!(
+                tree.get(*span_id),
+                Expression::TypeConditional { .. }
+                    | Expression::If {
+                        kind: IfKind::Ternary,
+                        ..
+                    }
+            )
+        }),
         _ => false,
     };
     let should_break_after_equals = match value_expression {
@@ -373,46 +350,24 @@ pub(super) fn format_type_alias_declaration<'ast>(
         }
         _ => false,
     };
+
     if inline_prefix_comment_cluster.is_some() {
         format_inline.format(f)?;
     } else if should_break_after_equals || should_break_template_literal_type_after_equals {
         format_soft_break.format(f)?;
     } else if is_expression_breakable(tree, tree.get(value_id)) {
-        if !value_has_prefix_annotation && !value_has_newline && inline_total_len <= line_width {
+        if value_has_prefix_annotation && value_has_doc_like_block_prefix_annotation {
             format_inline.format(f)?;
-        } else if value_has_prefix_annotation {
-            if value_has_doc_like_block_prefix_annotation {
-                format_inline.format(f)?;
-            } else {
-                let can_inline_prefixed_value =
-                    !value_has_newline && inline_total_len <= line_width;
-                if can_inline_prefixed_value {
-                    format_inline.format(f)?;
-                } else {
-                    // keep `=` inline and let the value shape decide line breaks
-                    format_inline.format(f)?;
-                }
-            }
-        } else if inline_is_impossible {
-            // long conditional like type values can skip extra inline attempts
+        } else if value_prefers_inline_after_equals {
+            format_inline.format(f)?;
+        } else {
             format_inline_expanded.format(f)?;
-        } else {
-            let can_inline = !value_has_newline && inline_total_len <= line_width;
-            if can_inline {
-                format_inline.format(f)?;
-            } else {
-                format_inline_expanded.format(f)?;
-            }
         }
-    } else if inline_is_impossible {
-        format_indented.format(f)?;
     } else {
-        let can_inline = inline_total_len <= line_width
-            && (!value_has_newline || value_prefers_inline_after_equals);
-        if can_inline {
+        if value_has_prefix_annotation || value_prefers_inline_after_equals {
             format_inline.format(f)?;
         } else {
-            format_indented.format(f)?;
+            format_soft_break.format(f)?;
         }
     }
 

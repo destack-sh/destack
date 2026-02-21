@@ -27,6 +27,28 @@ fn annotation_next_token_is_on_same_line(
     false
 }
 
+/// Return the first non-whitespace token kind after one annotation.
+fn annotation_next_non_whitespace_token_type(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Option<TokenType> {
+    let span = context.annotation_span(annotation_id);
+    let tokens = context.tokens;
+    let mut index = tokens.partition_point(|token| token.span.start < span.end);
+
+    while let Some(token) = tokens.get(index).copied() {
+        match token.token.ty {
+            TokenType::Whitespace | TokenType::Newline => {
+                index += 1;
+                continue;
+            }
+            token_type => return Some(token_type),
+        }
+    }
+
+    None
+}
+
 /// Return whether one annotation should not force multiline chain breaking.
 pub(super) fn chain_annotation_is_inline_non_breaking(
     context: &DestackFormatContext<'_>,
@@ -66,6 +88,13 @@ pub(super) fn chain_annotation_is_inline_non_breaking(
     }
 
     if position == AnnotationPosition::LinePostfixBoundary {
+        return true;
+    }
+
+    if position == AnnotationPosition::LinePostfix
+        && annotation_next_non_whitespace_token_type(context, annotation_id)
+            == Some(TokenType::Maybe)
+    {
         return true;
     }
 

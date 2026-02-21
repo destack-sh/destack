@@ -1,12 +1,11 @@
 use super::analyze::{
     argument_has_callback_blocking_comment_annotation, argument_is_plain_call_argument,
     call_force_expand_single_collection_for_type_binary_callee,
-    call_inline_width_hint_without_static_arguments,
 };
 use super::classify::{
     ArgumentSimplicityOptions, argument_has_leading_prefix_annotation_outside_span,
     argument_has_non_blank_annotation, argument_is_collection_literal, argument_is_reference_like,
-    argument_is_simple_with_options, call_arguments_are_multiline_in_source,
+    argument_is_simple_with_options, call_arguments_are_multiline_span,
     call_has_non_blank_infix_annotation, call_has_static_arguments,
     call_should_force_hug_test_like_callback,
 };
@@ -77,8 +76,6 @@ pub(crate) fn call_has_call_chain_parent(
 /// Return whether a call can short-circuit to single-argument inline layout.
 #[derive(Clone, Copy)]
 pub(crate) struct SingleSimpleArgumentShortCircuitOptions {
-    /// The line width budget.
-    pub(crate) line_width: usize,
     /// Whether the call has static type arguments.
     pub(crate) call_has_static_arguments: bool,
     /// Whether the call node has infix annotations.
@@ -432,7 +429,7 @@ fn build_scanned_call_argument_layout_facts(
             dynamic_arguments,
             state.complexity.trailing_collection_argument,
         );
-    let is_multiline_in_source = call_arguments_are_multiline_in_source(context, dynamic_arguments);
+    let is_multiline_in_source = call_arguments_are_multiline_span(context, dynamic_arguments);
 
     CallArgumentLayoutFacts {
         has_call_infix_annotations,
@@ -558,19 +555,12 @@ pub(crate) fn call_arguments_use_single_simple_argument_short_circuit(
     dynamic_arguments: &[LocalNodeId<Argument>],
     options: SingleSimpleArgumentShortCircuitOptions,
     shape: CallArgumentShape,
-    inline_call_width_hint_without_static_arguments: Option<usize>,
 ) -> bool {
     if dynamic_arguments.len() != 1
         || options.call_has_static_arguments
         || options.has_call_infix_annotations
         || options.single_argument_force_expand
         || shape.is_multiline_in_source
-    {
-        return false;
-    }
-
-    if inline_call_width_hint_without_static_arguments
-        .is_none_or(|inline_width_hint| inline_width_hint > options.line_width)
     {
         return false;
     }
@@ -622,10 +612,6 @@ pub(crate) fn call_arguments_use_single_callback_argument_inline(
 /// Return whether a single simple argument can stay inline.
 #[derive(Clone, Copy)]
 pub(crate) struct SingleSimpleArgumentInlineOptions {
-    /// The line width budget.
-    pub(crate) line_width: usize,
-    /// Whether the call has static type arguments.
-    pub(crate) call_has_static_arguments: bool,
     /// Whether single long static arguments force expansion.
     pub(crate) force_expand_single_long_with_static_arguments: bool,
     /// Whether single collection arguments force expansion for type-binary callees.
@@ -640,7 +626,6 @@ pub(crate) fn call_arguments_use_single_simple_argument_inline(
     dynamic_arguments: &[LocalNodeId<Argument>],
     options: SingleSimpleArgumentInlineOptions,
     shape: CallArgumentShape,
-    inline_call_width_hint_without_static_arguments: Option<usize>,
 ) -> bool {
     if dynamic_arguments.len() != 1
         || options.force_expand_single_long_with_static_arguments
@@ -662,21 +647,13 @@ pub(crate) fn call_arguments_use_single_simple_argument_inline(
     let value_id = argument_value_id(context.tree, argument_id);
     let value_id = transparent_inner_expression(context, value_id);
     let value = context.tree.get(value_id);
-    let can_stay_inline = if options.call_has_static_arguments {
-        true
-    } else {
-        inline_call_width_hint_without_static_arguments
-            .is_none_or(|inline_width_hint| inline_width_hint <= options.line_width)
-    };
 
-    is_trivial_expression(context.tree, value) && can_stay_inline
+    is_trivial_expression(context.tree, value)
 }
 
 /// Store shared call argument planning inputs.
 #[derive(Clone, Copy)]
 pub(crate) struct CallArgumentPlannerBaseState {
-    /// The configured line width.
-    pub(crate) line_width: usize,
     /// Whether the call has static type arguments.
     pub(crate) call_has_static_arguments: bool,
     /// Whether the call has non-blank infix annotations.
@@ -688,10 +665,6 @@ pub(crate) struct CallArgumentPlannerBaseState {
 /// Store shared call argument planning inputs.
 #[derive(Clone, Copy)]
 pub(crate) struct CallArgumentPlannerState {
-    /// The configured line width.
-    pub(crate) line_width: usize,
-    /// Whether the call has static type arguments.
-    pub(crate) call_has_static_arguments: bool,
     /// Whether the call has non-blank infix annotations.
     pub(crate) has_call_infix_annotations: bool,
     /// Whether the single argument should force expanded list layout.
@@ -700,39 +673,10 @@ pub(crate) struct CallArgumentPlannerState {
     pub(crate) force_expand_single_long_with_static_arguments: bool,
     /// Whether one single collection argument in type-binary callee should force expansion.
     pub(crate) force_expand_single_collection_for_type_binary_callee: bool,
-    /// Estimated inline call width hint for plain dynamic calls.
-    pub(crate) inline_call_width_hint_without_static_arguments: Option<usize>,
     /// One-pass argument shape facts.
     pub(crate) argument_shape: CallArgumentShape,
 }
 
-/// Resolve and cache the inline call width hint for dynamic-only calls.
-pub(crate) fn resolve_inline_call_width_hint_without_static_arguments(
-    context: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    call_has_static_arguments: bool,
-) -> Option<usize> {
-    if let Some(cached) =
-        context.lookup_call_inline_width_hint_without_static_arguments(call_node_id)
-    {
-        context.increment_counter("call.arguments.inline_width_hint.cache.hits", 1);
-        return cached;
-    }
-    context.increment_counter("call.arguments.inline_width_hint.cache.misses", 1);
-
-    let inline_call_width_hint_without_static_arguments =
-        call_inline_width_hint_without_static_arguments(
-            context,
-            call_node_id,
-            call_has_static_arguments,
-        );
-    context.store_call_inline_width_hint_without_static_arguments(
-        call_node_id,
-        inline_call_width_hint_without_static_arguments,
-    );
-
-    inline_call_width_hint_without_static_arguments
-}
 pub(crate) enum HugLastCallArgumentLayout {
     /// Keep the argument list inline.
     Inline,
@@ -811,16 +755,6 @@ fn hug_last_tail_flags(
     )
 }
 
-/// Return whether hug-last can inline by fitting within the configured line width.
-fn hug_last_can_inline_by_width(
-    force_expand: bool,
-    inline_call_width_hint: Option<usize>,
-    line_width: usize,
-) -> bool {
-    !force_expand
-        && inline_call_width_hint.is_some_and(|inline_width_hint| inline_width_hint <= line_width)
-}
-
 /// Return whether hug-last can inline callback tails with compact leading arguments.
 fn hug_last_can_inline_callback_tail(
     context: &DestackFormatContext<'_>,
@@ -838,29 +772,9 @@ pub(crate) fn resolve_hug_last_call_argument_layout(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
-    planner_state: CallArgumentPlannerState,
     force_expand: bool,
     trailing_collection_argument: bool,
 ) -> Option<HugLastCallArgumentLayout> {
-    // keep cached inline length and lazily resolve when needed
-    let mut inline_call_width_hint_without_static_arguments =
-        planner_state.inline_call_width_hint_without_static_arguments;
-
-    let mut resolve_inline_call_len = || {
-        if inline_call_width_hint_without_static_arguments.is_none()
-            && !planner_state.call_has_static_arguments
-        {
-            inline_call_width_hint_without_static_arguments =
-                resolve_inline_call_width_hint_without_static_arguments(
-                    context,
-                    call_node_id,
-                    planner_state.call_has_static_arguments,
-                );
-        }
-
-        inline_call_width_hint_without_static_arguments
-    };
-
     // apply forced hug-last policy first
     if call_arguments_force_hug_last_inline(
         context,
@@ -869,17 +783,6 @@ pub(crate) fn resolve_hug_last_call_argument_layout(
         trailing_collection_argument,
     ) {
         context.increment_counter("call.arguments.path.hug_last_forced", 1);
-        return Some(HugLastCallArgumentLayout::Inline);
-    }
-
-    // prefer explicit width-fit inline when line fit is known
-    if hug_last_can_inline_by_width(
-        force_expand,
-        resolve_inline_call_len(),
-        planner_state.line_width,
-    ) {
-        context.increment_counter("call.arguments.hug_last.width_inline", 1);
-        context.increment_counter("call.arguments.path.hug_last.width_inline", 1);
         return Some(HugLastCallArgumentLayout::Inline);
     }
 
@@ -944,7 +847,6 @@ pub(crate) fn build_call_argument_planner_base_state(
     let call_has_static_arguments = call_has_static_arguments(context, call_node_id);
 
     CallArgumentPlannerBaseState {
-        line_width: usize::from(context.options.line_width),
         call_has_static_arguments,
         has_call_infix_annotations: layout_facts.has_call_infix_annotations,
         argument_shape: call_argument_shape_from_layout_facts(layout_facts),
@@ -976,7 +878,6 @@ pub(crate) fn build_call_argument_planner_state(
     base_state: CallArgumentPlannerBaseState,
     single_argument_force_expand: bool,
     force_expand_single_long_with_static_arguments: bool,
-    inline_call_width_hint_without_static_arguments: Option<usize>,
 ) -> CallArgumentPlannerState {
     // single collection arguments in type-binary calls may need forced expansion
     let force_expand_single_collection_for_type_binary_callee =
@@ -988,13 +889,10 @@ pub(crate) fn build_call_argument_planner_state(
 
     // keep planner state construction as one explicit data assembly step
     CallArgumentPlannerState {
-        line_width: base_state.line_width,
-        call_has_static_arguments: base_state.call_has_static_arguments,
         has_call_infix_annotations: base_state.has_call_infix_annotations,
         single_argument_force_expand,
         force_expand_single_long_with_static_arguments,
         force_expand_single_collection_for_type_binary_callee,
-        inline_call_width_hint_without_static_arguments,
         argument_shape: base_state.argument_shape,
     }
 }

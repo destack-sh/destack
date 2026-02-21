@@ -96,16 +96,16 @@ Whitespace-only text is dropped (parser behavior).
 <Text></Text>;
 ```
 
-### whitespace expression container is preserved
+### whitespace expression container normalizes
 
-Whitespace in expression containers stays as `{" "}`.
+Whitespace expression containers normalize to inline text spacing.
 
 ```ds
 <Text>{" "}Hello{" "}World{" "}</Text>
 ```
 
 ```ds expected
-<Text>{' '}Hello{' '}World{' '}</Text>;
+<Text> Hello World </Text>;
 ```
 
 ### element with element children
