@@ -77,7 +77,7 @@ class AuditStore implements PartitionedStore<string> {
     comptime const SegmentBytes: number = 4096;
 }
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const width: AuditStore.SegmentBytes;
 width satisfies 4096;
 ```
@@ -133,7 +133,7 @@ extension for HttpRetryPolicy implements RetryPolicy {
     comptime const MaxRetries: number = 5;
 }
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const retries: HttpRetryPolicy.MaxRetries;
 retries satisfies 5;
 ```

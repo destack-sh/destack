@@ -611,3 +611,163 @@ import { x } from "./a";
 
 export const y: number = x;
 ```
+
+### export inference rejects three-module cycles without anchors
+
+> Export inference rejects strongly connected components without declared type anchors.
+
+```ts:a.ts
+import { y } from "./b";
+
+export const x = y;
+```
+
+```ts:b.ts
+import { z } from "./c";
+
+export const y = z;
+```
+
+```ts:c.ts
+import { x } from "./a";
+
+export const z = x;
+```
+
+- contains: annotation
+
+### export inference allows three-module cycles with one anchor
+
+> A cyclic export SCC is accepted when one anchor makes all members solvable.
+
+```ts:a.ts
+import { y } from "./b";
+
+export const x: number = y;
+```
+
+```ts:b.ts
+import { z } from "./c";
+
+export const y = z;
+```
+
+```ts:c.ts
+import { x } from "./a";
+
+export const z = x;
+```
+
+### export inference allows three-module cycles with two anchors
+
+> Additional anchors remain valid when the SCC is already solvable.
+
+```ts:a.ts
+import { y } from "./b";
+
+export const x: number = y;
+```
+
+```ts:b.ts
+import { z } from "./c";
+
+export const y: number = z;
+```
+
+```ts:c.ts
+import { x } from "./a";
+
+export const z = x;
+```
+
+### export inference rejects namespace cycles without anchors
+
+> Namespace-based export cycles still require declared anchors.
+
+```ts:a.ts
+import * as b from "./b";
+
+export const x = b.y;
+```
+
+```ts:b.ts
+import * as a from "./a";
+
+export const y = a.x;
+```
+
+- contains: annotation
+
+### export inference allows namespace cycles with one anchor
+
+> Namespace cycles are accepted when one anchor determines the SCC.
+
+```ts:a.ts
+import * as b from "./b";
+
+export const x: number = b.y;
+```
+
+```ts:b.ts
+import * as a from "./a";
+
+export const y = a.x;
+```
+
+### export inference allows namespace cycles with two anchors
+
+> Additional namespace anchors remain valid when the SCC is already solvable.
+
+```ts:a.ts
+import * as b from "./b";
+
+export const x: number = b.y;
+```
+
+```ts:b.ts
+import * as a from "./a";
+
+export const y: number = a.x;
+```
+
+### export inference rejects reexported cycles without anchors
+
+> Re-export chains inside a cycle still require one declared anchor.
+
+```ts:a.ts
+import { y } from "./bridge";
+
+export const x = y;
+```
+
+```ts:bridge.ts
+export { y } from "./b";
+```
+
+```ts:b.ts
+import { x } from "./a";
+
+export const y = x;
+```
+
+- contains: annotation
+
+### export inference allows reexported cycles with one anchor
+
+> One declared anchor is enough for re-exported cycle convergence.
+
+```ts:a.ts
+import { y } from "./bridge";
+
+export const x: number = y;
+```
+
+```ts:bridge.ts
+export { y } from "./b";
+```
+
+```ts:b.ts
+import { x } from "./a";
+
+export const y = x;
+```

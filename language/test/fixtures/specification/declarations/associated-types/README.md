@@ -4,6 +4,7 @@ Associated types are static type members on class-shaped declarations.
 
 ## Coverage
 
+- **Basics**: Introductory owner, implementor, and projection behavior.
 - **Structs**: Associated type aliases, constraints, and projections on structs.
 - **Classes**: Associated type aliases, inheritance, and constrained projections on classes.
 - **Interfaces**: Associated type requirements, defaults, overrides, and implementor rules.
@@ -14,6 +15,7 @@ Associated types are static type members on class-shaped declarations.
 
 ## Files
 
+- `basic.md`: Introductory associated type behavior.
 - `structs.md`: Struct associated type declarations and projections.
 - `classes.md`: Class associated type declarations and constraints.
 - `interfaces.md`: Interface associated types and implementor requirements.

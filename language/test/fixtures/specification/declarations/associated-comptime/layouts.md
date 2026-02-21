@@ -99,7 +99,7 @@ class BlockLayout<T, comptime BlockRows: int, comptime BlockCols: int> {
 declare const tile: BlockLayout<float32, 8, 8>.Tile;
 tile satisfies float32[8][8];
 
-// arithmetic over owner value parameters should remain compile time resolvable
+// arithmetic over owner value parameters should remain compile-time resolvable
 declare const bytes: BlockLayout<float32, 8, 8>.TileBytes;
 bytes satisfies 256;
 ```

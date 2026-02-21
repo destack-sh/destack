@@ -7,7 +7,6 @@ Struct associated type tests live here.
 ### struct associated type alias is allowed
 
 > Structs can declare associated type aliases.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 struct Box<T> {
@@ -22,7 +21,6 @@ box.value satisfies string;
 ### struct associated type can include a constraint
 
 > Associated type aliases can include constraints.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 struct SizedBox {
@@ -37,7 +35,6 @@ boxed.value satisfies int32;
 ### struct associated type can be referenced from the type
 
 > Associated types are accessed via the containing type.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 struct Box<T> {
@@ -52,7 +49,6 @@ value satisfies string;
 ### struct associated type can declare static parameters
 
 > Associated type aliases can declare static parameters.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 struct Pair<T, U> {
@@ -66,7 +62,7 @@ value satisfies Pair<boolean, int32>;
 ### struct generic associated type projection requires static arguments
 
 > Struct associated type projections must provide required generic arguments.
-> Analyze must reject this invalid shape during semantic checking
+> This should fail with the expected projection shape diagnostic.
 
 ```ds
 struct Pair<T, U> {
@@ -83,7 +79,6 @@ function project<P: Pair<int32, string>>(value: P.Swap): P.Swap {
 ### struct associated type parameters can reference outer parameters
 
 > Associated type aliases can reference outer parameters and their own parameters.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 struct Wrapper<T> {
@@ -115,7 +110,7 @@ view satisfies float64[2];
 ### struct associated type constraint rejects incompatible defaults
 
 > Associated type defaults must satisfy the declared constraint.
-> Analyze must reject this declaration during semantic compatibility checks
+> This should fail with the expected contract compatibility diagnostic.
 
 ```ds
 struct SizedBox {
@@ -128,7 +123,7 @@ struct SizedBox {
 ### struct associated type projection composes across aliases
 
 > Struct associated type projections compose through nested associated aliases.
-> It verifies type-operator normalization happens on substituted associated members, not unspecialized placeholders
+> Type operators should run after specialization, not on unspecialized placeholders.
 
 ```ds
 struct Registry<T> {
@@ -176,7 +171,7 @@ value satisfies [int32, boolean, 3];
 ### struct associated type projection works on constrained parameters
 
 > Projections are allowed on constrained type parameters.
-> Constraint solving should run before projecting the associated member on the constrained owner
+> Constraint solving should happen before associated projection.
 
 ```ds
 struct Wrapper<T> {
@@ -194,7 +189,6 @@ project<Wrapper<int32>>(value) satisfies int32;
 ### struct associated defaults can reference sibling associated types
 
 > Struct associated type defaults can reference sibling associated types.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 struct PairBox<T> {
@@ -209,7 +203,6 @@ value satisfies [boolean, int32];
 ### struct generic associated defaults can reference sibling generic aliases
 
 > Struct generic associated aliases can compose through sibling generic aliases.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 struct PairBox<T> {
@@ -224,7 +217,7 @@ value satisfies [{ left: boolean, right: int32 }, { left: boolean, right: int32 
 ### struct associated projections reject extra static arguments
 
 > Struct associated type projections reject extra static arguments.
-> Extra static arguments must be rejected during projection arity checking
+> Extra static arguments should be rejected.
 
 ```ds
 struct PairBox<T> {
@@ -257,7 +250,6 @@ value satisfies string;
 ### struct associated projections resolve across module boundaries
 
 > Struct associated type projections are available through imported modules.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:box.ds
 export struct Box<T> {
@@ -277,7 +269,6 @@ value satisfies int32;
 ### struct generic associated projections resolve across module boundaries
 
 > Imported struct projections preserve outer and member substitutions.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:pair.ds
 export struct Pair<T> {
@@ -297,7 +288,6 @@ value satisfies [string, int32];
 ### struct mixed generic associated projections resolve across module boundaries
 
 > Imported struct projections preserve mixed type and value substitutions.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:grid.ds
 export struct Grid<T> {
@@ -316,7 +306,7 @@ value satisfies [string, int32, 2];
 ### struct associated projections work on constrained generic parameters
 
 > Generic constraints can project struct associated types with mixed static arguments.
-> Constraint solving should run before projecting the associated member on the constrained owner
+> Constraint solving should happen before associated projection.
 
 ```ds
 struct Grid<T> {
@@ -349,7 +339,7 @@ cell satisfies [float64, 1, 2];
 ### struct associated projections use inherited interface generic defaults
 
 > Struct implementors inherit generic associated defaults from interfaces.
-> Inherited defaults should be selected from the base contract when no override is present
+> When there is no override, the inherited default should be used.
 
 ```ds
 interface Projected<T> {
@@ -362,7 +352,7 @@ struct Buffer<T> {
 
 extension<T> for Buffer<T> implements Projected<T> {}
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const value: Buffer<int32>.View<boolean>;
 value satisfies [int32, boolean];
 ```
@@ -370,7 +360,7 @@ value satisfies [int32, boolean];
 ### struct associated types can use conditional type operators
 
 > Struct associated type aliases can evaluate conditional type operators with outer substitutions.
-> It verifies type-operator normalization happens on substituted associated members, not unspecialized placeholders
+> Type operators should run after specialization, not on unspecialized placeholders.
 
 ```ds
 struct Box<T> {
@@ -390,7 +380,7 @@ flag satisfies int16;
 ### struct associated types can use mapped type operators
 
 > Struct associated type aliases can evaluate mapped type operators over outer substitutions.
-> It verifies type-operator normalization happens on substituted associated members, not unspecialized placeholders
+> Type operators should run after specialization, not on unspecialized placeholders.
 
 ```ds
 struct Project<T> {
@@ -429,7 +419,7 @@ wide satisfies uint8[12];
 ### struct associated types are not runtime members
 
 > Associated type aliases are type only and cannot be accessed as runtime values.
-> It verifies the runtime and type-space boundary for associated members remains strict
+> Type-space and runtime member boundaries should stay strict.
 
 ```ds
 struct Box<T> {

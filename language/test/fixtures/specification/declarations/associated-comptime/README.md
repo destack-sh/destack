@@ -4,10 +4,11 @@ Associated comptime constant tests live here.
 
 ## Coverage
 
+- **Basics**: Introductory owner, implementor, and projection behavior.
 - **Owner kinds**: Classes, structs, interfaces, and extensions.
 - **Contracts**: Abstract interface requirements, defaults, and implementor overrides.
-- **Projection semantics**: Type level projection and value level projection with compile time resolvability.
-- **Runtime boundary**: Distinguishing `static const` runtime members from `comptime const` associated compile time members.
+- **Projection semantics**: Type level projection and value level projection with compile-time resolvability.
+- **Runtime boundary**: Distinguishing `static const` runtime members from `comptime const` associated compile-time members.
 - **Static evaluation**: Initializer restrictions and cycle handling.
 - **Module boundaries**: Imported associated comptime projections and inherited contracts.
 - **Shape modeling**: Vector and tensor style layout composition through associated values and aliases.
@@ -16,6 +17,7 @@ Associated comptime constant tests live here.
 
 ## Files
 
+- `basic.md`: Introductory associated comptime behavior.
 - `classes.md`: Class owned associated comptime constants.
 - `structs.md`: Struct owned associated comptime constants.
 - `interfaces.md`: Interface requirements, defaults, and implementor matching.

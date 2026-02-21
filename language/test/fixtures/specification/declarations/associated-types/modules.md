@@ -4,11 +4,10 @@ Cross module associated type projection tests live here.
 
 ## modules
 
-### associated type projections resolve through export star barrels
+### export-star barrels preserve associated type projections
 
-> Export-star barrels preserve associated type projections.
-> Routes an interface implementor through `export *` and projects an inherited associated type from the barrel consumer.
-> The projected type must retain implementor substitutions after module resolution.
+> `export *` barrels should preserve associated type projections.
+> Projecting from the barrel should keep implementor specialization.
 
 ```ds:stream.ds
 export interface Stream<T> {
@@ -45,11 +44,10 @@ declare const value: Counter.Item;
 value satisfies int32;
 ```
 
-### owner modules can satisfy imported associated type contracts with extensions
+### extension implementations satisfy imported associated type contracts
 
-> Owner modules can satisfy imported associated type contracts through extensions.
-> Declares the interface in one module and fulfills it in the owner-exporting module.
-> The imported owner projection should include the extension-provided associated member.
+> Extensions can satisfy associated type contracts declared in another module.
+> Imported owner projections should expose extension-provided associated members.
 
 ```ds:contract.ds
 export interface Container<T> {
@@ -77,11 +75,10 @@ declare const item: Crate<string>.Item;
 item satisfies string;
 ```
 
-### associated type projections remain coherent across namespace and type-only imports
+### type-only and namespace imports agree on associated type projections
 
-> Type-only and namespace imports should resolve to the same associated type owner semantics.
-> Uses `import type` through a barrel and namespace import from the implementor module.
-> Both access paths must preserve associated substitution and projection resolution.
+> Type-only imports and namespace imports should preserve the same owner semantics.
+> Both access paths should project the same specialized associated type.
 
 ```ds:factory.ds
 export interface Factory<T> {
@@ -112,10 +109,9 @@ declare const output: api.Box<int32>.Output;
 project<api.Box<int32>>(output) satisfies int32;
 ```
 
-### cyclic module graphs preserve associated type projections
+### type-only cycles keep associated type projections available
 
-> Type-space cycles across modules should not drop associated projection metadata.
-> Creates a two-module cycle where one side imports the interface and the other imports the implementor in type-space.
+> Type-only import cycles should not erase associated projection semantics.
 > Projection from the concrete owner should still resolve in the consumer module.
 
 ```ds:a.ds
@@ -146,4 +142,83 @@ import { Right } from "./b";
 // owner projection should survive the cyclic type import graph
 declare const value: Right<int32>.Item;
 value satisfies int32;
+```
+
+### type-only cycles preserve namespace associated type projections
+
+> Type-only cycles should preserve namespace-qualified associated projections.
+> Owner specialization should not be lost when projecting through a namespace import.
+
+```ds:a.ds
+import type { Right } from "./b";
+
+export interface Left<T> {
+    type Item = T;
+}
+
+export type LeftItem = Right<string>.Item;
+```
+
+```ds:b.ds
+import type { Left } from "./a";
+
+export class Right<T> implements Left<T> {}
+```
+
+```ds:main.ds
+import * as api from "./b";
+
+// namespace projection should survive the cyclic type import graph
+declare const value: api.Right<string>.Item;
+value satisfies string;
+```
+
+### mapped associated defaults stay specialized across imports
+
+> Mapped associated defaults should stay specialized after import.
+> Imported projections should preserve key sets and transformed value types.
+
+```ds:profile.ds
+export interface Profile<Config> {
+    type Flags = { [K in keyof Config]: Config[K] extends boolean ? 1 : 0 };
+}
+```
+
+```ds:service.ds
+import type { Profile } from "./profile";
+
+export class ServiceProfile implements Profile<{ critical: boolean, retries: number }> {}
+```
+
+```ds:main.ds
+import { ServiceProfile } from "./service";
+
+// imported owner projection should preserve mapped alias substitutions
+declare const flags: ServiceProfile.Flags;
+flags satisfies { critical: 1, retries: 0 };
+```
+
+### conditional associated defaults stay specialized across imports
+
+> Conditional associated defaults should stay specialized after import.
+> Branch selection should happen with the substituted owner type at projection time.
+
+```ds:policy.ds
+export interface Policy<T> {
+    type Item = T extends string ? int32 : int16;
+}
+```
+
+```ds:owner.ds
+import type { Policy } from "./policy";
+
+export class NamePolicy implements Policy<string> {}
+```
+
+```ds:main.ds
+import { NamePolicy } from "./owner";
+
+// imported owner projection should preserve conditional branch selection
+declare const item: NamePolicy.Item;
+item satisfies int32;
 ```

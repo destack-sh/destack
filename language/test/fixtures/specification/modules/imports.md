@@ -169,6 +169,25 @@ export type Foo = { name: string };
 
 - contains: value
 
+### imported generic constraints are enforced at call sites
+
+> Imported generic function constraints remain active at consumer call sites.
+
+```ts:lib.ts
+export function readName<T extends { name: string }>(value: T): string {
+    return value.name;
+}
+```
+
+```ts:main.ts
+import { readName } from "./lib";
+
+readName({ name: "ok" });
+readName({ name: 1 });
+```
+
+- contains: not assignable
+
 ## import aliases
 
 ### import aliases accept qualified identifiers
