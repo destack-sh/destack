@@ -2,7 +2,6 @@ destack_test::specification::expressions/literals/tree-routing.md/attributes-and
 destack_test::specification::expressions/literals/tree-routing.md/intrinsic-tags/fragment-requires-configured-treetagbuilder
 destack_test::specification::expressions/literals/tree-routing.md/intrinsic-tags/lowercase-intrinsic-requires-configured-treetagbuilder
 destack_test::specification::expressions/literals/tree-routing.md/intrinsic-tags/namespaced-tags-route-as-intrinsic-string-names
-destack_test::specification::options/strict.md/strictfunctiontypes/strictfunctiontypes-allows-narrow-method-parameters-when-false
 destack_test::specification::resolution/overloads/operators/operators.md/builtin-overloading/array-concatenation-uses-builtin-overload
 destack_test::specification::resolution/overloads/operators/operators.md/builtin-overloading/map-merge-uses-builtin-overload
 destack_test::specification::resolution/overloads/operators/operators.md/builtin-overloading/set-union-uses-builtin-overload

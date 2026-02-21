@@ -3,9 +3,10 @@ use std::sync::Arc;
 
 use super::declaration::DeclaratorConstraint;
 
+use crate::analyze::StaticSubstitutionEnvironment;
 use crate::analyze::common::{
     CanonicalSymbolMode, ConstContext, ContextualTypingMode, LiteralFreshness, RelationMode,
-    StaticSubstitutionEnvironment, TypeRewriteCache, WideningMode,
+    TypeRewriteCache, WideningMode,
 };
 use crate::timing::tags;
 use crate::{

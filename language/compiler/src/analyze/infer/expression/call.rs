@@ -2,9 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use super::SignatureResolutionMode;
 use super::member::{MemberLookupMode, MemberReceiverContext, MemberResolution};
-use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, StaticSubstitutionEnvironment,
-};
+use crate::analyze::StaticSubstitutionEnvironment;
+use crate::analyze::common::{AnalyzeDependencyStage, CanonicalSymbolMode};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{

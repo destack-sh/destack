@@ -1,4 +1,4 @@
-use crate::analyze::common::StaticSubstitutionEnvironment;
+use crate::analyze::StaticSubstitutionEnvironment;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     GlobalSymbolId, LocalInstanceId, LocalTypeId, StaticArgument, StaticExpression, StaticProperty,
