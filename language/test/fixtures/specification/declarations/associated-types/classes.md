@@ -7,7 +7,6 @@ Class associated type tests live here.
 ### class associated type alias is allowed
 
 > Classes can declare associated type aliases.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 class Box<T> {
@@ -26,7 +25,6 @@ box.value satisfies string;
 ### class associated type can declare static parameters
 
 > Class associated type aliases can declare static parameters.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 class Box<T> {
@@ -59,7 +57,7 @@ row satisfies [float64, 4];
 ### class generic associated type projection requires static arguments
 
 > Class associated type projections must provide required generic arguments.
-> Analyze must reject this invalid shape during semantic checking
+> This should fail with the expected projection shape diagnostic.
 
 ```ds
 class Box<T> {
@@ -81,7 +79,7 @@ function project<B: Box<string>>(value: B.Wrap): B.Wrap {
 ### class associated type constraint rejects incompatible defaults
 
 > Class associated type defaults must satisfy the declared constraint.
-> Analyze must reject this declaration during semantic compatibility checks
+> This should fail with the expected contract compatibility diagnostic.
 
 ```ds
 class SizedBox {
@@ -95,7 +93,6 @@ class SizedBox {
 ### class associated type satisfies interface contract
 
 > Classes can provide interface associated types directly in the class body.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 interface Container {
@@ -124,7 +121,6 @@ entry satisfies MapEntry<string, int32>;
 ### class associated interface implementations resolve across module boundaries
 
 > Class associated aliases satisfy interface contracts across imports.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:container.ds
 export interface Container<V> {
@@ -170,7 +166,7 @@ entry satisfies MapEntry<string, int32>;
 ### class inherits interface generic associated defaults
 
 > Classes inherit generic associated defaults when no override is provided.
-> Inherited defaults should be selected from the base contract when no override is present
+> When there is no override, the inherited default should be used.
 
 ```ds
 interface Projected<T> {
@@ -185,7 +181,7 @@ class Buffer<T> implements Projected<T> {
     }
 }
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const value: Buffer<int32>.View<boolean>;
 value satisfies [int32, boolean];
 ```
@@ -193,7 +189,7 @@ value satisfies [int32, boolean];
 ### class associated type override keeps interface substitution
 
 > Class overrides of interface associated types preserve outer substitutions.
-> Inherited owner contracts must be selected before evaluating projected member substitutions
+> Inherited contracts should be applied before projection.
 
 ```ds
 interface Projected<T> {
@@ -209,7 +205,7 @@ class Buffer<T> implements Projected<T> {
     }
 }
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const value: Buffer<int32>.View<boolean>;
 value satisfies { left: int32, right: boolean };
 ```
@@ -217,7 +213,7 @@ value satisfies { left: int32, right: boolean };
 ### class associated type override enforces interface bounds
 
 > Class associated type overrides must satisfy interface bounds.
-> Inherited owner contracts must be selected before evaluating projected member substitutions
+> Inherited contracts should be applied before projection.
 
 ```ds
 interface SizedContainer<T> {
@@ -234,7 +230,7 @@ class BadMap implements SizedContainer<int32> {
 ### class inherited generic associated type projection requires static arguments
 
 > Class projections must supply required generic arguments inherited from interfaces.
-> Analyze must reject this invalid shape during semantic checking
+> This should fail with the expected projection shape diagnostic.
 
 ```ds
 interface Projected<T> {
@@ -259,7 +255,7 @@ function project<B: Buffer<int32>>(value: B.View): B.View {
 ### class inherits interface associated type defaults with static value parameters
 
 > Class projections preserve static value arguments inherited from interface defaults.
-> Inherited defaults should be selected from the base contract when no override is present
+> When there is no override, the inherited default should be used.
 
 ```ds
 interface MatrixLike<T> {
@@ -274,7 +270,7 @@ class Matrix<T> implements MatrixLike<T> {
     }
 }
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const row: Matrix<float64>.Row<4>;
 row satisfies [float64, 4];
 ```
@@ -282,7 +278,6 @@ row satisfies [float64, 4];
 ### class associated defaults can reference sibling associated types
 
 > Class associated type defaults can reference sibling associated types.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 class PairBox<T> {
@@ -297,7 +292,6 @@ value satisfies [string, int32];
 ### class generic associated defaults can reference sibling generic aliases
 
 > Class generic associated aliases can compose through sibling generic aliases.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 class PairBox<T> {
@@ -312,7 +306,7 @@ value satisfies [{ left: string, right: int32 }, { left: string, right: int32 }]
 ### class associated projections reject extra static arguments
 
 > Class associated type projections reject extra static arguments.
-> Extra static arguments must be rejected during projection arity checking
+> Extra static arguments should be rejected.
 
 ```ds
 class PairBox<T> {
@@ -329,7 +323,7 @@ function project<B: PairBox<string>>(value: B.Item<int32>): B.Item<int32> {
 ### class inheritance preserves associated type projections
 
 > Subclasses inherit associated type aliases from base classes.
-> Inherited owner contracts must be selected before evaluating projected member substitutions
+> Inherited contracts should be applied before projection.
 
 ```ds
 class Base<T> {
@@ -338,7 +332,7 @@ class Base<T> {
 
 class Derived<T> extends Base<T> {}
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const value: Derived<string>.Item;
 value satisfies string;
 ```
@@ -346,7 +340,7 @@ value satisfies string;
 ### class inheritance allows associated type overrides
 
 > Subclasses can override inherited associated type aliases.
-> Inherited owner contracts must be selected before evaluating projected member substitutions
+> Inherited contracts should be applied before projection.
 
 ```ds
 class Base<T> {
@@ -357,7 +351,7 @@ class Derived<T> extends Base<T> {
     type Item = [T, T];
 }
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const value: Derived<int32>.Item;
 value satisfies [int32, int32];
 ```
@@ -381,7 +375,6 @@ value satisfies boolean;
 ### class associated projections resolve across module boundaries
 
 > Class associated type projections are available through imported modules.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:box.ds
 export class Box<T> {
@@ -400,7 +393,6 @@ value satisfies int32;
 ### class generic associated projections resolve across module boundaries
 
 > Imported class projections preserve outer and member substitutions.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:box.ds
 export class Box<T> {
@@ -419,7 +411,7 @@ value satisfies [string, int32];
 ### class associated projections work on constrained generic parameters
 
 > Generic constraints can project class associated types in signatures.
-> Constraint solving should run before projecting the associated member on the constrained owner
+> Constraint solving should happen before associated projection.
 
 ```ds
 class Box<T> {
@@ -441,7 +433,6 @@ cloneValue(1) satisfies int32;
 ### class mixed generic associated projections resolve across module boundaries
 
 > Imported class projections preserve mixed type and value substitutions.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:box.ds
 export class Box<T> {
@@ -460,7 +451,7 @@ value satisfies [string, int32, 3];
 ### class inheritance preserves generic associated defaults
 
 > Subclasses inherit generic associated defaults from base classes.
-> Inherited defaults should be selected from the base contract when no override is present
+> When there is no override, the inherited default should be used.
 
 ```ds
 class Base<T> {
@@ -469,7 +460,7 @@ class Base<T> {
 
 class Derived<T> extends Base<T> {}
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const value: Derived<float64>.View<boolean>;
 value satisfies [float64, boolean];
 ```
@@ -477,7 +468,6 @@ value satisfies [float64, boolean];
 ### class inheritance override projections resolve across module boundaries
 
 > Imported subclasses preserve associated type overrides through base class inheritance.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:base.ds
 export class Base<T> {
@@ -504,7 +494,7 @@ item satisfies [int32, int32];
 ### class inheritance preserves associated type defaults with value parameters
 
 > Subclasses inherit associated defaults with static value parameters.
-> Inherited defaults should be selected from the base contract when no override is present
+> When there is no override, the inherited default should be used.
 
 ```ds
 class MatrixLike<T> {
@@ -513,7 +503,7 @@ class MatrixLike<T> {
 
 class Matrix<T> extends MatrixLike<T> {}
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const row: Matrix<int32>.Row<4>;
 row satisfies [int32, 4];
 ```
@@ -521,7 +511,7 @@ row satisfies [int32, 4];
 ### abstract classes can declare abstract associated types
 
 > Concrete subclasses can satisfy abstract associated type requirements.
-> Inherited abstract requirements should remain deferred until a concrete owner provides them
+> Abstract requirements stay deferred until a concrete owner provides them.
 
 ```ds
 abstract class Base<T> {
@@ -538,7 +528,7 @@ class Derived extends Base<int32> {
     }
 }
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 const value = new Derived().get();
 value satisfies int32;
 ```
@@ -546,7 +536,7 @@ value satisfies int32;
 ### abstract classes can declare abstract generic associated types
 
 > Concrete subclasses can satisfy abstract generic associated requirements.
-> Inherited abstract requirements should remain deferred until a concrete owner provides them
+> Abstract requirements stay deferred until a concrete owner provides them.
 
 ```ds
 abstract class Base {
@@ -557,7 +547,7 @@ class Derived extends Base {
     type Wrap<U> = [int32, U];
 }
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const value: Derived.Wrap<string>;
 value satisfies [int32, string];
 ```
@@ -595,7 +585,7 @@ class Derived extends Base {}
 ### abstract subclasses can defer inherited abstract associated types
 
 > Abstract subclasses can defer abstract associated aliases to concrete subclasses.
-> Inherited abstract requirements should remain deferred until a concrete owner provides them
+> Abstract requirements stay deferred until a concrete owner provides them.
 
 ```ds
 abstract class Base<T> {
@@ -608,7 +598,7 @@ class Leaf extends Mid<int32> {
     type Item = int32;
 }
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const value: Leaf.Item;
 value satisfies int32;
 ```
@@ -616,7 +606,7 @@ value satisfies int32;
 ### abstract classes can defer interface associated requirements
 
 > Abstract classes can defer interface associated aliases to concrete subclasses.
-> Inherited abstract requirements should remain deferred until a concrete owner provides them
+> Abstract requirements stay deferred until a concrete owner provides them.
 
 ```ds
 interface Container {
@@ -637,7 +627,7 @@ class Box extends Base {
     }
 }
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 const value = new Box().get();
 value satisfies int32;
 ```
@@ -645,7 +635,6 @@ value satisfies int32;
 ### abstract associated requirements flow across module boundaries
 
 > Imported concrete subclasses must satisfy inherited abstract associated aliases.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:base.ds
 export abstract class Base<T> {
@@ -672,7 +661,6 @@ value satisfies Derived;
 ### abstract associated requirements can be deferred across module boundaries
 
 > Imported abstract subclasses can defer abstract associated aliases to concrete leaves.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:base.ds
 export abstract class Base<T> {
@@ -729,7 +717,7 @@ value satisfies string;
 ### class associated types are not runtime members
 
 > Associated type aliases are type only and cannot be accessed as runtime values.
-> It verifies the runtime and type-space boundary for associated members remains strict
+> Type-space and runtime member boundaries should stay strict.
 
 ```ds
 class Box<T> {
@@ -781,7 +769,7 @@ buffer satisfies uint8[8];
 ### class associated types can use conditional type operators
 
 > Class associated type aliases can evaluate conditional type operators with outer substitutions.
-> It verifies type-operator normalization happens on substituted associated members, not unspecialized placeholders
+> Type operators should run after specialization, not on unspecialized placeholders.
 
 ```ds
 class Box<T> {
@@ -800,7 +788,7 @@ flag satisfies int16;
 ### class associated types can use mapped type operators
 
 > Class associated type aliases can evaluate mapped type operators over outer substitutions.
-> It verifies type-operator normalization happens on substituted associated members, not unspecialized placeholders
+> Type operators should run after specialization, not on unspecialized placeholders.
 
 ```ds
 class Project<T> {
@@ -837,7 +825,6 @@ wide satisfies uint8[12];
 ### class conditional associated projections resolve across module boundaries
 
 > Imported class associated type projections preserve conditional substitutions.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:box.ds
 export class Box<T> {
@@ -860,7 +847,6 @@ count satisfies int16;
 ### class associated projections remain non static expressions across module boundaries
 
 > Imported associated projections are not yet valid static value expressions.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:box.ds
 export type Bytes<comptime n: number> = uint8[n];

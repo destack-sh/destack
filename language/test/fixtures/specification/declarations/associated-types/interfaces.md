@@ -7,7 +7,6 @@ Interface associated type tests live here.
 ### interface associated type is allowed
 
 > Interfaces can declare abstract associated types.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 interface Iterable<T> {
@@ -34,7 +33,6 @@ item satisfies int32;
 ### interface associated type can include a constraint
 
 > Interface associated types can declare a constraint.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 interface SizedIterable {
@@ -61,7 +59,6 @@ item satisfies int32;
 ### interface associated type is provided by implementors
 
 > Implementors provide concrete associated types.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 interface Iterable<T> {
@@ -88,7 +85,6 @@ counter.next() satisfies int32;
 ### interface associated type bounds use implementor substitutions
 
 > Interface associated type bounds are checked after applying implementor substitutions.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 interface Wrapper<T> {
@@ -110,7 +106,7 @@ value satisfies int32;
 ### interface associated type bounds reject incompatible substitutions
 
 > Implementor substitutions that violate associated type bounds are rejected.
-> Analyze must reject this declaration during semantic compatibility checks
+> This should fail with the expected contract compatibility diagnostic.
 
 ```ds
 interface Wrapper<T> {
@@ -131,7 +127,6 @@ extension for IntBox implements Wrapper<int32> {
 ### interface associated type can be generic
 
 > Interfaces can declare generic associated types.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 interface Slice<T> {
@@ -173,7 +168,6 @@ view satisfies [int32, 4];
 ### interface associated type default can be used by implementors
 
 > Implementors can rely on interface associated type defaults.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 interface Iterable<T> {
@@ -198,7 +192,7 @@ counter.next() satisfies int32;
 ### implementors can use inherited associated types without qualification
 
 > Implementor member signatures can reference inherited associated type names directly.
-> Inherited owner contracts must be selected before evaluating projected member substitutions
+> Inherited contracts should be applied before projection.
 
 ```ds
 interface Stream<T> {
@@ -218,7 +212,7 @@ class Counter implements Stream<int32> {
     }
 }
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const counter: Counter;
 counter.next() satisfies int32;
 ```
@@ -226,7 +220,6 @@ counter.next() satisfies int32;
 ### inherited associated type names resolve across module boundaries
 
 > Implementors resolve inherited associated type names through imported interfaces.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:stream.ds
 export interface Stream<T> {
@@ -266,7 +259,6 @@ item satisfies int32;
 ### inherited associated type names resolve in cross module extensions
 
 > Extension bodies can use inherited associated type names from imported interfaces.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:stream.ds
 export interface Stream<T> {
@@ -304,7 +296,6 @@ counter.next() satisfies int32;
 ### interface associated type default can be overridden
 
 > Implementors can override interface associated type defaults.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 interface Wrapper<T> {
@@ -326,7 +317,6 @@ value satisfies [int32, int32];
 ### interface associated types work with class implementors
 
 > Class implementors satisfy interface associated type contracts.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 interface Container<T> {
@@ -354,7 +344,7 @@ value satisfies int32;
 ### interface generic associated type defaults are inherited
 
 > Implementors inherit generic associated type defaults when no override is provided.
-> Inherited defaults should be selected from the base contract when no override is present
+> When there is no override, the inherited default should be used.
 
 ```ds
 interface Windowed<T> {
@@ -367,7 +357,7 @@ struct Buffer<T> {
 
 extension<T> for Buffer<T> implements Windowed<T> {}
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const view: Buffer<int32>.View<boolean>;
 view satisfies [int32, boolean];
 ```
@@ -375,7 +365,7 @@ view satisfies [int32, boolean];
 ### interface associated type rejects incompatible implementations
 
 > Implementor associated types must satisfy interface constraints.
-> Analyze must reject this declaration during semantic compatibility checks
+> This should fail with the expected contract compatibility diagnostic.
 
 ```ds
 interface SizedIterable<T> {
@@ -401,7 +391,7 @@ extension for Bad implements SizedIterable<int32> {
 ### interface associated type requires matching parameter arity
 
 > Implementor associated types must match the required parameter arity.
-> Static parameter arity mismatches must be diagnosed during Analyze contract checks
+> Parameter arity mismatches should be reported on the implementor declaration.
 
 ```ds
 interface Factory {
@@ -420,7 +410,7 @@ extension for Thing implements Factory {
 ### interface associated type requires matching parameter kinds
 
 > Implementors must match parameter kinds for associated types.
-> Static parameter kind mismatches must be diagnosed during Analyze contract checks
+> Parameter kind mismatches should be reported on the implementor declaration.
 
 ```ds
 interface Windowed<T> {
@@ -441,7 +431,7 @@ extension for Samples implements Windowed<int32> {
 ### class implementor associated type requires matching parameter arity
 
 > Class implementors must match associated type parameter arity.
-> Static parameter arity mismatches must be diagnosed during Analyze contract checks
+> Parameter arity mismatches should be reported on the implementor declaration.
 
 ```ds
 interface Factory<T> {
@@ -458,7 +448,7 @@ class BadFactory<T> implements Factory<T> {
 ### class implementor associated type requires matching parameter kinds
 
 > Class implementors must match associated type parameter kinds.
-> Static parameter kind mismatches must be diagnosed during Analyze contract checks
+> Parameter kind mismatches should be reported on the implementor declaration.
 
 ```ds
 interface Windowed<T> {
@@ -475,7 +465,6 @@ class BadWindow<T> implements Windowed<T> {
 ### interface with multiple associated types supports mixed projections
 
 > Implementors can expose multiple associated type projections from one interface.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 interface Graph<T> {
@@ -497,7 +486,7 @@ edge satisfies [int32, boolean];
 ### constrained projections preserve interface associated type substitutions
 
 > Functions constrained by an interface can project associated types from implementors.
-> Constraint solving should run before projecting the associated member on the constrained owner
+> Constraint solving should happen before associated projection.
 
 ```ds
 interface Container<T> {
@@ -526,7 +515,7 @@ read(counter) satisfies int32;
 ### associated type projection on constrained type parameters
 
 > Projections are allowed on constrained type parameters.
-> Constraint solving should project `I.Item` to the concrete implementor item type
+> Constraint solving should project `I.Item` to the concrete implementor item type.
 
 ```ds
 interface LocalCursor<T> {
@@ -557,7 +546,7 @@ project(counter) satisfies Counter.Item;
 ### class implementors can override mixed generic associated defaults
 
 > Class implementors can override mixed type and static value associated defaults.
-> Inherited defaults should be selected from the base contract when no override is present
+> When there is no override, the inherited default should be used.
 
 ```ds
 interface MatrixLike<T> {
@@ -568,7 +557,7 @@ class Matrix<T> implements MatrixLike<T> {
     type View<U, comptime n: uint> = { left: T, right: U, size: n };
 }
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const view: Matrix<int32>.View<boolean, 4>;
 view satisfies { left: int32, right: boolean, size: 4 };
 ```
@@ -576,7 +565,6 @@ view satisfies { left: int32, right: boolean, size: 4 };
 ### associated type projection supports mixed outer and member substitutions
 
 > Projections preserve both receiver substitutions and associated member substitutions.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 interface Transform<T> {
@@ -592,7 +580,7 @@ value satisfies [int32, boolean];
 ### associated type projection requires static value arguments
 
 > Projections must supply required static value arguments.
-> Analyze must reject this invalid shape during semantic checking
+> This should fail with the expected projection shape diagnostic.
 
 ```ds
 interface Windowed<T> {
@@ -609,7 +597,7 @@ function take<W: Windowed<int32>>(value: W.View): W.View {
 ### associated type projection requires generic associated arguments
 
 > Projections must supply required generic associated type arguments.
-> Analyze must reject this invalid shape during semantic checking
+> This should fail with the expected projection shape diagnostic.
 
 ```ds
 interface Factory {
@@ -626,7 +614,7 @@ function project<F: Factory>(value: F.Item): F.Item {
 ### interface inheritance carries associated type defaults
 
 > Interface `extends` chains preserve associated type defaults for implementors.
-> Inherited defaults should be selected from the base contract when no override is present
+> When there is no override, the inherited default should be used.
 
 ```ds
 interface Source<T> {
@@ -653,7 +641,7 @@ value satisfies int32;
 ### interface inheritance carries abstract associated requirements
 
 > Interface `extends` chains preserve abstract associated type requirements.
-> Inherited abstract requirements should remain deferred until a concrete owner provides them
+> Abstract requirements stay deferred until a concrete owner provides them.
 
 ```ds
 interface Source<T> {
@@ -682,7 +670,7 @@ value satisfies int32;
 ### interface inheritance rejects missing abstract associated requirements
 
 > Implementors must satisfy abstract associated types inherited through `extends`.
-> Concrete owners must provide this declaration or fail semantic validation
+> Concrete owners must provide this declaration.
 
 ```ds
 interface Source<T> {
@@ -707,7 +695,7 @@ class Counter implements Stream<int32> {
 ### implementing multiple interfaces composes associated projections
 
 > Implementing multiple interfaces composes associated type defaults from each interface.
-> It verifies type-operator normalization happens on substituted associated members, not unspecialized placeholders
+> Type operators should run after specialization, not on unspecialized placeholders.
 
 ```ds
 interface Left<T> {
@@ -740,7 +728,6 @@ right satisfies string;
 ### implementing multiple interfaces can share one compatible associated projection
 
 > A single associated alias can satisfy multiple interfaces when requirements agree.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 interface Left<T> {
@@ -760,7 +747,7 @@ value satisfies int32;
 ### implementing multiple interfaces rejects incompatible associated defaults
 
 > Implementing interfaces with incompatible associated defaults requires an explicit compatible override.
-> Analyze must reject this declaration during semantic compatibility checks
+> This should fail with the expected contract compatibility diagnostic.
 
 ```ds
 interface Left {
@@ -779,7 +766,7 @@ class Broken implements Left, Right {}
 ### interface abstract associated type must be implemented by classes
 
 > Class implementors must define abstract interface associated types.
-> Concrete owners must provide this declaration or fail semantic validation
+> Concrete owners must provide this declaration.
 
 ```ds
 interface Container<T> {
@@ -794,7 +781,7 @@ class MissingItem<T> implements Container<T> {}
 ### interface abstract associated type must be implemented by extensions
 
 > Extension implementors must define abstract interface associated types.
-> Concrete owners must provide this declaration or fail semantic validation
+> Concrete owners must provide this declaration.
 
 ```ds
 interface Container<T> {
@@ -813,7 +800,6 @@ extension<T> for MissingItem<T> implements Container<T> {}
 ### interface defaults can reference sibling associated types
 
 > Associated type defaults can reuse other associated types on the same interface.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 interface Builder<T> {
@@ -830,7 +816,6 @@ value satisfies [string, int32];
 ### interface generic defaults can reference sibling generic associated aliases
 
 > Interface generic associated defaults can compose through sibling generic aliases.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 interface Pairing<T> {
@@ -847,7 +832,7 @@ value satisfies [{ left: string, right: int32 }, { left: string, right: int32 }]
 ### associated projections reject extra static arguments
 
 > Projections reject extra static arguments for non-generic associated types.
-> Extra static arguments must be rejected during projection arity checking
+> Extra static arguments should be rejected.
 
 ```ds
 interface Container<T> {
@@ -861,10 +846,9 @@ function project<C: Container<string>>(value: C.Item<int32>): C.Item<int32> {
 
 - contains: argument
 
-### associated type projections resolve through re export chains
+### associated type projections resolve through re-export chains
 
-> Associated type projections remain available through type re exports.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
+> Associated type projections remain available through type re-exports.
 
 ```ds:stream.ds
 export interface Stream<T> {
@@ -886,7 +870,6 @@ value satisfies int32;
 ### declaration module interfaces provide associated type defaults
 
 > Implementors can inherit associated defaults from declaration module interfaces.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds:stream.d.ds
 export interface Stream<T> {
@@ -921,7 +904,6 @@ counter.next() satisfies int32;
 ### class implementors resolve associated projections across module boundaries
 
 > Class implementors expose interface associated projections through imports.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:container.ds
 export interface Container<T> {
@@ -957,7 +939,6 @@ value satisfies int32;
 ### cross module abstract associated types require explicit class implementations
 
 > Imported interfaces with abstract associated types still require explicit class implementations.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:container.ds
 export interface Container<T> {
@@ -993,7 +974,6 @@ value satisfies int32;
 ### nominal interfaces support associated type defaults
 
 > Nominal interfaces can declare associated defaults used by explicit implementors.
-> The projection should resolve against the owner-specialized declaration and produce the exact expected type
 
 ```ds
 newtype interface Container<T> {
@@ -1020,7 +1000,7 @@ value satisfies int32;
 ### inherited associated projections compose type and value substitutions
 
 > Inherited associated defaults preserve both outer type and inner value substitutions.
-> Inherited owner contracts must be selected before evaluating projected member substitutions
+> Inherited contracts should be applied before projection.
 
 ```ds
 interface MatrixLike<T> {
@@ -1037,7 +1017,7 @@ class Matrix implements Renderable<float64> {
     }
 }
 
-// inherited owner contracts should be selected before projection
+// inherited contracts should apply before projection
 declare const row: Matrix.Row<4>;
 row satisfies [float64, 4];
 ```
@@ -1045,7 +1025,7 @@ row satisfies [float64, 4];
 ### interface abstract generic associated type must be implemented by classes
 
 > Class implementors must define abstract generic associated types.
-> Concrete owners must provide this declaration or fail semantic validation
+> Concrete owners must provide this declaration.
 
 ```ds
 interface Factory<T> {
@@ -1060,7 +1040,7 @@ class MissingFactory<T> implements Factory<T> {}
 ### interface abstract generic associated type must be implemented by extensions
 
 > Extension implementors must define abstract generic associated types.
-> Concrete owners must provide this declaration or fail semantic validation
+> Concrete owners must provide this declaration.
 
 ```ds
 interface Factory<T> {
@@ -1079,7 +1059,6 @@ extension<T> for MissingFactory<T> implements Factory<T> {}
 ### interface generic associated defaults resolve across module boundaries
 
 > Imported implementors preserve generic associated defaults and substitutions.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:factory.ds
 export interface Factory<T> {
@@ -1110,7 +1089,6 @@ value satisfies [int32, string];
 ### interface mixed generic associated defaults resolve across module boundaries
 
 > Imported implementors preserve associated defaults that mix type and value static parameters.
-> Imported owner symbols must resolve first, then associated projection and substitution can be applied
 
 ```ds:factory.ds
 export interface Factory<T> {
@@ -1172,7 +1150,7 @@ value satisfies int32;
 ### interface associated defaults can use conditional type operators
 
 > Interface associated defaults evaluate conditional type operators after implementor substitution.
-> It verifies type-operator normalization happens on substituted associated members, not unspecialized placeholders
+> Type operators should run after specialization, not on unspecialized placeholders.
 
 ```ds
 interface Select<T> {
@@ -1194,7 +1172,7 @@ number satisfies int16;
 ### interface associated defaults can use mapped type operators
 
 > Interface associated defaults evaluate mapped type operators after implementor substitution.
-> It verifies type-operator normalization happens on substituted associated members, not unspecialized placeholders
+> Type operators should run after specialization, not on unspecialized placeholders.
 
 ```ds
 interface Project<T> {

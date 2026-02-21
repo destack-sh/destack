@@ -39,7 +39,7 @@ lane satisfies uint8[16];
 
 > Unqualified `T[N]` is ambiguous when `N` is not known to be type-space or value-space.
 > This case leaves `N` unconstrained and uses the index in an associated alias.
-> Analyze should reject the declaration and require explicit disambiguation.
+> This should fail and require explicit disambiguation.
 
 ```ds
 class Columnar<Row, N> {
@@ -67,7 +67,7 @@ segment satisfies uint8[4096];
 
 ### value level projections can be used when fully resolvable
 
-> Value level associated comptime projections are valid when compile time resolvable.
+> Value level associated comptime projections are valid when compile-time resolvable.
 > Uses a value-space projection where the owner is fully specialized.
 > The expression should remain valid because the projected constant is compile-time resolvable.
 
@@ -84,7 +84,7 @@ bytes satisfies number;
 
 > Value level associated comptime projections must be resolvable in the current context.
 > Uses value-space projection from a generic owner with unresolved substitutions.
-> Analyze should reject this access as non-resolvable at compile time.
+> This should fail because the projection is not compile-time resolvable.
 
 ```ds
 class SegmentPlan<Row> {
@@ -204,7 +204,7 @@ class RuntimeOnly {
 
 > Type aliases are pure type-space declarations and cannot own associated comptime constants.
 > Declares an associated-style comptime member inside a `type` alias body.
-> The parser/analyzer surface should reject this owner kind for associated values.
+> This should reject this owner kind for associated values.
 
 ```ds
 type BatchShape<T> = {

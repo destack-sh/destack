@@ -6,7 +6,7 @@ Struct associated comptime constant tests live here.
 
 ### struct can declare associated comptime constants
 
-> Structs can declare associated compile time constants.
+> Structs can declare associated compile-time constants.
 > Declares an associated constant directly on a struct owner and reuses it in a sibling field type.
 > Projection must expose the folded literal from the specialized struct owner.
 
@@ -56,7 +56,7 @@ lane satisfies uint8[16];
 
 > Struct associated comptime constants reject non static initializers.
 > Attempts to initialize a struct associated constant with a runtime-only expression.
-> Analyze static evaluation should reject this declaration.
+> This should fail static evaluation.
 
 ```ds
 function runtimeColumns(): number {

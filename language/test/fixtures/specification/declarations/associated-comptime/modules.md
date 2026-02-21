@@ -4,11 +4,10 @@ Cross module associated comptime constant tests live here.
 
 ## modules
 
-### associated comptime constants resolve across module boundaries
+### imports preserve associated comptime projections
 
-> Imported classes expose associated comptime projections across module boundaries.
-> Defines a class owner in one module and projects its associated constant-driven alias in another.
-> The projection must survive import resolution with the same folded value.
+> Importing an owner keeps its associated comptime aliases and values available.
+> Projecting from the imported owner should use the same specialized value as the source module.
 
 ```ds:plan.ds
 export class SegmentPlan<Row> {
@@ -25,11 +24,10 @@ declare const segment: SegmentPlan<string>.Segment;
 segment satisfies uint8[4096];
 ```
 
-### associated comptime constants resolve through re export chains
+### re-exports preserve associated comptime projections
 
-> Re-export chains preserve associated comptime projections.
-> Routes the owner through an intermediate re-export module before projection.
-> The projected alias must retain associated substitutions across the re-export chain.
+> Re-export chains keep associated comptime projections intact.
+> Projections through the re-exported owner should stay specialized to the same value.
 
 ```ds:kernel.ds
 export newtype Vector<T, comptime N: int> = T;
@@ -58,11 +56,10 @@ declare const lane: FloatKernel.Lane;
 lane satisfies Vector<float32, 16>;
 ```
 
-### interface abstract associated comptime requirements survive imports
+### imports still enforce required associated comptime members
 
-> Imported abstract associated comptime requirements must still be implemented.
-> Imports an interface contract and implements it incompletely in another module.
-> The missing-associated requirement must still be reported when projecting from the imported class.
+> Abstract associated comptime requirements are still enforced across module boundaries.
+> An imported implementor that omits a required member must still report a missing-associated error.
 
 ```ds:contracts.ds
 export interface Tensor2D<T> {
@@ -89,11 +86,10 @@ declare const grid: Patch<float32>.Grid;
 
 - contains: missing associated
 
-### associated comptime projections reject unresolved imported generic value usage
+### unresolved imported generic value projections are rejected
 
-> Imported associated comptime projections in value position must remain resolvable.
-> Uses an imported owner projection in value space where the generic owner remains unresolved.
-> The fixture confirms value-position access is rejected until the projection is compile-time resolvable.
+> Value-space associated comptime projections must be resolvable at the use site.
+> If generic substitutions are unresolved, the value projection is rejected.
 
 ```ds:plan.ds
 export class SegmentPlan<Row> {
@@ -111,11 +107,40 @@ function unresolved<Row>() {
 
 - contains: resolvable
 
-### associated comptime constants support tensor style shape specialization across modules
+### type-only cycles keep associated comptime projections available
 
-> Imported tensor-like shape constants can drive fixed-size nested arrays.
-> Specializes tensor-style shape constants in one module and projects the derived alias from another.
-> The nested array projection must reflect overridden shape constants after import resolution.
+> Type-only import cycles should not erase associated comptime projection semantics.
+> Concrete imported projections remain resolvable even when the module graph is cyclic.
+
+```ds:a.ds
+import type { Right } from "./b";
+
+export interface Left<T> {
+    comptime const Width: number = T extends string ? 4 : 2;
+    type Lane = uint8[this.Width];
+}
+
+export type LeftLane = Right<string>.Lane;
+```
+
+```ds:b.ds
+import type { Left } from "./a";
+
+export class Right<T> implements Left<T> {}
+```
+
+```ds:main.ds
+import { Right } from "./b";
+
+// associated comptime projections should survive the cyclic type import graph
+declare const lane: Right<string>.Lane;
+lane satisfies uint8[4];
+```
+
+### imported owners can specialize tensor-style layout aliases
+
+> Imported associated comptime members can drive fixed-size nested array aliases.
+> Overridden shape constants must be reflected in projected layout aliases.
 
 ```ds:tensor.ds
 export interface PatchShape<T> {
@@ -138,11 +163,10 @@ declare const grid: ImagePatch.Grid;
 grid satisfies float32[32][32];
 ```
 
-### associated comptime projections resolve through namespace imports
+### namespace imports expose the same associated comptime projections
 
-> Namespace imports preserve associated comptime projection lookup in type and value contexts.
-> Accesses associated projections through a namespace-qualified owner path.
-> Both type-space and value-space projections must resolve against the same imported owner metadata.
+> Namespace-qualified owner access should preserve associated projections.
+> Type projections and value projections should agree on the same imported owner semantics.
 
 ```ds:layout.ds
 export class SegmentPlan<Row> {
@@ -163,11 +187,10 @@ const bytes = layout.SegmentPlan<string>.SegmentBytes;
 bytes satisfies number;
 ```
 
-### cross module codec layout composes associated comptime and associated types
+### re-exported codec owners preserve associated header and payload projections
 
-> Cross module projections preserve associated comptime substitutions across re-exported contracts.
-> Combines associated constants and aliases inside an interface contract, then projects through re-exported class ownership.
-> Header and payload projections must reflect concrete implementor overrides across module boundaries.
+> Re-exported owners keep associated comptime and associated type projections coherent.
+> Header and payload projections should reflect implementor overrides across module boundaries.
 
 ```ds:codec.ds
 export interface CodecProfile<Frame> {
@@ -199,11 +222,10 @@ declare const payload: TextCodec.Payload;
 payload satisfies string[2];
 ```
 
-### associated comptime projections resolve through export star barrels
+### export-star barrels preserve associated comptime projections
 
-> Export-star barrels preserve associated comptime projections.
-> Routes a generic owner through `export *` and projects both type and value members from the barrel consumer.
-> The projected members must retain the owner substitutions after module resolution.
+> `export *` barrels should preserve both associated type and value projections.
+> Projections through the barrel must retain owner specialization.
 
 ```ds:layout.ds
 export class SegmentLayout<Row> {
@@ -228,11 +250,10 @@ const width = SegmentLayout<string>.Width;
 width satisfies number;
 ```
 
-### owner modules can satisfy imported associated comptime contracts with extensions
+### extension implementations satisfy imported associated comptime contracts
 
-> Owner modules can satisfy imported interface associated comptime requirements through extensions.
-> Declares the contract in one module and fulfills it in the owner-exporting module.
-> Projections from the imported owner should include the extension-provided associated members.
+> Extensions can satisfy associated comptime contract requirements defined in another module.
+> Imported owner projections should include extension-provided associated members in type and value positions.
 
 ```ds:contract.ds
 export interface RetryPolicy {
@@ -263,11 +284,10 @@ const retries = HttpRetryPolicy.MaxRetries;
 retries satisfies number;
 ```
 
-### associated comptime projections remain coherent across type-only and namespace imports
+### type-only and namespace imports agree on associated comptime projections
 
-> Type-only and namespace imports should resolve to the same associated comptime owner semantics.
-> Uses `import type` through a barrel and namespace import from the owner module.
-> Both access paths must preserve owner substitution and projection resolution.
+> Type-only and namespace imports should project the same associated owner semantics.
+> Both access paths preserve specialization and projection results.
 
 ```ds:plan.ds
 export class ChunkPlan<Row> {
@@ -293,11 +313,10 @@ const bytes = api.ChunkPlan<string>.ChunkBytes;
 bytes satisfies number;
 ```
 
-### extension associated comptime projections resolve through re-export and namespace imports
+### extension-provided projections survive re-exports and namespace imports
 
-> Extension provided associated comptime projections should survive re-export indirection and namespace access.
-> Declares an interface contract in one module and fulfills it in an owner module extension.
-> Consumers using both named re-export imports and owner namespace imports should resolve the same projected value.
+> Extension-provided associated comptime values should survive re-export indirection.
+> Named imports and namespace imports should resolve the same projected value.
 
 ```ds:contract.ds
 export interface RetryPolicy {
@@ -331,3 +350,55 @@ retries satisfies number;
 const ownerRetries = owner.HttpRetryPolicy.MaxRetries;
 ownerRetries satisfies number;
 ```
+
+### associated comptime defaults compose with mapped aliases across imports
+
+> Imported owners should preserve associated comptime defaults used by mapped associated aliases.
+> Projections should keep both branch selection and mapped transformation semantics.
+
+```ds:profile.ds
+export interface ServiceProfile<Config> {
+    comptime const RetryBudget: number = Config extends { critical: true } ? 10 : 3;
+    type BudgetWindow = uint8[this.RetryBudget];
+    type Flags = { [K in keyof Config]: Config[K] extends boolean ? 1 : 0 };
+}
+```
+
+```ds:owner.ds
+import type { ServiceProfile } from "./profile";
+
+export class CriticalProfile implements ServiceProfile<{ critical: true, enabled: boolean }> {}
+```
+
+```ds:main.ds
+import { CriticalProfile } from "./owner";
+
+// imported owner should preserve associated comptime default projection
+declare const window: CriticalProfile.BudgetWindow;
+window satisfies uint8[10];
+
+// imported owner should preserve mapped associated alias projection
+declare const flags: CriticalProfile.Flags;
+flags satisfies { critical: 1, enabled: 1 };
+```
+
+### unresolved generic namespace value projections are rejected
+
+> Namespace value projections from imported generic owners must be resolvable.
+> Unresolved generic substitutions are rejected even through namespace-qualified access.
+
+```ds:plan.ds
+export class SegmentPlan<Row> {
+    comptime const SegmentBytes: number = Row extends string ? 4096 : 1024;
+}
+```
+
+```ds:main.ds
+import * as api from "./plan";
+
+function unresolved<Row>() {
+    api.SegmentPlan<Row>.SegmentBytes;
+}
+```
+
+- contains: resolvable

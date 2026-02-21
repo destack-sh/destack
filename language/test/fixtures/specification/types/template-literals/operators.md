@@ -26,7 +26,7 @@ const handlers: HandlerMap<Events> = {
 ### mapped key remapping rejects incompatible remapped values
 
 > Remapped template keys still enforce mapped value types.
-> Analyze should report value incompatibility on the remapped field.
+> The remapped field should still fail with a value compatibility error.
 
 ```ds
 type HandlerMap<T> = {

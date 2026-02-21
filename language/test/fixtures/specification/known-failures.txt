@@ -7,9 +7,6 @@ destack_test::specification::resolution/overloads/operators/operators.md/builtin
 destack_test::specification::resolution/overloads/operators/operators.md/builtin-overloading/map-merge-uses-builtin-overload
 destack_test::specification::resolution/overloads/operators/operators.md/builtin-overloading/set-union-uses-builtin-overload
 destack_test::specification::types/control/result.md/narrowing/discriminant-narrows-result-variants
-destack_test::specification::types/operators/import.md/import-type-queries/import-type-accesses-default-exports
-destack_test::specification::types/operators/import.md/import-type-queries/import-type-accesses-exported-types
 destack_test::specification::types/ownership/borrows.md/borrow-modes/hint-mode-emits-warnings-for-conflicts
 destack_test::specification::types/ownership/borrows.md/borrow-modes/strict-mode-reports-conflicts-as-errors
 destack_test::specification::types/ownership/managed.md/owned-mutability/readonly-owned-values-forbid-mutation
-destack_test::specification::declarations/associated-comptime/modules.md/modules/extension-associated-comptime-projections-resolve-through-re-export-and-namespace-imports

@@ -6,7 +6,7 @@ Class associated comptime constant tests live here.
 
 ### class can declare associated comptime constants
 
-> Classes can declare associated compile time constants.
+> Classes can declare associated compile-time constants.
 > Declares an owner-scoped `comptime const` on a class and uses it in a sibling associated type.
 > The projection `MessagePage.Rows` must resolve to a folded compile-time literal.
 
@@ -41,7 +41,7 @@ metricSegment satisfies 1024;
 
 > Class associated comptime constant initializers must be static expressions.
 > Uses a runtime-only initializer in an associated comptime declaration.
-> The declaration must fail in Analyze static evaluation.
+> This should fail static evaluation.
 
 ```ds
 function runtimeBytes(): number {
@@ -103,7 +103,7 @@ declare const bytes: SegmentPlan<string>.SegmentBytes;
 
 > `comptime const` is already static by owner scope and cannot be combined with `static`.
 > Declares a redundant modifier pair on an associated comptime member.
-> The parser/analyzer surface should reject `static comptime const` as invalid form.
+> This should reject `static comptime const` as invalid form.
 
 ```ds
 class BadConfig {
@@ -115,7 +115,7 @@ class BadConfig {
 
 ### class associated comptime constants can coexist with runtime static constants
 
-> Class declarations can define both associated compile time constants and runtime static constants.
+> Class declarations can define both associated compile-time constants and runtime static constants.
 > Defines both member kinds on one class and uses each through the proper access path.
 > This confirms associated compile-time projection and runtime static access can coexist without ambiguity.
 
