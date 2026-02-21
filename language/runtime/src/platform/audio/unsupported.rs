@@ -1,14 +1,14 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
+use super::{bindings_generated as bindings, core as audio_core};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::audio::bindings_generated as bindings;
 use crate::platform::{NativeSlice, NativeStringRef, PlatformError};
 
 use crate::runtime::BindingCallContext;
 use bindings::*;
 
-use crate::platform::audio::{
+use super::{
     AudioBackend, AudioChannelLayout, AudioClockDomain, AudioClockSnapshot, AudioDeviceDescriptor,
     AudioDeviceDirection, AudioDeviceEvent, AudioDeviceEventKind, AudioDeviceListRequest,
     AudioDeviceOpenOptions, AudioSampleFormat, AudioShareMode, AudioStreamAvailability,
@@ -17,6 +17,29 @@ use crate::platform::audio::{
 };
 use crate::platform::resource;
 
+/// Return host backend priority order for unsupported targets.
+pub(crate) fn preferred_host_backends() -> &'static [AudioBackend] {
+    &[]
+}
+
+/// Return whether one host backend is available for unsupported targets.
+pub(crate) fn backend_supported(_backend: AudioBackend) -> bool {
+    false
+}
+
+/// Return whether one host backend supports stream creation on unsupported targets.
+pub(crate) fn backend_stream_supported(_backend: AudioBackend) -> bool {
+    false
+}
+
+/// Enumerate host devices for unsupported targets.
+pub(crate) fn enumerate_host_devices(
+    backend: AudioBackend,
+) -> RuntimeResult<Vec<audio_core::HostDeviceDescriptor>> {
+    let _ = backend;
+    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.device.list")).boxed())
+}
+
 /// Read one timestamp in one selected clock domain.
 ///
 /// Read one clock timestamp for the selected domain.
@@ -24,7 +47,9 @@ use crate::platform::resource;
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-clock or runtime-clock query APIs.
+/// Mirrors PortAudio `Pa_GetStreamTime` monotonic stream-time semantics.
+/// Mirrors cubeb stream and latency clock snapshot semantics.
+/// Mirrors host monotonic and wall clock query semantics.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -54,7 +79,9 @@ pub(crate) unsafe fn destack_audio_clock_now(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-position and clock correlation APIs.
+/// Mirrors PortAudio `PaStreamCallbackTimeInfo` input and output timestamp correlation.
+/// Mirrors ASIO `bufferSwitchTimeInfo` and time-info correlation semantics.
+/// Mirrors cubeb `cubeb_stream_get_position` plus latency-correlation snapshots.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -85,7 +112,7 @@ pub(crate) unsafe fn destack_audio_stream_clock(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES endpoint close operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available endpoint close operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -106,12 +133,13 @@ pub(crate) unsafe fn destack_audio_device_close(
 
 /// Read one default device identifier for the selected direction.
 ///
-/// Resolve one default host audio endpoint for the selected direction.
+/// Resolve one default host audio endpoint for the selected direction and backend policy.
 /// Default selection can change asynchronously as host policy changes.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES default-endpoint query APIs.
+/// Mirrors cubeb and libsoundio default-endpoint query semantics.
+/// Mirrors SDL default logical-device routing behavior for playback and recording defaults.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -141,7 +169,7 @@ pub(crate) unsafe fn destack_audio_device_default(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES endpoint information query APIs.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available endpoint information query APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -171,7 +199,7 @@ pub(crate) unsafe fn destack_audio_device_descriptor(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES device enumeration.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available device enumeration.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -196,12 +224,12 @@ pub(crate) unsafe fn destack_audio_device_list(
 
 /// Open one audio device endpoint.
 ///
-/// Open one host audio endpoint for playback, capture, or duplex operation.
+/// Open one host audio endpoint for playback, capture, duplex, or loopback operation.
 /// Handle lifetime and exclusivity semantics follow host backend rules.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES endpoint open operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available endpoint open operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -225,14 +253,14 @@ pub(crate) unsafe fn destack_audio_device_open(
     Err(RuntimeError::from(PlatformError::not_supported("destack.audio.device.open")).boxed())
 }
 
-/// Close one audio device event subscription.
+/// Close one audio event subscription.
 ///
 /// Close one event subscription and release backend notification resources.
 /// Pending events are discarded.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES notification unregistration APIs.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available notification unregistration APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -251,14 +279,16 @@ pub(crate) unsafe fn destack_audio_event_close(
     Err(RuntimeError::from(PlatformError::not_supported("destack.audio.event.close")).boxed())
 }
 
-/// Open one audio device event subscription.
+/// Open one audio event subscription.
 ///
-/// Open one backend event subscription for hotplug and default-route changes.
+/// Open one backend event subscription for device and optional stream events.
 /// Subscription routing and queue depth follow host backend behavior.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES device-notification registration APIs.
+/// Mirrors cubeb device and stream change callbacks.
+/// Mirrors libsoundio device-change and backend-disconnect callback families.
+/// Mirrors miniaudio `ma_device_notification_proc` notification routing.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -280,14 +310,14 @@ pub(crate) unsafe fn destack_audio_event_open(
     Err(RuntimeError::from(PlatformError::not_supported("destack.audio.event.open")).boxed())
 }
 
-/// Wait for one audio device event.
+/// Wait for one audio event.
 ///
-/// Wait for one pending device event from one subscription queue.
+/// Wait for one pending event from one subscription queue.
 /// Timeout uses nanoseconds in the runtime monotonic domain.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES event wait or callback-queue drain operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available event wait or callback-queue drain operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -311,14 +341,14 @@ pub(crate) unsafe fn destack_audio_event_read(
     Err(RuntimeError::from(PlatformError::not_supported("destack.audio.event.read")).boxed())
 }
 
-/// Poll one audio device event without blocking.
+/// Poll one audio event without blocking.
 ///
-/// Poll one pending device event from one subscription queue.
+/// Poll one pending event from one subscription queue.
 /// Empty queue state is reported through ioWouldBlock.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES nonblocking event queue reads.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available nonblocking event queue reads.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -348,7 +378,7 @@ pub(crate) unsafe fn destack_audio_event_try_read(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-space query operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream-space query operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -381,7 +411,7 @@ pub(crate) unsafe fn destack_audio_stream_availability(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream close operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream close operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -407,7 +437,7 @@ pub(crate) unsafe fn destack_audio_stream_close(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES drain or synchronized-stop operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available drain or synchronized-stop operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -434,7 +464,7 @@ pub(crate) unsafe fn destack_audio_stream_drain(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream flush or reset operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream flush or reset operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -460,7 +490,7 @@ pub(crate) unsafe fn destack_audio_stream_flush(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-parameter query operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream-parameter query operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -490,7 +520,7 @@ pub(crate) unsafe fn destack_audio_stream_snapshot(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream creation APIs.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream creation APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -521,7 +551,7 @@ pub(crate) unsafe fn destack_audio_stream_open(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream read or capture-client operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream read or capture-client operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -552,7 +582,7 @@ pub(crate) unsafe fn destack_audio_stream_read(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream mute controls when available.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream mute controls when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -579,7 +609,7 @@ pub(crate) unsafe fn destack_audio_stream_set_mute(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream volume controls when available.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream volume controls when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -609,7 +639,7 @@ pub(crate) unsafe fn destack_audio_stream_set_volume(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream start operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream start operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -635,7 +665,7 @@ pub(crate) unsafe fn destack_audio_stream_start(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream query primitives.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream query primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -665,7 +695,7 @@ pub(crate) unsafe fn destack_audio_stream_state(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream stop operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream stop operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -691,7 +721,7 @@ pub(crate) unsafe fn destack_audio_stream_stop(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-clock query operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream-clock query operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -721,7 +751,7 @@ pub(crate) unsafe fn destack_audio_stream_timing(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES nonblocking stream read operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available nonblocking stream read operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -752,7 +782,7 @@ pub(crate) unsafe fn destack_audio_stream_try_read(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES nonblocking stream write operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available nonblocking stream write operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -786,7 +816,7 @@ pub(crate) unsafe fn destack_audio_stream_try_write(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream write or render-client operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream write or render-client operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -818,7 +848,7 @@ pub(crate) unsafe fn destack_audio_stream_write(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES scheduled-render operations when available.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available scheduled-render operations when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.

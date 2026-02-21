@@ -52,6 +52,7 @@ fn resource_kind_label(kind: ResourceKind) -> &'static str {
         ResourceKind::MessageQueue => "message_queue",
         ResourceKind::AudioDevice => "audio_device",
         ResourceKind::AudioStream => "audio_stream",
+        ResourceKind::AudioEvent => "audio_event",
         ResourceKind::Display => "display",
         ResourceKind::Window => "window",
         ResourceKind::Input => "input",
