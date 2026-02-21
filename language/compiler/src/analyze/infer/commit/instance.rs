@@ -1,4 +1,4 @@
-use crate::analyze::common::StaticSubstitutionEnvironment;
+use crate::analyze::StaticSubstitutionEnvironment;
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, GlobalNodeIdAny, GlobalSymbolId, InferTable, Instance, InstanceCommitObligation,
