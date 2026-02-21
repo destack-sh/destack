@@ -8,10 +8,170 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
-    audio as platform_audio,
+    audio as platform_audio, resource, resource as platform_resource,
 };
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+
+/// ABI newtype for AudioBackendCapabilityFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AudioBackendCapabilityFlags(
+    /// Inner value.
+    pub u64,
+);
+
+pub type AudioBackendCapabilityFlagsVm = AudioBackendCapabilityFlags;
+
+impl VmValueCodec for AudioBackendCapabilityFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u64 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u64 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for AudioBackendOpenFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AudioBackendOpenFlags(
+    /// Inner value.
+    pub u64,
+);
+
+pub type AudioBackendOpenFlagsVm = AudioBackendOpenFlags;
+
+impl VmValueCodec for AudioBackendOpenFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u64 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u64 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for AudioDeviceCapabilityFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AudioDeviceCapabilityFlags(
+    /// Inner value.
+    pub u64,
+);
+
+pub type AudioDeviceCapabilityFlagsVm = AudioDeviceCapabilityFlags;
+
+impl VmValueCodec for AudioDeviceCapabilityFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u64 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u64 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for AudioDeviceListFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AudioDeviceListFlags(
+    /// Inner value.
+    pub u32,
+);
+
+pub type AudioDeviceListFlagsVm = AudioDeviceListFlags;
+
+impl VmValueCodec for AudioDeviceListFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for AudioDeviceOpenFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AudioDeviceOpenFlags(
+    /// Inner value.
+    pub u32,
+);
+
+pub type AudioDeviceOpenFlagsVm = AudioDeviceOpenFlags;
+
+impl VmValueCodec for AudioDeviceOpenFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for AudioEventSubscriptionFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AudioEventSubscriptionFlags(
+    /// Inner value.
+    pub u32,
+);
+
+pub type AudioEventSubscriptionFlagsVm = AudioEventSubscriptionFlags;
+
+impl VmValueCodec for AudioEventSubscriptionFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for AudioStreamFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AudioStreamFlags(
+    /// Inner value.
+    pub u32,
+);
+
+pub type AudioStreamFlagsVm = AudioStreamFlags;
+
+impl VmValueCodec for AudioStreamFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for AudioStreamStatusFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AudioStreamStatusFlags(
+    /// Inner value.
+    pub u32,
+);
+
+pub type AudioStreamStatusFlagsVm = AudioStreamStatusFlags;
+
+impl VmValueCodec for AudioStreamStatusFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
 
 /// ABI enum for AudioBackend.
 #[repr(u8)]
@@ -33,6 +193,10 @@ pub enum AudioBackend {
     AAudio = 6,
     /// OpenSLES.
     OpenSLES = 7,
+    /// Jack.
+    Jack = 8,
+    /// Asio.
+    Asio = 9,
     /// Null.
     Null = 255,
 }
@@ -49,11 +213,45 @@ impl VmValueCodec for AudioBackend {
             5u8 => Self::Wasapi,
             6u8 => Self::AAudio,
             7u8 => Self::OpenSLES,
+            8u8 => Self::Jack,
+            9u8 => Self::Asio,
             255u8 => Self::Null,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
                     "unknown AudioBackend value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for AudioBackendSelectionPolicy.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AudioBackendSelectionPolicy {
+    /// Strict.
+    Strict = 1,
+    /// AllowFallback.
+    AllowFallback = 2,
+}
+
+impl VmValueCodec for AudioBackendSelectionPolicy {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Strict,
+            2u8 => Self::AllowFallback,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown AudioBackendSelectionPolicy value",
                 ))
                 .boxed());
             }
@@ -78,10 +276,14 @@ pub enum AudioChannelLayout {
     Stereo = 2,
     /// Quad.
     Quad = 3,
+    /// Surround41.
+    Surround41 = 4,
     /// Surround51.
-    Surround51 = 4,
+    Surround51 = 5,
+    /// Surround61.
+    Surround61 = 6,
     /// Surround71.
-    Surround71 = 5,
+    Surround71 = 7,
     /// Custom.
     Custom = 255,
 }
@@ -94,8 +296,10 @@ impl VmValueCodec for AudioChannelLayout {
             1u8 => Self::Mono,
             2u8 => Self::Stereo,
             3u8 => Self::Quad,
-            4u8 => Self::Surround51,
-            5u8 => Self::Surround71,
+            4u8 => Self::Surround41,
+            5u8 => Self::Surround51,
+            6u8 => Self::Surround61,
+            7u8 => Self::Surround71,
             255u8 => Self::Custom,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
@@ -158,6 +362,8 @@ pub enum AudioDeviceDirection {
     Capture = 2,
     /// Duplex.
     Duplex = 3,
+    /// Loopback.
+    Loopback = 4,
 }
 
 impl VmValueCodec for AudioDeviceDirection {
@@ -167,6 +373,7 @@ impl VmValueCodec for AudioDeviceDirection {
             1u8 => Self::Playback,
             2u8 => Self::Capture,
             3u8 => Self::Duplex,
+            4u8 => Self::Loopback,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -183,10 +390,10 @@ impl VmValueCodec for AudioDeviceDirection {
     }
 }
 
-/// ABI enum for AudioDeviceEventKind.
+/// ABI enum for AudioEventKind.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum AudioDeviceEventKind {
+pub enum AudioEventKind {
     /// DeviceAdded.
     DeviceAdded = 1,
     /// DeviceRemoved.
@@ -195,13 +402,29 @@ pub enum AudioDeviceEventKind {
     DefaultPlaybackChanged = 3,
     /// DefaultCaptureChanged.
     DefaultCaptureChanged = 4,
+    /// DefaultLoopbackChanged.
+    DefaultLoopbackChanged = 5,
     /// DeviceFormatChanged.
-    DeviceFormatChanged = 5,
+    DeviceFormatChanged = 6,
+    /// DeviceRerouted.
+    DeviceRerouted = 7,
+    /// InterruptionBegan.
+    InterruptionBegan = 8,
+    /// InterruptionEnded.
+    InterruptionEnded = 9,
+    /// BackendDisconnected.
+    BackendDisconnected = 10,
+    /// StreamXRun.
+    StreamXRun = 11,
+    /// StreamDeviceChanged.
+    StreamDeviceChanged = 12,
+    /// StreamStateChanged.
+    StreamStateChanged = 13,
     /// BackendReset.
-    BackendReset = 6,
+    BackendReset = 14,
 }
 
-impl VmValueCodec for AudioDeviceEventKind {
+impl VmValueCodec for AudioEventKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
@@ -209,12 +432,20 @@ impl VmValueCodec for AudioDeviceEventKind {
             2u8 => Self::DeviceRemoved,
             3u8 => Self::DefaultPlaybackChanged,
             4u8 => Self::DefaultCaptureChanged,
-            5u8 => Self::DeviceFormatChanged,
-            6u8 => Self::BackendReset,
+            5u8 => Self::DefaultLoopbackChanged,
+            6u8 => Self::DeviceFormatChanged,
+            7u8 => Self::DeviceRerouted,
+            8u8 => Self::InterruptionBegan,
+            9u8 => Self::InterruptionEnded,
+            10u8 => Self::BackendDisconnected,
+            11u8 => Self::StreamXRun,
+            12u8 => Self::StreamDeviceChanged,
+            13u8 => Self::StreamStateChanged,
+            14u8 => Self::BackendReset,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
-                    "unknown AudioDeviceEventKind value",
+                    "unknown AudioEventKind value",
                 ))
                 .boxed());
             }
@@ -303,6 +534,50 @@ impl VmValueCodec for AudioShareMode {
     }
 }
 
+/// ABI enum for AudioStreamClockDomain.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AudioStreamClockDomain {
+    /// Monotonic.
+    Monotonic = 1,
+    /// Wall.
+    Wall = 2,
+    /// Device.
+    Device = 3,
+    /// Callback.
+    Callback = 4,
+    /// InputAdc.
+    InputAdc = 5,
+    /// OutputDac.
+    OutputDac = 6,
+}
+
+impl VmValueCodec for AudioStreamClockDomain {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Monotonic,
+            2u8 => Self::Wall,
+            3u8 => Self::Device,
+            4u8 => Self::Callback,
+            5u8 => Self::InputAdc,
+            6u8 => Self::OutputDac,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown AudioStreamClockDomain value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
 /// ABI enum for AudioStreamStateKind.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -313,12 +588,20 @@ pub enum AudioStreamStateKind {
     Starting = 2,
     /// Running.
     Running = 3,
+    /// Paused.
+    Paused = 4,
+    /// Draining.
+    Draining = 5,
     /// Stopping.
-    Stopping = 4,
+    Stopping = 6,
     /// XRun.
-    XRun = 5,
+    XRun = 7,
     /// DeviceLost.
-    DeviceLost = 6,
+    DeviceLost = 8,
+    /// BackendDisconnected.
+    BackendDisconnected = 9,
+    /// Interrupted.
+    Interrupted = 10,
 }
 
 impl VmValueCodec for AudioStreamStateKind {
@@ -328,9 +611,13 @@ impl VmValueCodec for AudioStreamStateKind {
             1u8 => Self::Stopped,
             2u8 => Self::Starting,
             3u8 => Self::Running,
-            4u8 => Self::Stopping,
-            5u8 => Self::XRun,
-            6u8 => Self::DeviceLost,
+            4u8 => Self::Paused,
+            5u8 => Self::Draining,
+            6u8 => Self::Stopping,
+            7u8 => Self::XRun,
+            8u8 => Self::DeviceLost,
+            9u8 => Self::BackendDisconnected,
+            10u8 => Self::Interrupted,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -376,6 +663,104 @@ impl VmValueCodec for AudioStreamTransferMode {
     }
 }
 
+/// ABI struct for AudioBackendDescriptor.
+#[repr(C)]
+pub struct AudioBackendDescriptorAbi<A: BindingAbi> {
+    /// The backend field.
+    pub backend: AudioBackend,
+    /// The name field.
+    pub name: A::String,
+    /// The available field.
+    pub available: bool,
+    /// The priority field.
+    pub priority: u16,
+    /// The capability_flags field.
+    pub capability_flags: AudioBackendCapabilityFlags,
+}
+
+pub type AudioBackendDescriptor = AudioBackendDescriptorAbi<NativeAbi>;
+pub type AudioBackendDescriptorVm = AudioBackendDescriptorAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for AudioBackendDescriptorAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("AudioBackendDescriptorAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for AudioBackendDescriptorAbi<NativeAbi> {}
+impl Clone for AudioBackendDescriptorAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for AudioBackendDescriptorAbi<VmAbi> {}
+impl Clone for AudioBackendDescriptorAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for AudioBackendDescriptorAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "AudioBackendDescriptor",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_backend =
+            <AudioBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_available = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_priority = <u16 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_capability_flags =
+            <AudioBackendCapabilityFlags as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
+        Ok(Self {
+            backend: field_backend,
+            name: field_name,
+            available: field_available,
+            priority: field_priority,
+            capability_flags: field_capability_flags,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.available, context)?,
+            <u16 as VmAggregateCodec>::encode_with_context(self.priority, context)?,
+            <AudioBackendCapabilityFlags as VmAggregateCodec>::encode_with_context(
+                self.capability_flags,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for AudioClockSnapshot.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -384,6 +769,18 @@ pub struct AudioClockSnapshot {
     pub stream_frames: u64,
     /// The clock_ns field.
     pub clock_ns: u64,
+    /// The has_callback_ns field.
+    pub has_callback_ns: bool,
+    /// The callback_ns field.
+    pub callback_ns: u64,
+    /// The has_input_adc_ns field.
+    pub has_input_adc_ns: bool,
+    /// The input_adc_ns field.
+    pub input_adc_ns: u64,
+    /// The has_output_dac_ns field.
+    pub has_output_dac_ns: bool,
+    /// The output_dac_ns field.
+    pub output_dac_ns: u64,
     /// The monotonic_ns field.
     pub monotonic_ns: u64,
 }
@@ -405,20 +802,36 @@ impl VmAggregateCodec for AudioClockSnapshot {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 9 fields",
             ))
             .boxed());
         }
         let field_stream_frames =
             <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_clock_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_monotonic_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_has_callback_ns =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_callback_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_has_input_adc_ns =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_input_adc_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_has_output_dac_ns =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_output_dac_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_monotonic_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         Ok(Self {
             stream_frames: field_stream_frames,
             clock_ns: field_clock_ns,
+            has_callback_ns: field_has_callback_ns,
+            callback_ns: field_callback_ns,
+            has_input_adc_ns: field_has_input_adc_ns,
+            input_adc_ns: field_input_adc_ns,
+            has_output_dac_ns: field_has_output_dac_ns,
+            output_dac_ns: field_output_dac_ns,
             monotonic_ns: field_monotonic_ns,
         })
     }
@@ -430,6 +843,12 @@ impl VmAggregateCodec for AudioClockSnapshot {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.stream_frames, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.clock_ns, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.has_callback_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.callback_ns, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.has_input_adc_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.input_adc_ns, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.has_output_dac_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.output_dac_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.monotonic_ns, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -441,24 +860,36 @@ impl VmAggregateCodec for AudioClockSnapshot {
 pub struct AudioDeviceDescriptorAbi<A: BindingAbi> {
     /// The id field.
     pub id: A::String,
+    /// The group_id field.
+    pub group_id: A::String,
     /// The name field.
     pub name: A::String,
+    /// The transport field.
+    pub transport: A::String,
     /// The backend field.
     pub backend: AudioBackend,
     /// The direction field.
     pub direction: AudioDeviceDirection,
     /// The connected field.
     pub connected: bool,
+    /// The is_raw field.
+    pub is_raw: bool,
     /// The is_default_playback field.
     pub is_default_playback: bool,
     /// The is_default_capture field.
     pub is_default_capture: bool,
+    /// The is_default_loopback field.
+    pub is_default_loopback: bool,
+    /// The capability_flags field.
+    pub capability_flags: AudioDeviceCapabilityFlags,
     /// The preferred_sample_rate field.
     pub preferred_sample_rate: u32,
     /// The min_sample_rate field.
     pub min_sample_rate: u32,
     /// The max_sample_rate field.
     pub max_sample_rate: u32,
+    /// The preferred_period_frames field.
+    pub preferred_period_frames: u32,
     /// The min_channels field.
     pub min_channels: u16,
     /// The max_channels field.
@@ -475,6 +906,8 @@ pub struct AudioDeviceDescriptorAbi<A: BindingAbi> {
     pub max_period_frames: u32,
     /// The format_mask field.
     pub format_mask: u32,
+    /// The share_mode_mask field.
+    pub share_mode_mask: u32,
 }
 
 pub type AudioDeviceDescriptor = AudioDeviceDescriptorAbi<NativeAbi>;
@@ -516,58 +949,79 @@ impl VmAggregateCodec for AudioDeviceDescriptorAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 18 {
+        if slots.len() != 25 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 18 fields",
+                "expected 25 fields",
             ))
             .boxed());
         }
         let field_id =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_name =
+        let field_group_id =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_transport =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_backend =
-            <AudioBackend as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <AudioBackend as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_direction =
-            <AudioDeviceDirection as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <AudioDeviceDirection as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_is_raw = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         let field_is_default_playback =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         let field_is_default_capture =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_is_default_loopback =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_capability_flags =
+            <AudioDeviceCapabilityFlags as VmAggregateCodec>::decode_with_context(
+                context, slots[11],
+            )?;
         let field_preferred_sample_rate =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
         let field_min_sample_rate =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
         let field_max_sample_rate =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_min_channels =
-            <u16 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_max_channels =
-            <u16 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
-        let field_preferred_layout =
-            <AudioChannelLayout as VmAggregateCodec>::decode_with_context(context, slots[12])?;
-        let field_preferred_channel_mask =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
-        let field_supported_channel_mask =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[14])?;
-        let field_min_period_frames =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+        let field_preferred_period_frames =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+        let field_min_channels =
+            <u16 as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+        let field_max_channels =
+            <u16 as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+        let field_preferred_layout =
+            <AudioChannelLayout as VmAggregateCodec>::decode_with_context(context, slots[18])?;
+        let field_preferred_channel_mask =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[19])?;
+        let field_supported_channel_mask =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[20])?;
+        let field_min_period_frames =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[21])?;
         let field_max_period_frames =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[16])?;
-        let field_format_mask = <u32 as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[22])?;
+        let field_format_mask = <u32 as VmAggregateCodec>::decode_with_context(context, slots[23])?;
+        let field_share_mode_mask =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[24])?;
         Ok(Self {
             id: field_id,
+            group_id: field_group_id,
             name: field_name,
+            transport: field_transport,
             backend: field_backend,
             direction: field_direction,
             connected: field_connected,
+            is_raw: field_is_raw,
             is_default_playback: field_is_default_playback,
             is_default_capture: field_is_default_capture,
+            is_default_loopback: field_is_default_loopback,
+            capability_flags: field_capability_flags,
             preferred_sample_rate: field_preferred_sample_rate,
             min_sample_rate: field_min_sample_rate,
             max_sample_rate: field_max_sample_rate,
+            preferred_period_frames: field_preferred_period_frames,
             min_channels: field_min_channels,
             max_channels: field_max_channels,
             preferred_layout: field_preferred_layout,
@@ -576,6 +1030,7 @@ impl VmAggregateCodec for AudioDeviceDescriptorAbi<VmAbi> {
             min_period_frames: field_min_period_frames,
             max_period_frames: field_max_period_frames,
             format_mask: field_format_mask,
+            share_mode_mask: field_share_mode_mask,
         })
     }
 
@@ -585,18 +1040,27 @@ impl VmAggregateCodec for AudioDeviceDescriptorAbi<VmAbi> {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.group_id, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.transport, context)?,
             <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <AudioDeviceDirection as VmAggregateCodec>::encode_with_context(
                 self.direction,
                 context,
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_raw, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.is_default_playback, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.is_default_capture, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_default_loopback, context)?,
+            <AudioDeviceCapabilityFlags as VmAggregateCodec>::encode_with_context(
+                self.capability_flags,
+                context,
+            )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.preferred_sample_rate, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.min_sample_rate, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.max_sample_rate, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.preferred_period_frames, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.min_channels, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.max_channels, context)?,
             <AudioChannelLayout as VmAggregateCodec>::encode_with_context(
@@ -608,93 +1072,7 @@ impl VmAggregateCodec for AudioDeviceDescriptorAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.min_period_frames, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.max_period_frames, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.format_mask, context)?,
-        ];
-        Ok(context.allocate_aggregate(slots))
-    }
-}
-
-/// ABI struct for AudioDeviceEvent.
-#[repr(C)]
-pub struct AudioDeviceEventAbi<A: BindingAbi> {
-    /// The kind field.
-    pub kind: AudioDeviceEventKind,
-    /// The timestamp_ns field.
-    pub timestamp_ns: u64,
-    /// The device_id field.
-    pub device_id: A::String,
-    /// The flags field.
-    pub flags: u32,
-}
-
-pub type AudioDeviceEvent = AudioDeviceEventAbi<NativeAbi>;
-pub type AudioDeviceEventVm = AudioDeviceEventAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for AudioDeviceEventAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("AudioDeviceEventAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for AudioDeviceEventAbi<NativeAbi> {}
-impl Clone for AudioDeviceEventAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for AudioDeviceEventAbi<VmAbi> {}
-impl Clone for AudioDeviceEventAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for AudioDeviceEventAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "AudioDeviceEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let field_kind =
-            <AudioDeviceEventKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_device_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        Ok(Self {
-            kind: field_kind,
-            timestamp_ns: field_timestamp_ns,
-            device_id: field_device_id,
-            flags: field_flags,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <AudioDeviceEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.share_mode_mask, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -708,10 +1086,10 @@ pub struct AudioDeviceListRequest {
     pub direction: AudioDeviceDirection,
     /// The backend field.
     pub backend: AudioBackend,
-    /// The include_disconnected field.
-    pub include_disconnected: bool,
+    /// The backend_policy field.
+    pub backend_policy: AudioBackendSelectionPolicy,
     /// The flags field.
-    pub flags: u32,
+    pub flags: AudioDeviceListFlags,
 }
 
 pub type AudioDeviceListRequestVm = AudioDeviceListRequest;
@@ -742,13 +1120,16 @@ impl VmAggregateCodec for AudioDeviceListRequest {
             <AudioDeviceDirection as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_backend =
             <AudioBackend as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_include_disconnected =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_backend_policy =
+            <AudioBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        let field_flags =
+            <AudioDeviceListFlags as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             direction: field_direction,
             backend: field_backend,
-            include_disconnected: field_include_disconnected,
+            backend_policy: field_backend_policy,
             flags: field_flags,
         })
     }
@@ -763,8 +1144,11 @@ impl VmAggregateCodec for AudioDeviceListRequest {
                 context,
             )?,
             <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.include_disconnected, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+            <AudioBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+                self.backend_policy,
+                context,
+            )?,
+            <AudioDeviceListFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -772,21 +1156,48 @@ impl VmAggregateCodec for AudioDeviceListRequest {
 
 /// ABI struct for AudioDeviceOpenOptions.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct AudioDeviceOpenOptions {
+pub struct AudioDeviceOpenOptionsAbi<A: BindingAbi> {
     /// The direction field.
     pub direction: AudioDeviceDirection,
     /// The backend field.
     pub backend: AudioBackend,
+    /// The backend_policy field.
+    pub backend_policy: AudioBackendSelectionPolicy,
     /// The share_mode field.
     pub share_mode: AudioShareMode,
     /// The flags field.
-    pub flags: u32,
+    pub flags: AudioDeviceOpenFlags,
+    /// The backend_flags field.
+    pub backend_flags: AudioBackendOpenFlags,
+    /// The backend_hint field.
+    pub backend_hint: A::String,
 }
 
-pub type AudioDeviceOpenOptionsVm = AudioDeviceOpenOptions;
+pub type AudioDeviceOpenOptions = AudioDeviceOpenOptionsAbi<NativeAbi>;
+pub type AudioDeviceOpenOptionsVm = AudioDeviceOpenOptionsAbi<VmAbi>;
 
-impl VmAggregateCodec for AudioDeviceOpenOptions {
+impl<A: BindingAbi> std::fmt::Debug for AudioDeviceOpenOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("AudioDeviceOpenOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for AudioDeviceOpenOptionsAbi<NativeAbi> {}
+impl Clone for AudioDeviceOpenOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for AudioDeviceOpenOptionsAbi<VmAbi> {}
+impl Clone for AudioDeviceOpenOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for AudioDeviceOpenOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -801,10 +1212,10 @@ impl VmAggregateCodec for AudioDeviceOpenOptions {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 7 fields",
             ))
             .boxed());
         }
@@ -812,14 +1223,26 @@ impl VmAggregateCodec for AudioDeviceOpenOptions {
             <AudioDeviceDirection as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_backend =
             <AudioBackend as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_backend_policy =
+            <AudioBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
         let field_share_mode =
-            <AudioShareMode as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <AudioShareMode as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_flags =
+            <AudioDeviceOpenFlags as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_backend_flags =
+            <AudioBackendOpenFlags as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_backend_hint =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         Ok(Self {
             direction: field_direction,
             backend: field_backend,
+            backend_policy: field_backend_policy,
             share_mode: field_share_mode,
             flags: field_flags,
+            backend_flags: field_backend_flags,
+            backend_hint: field_backend_hint,
         })
     }
 
@@ -833,8 +1256,246 @@ impl VmAggregateCodec for AudioDeviceOpenOptions {
                 context,
             )?,
             <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
+            <AudioBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+                self.backend_policy,
+                context,
+            )?,
             <AudioShareMode as VmAggregateCodec>::encode_with_context(self.share_mode, context)?,
+            <AudioDeviceOpenFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+            <AudioBackendOpenFlags as VmAggregateCodec>::encode_with_context(
+                self.backend_flags,
+                context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.backend_hint,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for AudioEvent.
+#[repr(C)]
+pub struct AudioEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: AudioEventKind,
+    /// The timestamp_ns field.
+    pub timestamp_ns: u64,
+    /// The backend field.
+    pub backend: AudioBackend,
+    /// The flags field.
+    pub flags: u32,
+    /// The status_flags field.
+    pub status_flags: AudioStreamStatusFlags,
+    /// The xrun_count_delta field.
+    pub xrun_count_delta: u64,
+    /// The has_device_id field.
+    pub has_device_id: bool,
+    /// The device_id field.
+    pub device_id: A::String,
+    /// The has_stream field.
+    pub has_stream: bool,
+    /// The stream field.
+    pub stream: resource::AudioStreamHandle,
+}
+
+pub type AudioEvent = AudioEventAbi<NativeAbi>;
+pub type AudioEventVm = AudioEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for AudioEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("AudioEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for AudioEventAbi<NativeAbi> {}
+impl Clone for AudioEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for AudioEventAbi<VmAbi> {}
+impl Clone for AudioEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for AudioEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "AudioEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 10 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 10 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <AudioEventKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_backend =
+            <AudioBackend as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_status_flags =
+            <AudioStreamStatusFlags as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_xrun_count_delta =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_has_device_id =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_device_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_has_stream = <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_stream = <resource::AudioStreamHandle as VmAggregateCodec>::decode_with_context(
+            context, slots[9],
+        )?;
+        Ok(Self {
+            kind: field_kind,
+            timestamp_ns: field_timestamp_ns,
+            backend: field_backend,
+            flags: field_flags,
+            status_flags: field_status_flags,
+            xrun_count_delta: field_xrun_count_delta,
+            has_device_id: field_has_device_id,
+            device_id: field_device_id,
+            has_stream: field_has_stream,
+            stream: field_stream,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <AudioEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+            <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+            <AudioStreamStatusFlags as VmAggregateCodec>::encode_with_context(
+                self.status_flags,
+                context,
+            )?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.xrun_count_delta, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.has_device_id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.has_stream, context)?,
+            <resource::AudioStreamHandle as VmAggregateCodec>::encode_with_context(
+                self.stream,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for AudioEventSubscriptionOptions.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct AudioEventSubscriptionOptions {
+    /// The backend field.
+    pub backend: AudioBackend,
+    /// The backend_policy field.
+    pub backend_policy: AudioBackendSelectionPolicy,
+    /// The flags field.
+    pub flags: AudioEventSubscriptionFlags,
+    /// The has_stream field.
+    pub has_stream: bool,
+    /// The stream field.
+    pub stream: resource::AudioStreamHandle,
+    /// The queue_capacity field.
+    pub queue_capacity: u32,
+    /// The poll_interval_ns field.
+    pub poll_interval_ns: u64,
+}
+
+pub type AudioEventSubscriptionOptionsVm = AudioEventSubscriptionOptions;
+
+impl VmAggregateCodec for AudioEventSubscriptionOptions {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "AudioEventSubscriptionOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_backend =
+            <AudioBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_policy =
+            <AudioBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_flags = <AudioEventSubscriptionFlags as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        let field_has_stream = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_stream = <resource::AudioStreamHandle as VmAggregateCodec>::decode_with_context(
+            context, slots[4],
+        )?;
+        let field_queue_capacity =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_poll_interval_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            backend: field_backend,
+            backend_policy: field_backend_policy,
+            flags: field_flags,
+            has_stream: field_has_stream,
+            stream: field_stream,
+            queue_capacity: field_queue_capacity,
+            poll_interval_ns: field_poll_interval_ns,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
+            <AudioBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+                self.backend_policy,
+                context,
+            )?,
+            <AudioEventSubscriptionFlags as VmAggregateCodec>::encode_with_context(
+                self.flags, context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.has_stream, context)?,
+            <resource::AudioStreamHandle as VmAggregateCodec>::encode_with_context(
+                self.stream,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.poll_interval_ns, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -848,6 +1509,10 @@ pub struct AudioStreamAvailability {
     pub readable_frames: u64,
     /// The writable_frames field.
     pub writable_frames: u64,
+    /// The min_transfer_frames field.
+    pub min_transfer_frames: u32,
+    /// The max_transfer_frames field.
+    pub max_transfer_frames: u32,
     /// The timestamp_ns field.
     pub timestamp_ns: u64,
 }
@@ -869,10 +1534,10 @@ impl VmAggregateCodec for AudioStreamAvailability {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
@@ -880,10 +1545,16 @@ impl VmAggregateCodec for AudioStreamAvailability {
             <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_writable_frames =
             <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_min_transfer_frames =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_max_transfer_frames =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             readable_frames: field_readable_frames,
             writable_frames: field_writable_frames,
+            min_transfer_frames: field_min_transfer_frames,
+            max_transfer_frames: field_max_transfer_frames,
             timestamp_ns: field_timestamp_ns,
         })
     }
@@ -895,6 +1566,8 @@ impl VmAggregateCodec for AudioStreamAvailability {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.readable_frames, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.writable_frames, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.min_transfer_frames, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_transfer_frames, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -920,7 +1593,7 @@ pub struct AudioStreamConfig {
     /// The transfer_mode field.
     pub transfer_mode: AudioStreamTransferMode,
     /// The flags field.
-    pub flags: u32,
+    pub flags: AudioStreamFlags,
 }
 
 pub type AudioStreamConfigVm = AudioStreamConfig;
@@ -958,7 +1631,8 @@ impl VmAggregateCodec for AudioStreamConfig {
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_transfer_mode =
             <AudioStreamTransferMode as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_flags =
+            <AudioStreamFlags as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         Ok(Self {
             sample_rate: field_sample_rate,
             channels: field_channels,
@@ -989,7 +1663,7 @@ impl VmAggregateCodec for AudioStreamConfig {
                 self.transfer_mode,
                 context,
             )?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+            <AudioStreamFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -998,6 +1672,12 @@ impl VmAggregateCodec for AudioStreamConfig {
 /// ABI struct for AudioStreamSnapshot.
 #[repr(C)]
 pub struct AudioStreamSnapshotAbi<A: BindingAbi> {
+    /// The backend field.
+    pub backend: AudioBackend,
+    /// The backend_id field.
+    pub backend_id: A::String,
+    /// The device_id field.
+    pub device_id: A::String,
     /// The sample_rate field.
     pub sample_rate: u32,
     /// The channels field.
@@ -1012,12 +1692,24 @@ pub struct AudioStreamSnapshotAbi<A: BindingAbi> {
     pub period_frames: u32,
     /// The transfer_mode field.
     pub transfer_mode: AudioStreamTransferMode,
-    /// The exclusive_mode field.
-    pub exclusive_mode: bool,
+    /// The share_mode field.
+    pub share_mode: AudioShareMode,
     /// The period_jitter_ns field.
     pub period_jitter_ns: u64,
-    /// The backend_id field.
-    pub backend_id: A::String,
+    /// The non_interleaved field.
+    pub non_interleaved: bool,
+    /// The supports_write_at field.
+    pub supports_write_at: bool,
+    /// The supports_pause field.
+    pub supports_pause: bool,
+    /// The supports_non_interleaved field.
+    pub supports_non_interleaved: bool,
+    /// The supports_volume field.
+    pub supports_volume: bool,
+    /// The supports_mute field.
+    pub supports_mute: bool,
+    /// The supports_hardware_timestamps field.
+    pub supports_hardware_timestamps: bool,
 }
 
 pub type AudioStreamSnapshot = AudioStreamSnapshotAbi<NativeAbi>;
@@ -1059,31 +1751,52 @@ impl VmAggregateCodec for AudioStreamSnapshotAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 10 {
+        if slots.len() != 19 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 10 fields",
+                "expected 19 fields",
             ))
             .boxed());
         }
-        let field_sample_rate = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_channels = <u16 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_channel_layout =
-            <AudioChannelLayout as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_channel_mask = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_format =
-            <AudioSampleFormat as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_period_frames =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_transfer_mode =
-            <AudioStreamTransferMode as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_exclusive_mode =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_period_jitter_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_backend =
+            <AudioBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_backend_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_device_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_sample_rate = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_channels = <u16 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_channel_layout =
+            <AudioChannelLayout as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_channel_mask = <u64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_format =
+            <AudioSampleFormat as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_period_frames =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_transfer_mode =
+            <AudioStreamTransferMode as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_share_mode =
+            <AudioShareMode as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_period_jitter_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_non_interleaved =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_supports_write_at =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+        let field_supports_pause =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+        let field_supports_non_interleaved =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+        let field_supports_volume =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+        let field_supports_mute =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+        let field_supports_hardware_timestamps =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[18])?;
         Ok(Self {
+            backend: field_backend,
+            backend_id: field_backend_id,
+            device_id: field_device_id,
             sample_rate: field_sample_rate,
             channels: field_channels,
             channel_layout: field_channel_layout,
@@ -1091,9 +1804,15 @@ impl VmAggregateCodec for AudioStreamSnapshotAbi<VmAbi> {
             format: field_format,
             period_frames: field_period_frames,
             transfer_mode: field_transfer_mode,
-            exclusive_mode: field_exclusive_mode,
+            share_mode: field_share_mode,
             period_jitter_ns: field_period_jitter_ns,
-            backend_id: field_backend_id,
+            non_interleaved: field_non_interleaved,
+            supports_write_at: field_supports_write_at,
+            supports_pause: field_supports_pause,
+            supports_non_interleaved: field_supports_non_interleaved,
+            supports_volume: field_supports_volume,
+            supports_mute: field_supports_mute,
+            supports_hardware_timestamps: field_supports_hardware_timestamps,
         })
     }
 
@@ -1102,6 +1821,9 @@ impl VmAggregateCodec for AudioStreamSnapshotAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.backend_id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.sample_rate, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.channels, context)?,
             <AudioChannelLayout as VmAggregateCodec>::encode_with_context(
@@ -1115,9 +1837,21 @@ impl VmAggregateCodec for AudioStreamSnapshotAbi<VmAbi> {
                 self.transfer_mode,
                 context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.exclusive_mode, context)?,
+            <AudioShareMode as VmAggregateCodec>::encode_with_context(self.share_mode, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.period_jitter_ns, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.backend_id, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.non_interleaved, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_write_at, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_pause, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.supports_non_interleaved,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_volume, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_mute, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.supports_hardware_timestamps,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1131,12 +1865,30 @@ pub struct AudioStreamState {
     pub state: AudioStreamStateKind,
     /// The running field.
     pub running: bool,
+    /// The paused field.
+    pub paused: bool,
     /// The buffered_frames field.
     pub buffered_frames: u64,
-    /// The latency_ns field.
-    pub latency_ns: u64,
+    /// The input_latency_ns field.
+    pub input_latency_ns: u64,
+    /// The output_latency_ns field.
+    pub output_latency_ns: u64,
+    /// The total_latency_ns field.
+    pub total_latency_ns: u64,
+    /// The status_flags field.
+    pub status_flags: AudioStreamStatusFlags,
     /// The xrun_count field.
     pub xrun_count: u64,
+    /// The input_underflow_count field.
+    pub input_underflow_count: u64,
+    /// The input_overflow_count field.
+    pub input_overflow_count: u64,
+    /// The output_underflow_count field.
+    pub output_underflow_count: u64,
+    /// The output_overflow_count field.
+    pub output_overflow_count: u64,
+    /// The callback_cpu_load field.
+    pub callback_cpu_load: f64,
 }
 
 pub type AudioStreamStateVm = AudioStreamState;
@@ -1156,26 +1908,53 @@ impl VmAggregateCodec for AudioStreamState {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        if slots.len() != 14 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 5 fields",
+                "expected 14 fields",
             ))
             .boxed());
         }
         let field_state =
             <AudioStreamStateKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_running = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_paused = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_buffered_frames =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_latency_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_xrun_count = <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_input_latency_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_output_latency_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_total_latency_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_status_flags =
+            <AudioStreamStatusFlags as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_xrun_count = <u64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_input_underflow_count =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_input_overflow_count =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_output_underflow_count =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_output_overflow_count =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_callback_cpu_load =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
         Ok(Self {
             state: field_state,
             running: field_running,
+            paused: field_paused,
             buffered_frames: field_buffered_frames,
-            latency_ns: field_latency_ns,
+            input_latency_ns: field_input_latency_ns,
+            output_latency_ns: field_output_latency_ns,
+            total_latency_ns: field_total_latency_ns,
+            status_flags: field_status_flags,
             xrun_count: field_xrun_count,
+            input_underflow_count: field_input_underflow_count,
+            input_overflow_count: field_input_overflow_count,
+            output_underflow_count: field_output_underflow_count,
+            output_overflow_count: field_output_overflow_count,
+            callback_cpu_load: field_callback_cpu_load,
         })
     }
 
@@ -1186,9 +1965,21 @@ impl VmAggregateCodec for AudioStreamState {
         let slots = vec![
             <AudioStreamStateKind as VmAggregateCodec>::encode_with_context(self.state, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.running, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.paused, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.buffered_frames, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.latency_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.input_latency_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.output_latency_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.total_latency_ns, context)?,
+            <AudioStreamStatusFlags as VmAggregateCodec>::encode_with_context(
+                self.status_flags,
+                context,
+            )?,
             <u64 as VmAggregateCodec>::encode_with_context(self.xrun_count, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.input_underflow_count, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.input_overflow_count, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.output_underflow_count, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.output_overflow_count, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.callback_cpu_load, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1200,12 +1991,26 @@ impl VmAggregateCodec for AudioStreamState {
 pub struct AudioStreamTiming {
     /// The stream_frames field.
     pub stream_frames: u64,
+    /// The stream_time_ns field.
+    pub stream_time_ns: u64,
+    /// The has_input_adc_time field.
+    pub has_input_adc_time: bool,
+    /// The input_adc_time_ns field.
+    pub input_adc_time_ns: u64,
+    /// The has_output_dac_time field.
+    pub has_output_dac_time: bool,
+    /// The output_dac_time_ns field.
+    pub output_dac_time_ns: u64,
+    /// The callback_time_ns field.
+    pub callback_time_ns: u64,
     /// The device_clock_ns field.
     pub device_clock_ns: u64,
     /// The monotonic_clock_ns field.
     pub monotonic_clock_ns: u64,
     /// The drift_ppm field.
     pub drift_ppm: f64,
+    /// The callback_cpu_load field.
+    pub callback_cpu_load: f64,
 }
 
 pub type AudioStreamTimingVm = AudioStreamTiming;
@@ -1225,25 +2030,46 @@ impl VmAggregateCodec for AudioStreamTiming {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 11 fields",
             ))
             .boxed());
         }
         let field_stream_frames =
             <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_device_clock_ns =
+        let field_stream_time_ns =
             <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_has_input_adc_time =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_input_adc_time_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_has_output_dac_time =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_output_dac_time_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_callback_time_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_device_clock_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         let field_monotonic_clock_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_drift_ppm = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_drift_ppm = <f64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_callback_cpu_load =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         Ok(Self {
             stream_frames: field_stream_frames,
+            stream_time_ns: field_stream_time_ns,
+            has_input_adc_time: field_has_input_adc_time,
+            input_adc_time_ns: field_input_adc_time_ns,
+            has_output_dac_time: field_has_output_dac_time,
+            output_dac_time_ns: field_output_dac_time_ns,
+            callback_time_ns: field_callback_time_ns,
             device_clock_ns: field_device_clock_ns,
             monotonic_clock_ns: field_monotonic_clock_ns,
             drift_ppm: field_drift_ppm,
+            callback_cpu_load: field_callback_cpu_load,
         })
     }
 
@@ -1253,12 +2079,34 @@ impl VmAggregateCodec for AudioStreamTiming {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.stream_frames, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.stream_time_ns, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.has_input_adc_time, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.input_adc_time_ns, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.has_output_dac_time, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.output_dac_time_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.callback_time_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.device_clock_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.monotonic_clock_ns, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.drift_ppm, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.callback_cpu_load, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
+}
+
+/// Replay struct for AudioBackendDescriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AudioBackendDescriptorReplayRecord {
+    /// The backend field.
+    pub backend: AudioBackend,
+    /// The name field.
+    pub name: String,
+    /// The available field.
+    pub available: bool,
+    /// The priority field.
+    pub priority: u16,
+    /// The capability_flags field.
+    pub capability_flags: AudioBackendCapabilityFlags,
 }
 
 /// Replay struct for AudioDeviceDescriptor.
@@ -1266,24 +2114,36 @@ impl VmAggregateCodec for AudioStreamTiming {
 pub struct AudioDeviceDescriptorReplayRecord {
     /// The id field.
     pub id: String,
+    /// The group_id field.
+    pub group_id: String,
     /// The name field.
     pub name: String,
+    /// The transport field.
+    pub transport: String,
     /// The backend field.
     pub backend: AudioBackend,
     /// The direction field.
     pub direction: AudioDeviceDirection,
     /// The connected field.
     pub connected: bool,
+    /// The is_raw field.
+    pub is_raw: bool,
     /// The is_default_playback field.
     pub is_default_playback: bool,
     /// The is_default_capture field.
     pub is_default_capture: bool,
+    /// The is_default_loopback field.
+    pub is_default_loopback: bool,
+    /// The capability_flags field.
+    pub capability_flags: AudioDeviceCapabilityFlags,
     /// The preferred_sample_rate field.
     pub preferred_sample_rate: u32,
     /// The min_sample_rate field.
     pub min_sample_rate: u32,
     /// The max_sample_rate field.
     pub max_sample_rate: u32,
+    /// The preferred_period_frames field.
+    pub preferred_period_frames: u32,
     /// The min_channels field.
     pub min_channels: u16,
     /// The max_channels field.
@@ -1300,24 +2160,63 @@ pub struct AudioDeviceDescriptorReplayRecord {
     pub max_period_frames: u32,
     /// The format_mask field.
     pub format_mask: u32,
+    /// The share_mode_mask field.
+    pub share_mode_mask: u32,
 }
 
-/// Replay struct for AudioDeviceEvent.
+/// Replay struct for AudioDeviceOpenOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudioDeviceEventReplayRecord {
+pub struct AudioDeviceOpenOptionsReplayRecord {
+    /// The direction field.
+    pub direction: AudioDeviceDirection,
+    /// The backend field.
+    pub backend: AudioBackend,
+    /// The backend_policy field.
+    pub backend_policy: AudioBackendSelectionPolicy,
+    /// The share_mode field.
+    pub share_mode: AudioShareMode,
+    /// The flags field.
+    pub flags: AudioDeviceOpenFlags,
+    /// The backend_flags field.
+    pub backend_flags: AudioBackendOpenFlags,
+    /// The backend_hint field.
+    pub backend_hint: String,
+}
+
+/// Replay struct for AudioEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AudioEventReplayRecord {
     /// The kind field.
-    pub kind: AudioDeviceEventKind,
+    pub kind: AudioEventKind,
     /// The timestamp_ns field.
     pub timestamp_ns: u64,
-    /// The device_id field.
-    pub device_id: String,
+    /// The backend field.
+    pub backend: AudioBackend,
     /// The flags field.
     pub flags: u32,
+    /// The status_flags field.
+    pub status_flags: AudioStreamStatusFlags,
+    /// The xrun_count_delta field.
+    pub xrun_count_delta: u64,
+    /// The has_device_id field.
+    pub has_device_id: bool,
+    /// The device_id field.
+    pub device_id: String,
+    /// The has_stream field.
+    pub has_stream: bool,
+    /// The stream field.
+    pub stream: resource::AudioStreamHandle,
 }
 
 /// Replay struct for AudioStreamSnapshot.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioStreamSnapshotReplayRecord {
+    /// The backend field.
+    pub backend: AudioBackend,
+    /// The backend_id field.
+    pub backend_id: String,
+    /// The device_id field.
+    pub device_id: String,
     /// The sample_rate field.
     pub sample_rate: u32,
     /// The channels field.
@@ -1332,10 +2231,22 @@ pub struct AudioStreamSnapshotReplayRecord {
     pub period_frames: u32,
     /// The transfer_mode field.
     pub transfer_mode: AudioStreamTransferMode,
-    /// The exclusive_mode field.
-    pub exclusive_mode: bool,
+    /// The share_mode field.
+    pub share_mode: AudioShareMode,
     /// The period_jitter_ns field.
     pub period_jitter_ns: u64,
-    /// The backend_id field.
-    pub backend_id: String,
+    /// The non_interleaved field.
+    pub non_interleaved: bool,
+    /// The supports_write_at field.
+    pub supports_write_at: bool,
+    /// The supports_pause field.
+    pub supports_pause: bool,
+    /// The supports_non_interleaved field.
+    pub supports_non_interleaved: bool,
+    /// The supports_volume field.
+    pub supports_volume: bool,
+    /// The supports_mute field.
+    pub supports_mute: bool,
+    /// The supports_hardware_timestamps field.
+    pub supports_hardware_timestamps: bool,
 }

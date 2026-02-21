@@ -102,6 +102,8 @@ pub enum ResourceKind {
     AudioDevice,
     /// Audio stream resources.
     AudioStream,
+    /// Audio event subscription resources.
+    AudioEvent,
     /// Display resources.
     Display,
     /// Window resources.

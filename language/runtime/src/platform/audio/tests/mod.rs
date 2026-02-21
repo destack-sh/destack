@@ -1,5 +1,13 @@
 #[cfg(any(unix, windows))]
-mod basic;
+mod clock;
+#[cfg(any(unix, windows))]
+mod core;
+#[cfg(any(unix, windows))]
+mod device;
+#[cfg(any(unix, windows))]
+mod event;
+#[cfg(any(unix, windows))]
+mod stream;
 #[cfg(any(unix, windows))]
 mod tests;
 

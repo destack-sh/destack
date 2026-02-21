@@ -2,12 +2,15 @@
 
 use destack_vm as vm;
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 
 #[path = "harness.generated.rs"]
 mod harness;
+pub(crate) use harness::HarnessValue;
 
 /// Test harness context used by tests.
 pub(crate) struct AudioHarnessContext<'call> {
@@ -113,4 +116,53 @@ where
     with_harnesses(|harness| {
         harness.run(&mut callback);
     });
+}
+
+/// Extract one platform error code from one failed result.
+pub(crate) fn error_code<T>(result: RuntimeResult<T>) -> RuntimeResult<PlatformErrorCode> {
+    match result {
+        Ok(_) => Err(
+            RuntimeError::from(PlatformError::invalid_argument("operation should fail")).boxed(),
+        ),
+        Err(error) => {
+            let platform = error.platform_error().ok_or_else(|| {
+                RuntimeError::from(PlatformError::invalid_argument(
+                    "missing platform error payload",
+                ))
+                .boxed()
+            })?;
+            Ok(platform.code)
+        }
+    }
+}
+
+/// Assert one failed result with one exact platform error code.
+pub(crate) fn assert_platform_error_code<T>(
+    result: RuntimeResult<T>,
+    expected: PlatformErrorCode,
+) -> RuntimeResult<()> {
+    let actual = error_code(result)?;
+    assert_eq!(actual, expected);
+    Ok(())
+}
+
+/// Assert one result is ok or fails with one expected platform error code.
+pub(crate) fn assert_ok_or_expected_error<T>(
+    result: RuntimeResult<T>,
+    expected: &[PlatformErrorCode],
+) -> RuntimeResult<Option<T>> {
+    match result {
+        Ok(value) => Ok(Some(value)),
+        Err(error) => {
+            let Some(code) = error.platform_error().map(|platform| platform.code) else {
+                return Err(error);
+            };
+
+            if expected.contains(&code) {
+                return Ok(None);
+            }
+
+            Err(error)
+        }
+    }
 }
