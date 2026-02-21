@@ -1,11 +1,12 @@
-mod associated;
 mod assign;
+mod associated;
 mod capture;
 mod common;
 mod declare;
 mod error;
 mod infer;
 mod interface;
+mod module;
 mod options;
 mod process;
 mod r#type;
@@ -22,6 +23,7 @@ pub(crate) use common::{
 };
 pub use error::*;
 pub use infer::*;
+pub(crate) use module::AnalyzeDependencyStage;
 pub use options::*;
 pub use process::*;
 pub use warning::*;

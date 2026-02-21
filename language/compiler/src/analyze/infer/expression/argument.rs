@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
     AnalyzeDependencyStage, CanonicalSymbolMode, ContextualTypingMode, MaterializationMode,
     REWRITER_TAG_STATIC_ARGUMENT, TypeRewriteCache, TypeWalkContext, rewrite_type_with_cache,
 };
-use crate::analyze::StaticMemberSymbolKind;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{

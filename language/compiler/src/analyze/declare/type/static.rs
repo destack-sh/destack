@@ -1,7 +1,7 @@
+use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
     AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode, TypeRewriteCache,
 };
-use crate::analyze::StaticMemberSymbolKind;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
 use destack_dir::{
