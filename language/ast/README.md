@@ -59,3 +59,21 @@ class MyVisitor implements NodeVisitor {
     }
 }
 ```
+
+## Testing
+
+Run these from the repository root.
+
+### Quick local loop
+
+```sh
+cargo test -p destack_ast
+cargo test -p destack_test --test smoke -- --parser
+```
+
+### Compatibility coverage
+
+```sh
+just language/install-conformance
+cargo test --release -p destack_test --test conformance
+```

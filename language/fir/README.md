@@ -110,3 +110,20 @@ It's also used by:
 - **Linter suggestions**: formatting suggested fixes
 
 Having one document model means consistent formatting behavior across all code output.
+
+## Testing
+
+Run these from the repository root.
+
+### Quick local loop
+
+```sh
+cargo test -p destack_fir
+```
+
+### Formatter integration coverage
+
+```sh
+just language/test-formatter
+just language/test-formatter-conformance
+```

@@ -140,3 +140,20 @@ Everything else is a library that the compiler doesn't need to know or assume an
 
 TypeScript lib sources are fetched with `language/builtin/fetch.py`.
 The pinned TypeScript version lives in `language/builtin/fetch.py` and should be updated manually.
+
+## Testing
+
+Run these from the repository root.
+
+### Quick local loop
+
+```sh
+cargo test -p destack_builtin
+```
+
+### Builtin integration coverage
+
+```sh
+just language/test-specification
+just language/test-query
+```

@@ -171,3 +171,28 @@ function process(data: &readonly Buffer, out: ^Result): &readonly Output {
     // ...
 }
 ```
+
+## Testing
+
+Run these from the repository root.
+
+### Quick local loop
+
+```sh
+cargo test -p destack_formatter
+just language/test-formatter
+```
+
+### Conformance coverage
+
+```sh
+just language/install-formatter-conformance
+just language/test-formatter-conformance
+```
+
+### Performance and fuzzing
+
+```sh
+just language/bench-formatter-stats "--help"
+just language/fuzz-formatter 300
+```

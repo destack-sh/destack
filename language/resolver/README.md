@@ -32,3 +32,20 @@ The resolver handles:
 - **Browser field**: substitutions for browser builds
 - **Aliases**: custom module aliases
 Resolver follows Node and TypeScript self reference semantics.
+
+## Testing
+
+Run these from the repository root.
+
+### Quick local loop
+
+```sh
+cargo test -p destack_resolver
+just language/test-resolver
+```
+
+### Workspace query coverage
+
+```sh
+just language/test-query
+```

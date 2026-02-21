@@ -407,3 +407,20 @@ newtype Linkage =
 
 Exported symbols get mangled names for linking.
 Imported symbols reference external definitions (FFI, other modules, runtime).
+
+## Testing
+
+Run these from the repository root.
+
+### Quick local loop
+
+```sh
+cargo test -p destack_mir
+```
+
+### VM and optimization coverage
+
+```sh
+cargo test -p destack_test --test optimize
+just language/test-codegen
+```

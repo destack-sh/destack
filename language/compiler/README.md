@@ -153,3 +153,28 @@ Task dependencies are recorded through `require_*` calls and resolved by the tas
 Incremental compilation reuses phase outputs keyed by some stable combination of file, module, profile, and target versions.
 Edits bump `FileVersion` and propagate to `ModuleVersion`.
 The compiler, daemon, and LSP share a single canonical cache format for all reusable artifacts.
+
+## Testing
+
+Run these from the repository root.
+
+### Quick local loop
+
+```sh
+cargo test -p destack_compiler
+cargo test -p destack_test --test smoke -- --compiler
+```
+
+### Language behavior coverage
+
+```sh
+just language/test-specification
+just language/test-conformance
+just language/test-codegen
+```
+
+### Query and incremental coverage
+
+```sh
+just language/test-query
+```
