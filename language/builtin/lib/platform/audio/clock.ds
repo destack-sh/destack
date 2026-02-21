@@ -11,12 +11,40 @@ export enum AudioClockDomain {
     Device = 3,
 }
 
+/// Stream clock domain selector.
+export enum AudioStreamClockDomain {
+    /// Runtime monotonic clock domain.
+    Monotonic = 1,
+    /// Host wall clock domain.
+    Wall = 2,
+    /// Host audio device clock domain.
+    Device = 3,
+    /// Stream callback clock domain.
+    Callback = 4,
+    /// Input ADC capture clock domain.
+    InputAdc = 5,
+    /// Output DAC presentation clock domain.
+    OutputDac = 6,
+}
+
 /// Audio clock snapshot.
 export struct AudioClockSnapshot {
     /// Stream position in frames.
     streamFrames: uint64;
     /// Selected clock timestamp in nanoseconds.
     clockNs: uint64;
+    /// Whether callback timestamp is available.
+    hasCallbackNs: boolean;
+    /// Callback timestamp in nanoseconds when available.
+    callbackNs: uint64;
+    /// Whether ADC capture timestamp is available.
+    hasInputAdcNs: boolean;
+    /// ADC capture timestamp in nanoseconds when available.
+    inputAdcNs: uint64;
+    /// Whether DAC presentation timestamp is available.
+    hasOutputDacNs: boolean;
+    /// DAC presentation timestamp in nanoseconds when available.
+    outputDacNs: uint64;
     /// Runtime monotonic timestamp in nanoseconds.
     monotonicNs: uint64;
 }
@@ -30,7 +58,9 @@ declare namespace audio {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-clock or runtime-clock query APIs.
+    /// Mirrors PortAudio `Pa_GetStreamTime` monotonic stream-time semantics.
+    /// Mirrors cubeb stream and latency clock snapshot semantics.
+    /// Mirrors host monotonic and wall clock query semantics.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -57,7 +87,9 @@ declare namespace audio {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-position and clock correlation APIs.
+    /// Mirrors PortAudio `PaStreamCallbackTimeInfo` input and output timestamp correlation.
+    /// Mirrors ASIO `bufferSwitchTimeInfo` and time-info correlation semantics.
+    /// Mirrors cubeb `cubeb_stream_get_position` plus latency-correlation snapshots.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -77,6 +109,6 @@ declare namespace audio {
     })
     export function streamClock(
         handle: AudioStreamHandle,
-        domain: AudioClockDomain,
+        domain: AudioStreamClockDomain,
     ): Result<AudioClockSnapshot, PlatformError>;
 }
